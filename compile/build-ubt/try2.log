@@ -1,0 +1,186 @@
+make[1]: Leaving directory '/tmp/tigervnc/unix/xserver/composite'
+Making all in exa
+make[1]: Entering directory '/tmp/tigervnc/unix/xserver/exa'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/tmp/tigervnc/unix/xserver/exa'
+Making all in config
+make[1]: Entering directory '/tmp/tigervnc/unix/xserver/config'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/tmp/tigervnc/unix/xserver/config'
+Making all in hw
+make[1]: Entering directory '/tmp/tigervnc/unix/xserver/hw'
+Making all in vnc
+make[2]: Entering directory '/tmp/tigervnc/unix/xserver/hw/vnc'
+  CC       Xvnc-miinitext.o
+  CXXLD    Xvnc
+/usr/bin/ld: ../../os/.libs/libos.a(access.o): in function `siLocalCredGetId':
+access.c:(.text+0x1663): warning: Using 'getgrnam' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: access.c:(.text+0x1659): warning: Using 'getpwnam' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: ../../os/.libs/libos.a(access.o): in function `GetLocalUserAddr':
+access.c:(.text+0x21e): warning: Using 'getpwuid' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(certs.o): in function `_gnutls_find_config_path':
+(.text+0x5c): warning: Using 'getpwuid_r' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: ../../os/.libs/libos.a(access.o): in function `ResetHosts':
+access.c:(.text+0x9e6): warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: ../../os/.libs/libos.a(xstrans.o): in function `_XSERVTransSocketINETCreateListener':
+xstrans.c:(.text+0x588): warning: Using 'getservbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/bin/ld: ../../os/.libs/libos.a(backtrace.o): in function `xorg_backtrace':
+backtrace.c:(.text+0x69): undefined reference to `dladdr'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(str-idna.o): in function `gnutls_idna_map':
+(.text+0xda): undefined reference to `idn2_to_ascii_8z'
+/usr/bin/ld: (.text+0xf8): undefined reference to `idn2_free'
+/usr/bin/ld: (.text+0x12d): undefined reference to `idn2_free'
+/usr/bin/ld: (.text+0x21e): undefined reference to `idn2_to_ascii_8z'
+/usr/bin/ld: (.text+0x254): undefined reference to `idn2_strerror'
+/usr/bin/ld: (.text+0x283): undefined reference to `idn2_strerror'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(str-idna.o): in function `gnutls_idna_reverse_map':
+(.text+0x3fe): undefined reference to `idn2_to_unicode_8z8z'
+/usr/bin/ld: (.text+0x445): undefined reference to `idn2_free'
+/usr/bin/ld: (.text+0x4e3): undefined reference to `idn2_strerror'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `_gnutls_pkcs11_reinit':
+(.text+0x50): undefined reference to `p11_kit_module_initialize'
+/usr/bin/ld: (.text+0x84): undefined reference to `p11_kit_strerror'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `add_obj_attrs':
+(.text+0xe1): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x10f): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x14a): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `find_flags_cb':
+(.text+0x24d): undefined reference to `p11_kit_uri_match_token_info'
+/usr/bin/ld: (.text+0x25c): undefined reference to `p11_kit_uri_match_module_info'
+/usr/bin/ld: (.text+0x269): undefined reference to `p11_kit_module_get_flags'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_obj_import':
+(.text+0x36c): undefined reference to `p11_kit_uri_set_attribute'
+/usr/bin/ld: (.text+0x395): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x42f): undefined reference to `p11_kit_uri_get_module_info'
+/usr/bin/ld: (.text+0x5b5): undefined reference to `p11_kit_uri_set_attribute'
+/usr/bin/ld: (.text+0x615): undefined reference to `p11_kit_uri_set_attribute'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_add_module':
+(.text+0x7af): undefined reference to `p11_kit_module_get_flags'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `auto_load':
+(.text+0x8e8): undefined reference to `p11_kit_modules_load_and_initialize'
+/usr/bin/ld: (.text+0x925): undefined reference to `p11_kit_module_get_name'
+/usr/bin/ld: (.text+0x9f1): undefined reference to `p11_kit_message'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `find_token_num_cb':
+(.text+0xa6c): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0xb09): undefined reference to `p11_kit_uri_get_module_info'
+/usr/bin/ld: /usr/lib/gcc/
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_add_provider':
+(.text+0x1c0c): undefined reference to `p11_kit_module_load'
+/usr/bin/ld: (.text+0x1c71): undefined reference to `p11_kit_module_release'
+/usr/bin/ld: (.text+0x1cb4): undefined reference to `p11_kit_module_release'
+/usr/bin/ld: (.text+0x1cf4): undefined reference to `p11_kit_module_initialize'
+/usr/bin/ld: (.text+0x1d04): undefined reference to `p11_kit_module_finalize'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_get_info':
+(.text+0x1ff9): undefined reference to `p11_kit_uri_get_module_info'
+/usr/bin/ld: (.text+0x2010): undefined reference to `p11_kit_space_strlen'
+/usr/bin/ld: (.text+0x2076): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x20c6): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x20f1): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x2121): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x2139): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x2151): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x216e): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x2191): undefined reference to `p11_kit_uri_get_module_info'
+/usr/bin/ld: (.text+0x21e1): undefined reference to `p11_kit_uri_get_module_info'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_init':
+(.text+0x22b0): undefined reference to `p11_kit_pin_file_callback'
+/usr/bin/ld: (.text+0x22ce): undefined reference to `p11_kit_pin_register_callback'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_deinit':
+(.text+0x26a4): undefined reference to `p11_kit_module_release'
+/usr/bin/ld: (.text+0x26c5): undefined reference to `p11_kit_module_finalize'
+/usr/bin/ld: (.text+0x26f8): undefined reference to `p11_kit_pin_file_callback'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_url_to_info':
+(.text+0x2783): undefined reference to `p11_kit_uri_parse'
+/usr/bin/ld: (.text+0x2809): undefined reference to `p11_kit_uri_set_attribute'
+/usr/bin/ld: (.text+0x2816): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: (.text+0x2830): undefined reference to `p11_kit_uri_parse'
+/usr/bin/ld: (.text+0x2843): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0x28ee): undefined reference to `p11_kit_uri_set_attribute'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_info_to_url':
+(.text+0x295e): undefined reference to `p11_kit_uri_format'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_obj_init':
+(.text+0x29ea): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_obj_deinit':
+(.text+0x2ae3): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_find_slot':
+(.text+0x2e63): undefined reference to `p11_
+/usr/bin/ld: (.text+0x49bd): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0x4a10): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_retrieve_pin':
+(.text+0x544f): undefined reference to `p11_kit_uri_get_pin_value'
+/usr/bin/ld: (.text+0x547d): undefined reference to `p11_kit_pin_new_for_string'
+/usr/bin/ld: (.text+0x54e9): undefined reference to `p11_kit_space_strdup'
+/usr/bin/ld: (.text+0x54fa): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: (.text+0x550e): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x55cb): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0x5657): undefined reference to `p11_kit_pin_new_for_string'
+/usr/bin/ld: (.text+0x56e4): undefined reference to `p11_kit_uri_get_pin_source'
+/usr/bin/ld: (.text+0x5714): undefined reference to `p11_kit_space_strdup'
+/usr/bin/ld: (.text+0x5725): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: (.text+0x573b): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x581b): undefined reference to `p11_kit_pin_request'
+/usr/bin/ld: (.text+0x582b): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_login':
+(.text+0x5c9f): undefined reference to `p11_kit_pin_get_length'
+/usr/bin/ld: (.text+0x5cb0): undefined reference to `p11_kit_pin_get_value'
+/usr/bin/ld: (.text+0x5cd1): undefined reference to `p11_kit_pin_unref'
+/usr/bin/ld: (.text+0x60df): undefined reference to `p11_kit_strerror'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `_pkcs11_traverse_tokens':
+(.text+0x6a1a): undefined reference to `p11_kit_uri_match_module_info'
+/usr/bin/ld: (.text+0x6ad7): undefined reference to `p11_kit_uri_match_token_info'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `_gnutls_pkcs11_token_get_url':
+(.text+0x7183): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: (.text+0x71be): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0x71f5): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_token_get_info':
+(.text+0x7342): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x7356): undefined reference to `p11_kit_space_strlen'
+/usr/bin/ld: (.text+0x739b): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0x740a): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x741d): undefined reference to `p11_kit_space_strlen'
+/usr/bin/ld: (.text+0x7446): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: (.text+0x7459): undefined reference to `p11_kit_uri_get_token_info'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_token_get_ptr':
+(.text+0x7649): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `pkcs11_call_token_func':
+
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_obj_list_import_url4':
+(.text+0x784e): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_token_get_flags':
+(.text+0x7d76): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_token_get_mechanism':
+(.text+0x7f37): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_token_check_mechanism':
+(.text+0x8143): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_get_raw_issuer':
+(.text+0x850b): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o):(.text+0x87bc): more undefined references to `p11_kit_uri_free' follow
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11.o): in function `gnutls_pkcs11_deinit':
+(.text+0x2722): undefined reference to `p11_kit_pin_unregister_callback'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11x.o): in function `find_ext_cb':
+(.text+0x4e): undefined reference to `p11_kit_uri_match_token_info'
+/usr/bin/ld: (.text+0x65): undefined reference to `p11_kit_uri_match_module_info'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_privkey.o): in function `find_object.constprop.0':
+(.text+0x41): undefined reference to `p11_kit_uri_get_attributes'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_privkey.o): in function `gnutls_pkcs11_privkey_init':
+(.text+0x2d8): undefined reference to `p11_kit_uri_new'
+/usr/bin/ld: (.text+0x32d): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_privkey.o): in function `gnutls_pkcs11_privkey_deinit':
+(.text+0x3bd): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_privkey.o): in function `gnutls_pkcs11_privkey_import_url':
+(.text+0xd1c): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0xd63): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0xdc9): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: (.text+0xe60): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: (.text+0xfa2): undefined reference to `p11_kit_uri_get_attribute'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_privkey.o): in function `gnutls_pkcs11_privkey_generate3':
+(.text+0x1c0d): undefined reference to `p11_kit_uri_free'
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/libgnutls.a(pkcs11_int.o): in function `pkcs11_strerror':
+(.text+0x485): undefined reference to `p11_kit_strerror'
+collect2: error: ld returned 1 exit status
+make[2]: *** [Makefile:850: Xvnc] Error 1
+make[2]: Leaving directory '/tmp/tigervnc/unix/xserver/hw/vnc'
+make[1]: *** [Makefile:625: all-recursive] Error 1
+make[1]: Leaving directory '/tmp/tigervnc/unix/xserver/hw'
+make: *** [Makefile:825: all-recursive] Error 1
+make: Leaving directory '/tmp/tigervnc/unix/xserver'
