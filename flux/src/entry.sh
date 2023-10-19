@@ -33,41 +33,41 @@ stdout_logfile_maxbytes = 50MB
 stdout_logfile_backups  = 10
 redirect_stderr=true
 
-[program:$xn-chansrv]
-environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-priority=36
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh chansrv $N
-stdout_logfile=$varlog/$xn-chansrv.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
+# [program:$xn-chansrv]
+# environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
+# priority=36
+# user=$user1
+# startretries=5
+# autorestart=true
+# command=/xvnc.sh chansrv $N
+# stdout_logfile=$varlog/$xn-chansrv.log
+# stdout_logfile_maxbytes = 50MB
+# stdout_logfile_backups  = 10
+# redirect_stderr=true
 
-[program:$xn-pulse]
-environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-priority=36
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh pulse $N
-stdout_logfile=$varlog/$xn-pulse.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
+# [program:$xn-pulse]
+# environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
+# priority=36
+# user=$user1
+# startretries=5
+# autorestart=true
+# command=/xvnc.sh pulse $N
+# stdout_logfile=$varlog/$xn-pulse.log
+# stdout_logfile_maxbytes = 50MB
+# stdout_logfile_backups  = 10
+# redirect_stderr=true
 
-[program:$xn-parec]
-environment=DISPLAY=:$N,HOME=/home/$user1,PORT_VNC=$PORT_VNC$env_dbus
-priority=37
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh parec $N
-stdout_logfile=$varlog/$xn-parec.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
+# [program:$xn-parec]
+# environment=DISPLAY=:$N,HOME=/home/$user1,PORT_VNC=$PORT_VNC$env_dbus
+# priority=37
+# user=$user1
+# startretries=5
+# autorestart=true
+# command=/xvnc.sh parec $N
+# stdout_logfile=$varlog/$xn-parec.log
+# stdout_logfile_maxbytes = 50MB
+# stdout_logfile_backups  = 10
+# redirect_stderr=true
     """ |sudo tee /etc/supervisor/conf.d/xvnc$N.conf > /dev/null 2>&1
 
     # SV: x$N-de.conf
@@ -220,4 +220,5 @@ cnt=0.1
 echo "sleep $cnt" && sleep $cnt;
 test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
 # supervisord -n> go-supervisord
-test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd
+exec supervisord -n
+# test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd

@@ -19,6 +19,7 @@
 	#[exec]   (♠ stTerm) {stterm} 
 	#[exec]   (♠ Run) {fbrun}
 	[exec] (● Sakura) {sakura}
+	[exec] (● St) {/usr/local/st/st}
 	[exec] (● Thunar) {thunar}
 	[exec] (● Geany) {geany}
 	[exec]   (♠ Ristretto) {ristretto} 
