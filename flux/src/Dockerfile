@@ -1,6 +1,9 @@
+ARG COMPILE_IMG=alpine-compile
 FROM infrastlabs/docker-headless:core-compile2 as bin
 # FROM infrastlabs/x11-base:rootfs as bin2
-FROM infrastlabs/x11-base:deb12-rootfs as bin2
+# FROM infrastlabs/x11-base:deb12-rootfs as bin2
+# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:alpine-compile-dbg as bin2
+FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as bin2
 FROM ubuntu:20.04 as files1
   COPY --from=bin /rootfs /rootfs/
   COPY --from=bin2 /rootfs /rootfs/
