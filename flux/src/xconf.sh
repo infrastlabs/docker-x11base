@@ -3,12 +3,15 @@ rm -f /xconf.sh
 
 ##########################################
 # xrdp-link
-$RUN export xrdp=/usr/local/xrdp;
-if [ -s "$xrdp/sbin/xrdp" ]; then
-  ln -s $xrdp/sbin/xrdp /usr/sbin/; ln -s $xrdp/sbin/xrdp-sesman /usr/sbin/;\
-  ln -s $xrdp/sbin/xrdp-chansrv /usr/sbin/; ln -s $xrdp/bin/xrdp-keygen /usr/bin/;
-  mkdir -p /etc/xrdp && xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
-fi
+# $RUN export xrdp=/usr/local/xrdp;
+# if [ -s "$xrdp/sbin/xrdp" ]; then
+#   ln -s $xrdp/sbin/xrdp /usr/sbin/; ln -s $xrdp/sbin/xrdp-sesman /usr/sbin/;\
+#   ln -s $xrdp/sbin/xrdp-chansrv /usr/sbin/; ln -s $xrdp/bin/xrdp-keygen /usr/bin/;
+# fi
+  # 
+  # mkdir -p /etc/xrdp && xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
+  rm -rf /etc/xrdp; ln -s /usr/local/static/xrdp/etc/xrdp /etc/xrdp
+  xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
 
 ##########################################
   # && ln -s /usr/bin/supervisorctl /usr/bin/sv \
@@ -76,31 +79,31 @@ $RUN \
   su - headless -c "dbus-launch dconf reset -f /; dbus-launch dconf load / < /home/headless/dconf.ini; ";\
   dbus-launch dconf update;
 
-# SYSTEMD
-$RUN \
-  # systemd1
-  cd /lib/systemd/system/sysinit.target.wants/ \
-    && rm $(ls | grep -v systemd-tmpfiles-setup); \
-    \
-  rm -f /lib/systemd/system/multi-user.target.wants/* \
-    /etc/systemd/system/*.wants/* \
-    /lib/systemd/system/local-fs.target.wants/* \
-    /lib/systemd/system/sockets.target.wants/*udev* \
-    /lib/systemd/system/sockets.target.wants/*initctl* \
-    /lib/systemd/system/basic.target.wants/* \
-    /lib/systemd/system/anaconda.target.wants/* \
-    /lib/systemd/system/plymouth* \
-    /lib/systemd/system/systemd-update-utmp*; \
-    \
-  # systemd2
-  # find `ls |grep -Ev "^home|^root|^usr|^opt|^mnt|^sys|^proc"`
-  find `echo /etc/ /lib/ /var/` -name "*systemd*" |grep ".service$" |grep "supervi" |while read one; do echo $one; rm -f $one; done; \
-  \
-  dpkg-divert --local --rename --add /sbin/udevadm; ln -s /bin/true /sbin/udevadm; \
-  systemctl enable de-entry; systemctl enable de-start; \
-  systemctl disable dropbear; systemctl disable supervisor; \
-  # systemctl mask supervisor; \
-  systemctl disable systemd-resolved; 
+# # SYSTEMD
+# $RUN \
+#   # systemd1
+#   cd /lib/systemd/system/sysinit.target.wants/ \
+#     && rm $(ls | grep -v systemd-tmpfiles-setup); \
+#     \
+#   rm -f /lib/systemd/system/multi-user.target.wants/* \
+#     /etc/systemd/system/*.wants/* \
+#     /lib/systemd/system/local-fs.target.wants/* \
+#     /lib/systemd/system/sockets.target.wants/*udev* \
+#     /lib/systemd/system/sockets.target.wants/*initctl* \
+#     /lib/systemd/system/basic.target.wants/* \
+#     /lib/systemd/system/anaconda.target.wants/* \
+#     /lib/systemd/system/plymouth* \
+#     /lib/systemd/system/systemd-update-utmp*; \
+#     \
+#   # systemd2
+#   # find `ls |grep -Ev "^home|^root|^usr|^opt|^mnt|^sys|^proc"`
+#   find `echo /etc/ /lib/ /var/` -name "*systemd*" |grep ".service$" |grep "supervi" |while read one; do echo $one; rm -f $one; done; \
+#   \
+#   dpkg-divert --local --rename --add /sbin/udevadm; ln -s /bin/true /sbin/udevadm; \
+#   systemctl enable de-entry; systemctl enable de-start; \
+#   systemctl disable dropbear; systemctl disable supervisor; \
+#   # systemctl mask supervisor; \
+#   systemctl disable systemd-resolved; 
 
 # LOCALE, OHMYBASH, SETTINGS
 $RUN \
@@ -114,8 +117,8 @@ $RUN \
   sed -i "s^OSH_THEME=\"font\"^OSH_THEME=\"axin\"^g" /home/headless/.bashrc; 
 
 # link: Xvnc, vncpasswd
-$RUN rm -f /usr/bin/Xvnc; ln -s /usr/local/static/bin/Xvnc /usr/bin/Xvnc; \
-  rm -f /usr/bin/vncpasswd; ln -s /usr/local/static/bin/vncpasswd /usr/bin/vncpasswd;
+# $RUN rm -f /usr/bin/Xvnc; ln -s /usr/local/static/bin/Xvnc /usr/bin/Xvnc; \
+#   rm -f /usr/bin/vncpasswd; ln -s /usr/local/static/bin/vncpasswd /usr/bin/vncpasswd;
 
 # for core: avoid multi> 'dbus-daemon --syslog --fork --print-pid 4 --print-address 6 --session'; #(headless x2, root x1)
 kill -9 `ps -ef |grep dbus |grep -v grep |awk '{print $2}'`
