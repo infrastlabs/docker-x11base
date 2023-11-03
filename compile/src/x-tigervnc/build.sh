@@ -29,14 +29,15 @@ XSERVER_VERSION=1.20.14
 # ii  libxshmfence1:amd64             1.3-1                          amd64        X shared memory fences - shared library
 
 # Use the same versions has Alpine 3.15.
+# deb12|ubt|alpine
 # 3.6.13-2ubuntu1.8
-GNUTLS_VERSION=3.7.9 #3.6.13 #3.7.1
+GNUTLS_VERSION=3.7.1 #3.7.9|3.6.13|3.7.1
 # 1:2.0.3-1 ##dpkg -l |egrep "font"
-LIBXFONT2_VERSION=2.0.6 #2.0.3 #2.0.5
+LIBXFONT2_VERSION=2.0.5 #2.0.6|2.0.3|2.0.5
 # 1:1.1.4-0ubuntu1
 LIBFONTENC_VERSION=1.1.4 #OK
 # 4.16.0-2
-LIBTASN1_VERSION=4.19.0 #4.16.0 #4.18.0
+LIBTASN1_VERSION=4.18.0 #4.19.0|4.16.0|4.18.0
 # 1.3-1
 LIBXSHMFENCE_VERSION=1.3 #OK
 
@@ -61,16 +62,6 @@ LIBXSHMFENCE_URL=https://www.x.org/releases/individual/lib/libxshmfence-${LIBXSH
 XKEYBOARDCONFIG_URL=https://www.x.org/archive/individual/data/xkeyboard-config/xkeyboard-config-${XKEYBOARDCONFIG_VERSION}.tar.bz2
 XKBCOMP_URL=https://www.x.org/releases/individual/app/xkbcomp-${XKBCOMP_VERSION}.tar.bz2
 
-# set -u; err if not exist
-test -z "$TARGETPATH" && export TARGETPATH=/opt/base
-function down_catfile(){
-  url=$1
-  file=${url##*/}
-  #curl -# -L -f 
-  test -f /mnt/$file || curl -# -k -fSL $url > /mnt/$file
-  cat /mnt/$file
-}
-
 # Set same default compilation flags as abuild.
 export CFLAGS="-Os -fomit-frame-pointer"
 export CXXFLAGS="$CFLAGS"
@@ -81,6 +72,32 @@ export CC=xx-clang
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+
+# set -u; err if not exist
+test -z "$TARGETPATH" && export TARGETPATH=/opt/base
+ROOT_DEST_DIR="/" #/tmp/xx-install> /
+INS_PREFIX=$TARGETPATH
+# 
+XKB_DEST_DIR="/tmp/xkb-install" #final: /tmp/xkb-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
+XKB_REF_PATH=$TARGETPATH
+
+# rm -rf $LOGS; #avoid deleted @batch-mode
+CACHE=$TARGETPATH/../.cache; LOGS=$TARGETPATH/../.logs; mkdir -p $CACHE $LOGS
+function down_catfile(){
+  url=$1
+  file=${url##*/}
+  #curl -# -L -f 
+  test -f $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
+  cat $CACHE/$file
+}
+function print_time_cost(){
+    local begin_time=$1
+	gawk 'BEGIN{
+		print "本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
+		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
+		" 共历时" systime()-'$begin_time' "秒";
+	}' 2>&1 | tee -a $logfile
+}
 function log {
     echo ">>> $*"
 }
@@ -305,7 +322,7 @@ log "Configuring TigerVNC..."
         -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
         -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_PREFIX=$INS_PREFIX \
         -DCMAKE_BUILD_TYPE=Release \
         -DINSTALL_SYSTEMD_UNITS=OFF \
         -DENABLE_NLS=OFF \
@@ -325,12 +342,12 @@ autoreconf -fiv /tmp/tigervnc/unix/xserver
     cd /tmp/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
         --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
         --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
+        --prefix=$INS_PREFIX \
         --sysconfdir=/etc/X11 \
         --localstatedir=/var \
-        --with-xkb-path=${TARGETPATH}/share/X11/xkb \
+        --with-xkb-path=${XKB_REF_PATH}/share/X11/xkb \
         --with-xkb-output=/var/lib/xkb \
-        --with-xkb-bin-directory=${TARGETPATH}/bin \
+        --with-xkb-bin-directory=${XKB_REF_PATH}/bin \
         --with-default-font-path=/usr/share/fonts/misc,/usr/share/fonts/100dpi:unscaled,/usr/share/fonts/75dpi:unscaled,/usr/share/fonts/TTF,/usr/share/fonts/Type1 \
         --disable-docs \
         --disable-unit-tests \
@@ -375,18 +392,22 @@ autoreconf -fiv /tmp/tigervnc/unix/xserver
 # Remove all automatic dependencies on libraries and manually define them to
 # have the correct order.
 find /tmp/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
-sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+# sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+# 
 # #  -lbrotlidec -lbrotlicommon
 # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+# 
+# -lgnutls 
+sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
 
 log "Compiling TigerVNC server..."
 make -C /tmp/tigervnc/unix/xserver -j$(nproc)
 
 log "Installing TigerVNC server..."
-make DESTDIR=/tmp/tigervnc-install -C /tmp/tigervnc/unix/xserver install
+make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
 
 log "Installing TigerVNC vncpasswd tool..."
-make DESTDIR=/tmp/tigervnc-install -C /tmp/tigervnc/unix/vncpasswd install
+make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
 }
 
 #
@@ -404,7 +425,7 @@ log "Configuring XKeyboardConfig..."
 log "Compiling XKeyboardConfig..."
 meson compile -C /tmp/xkb/build
 log "Installing XKeyboardConfig..."
-DESTDIR="/tmp/xkb-install" meson install --no-rebuild -C /tmp/xkb/build
+DESTDIR="$XKB_DEST_DIR" meson install --no-rebuild -C /tmp/xkb/build
 
 log "Stripping XKeyboardConfig..."
 # We keep only the files needed by Xvnc.
@@ -440,8 +461,14 @@ TO_KEEP="
     types/pc
     rules/evdev
 "
-find /tmp/xkb-install/usr/share/X11/xkb -mindepth 2 -maxdepth 2 -type d -print -exec rm -r {} ';'
-find /tmp/xkb-install/usr/share/X11/xkb -mindepth 1 ! -type d $(printf "! -wholename /tmp/xkb-install/usr/share/X11/xkb/%s " $(echo "$TO_KEEP")) -print -delete
+
+# alpine: Installing /tmp/xkb/types/README to /tmp/xkb-install/usr/local/share/X11/xkb/types
+xkbDir=/usr/local/share/X11/xkb
+find $XKB_DEST_DIR$xkbDir -mindepth 2 -maxdepth 2 -type d -print -exec rm -r {} ';'
+find $XKB_DEST_DIR$xkbDir -mindepth 1 ! -type d $(printf "! -wholename $XKB_DEST_DIR$xkbDir/%s " $(echo "$TO_KEEP")) -print -delete
+# +
+mkdir -p ${XKB_REF_PATH}/share/X11;
+\cp -a $XKB_DEST_DIR$xkbDir ${XKB_REF_PATH}/share/X11/xkb
 }
 
 #
@@ -459,17 +486,19 @@ log "Configuring xkbcomp..."
     LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
         --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
         --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
+        --prefix=$INS_PREFIX \
 )
 
 log "Compiling xkbcomp..."
 make -C /tmp/xkbcomp -j$(nproc)
 
 log "Installing xkbcomp..."
-make DESTDIR=/tmp/xkbcomp-install -C /tmp/xkbcomp install
+make DESTDIR=$ROOT_DEST_DIR -C /tmp/xkbcomp install
 }
 
-function cache(){
+
+case "$1" in
+cache)
     down_catfile ${GNUTLS_URL} > /dev/null
     down_catfile ${LIBXFONT2_URL} > /dev/null
     down_catfile ${LIBFONTENC_URL} > /dev/null
@@ -480,21 +509,7 @@ function cache(){
     down_catfile ${XSERVER_URL} > /dev/null
     down_catfile ${XKEYBOARDCONFIG_URL} > /dev/null
     down_catfile ${XKBCOMP_URL} > /dev/null
-}
-
-
-function print_time_cost(){
-    local begin_time=$1
-	gawk 'BEGIN{
-		print "本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
-		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
-		" 共历时" systime()-'$begin_time' "秒";
-	}' 2>&1 | tee -a $logfile
-}
-
-# rm -rf /tmp/logs; #avoid deleted @batch-mode
-mkdir -p /tmp/logs
-case "$1" in
+    ;;
 full)
     gnutls
     libxfont2
@@ -506,29 +521,26 @@ full)
     xkb
     xkbcomp
     ;;
-cache)
-    cache
-    ;;
 b_deps)
-    # /build/build.sh gnutls &
-    /build/build.sh libxfont2 &
-    /build/build.sh libfontenc &
-    /build/build.sh libtasn1 &
-    /build/build.sh libxshmfence &
+    # /src/tigervnc/build.sh gnutls &
+    bash /src/x-tigervnc/build.sh libxfont2 &
+    bash /src/x-tigervnc/build.sh libfontenc &
+    bash /src/x-tigervnc/build.sh libtasn1 &
+    bash /src/x-tigervnc/build.sh libxshmfence &
     wait
     ;;
 b_tiger)
-    /build/build.sh tigervnc &
-    /build/build.sh xkb &
-    /build/build.sh xkbcomp &
+    bash /src/x-tigervnc/build.sh tigervnc &
+    bash /src/x-tigervnc/build.sh xkb &
+    bash /src/x-tigervnc/build.sh xkbcomp &
     wait
     ;;
 *) #compile
-    # $1 |tee /tmp/logs/$1.log
+    # $1 |tee $LOGS/$1.log
     set +e
     echo -e "\n$1, start building.."
-    begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=/tmp/logs/$1.log
-    $1 #> $logfile 2>&1;
+    begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/tiger-$1.log
+    $1 > $logfile 2>&1;
     
     test "0" !=  "$?" && tail -200 $logfile || echo "err 0, pass"
     print_time_cost $begin_time; echo "$1, finished."
