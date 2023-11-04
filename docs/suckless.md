@@ -11,16 +11,20 @@
 - https://wiki.archlinuxcn.org/wiki/Dwm
 - https://wiki.archlinux.org/title/X_resources
 - https://wiki.archlinux.org/title/St
-- https://github.com/LukeSmithxyz/st/graphs/contributors
-- https://github.com/gnotclub/xst/graphs/contributors
+- https://github.com/LukeSmithxyz/st/graphs/contributors #`LukeSmithxyz @2018+`
+- https://github.com/gnotclub/xst/graphs/contributors #`Xresources` https://gnot.club
 - 
 - https://github.com/FT-Labs/pdwm #`box experience`
-- https://github.com/siduck/chadwm #`siduck`
-- https://github.com/NvChad/NvChad #Lua `19.9K@23.11`
-- https://musl.libc.org/
+- https://github.com/siduck/chadwm #`siduck`; `axyl-os/axyl-dwm`
+- https://github.com/NvChad/NvChad #Lua `Neovim 19.9K@23.11`
+- 
+- https://github.com/BachoSeven/dotfiles
+- https://github.com/jasonliang-dev/dotfiles #橙cat,pic
+- https://github.com/mitchweaver/suckless #橙,useful
+- https://github.com/rxyhn/yoru #beauty
 - 
 - https://github.com/FT-Labs/phyOS-iso/releases/download/1.2.0-beta/phyOS-2022.10.12-x86_64.iso #1.92 GB 22.11.12@Arch
-- https://github.com/axyl-os/axyl-iso/releases/download/v22.10/axyl-2022.08.10-x86_64.iso #1.62 GB 22.8.18@Arch
+- https://github.com/axyl-os/axyl-iso/releases/download/v22.10/axyl-2022.08.10-x86_64.iso #1.62 GB 22.8.18@Arch `axyl-os/axyl-dwm` `i3wm(c@2009), bspwm(c@2012), dwm(c@2008), xmonad(haskel@2007), qtile(py@2008)`
 
 
 ```bash
@@ -29,7 +33,7 @@ distros, #apt/apk/dnf
 multiArch, #musl/glibc
 freedesktop, #xorg/wayland/xvnc
 desktop/wm, #gnome/plasma/xfce4/box/wm
-GuiApp, #sakula/thunar/geany/..
+GuiApp, #sakura/thunar/geany/..
 ```
 
 ![](./res/pdwm/pdwm-g1.gif)

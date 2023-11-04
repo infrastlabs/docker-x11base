@@ -1,4 +1,7 @@
 
+## dropbear, sakura, jgmenu, thunar
+
+
 - **dropbear**
 
 ```bash

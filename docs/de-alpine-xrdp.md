@@ -982,6 +982,10 @@ fdk-aac-dev-2.0.2-r0 x86_64 {fdk-aac} (custom) [installed]
  829 ls -lh
  830 ls -lh xrdp-chansrv
 
+# last Makefile edited
+root@VM-12-9-ubuntu:/mnt/xrdp-repo-v0.9.23-02# cat sesman/chansrv/Makefile |grep lX11 -n
+421:  $(X_PRE_LIBS) -lXfixes -lXrandr -lX11 -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac  $(X_EXTRA_LIBS) \
+
 /mnt2/xrdp-repo-v0.9.23-02/sesman/chansrv # ls -lh xrdp-chansrv 
 -rwxr-xr-x    1 root     root        4.6M Oct 31 10:54 xrdp-chansrv
 
@@ -994,5 +998,59 @@ root@VM-12-9-ubuntu:/mnt/xrdp-static-alpine# ./xrdp-chansrv  -h
 DISPLAY is not set
 root@VM-12-9-ubuntu:/mnt/xrdp-static-alpine# ./xrdp-chansrv  --help
 DISPLAY is not set
+```
+
+## sesman/tools/xrdp-xcon staticBuild
+
+```bash
+/mnt2/docker-x11base/compile/src/xrdp # ls /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-* -lh
+-rwxr-xr-x    1 root     root        7.3K Oct 30 15:49 /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-dis
+-rwxr-xr-x    1 root     root        2.4M Oct 31 07:07 /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-sesadmin
+-rwxr-xr-x    1 root     root        2.4M Oct 31 07:07 /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-sesrun
+-rwxr-xr-x    1 root     root        2.4M Oct 31 07:07 /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-sestest
+-rwxr-xr-x    1 root     root       17.9K Oct 30 15:49 /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-xcon
+/mnt2/docker-x11base/compile/src/xrdp # xx-verify --static /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-xcon
+file /mnt2/xrdp-repo-v0.9.23-02/sesman/tools/xrdp-xcon is not statically linked: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-musl-x86_64.so.1, with debug_info, not stripped
+
+
+/mnt2/xrdp-repo-v0.9.23-02 # cat sesman/tools/Makefile.am  |grep lX11 -n
+60:  $(X_PRE_LIBS) -lX11 $(X_EXTRA_LIBS)
+/mnt2/xrdp-repo-v0.9.23-02/sesman/tools # cat Makefile |grep lX11 -n
+411:  $(X_PRE_LIBS) -lX11 $(X_EXTRA_LIBS)
+# -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac
+/mnt2/xrdp-repo-v0.9.23-02 # cat sesman/tools/Makefile |grep lX11 -n
+411:  $(X_PRE_LIBS) -lX11 -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac $(X_EXTRA_LIBS)
+
+
+/mnt2/xrdp-repo-v0.9.23-02 # ls -lh sesman/tools/xrdp-*
+-rwxr-xr-x    1 root     root      121.9K Nov  4 03:19 sesman/tools/xrdp-dis
+-rwxr-xr-x    1 root     root        2.4M Nov  4 03:19 sesman/tools/xrdp-sesadmin
+-rwxr-xr-x    1 root     root        2.4M Nov  4 03:19 sesman/tools/xrdp-sesrun
+-rwxr-xr-x    1 root     root        2.4M Nov  4 03:19 sesman/tools/xrdp-sestest
+-rwxr-xr-x    1 root     root      992.2K Nov  4 03:19 sesman/tools/xrdp-xcon
+/mnt2/xrdp-repo-v0.9.23-02 # xx-verify --static ./sesman/tools/xrdp-xcon 
+```
+
+
+## genkeymap/Makefile.am 
+
+```bash
+# genkeymap/Makefile.am 
+f=genkeymap/Makefile.am 
+sed -i "s^\$(X_PRE_LIBS) -lX11^\$(X_PRE_LIBS) -lX11    -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac^g" $f
+cat $f |grep lX11 -n
+
+# src/xrdp/build.sh>> make install:
+/mnt2/docker-x11base/compile/src/xrdp # du -sh  /usr/local/static/xrdp/bin/*
+124.0K  /usr/local/static/xrdp/bin/xrdp-dis
+1000.0K /usr/local/static/xrdp/bin/xrdp-genkeymap
+2.4M    /usr/local/static/xrdp/bin/xrdp-keygen
+136.0K  /usr/local/static/xrdp/bin/xrdp-sesadmin
+136.0K  /usr/local/static/xrdp/bin/xrdp-sesrun
+/mnt2/docker-x11base/compile/src/xrdp # du -sh  /usr/local/static/xrdp/sbin/*
+3.2M    /usr/local/static/xrdp/sbin/xrdp
+4.6M    /usr/local/static/xrdp/sbin/xrdp-chansrv
+2.5M    /usr/local/static/xrdp/sbin/xrdp-sesman
+/mnt2/docker-x11base/compile/src/xrdp # 
 ```
 
