@@ -1,4 +1,8 @@
 
+- 23.11.7号晚flux-xft-ok, 8号查看:fluxbox镜像明细(opbox非静态编)
+
+**bin**
+
 ```bash
 # headless@VM-12-9-ubuntu:~$ ll /bin/ |grep static
 lrwxrwxrwx 1 root root        35 Nov  7 15:29 Xvnc -> /usr/local/static/tigervnc/bin/Xvnc*
@@ -30,8 +34,11 @@ lrwxrwxrwx 1 root root        40 Nov  7 15:29 vncpasswd -> /usr/local/static/tig
 lrwxrwxrwx 1 root root        38 Nov  7 15:29 xkbcomp -> /usr/local/static/tigervnc/bin/xkbcomp*
 # headless@VM-12-9-ubuntu:~$ ll /sbin/ |grep static
 lrwxrwxrwx 1 root root        40 Nov  7 15:29 dropbear -> /usr/local/static/dropbear/sbin/dropbear*
+```
 
+**tree**
 
+```bash
 # headless@VM-12-9-ubuntu:/usr/local/static$ du -sh *
 1.1M	dropbear
 46M 	fluxbox
