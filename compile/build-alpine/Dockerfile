@@ -1,5 +1,4 @@
 ARG COMPILE_IMG=alpine-compile
-# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as compile
 FROM infrastlabs/x11-base:builder AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
@@ -63,6 +62,8 @@ RUN mkdir -p $TARGETPATH; \
   # xx-verify --static ${TARGETPATH}/sbin/xrdp-chansrv; \
   # upx ${TARGETPATH}/sbin/xrdp; \
   # upx ${TARGETPATH}/sbin/xrdp-chansrv
+# xrdp-mods-cut
+# RUN mkdir -p $TARGETPATH/etc/xrdp;
 
 FROM base as dropbear
 ARG COMPILE_SSH="yes"
@@ -122,16 +123,16 @@ ENV CONSOLE_LOG=no \
 # COPY src/openbox /tmp/build
 # RUN /tmp/build/build.sh
 RUN mkdir -p $TARGETPATH; \
-  sh /src/openbox/build.sh cache; \
+  bash /src/openbox/build.sh cache; \
   \
   test "yes" != "$COMPILE_OPENBOX" && exit 0 || echo doMake; \
   # configure: error: C compiler cannot create executables
-  # sh /src/openbox/build.sh b_deps; \
-  # sh /src/openbox/build.sh openbox; \
+  bash /src/openbox/build.sh b_deps; \
+  bash /src/openbox/build.sh openbox; \
   \
   # old:
-  sh /src/_ex/fontconfig/build.sh; \
-  sh /src/openbox/build.sh.bk1.sh; \
+  # bash /src/_ex/fontconfig/build.sh; \
+  # bash /src/openbox/build.sh.bk1.sh; \
   \
   find ${TARGETPATH} -type f |sort;
 # RUN xx-verify --static \
@@ -160,9 +161,64 @@ RUN mkdir -p $TARGETPATH; \
 # RUN /tmp/build-fontconfig.sh
 
 
+# Build xlunch
+FROM base as xlunch
+ARG COMPILE_XLUNCH="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xlunch
+RUN mkdir -p $TARGETPATH; \
+  sh /src/v-xlunch/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_XLUNCH" && exit 0 || echo doMake; \
+  sh /src/v-xlunch/build.sh imlib2; \
+  sh /src/v-xlunch/build.sh xlunch; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+FROM base as xcompmgr
+ARG COMPILE_XCOMPMGR="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xcompmgr
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/xcompmgr/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_XCOMPMGR" && exit 0 || echo doMake; \
+  sh /src/xcompmgr/build.sh Xdamage; \
+  sh /src/xcompmgr/build.sh xcompmgr; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+FROM base as pcmanfm
+ARG COMPILE_PCMANFM="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pcmanfm
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-pcmanfm/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PCMANFM" && exit 0 || echo doMake; \
+  bash /src/v-pcmanfm/build.sh b_deps; \
+  bash /src/v-pcmanfm/build.sh pcmanfm; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+
+
+FROM base as perp
+ARG COMPILE_PERP="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/perp
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/xperp/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PERP" && exit 0 || echo doMake; \
+  sh /src/xperp/build.sh perp; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
 # FROM compile
 # FROM ${BASEIMAGE} #导致img嵌套，层次达max;
-FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as ff
+# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as ff
+FROM infrastlabs/x11-base:${COMPILE_IMG} as ff
 FROM alpine:3.15
 COPY --from=ff /rootfs /rootfs
 RUN export domain="mirrors.ustc.edu.cn"; \
@@ -197,6 +253,8 @@ RUN find /rootfs${STATIC} -type f |sort |wc
 
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tigervnc
+# RUN rm -rf /rootfs${STATIC}/xrdp
+# RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
 # stages: 未用到的stage,会跳过构建
 COPY --from=tiger ${STATIC} /rootfs${STATIC}
 COPY --from=xrdp ${STATIC} /rootfs${STATIC}
@@ -204,20 +262,14 @@ COPY --from=dropbear ${STATIC} /rootfs${STATIC}
 COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
 COPY --from=openbox ${STATIC} /rootfs${STATIC}
 COPY --from=suckless ${STATIC} /rootfs${STATIC}
+# 
+COPY --from=xlunch ${STATIC} /rootfs${STATIC}
+COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
+COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
+COPY --from=perp ${STATIC} /rootfs${STATIC}
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
-RUN rm -rf  /rootfs/usr/bin /rootfs/usr/sbin; mkdir -p /rootfs/usr/bin /rootfs/usr/sbin; \
-  \
-  # clear-xrdp;
-  # needed: lib/xrdp/libvnc.so;
-  # find /rootfs/usr/local/static -type d |egrep "/share/man$|xrdp/lib$" | \
-  #   while read one; do du -sh $one; rm -rf $one; done; \
-  \
-  find /rootfs/usr/local/static -type f |grep "/sbin/" |sort | \
-    while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/sbin/; done; \
-  \
-  find /rootfs/usr/local/static -type f |grep "/bin/" |sort | \
-    while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/bin/; done;
+RUN rm -rf  /rootfs/bin /rootfs/sbin;
 # keeplist, outDir;
 # ..
 # upx
