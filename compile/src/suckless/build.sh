@@ -83,7 +83,9 @@ rm -rf /tmp/st; # mkdir -p /tmp/st
 # down_catfile ${ST_URL} | tar -zx --strip 1 -C /tmp/st
 # git clone --depth=1 --branch=$ST_VER https://gitee.com/g-system/fk-suckless-st.git /tmp/st #502err @gitee
 # https://dl.suckless.org/st/st-0.8.4.tar.gz
-git clone --depth=1 --branch=$ST_VER git://git.suckless.org/st /tmp/st #;
+# git clone --depth=1 --branch=$ST_VER git://git.suckless.org/st /tmp/st #;
+ST_VER=br-luke-st
+git clone --depth=1 --branch=$ST_VER https://gitee.com/g-system/fk-suckless-st /tmp/st
 log "Configuring ST..."
 cd /tmp/st #&& ./bootstrap;
 

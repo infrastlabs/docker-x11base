@@ -81,7 +81,7 @@ builder)
     # cd $old;
     #  
     repo=registry-1.docker.io
-    repo=registry.cn-shenzhen.aliyuncs.com
+    # repo=registry.cn-shenzhen.aliyuncs.com
     img="x11-base:alpine-compile"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
@@ -89,20 +89,25 @@ builder)
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    plat="--platform linux/amd64" #dbg
+    # plat="--platform linux/amd64" #dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
     args="--provenance=false"
+    # full yes x9: 5h,9min,44s
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile
     --build-arg COMPILE_TIGER=no
-    --build-arg COMPILE_XRDP=yes
+    --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
     --build-arg COMPILE_FLUX=no
-    --build-arg COMPILE_OPENBOX=no
+    --build-arg COMPILE_OPENBOX=yes
     --build-arg COMPILE_SUCKLESS=no
+    --build-arg COMPILE_XCOMPMGR=no
+    --build-arg COMPILE_XLUNCH=no
+    --build-arg COMPILE_PCMANFM=no
+    --build-arg COMPILE_PERP=yes
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
