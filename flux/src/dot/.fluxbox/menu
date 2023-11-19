@@ -16,16 +16,18 @@
 #     session.menuFile: ~/.fluxbox/my-menu
 [begin] (FLUXBOX)
 [encoding] {UTF-8}
-	#[exec]   (♠ stTerm) {stterm} 
+	#[exec]   (♠ StTerm) {stterm} 
 	#[exec]   (♠ Run) {fbrun}
 	[exec] (● Sakura) {sakura}
 	[exec] (● St) {/usr/bin/st}
-	[exec] (● Thunar) {thunar}
+	#[exec] (● Thunar) {thunar}
+	[exec] (● PCManfm) {pcmanfm}
 	[exec] (● Geany) {geany}
 	[exec]   (♠ Ristretto) {ristretto} 
 	[exec]   (♠ Asbru-cm) {asbru-cm} 
 	[exec]   (♠ Engrampa) {engrampa} 
-	[exec]   (♠ Gnome-monitor) {gnome-system-monitor} 
+	#[exec]   (♠ Gnome-monitor) {gnome-system-monitor} 
+	[exec]   (♠ LXTask) {lxtask} 
 	[separator]
 	[submenu] (Tools)
 		[exec] (♣ gparted) {sudo gparted}  

@@ -3,12 +3,66 @@ $RUN \
   # unzip -d /usr/share/fluxbox/styles/ $file; rm -f /tmp/$file; \
   # wget -qO /usr/share/images/fluxbox/debian-squared.jpg https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; \
   \
-  # wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; \
-  wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/pure-blue.jpg; \
-  mkdir -p /etc/skel/.config/clipit /etc/skel/.config/pnmixer /etc/skel/.config/gtk-3.0 /etc/skel/.fluxbox \
-    /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml; \
-  file=/etc/skel/.fluxbox/overlay; \
-  echo -e "\
+  # wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; 
+  wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/pure-blue.jpg; 
+
+# theme
+echo """
+# Artwiz
+# Bity_fluxbox
+# BlueFlux
+# BlueNight
+# Doty
+# Emerge
+# Flux
+# LemonSpace
+# Makro
+MerleyKay
+# Meta
+# Nyz
+# Operation
+# Outcomes
+# Results
+# Shade
+Squared_blue
+Squared_green
+# Twice
+# arch
+# bloe
+bora_black
+# bora_blue
+# bora_green
+carp
+# green_tea
+# ostrich
+# qnx-photon
+# ubuntu-dark
+ubuntu-light
+# zimek_bisque
+zimek_darkblue
+zimek_green
+""" > /tmp/_flux_themes.txt
+dst=/usr/local/static/fluxbox/share/fluxbox #/styles
+ls $dst/styles |while read one; do
+  match1=$(cat /tmp/_flux_themes.txt |egrep -v "^#|^$" |grep "$one")
+  test -z "$match1" && rm -rf $dst/styles/$one
+done
+dst=/usr/share/fluxbox; mkdir -p $dst
+\cp -a /usr/local/static/fluxbox/share/fluxbox/* $dst/ #copy
+# origin's clear
+ls $dst/styles |while read one; do
+  match1=$(cat /tmp/_flux_themes.txt |egrep -v "^#|^$" |grep "$one")
+  test -z "$match1" && rm -rf $dst/styles/$one
+done
+
+
+
+# skel
+mkdir -p /etc/skel/.config/clipit /etc/skel/.config/pnmixer /etc/skel/.config/gtk-3.0 /etc/skel/.fluxbox \
+    /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml;
+
+file=/etc/skel/.fluxbox/overlay; \
+echo -e "\
 menu.hilite.font: PT Sans-11:regular\n\
 menu.frame.font: PT Sans-11:regular\n\
 menu.title.font: PT Sans-11:regular\n\
@@ -17,12 +71,15 @@ toolbar.workspace.font: PT Sans-11:regular\n\
 toolbar.iconbar.focused.font: PT Sans-11:regular\n\
 toolbar.iconbar.unfocused.font: PT Sans-11:regular\n\
 window.font: PT Sans-9:regular\n\
-  " > $file; \
-  sed -i  "s/PT Sans/WenQuanYi Zen Hei/" $file; \
-  \
-  file=/etc/skel/.fluxbox/init; \
-  echo -e "\
+  " > $file;
+# sed -i  "s/PT Sans/WenQuanYi Zen Hei/" $file; 
+  
+file=/etc/skel/.fluxbox/init; \
+echo -e "\
 # session.styleFile: /usr/share/fluxbox/styles/Squared_for_Debian\n\
+# bloe> zimek_darkblue> MerleyKay\n\
+# session.styleFile: /usr/local/static/fluxbox/share/fluxbox/styles/MerleyKay\n\
+session.styleFile: /usr/share/fluxbox/styles/MerleyKay\n\
 #sakura's border
 session.screen0.colPlacementDirection: TopToBottom\n\
 session.screen0.defaultDeco: NORMAL\n\
@@ -37,22 +94,22 @@ session.screen0.iconbar.usePixmap: false\n\
 # #session.screen0.toolbar.placement:      TopRight\n\
 session.screen0.toolbar.tools: prevworkspace, workspacename, nextworkspace, iconbar, systemtray, clock\n\
 session.screen0.toolbar.widthPercent: 99\n\
-  " > $file; \
-  \
-  file=/etc/skel/.config/clipit/clipitrc; \
-  echo -e "\
+  " > $file; 
+  
+file=/etc/skel/.config/clipit/clipitrc; \
+echo -e "\
 [rc]\n\
 save_history=true\n\
-  " > $file; \
-  \
-  file=/etc/skel/.config/pnmixer/config; \
-  echo -e "\
+  " > $file; 
+  
+file=/etc/skel/.config/pnmixer/config; \
+echo -e "\
 [PNMixer]\n\
 VolumeControlCommand=pavucontrol\n\
-  " > $file; \
-  \
-  file=/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml; \
-  echo -e "\
+  " > $file; 
+  
+file=/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml; \
+echo -e "\
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
 \n\
 <channel name=\"thunar\" version=\"1.0\">\n\
@@ -64,18 +121,20 @@ VolumeControlCommand=pavucontrol\n\
     <value type=\"string\" value=\"network://\"/>\n\
   </property>\n\
 </channel>\n\
-  " > $file; \
-  \
-  file=/etc/skel/.config/gtk-3.0/settings.ini; \
-  echo -e "\
+  " > $file; 
+  
+file=/etc/skel/.config/gtk-3.0/settings.ini; \
+echo -e "\
 [Settings]\n\
 gtk-theme-name=Greybird\n\
 gtk-icon-theme-name=Papirus-Bunsen-bluegrey\n\
 gtk-cursor-theme-name=XCursor-Pro-Dark\n\
 gtk-cursor-theme-size=0\n\
-  " > $file; \
-  \
-  # .gtkrc-2.0: lxappearance still not preseted.
-  # cat $file > /etc/skel/.gtkrc-2.0; \
-  \  
-  find /etc/skel |wc; 
+  " > $file; 
+  
+# .gtkrc-2.0: lxappearance still not preseted.
+# cat $file > /etc/skel/.gtkrc-2.0; \
+
+
+# view
+find /etc/skel |wc; 

@@ -9,13 +9,19 @@ rm -f /xconf.sh
 #   ln -s $xrdp/sbin/xrdp-chansrv /usr/sbin/; ln -s $xrdp/bin/xrdp-keygen /usr/bin/;
 # fi
   # 
-  # mkdir -p /etc/xrdp && xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
-  rm -rf /etc/xrdp; ln -s /usr/local/static/xrdp/etc/xrdp /etc/xrdp
-  xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
+  mkdir -p /etc/xrdp && xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
+  # rm -rf /etc/xrdp; ln -s /usr/local/static/xrdp/etc/xrdp /etc/xrdp
+  # xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
+
+  # dropbear
+  mkdir -p /etc/dropbear
 
 ##########################################
   # && ln -s /usr/bin/supervisorctl /usr/bin/sv \
 $RUN \
+  match1=$(cat /etc/group |grep sudo); \
+  test -z "$match1" && groupadd sudo; \
+  \
   export user=headless; \
   useradd -mp j9X2HRQvPCphA -s /bin/bash -G sudo $user \
   && echo "$user:$user" |chpasswd \
@@ -44,8 +50,13 @@ $RUN \
     # && echo "alias ll='ls -lF'; alias la='ls -A'; alias l='ls -CF';" |sudo tee -a /home/headless/.bashrc; \
     \
     mkdir -p  /usr/share/man/man1/; \
-    su - headless -c "mkdir -p /home/headless/.config/plank/dock1/launchers"; \
-    echo "curl mp3.." && su - headless -c "curl --connect-timeout 3 -k -O -fSL https://www.51mp3ring.com/51mp3ring_com3/at20131018141155.mp3";
+    # root@vm1:/rootfs/files1/usr/bin# ./gosu 
+    # Usage: gosu user-spec command [args]
+    #    ie: gosu tianon bash
+    #        gosu nobody:root bash -c 'whoami && id'
+    #        gosu 1000:1 id
+    gosu headless bash -c "mkdir -p /home/headless/.config/plank/dock1/launchers"; \
+    echo "curl mp3.." && gosu headless bash -c "curl --connect-timeout 3 -k -O -fSL https://www.51mp3ring.com/51mp3ring_com3/at20131018141155.mp3";
 
 ##AUDIO###########################
 # Setup D-Bus; ;
@@ -76,7 +87,7 @@ $RUN \
   \
   # dconf: ibus, plank, engrampa; dconf dump / > xx.ini
   mkdir -p /etc/dconf/db;\
-  su - headless -c "dbus-launch dconf reset -f /; dbus-launch dconf load / < /home/headless/dconf.ini; ";\
+  gosu headless bash -c "dbus-launch dconf reset -f /; dbus-launch dconf load / < /home/headless/dconf.ini; ";\
   dbus-launch dconf update;
 
 # # SYSTEMD
@@ -108,13 +119,17 @@ $RUN \
 # LOCALE, OHMYBASH, SETTINGS
 $RUN \
   # ohmybash
-  echo "curl oh-my-bash.." && su - headless -c "$(curl --connect-timeout 3 -fsSL https://gitee.com/g-system/oh-my-bash/raw/sam-custom/tools/install.sh)"; \
+  #  su @alma,alpine: cannot set terminal process group (-1): Inappropriate ioctl for device
+  #  TODO: su> gosu?
+  #   su - headless -c
+  #   gosu headless bash -c
+  echo "curl oh-my-bash.." && gosu headless bash -c "$(curl -k --connect-timeout 8 -fsSL https://gitee.com/g-system/oh-my-bash/raw/sam-custom/tools/install.sh)"; \
   rm -rf /home/headless/.oh-my-bash/.git; 
   # danger!
   bash -c 'cd /home/headless/.oh-my-bash/themes && rm -rf `ls |grep -v "axin\|sh$"` || echo "onmybash not exist, skip clear"'; \
   \
-  # sed -i "s^value=\"gnome\"^value=\"Papirus-Bunsen-grey\"^g" /home/headless/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; \
   sed -i "s^OSH_THEME=\"font\"^OSH_THEME=\"axin\"^g" /home/headless/.bashrc; 
+  # sed -i "s^value=\"gnome\"^value=\"Papirus-Bunsen-grey\"^g" /home/headless/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml; \
 
 # link: Xvnc, vncpasswd
 # $RUN rm -f /usr/bin/Xvnc; ln -s /usr/local/static/bin/Xvnc /usr/bin/Xvnc; \

@@ -29,6 +29,7 @@
 # compton --config ~/.compton.conf&
 #plank &
 sleep 2 && st & #stterm sakura #directRun: topPosition HideBar
+xcompmgr &
 
 # Change your keymap:
 # xmodmap "/home/alexsson/.Xmodmap"
