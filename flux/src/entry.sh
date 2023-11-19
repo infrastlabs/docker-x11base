@@ -33,17 +33,17 @@ stdout_logfile_maxbytes = 50MB
 stdout_logfile_backups  = 10
 redirect_stderr=true
 
-# [program:$xn-chansrv]
-# environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-# priority=36
-# user=$user1
-# startretries=5
-# autorestart=true
-# command=/xvnc.sh chansrv $N
-# stdout_logfile=$varlog/$xn-chansrv.log
-# stdout_logfile_maxbytes = 50MB
-# stdout_logfile_backups  = 10
-# redirect_stderr=true
+[program:$xn-chansrv]
+environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
+priority=36
+user=$user1
+startretries=5
+autorestart=true
+command=/xvnc.sh chansrv $N
+stdout_logfile=$varlog/$xn-chansrv.log
+stdout_logfile_maxbytes = 50MB
+stdout_logfile_backups  = 10
+redirect_stderr=true
 
 # [program:$xn-pulse]
 # environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
@@ -139,9 +139,11 @@ function setXserver(){
     port0=$(expr 0 + $VNC_OFFSET) #vnc: 5900+10
     # sed -i "s/_DISPLAY_/$port0/" /etc/supervisor/conf.d/sv.conf
     oneVnc "$port0" "headless" #sv
-    sed -i "s/Environment=DISPLAY=.*/Environment=DISPLAY=:$VNC_OFFSET/g" /etc/systemd/system/de-start.service
-    sed -i "s/Environment=LANG=.*/Environment=LANG=$L.UTF-8/g" /etc/systemd/system/de-start.service
-    sed -i "s/Environment=LANGUAGE=.*/Environment=LANGUAGE=$L:en/g" /etc/systemd/system/de-start.service
+    
+    # de-start.service
+    # sed -i "s/Environment=DISPLAY=.*/Environment=DISPLAY=:$VNC_OFFSET/g" /etc/systemd/system/de-start.service
+    # sed -i "s/Environment=LANG=.*/Environment=LANG=$L.UTF-8/g" /etc/systemd/system/de-start.service
+    # sed -i "s/Environment=LANGUAGE=.*/Environment=LANGUAGE=$L:en/g" /etc/systemd/system/de-start.service
 
     # clearPass: if not default
     if [ "headless" != "$VNC_PASS" ]; then
@@ -211,6 +213,7 @@ echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env
 # CONF
 test -f /home/headless/.ICEauthority && chmod 644 /home/headless/.ICEauthority #mate err
 rm -f /home/headless/.config/autostart/pulseaudio.desktop
+# chmod +x /usr/share/applications/*.desktop ##fluxbox> pcmanfm> exec-dialog
 
 # startCMD
 test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/systemd/system/de-start.service
@@ -218,7 +221,9 @@ test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/superv
 
 cnt=0.1
 echo "sleep $cnt" && sleep $cnt;
-test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
-# supervisord -n> go-supervisord
-exec supervisord -n
+# test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
 # test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd
+
+# supervisord -n> go-supervisord
+# exec supervisord -n
+exec go-supervisord

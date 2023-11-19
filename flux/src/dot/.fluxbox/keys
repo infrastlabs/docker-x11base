@@ -174,9 +174,11 @@ Control Alt o :Exec chromium
 Control Alt n :Exec konsole
 Control Alt g :Exec gvim
 Control Alt t :Exec stterm
-Alt t :Exec sakura
+# Alt t :Exec sakura
+Alt t :Exec st
 Alt e :Exec geany
-Alt f :Exec thunar
+# Alt f :Exec thunar
+Alt f :Exec pcmanfm
 Alt q :Exec flameshot gui
 #
 Alt Left :PrevWorkspace
