@@ -1,0 +1,121 @@
+ARG FLUXBOX_IMG=fluxbox
+FROM infrastlabs/x11-base:${FLUXBOX_IMG} as rootfs
+
+#ref alpine-dockerfiles//env/env-alma
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/almalinux:8.7
+RUN \
+  # curl http://mirrors.163.com/.help/CentOS7-Base-163.repo -o /etc/yum.repos.d/CentOS-Base.repo \
+  # 原文链接：https://blog.csdn.net/ximaiyao1984/article/details/126970827
+  sed -e 's|^mirrorlist=|#mirrorlist=|g' \
+      -e 's|^# baseurl=https://repo.almalinux.org|baseurl=https://mirrors.aliyun.com|g' \
+      -i.bak \
+      /etc/yum.repos.d/almalinux*.repo; \
+  # link yum
+  ln -s /usr/bin/dnf /usr/bin/yum; \
+  yum -y clean all && yum -y makecache \
+  \
+  && yum -y install iproute net-tools \
+  sudo psmisc sysstat tree tmux lrzsz which wget openssl \
+  zip unzip \
+  && yum -y clean all 
+
+# ps: procps
+# TODO: vim, git
+RUN \
+  yum -y clean all && yum -y makecache \
+  \
+  && yum -y install procps jq vim git \
+  && yum -y clean all 
+
+# CONFIG
+# ARG TARGETPLATFORM
+# RUN \
+#   # .vimrc # default:echo -e;
+#   echo "set fileencodings=utf-8,gb2312,gbk,gb18030\n\
+# set termencoding=utf-8\n\
+# set fileformats=unix\n\
+# set encoding=prc\n\
+# " > /root/.vimrc; 
+#   # tini
+#   # test -z "$(echo $TARGETPLATFORM |grep arm)" && arch=amd64 || arch=arm64; \
+#   # curl -o /sbin/tini -fSL https://ghproxy.com/https://github.com/krallin/tini/releases/download/v0.19.0/tini-$arch; chmod +x /sbin/tini; \
+#   # #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022
+#   # curl -o /bin/gosu https://ghproxy.com/https://github.com/tianon/gosu/releases/download/1.10/gosu-$arch; chmod +x /bin/gosu; 
+
+# RUN \
+#   # localedef -c -f UTF-8 -i zh_CN zh_CN.UTF-8; \
+#   ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+#   && echo "source /etc/profile" >> /root/.bashrc; \
+#   echo "alias ll='ls -lF'; alias la='ls -A'; alias l='ls -CF';" >> /root/.bashrc;
+
+# 普通用户跑: 容器内uid=9021 gid=9021(与宿主机一致);
+# 不设定密码，默认sudo全免密(外置adaptor.sh处理安装，在启动前剔除sudo权限): TODO: 剔除sudo免密后 restart问题; 
+# care!: gosu直接以root运行：chmod u+s gosu; (安装完后，回收权限)##find / -type f  -perm /6000 -o -perm /2000
+# RUN user=xxapp; uid=9021; \
+#   group=xxapp; gid=9021; \
+#   groupadd -g $gid $group; \
+#   useradd -u $uid -g $gid -m -s /bin/bash $user; \
+#   echo "$user ALL=(root) NOPASSWD: ALL" >> /etc/sudoers; \
+#   chmod u+s /bin/gosu; 
+# 
+# RUN \
+#   echo "alias ll='ls -lF'; alias la='ls -A'; alias l='ls -CF';" >> /home/$user/.bashrc; \
+#   echo "source /etc/profile" >> /home/$user/.bashrc
+
+
+# LANG
+# ENV LANG=en_US.UTF-8 \
+#     LANGUAGE=zh_CN:zh \
+#     LC_ALL=zh_CN.UTF-8
+# USER xxapp
+# # WORKDIR /root
+# # tini: https://www.5axxw.com/wiki/content/01ppi2
+# ENTRYPOINT ["/sbin/tini","--"]
+# # Run your program under Tini
+# # or docker run your-image /your/program ...
+# # CMD ["/your/program", "-and", "-its", "arguments"]
+# CMD ["bash"]
+
+
+
+# +Apps
+# all-none
+# RUN yum -y install \
+#   pcmanfm geany ristretto engrampa
+#   # sakura lxtask lxappearance
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /rootfs/files1
+COPY --from=rootfs /rootfs/files2 /rootfs/files2
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash \
+  # 默认约定
+  # DISPLAY=":10" \ #取VNC_OFFSET
+  # L="zh_CN" \
+  L="en_US" \
+  TZ="Asia/Shanghai" \
+  \
+  PORT_SSH=10022 \
+  PORT_RDP=10089 \
+  PORT_VNC=10081 \
+  # 
+  SSH_PASS=headless \
+  VNC_PASS=headless \
+  VNC_PASS_RO=View123 \
+  VNC_OFFSET=10
+
+# RUN groupadd sudo
+# fluxbox: /usr/share/fonts
+RUN \
+  yum -y install dejavu-sans-fonts; \
+  yum -y clean all 
+RUN \
+  echo -e "cp -a /rootfs/files1/* /; \n\
+cp -a /rootfs/files2/* /; \n\
+bash /etc/skel/.fluxbox/fluxbox.sh; \n\
+bash /xconf.sh;\n\
+touch /rootfs/.core-init-lock\n\
+" > /rootfs/.core-init
+CMD ["bash", "-c", "test -f /rootfs/.core-init-lock || bash /rootfs/.core-init;  exec /entry.sh"]
