@@ -1,0 +1,51 @@
+# # root@deb1013:/usr/local/static# find /usr/local/static/ -maxdepth 3 -type d |sort
+# /usr/local/static/
+/usr/local/static/.cache
+/usr/local/static/.logs
+# /usr/local/static/dropbear
+# /usr/local/static/dropbear/bin
+# /usr/local/static/dropbear/sbin
+/usr/local/static/dropbear/share
+# /usr/local/static/fluxbox
+# /usr/local/static/fluxbox/bin
+# /usr/local/static/fluxbox/share
+# /usr/local/static/fluxbox/share/fluxbox
+/usr/local/static/fluxbox/share/man
+# /usr/local/static/openbox
+# /usr/local/static/openbox/bin
+# /usr/local/static/openbox/etc
+# /usr/local/static/openbox/etc/xdg
+/usr/local/static/openbox/include
+# /usr/local/static/openbox/include/openbox
+/usr/local/static/openbox/lib
+# /usr/local/static/openbox/lib/pkgconfig
+# /usr/local/static/openbox/libexec
+# /usr/local/static/openbox/share
+# /usr/local/static/openbox/share/applications
+/usr/local/static/openbox/share/doc
+/usr/local/static/openbox/share/gnome
+/usr/local/static/openbox/share/gnome-session
+# /usr/local/static/openbox/share/pixmaps
+# /usr/local/static/openbox/share/themes
+# /usr/local/static/openbox/share/xsessions
+# /usr/local/static/suckless
+# /usr/local/static/suckless/bin
+/usr/local/static/suckless/man1
+# /usr/local/static/tigervnc
+# /usr/local/static/tigervnc/bin
+# /usr/local/static/tigervnc/lib
+/usr/local/static/tigervnc/lib/pkgconfig
+# /usr/local/static/tigervnc/lib/xorg
+# /usr/local/static/tigervnc/share
+# /usr/local/static/tigervnc/share/X11
+# /usr/local/static/xrdp
+# /usr/local/static/xrdp/bin
+/usr/local/static/xrdp/etc
+# /usr/local/static/xrdp/etc/xrdp
+/usr/local/static/xrdp/include
+/usr/local/static/xrdp/lib
+# /usr/local/static/xrdp/lib/pkgconfig
+# /usr/local/static/xrdp/lib/xrdp
+# /usr/local/static/xrdp/sbin
+# /usr/local/static/xrdp/share
+# /usr/local/static/xrdp/share/xrdp
