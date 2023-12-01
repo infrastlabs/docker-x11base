@@ -45,19 +45,20 @@ function log {
 # export CC=clang
 # export CXX=clang++
 
-
+# export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
+test -z "$GITHUB" && GITHUB=https://github.com 
 # git clone https://hub.nuaa.cf/GNOME/atk #3.29 MiB 1985> ATK_2_36_0 1943
 # git clone https://hub.nuaa.cf/GNOME/gtk #644.58 MiB 78343> 2.24.33 21885
 # git clone https://hub.nuaa.cf/GNOME/gdk-pixbuf #177.02 MiB 6226> 2.42.8 6113
 # git clone https://hub.nuaa.cf/lxde/menu-cache #297 commits
 
 function atk(){ ##@meson
-  apk add gobject-introspection-dev
+  # apk update; apk add gobject-introspection-dev
 
   log "Downloading atk..."
   branch="--branch=ATK_2_35_1" #ATK_2_36_0  [2.35.1@ubt2004; 2.36.0@alpine315]
   branch="--branch=ATK_2_36_0"
-  repo=https://hub.njuu.cf/GNOME/atk #nuaa> njuu
+  repo=$GITHUB/GNOME/atk #nuaa> njuu
   rm -rf /tmp/atk; git clone --depth=1 $branch $repo /tmp/atk
   cd /tmp/atk
     # [44/53] Linking static target atk/libatk-1.0.a
@@ -67,7 +68,8 @@ function atk(){ ##@meson
     # ./autogen.sh 
     # ./configure --enable-static; 
     # meson build
-    meson build  --default-library=both
+    # static>> undefined reference to 'png_destroy_write_struct'
+    meson build  --default-library=both #both static
 
   log "Compiling atk..."
     # make
@@ -82,19 +84,19 @@ function atk(){ ##@meson
 
 # meson build>> clone: gi-docgen [by meson_py slow..; meson两个文件未找到docgen信息]
 function gdk-pixbuf(){ ##@meson
-  apk add shared-mime-info
+  # apk update; apk add shared-mime-info
 
   log "Downloading gdk-pixbuf..."
   branch="--branch=2.40.0" #2.42.8 [2.40.0@ubt2004; 2.42.8@alpine315]
   branch="--branch=2.42.8"
-  repo=https://hub.njuu.cf/GNOME/gdk-pixbuf
+  repo=$GITHUB/GNOME/gdk-pixbuf
   rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $repo /tmp/gdk-pixbuf
   cd /tmp/gdk-pixbuf
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
     # ./configure; 
     # meson build
-    meson build  --default-library=both
+    meson build  --default-library=both #both static
 
   log "Compiling gdk-pixbuf..."
     # 去除xsltproc;
@@ -132,47 +134,99 @@ function gdk-pixbuf(){ ##@meson
 # xcompmgr>> # ref: opbox>> deps: 已全装
 # 试着改回: meson的两个; （一样错：libX11 not found）
 function gtk(){
-  apk add gtk-doc
+  # apk update; apk add gtk-doc shared-mime-info
 
   log "Downloading gtk..."
   branch="--branch=2.24.32" #2.24.33  ##提示automake版本不符(过高)
   branch="--branch=2.24.33"
-  # nuaa, yzuu, njuu
   # https://blog.csdn.net/weixin_46591962/article/details/132247425
-  repo=https://hub.yzuu.cf/GNOME/gtk
+  repo=$GITHUB/GNOME/gtk
   rm -rf /tmp/gtk; git clone --depth=1 $branch $repo /tmp/gtk
   cd /tmp/gtk
+    args="--disable-option-checking \
+      --disable-FEATURE  \
+      --disable-silent-rules \
+      --disable-dependency-tracking \
+      --enable-fast-install=yes \
+      --disable-libtool-lock  \
+      --disable-largefile  \
+      --disable-maintainer-mode \
+      --enable-shm=no \
+      --enable-xkb=yes \
+      --enable-xinerama=no \
+      --disable-rebuilds \
+      --disable-visibility \
+      --enable-explicit-deps=no \
+      --disable-glibtest    \
+      --disable-modules     \
+      --disable-cups \
+      --disable-papi \
+      --enable-introspection=no \
+      --enable-gtk-doc=no \
+      --enable-gtk-doc-html=no \
+      --enable-gtk-doc-pdf=no \
+      --enable-man=no"
+      # --enable-static=yes \
+      # --enable-shared=no \
     # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
     ./autogen.sh 
-    ./configure --enable-static; 
+    # --enable-xkb=yes \ #no>yes
+    ./configure --enable-static \
+      $args1 #args1还是缺依赖;
 
   log "Compiling gtk..."
-  make
+    # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
+    # 
+    # retry2
+    make -j$(nproc) -C gdk & #first
+    make -j$(nproc) -C gtk &
+    wait
+    find |egrep "g.*k-x11.*\.a$"
+    # ./gdk/.libs/libgdk-x11-2.0.a
+    # ./gtk/.libs/libgtk-x11-2.0.a
+    # ./gdk/x11/.libs/libgdk-x11.a
+    # # bash-5.1# ls -lh ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a 
+    # -rw-r--r--    1 root     root        5.0M Dec  1 17:12 ./gdk/.libs/libgdk-x11-2.0.a
+    # -rw-r--r--    1 root     root       33.2M Dec  1 17:14 ./gtk/.libs/libgtk-x11-2.0.a
+    # with args lite?
+    # # bash-5.1# ls -lh ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a 
+    # -rw-r--r--    1 root     root        1.1M Dec  1 17:52 ./gdk/.libs/libgdk-x11-2.0.a
+    # -rw-r--r--    1 root     root        8.6M Dec  1 17:56 ./gtk/.libs/libgtk-x11-2.0.a
+    # without args
+    # # bash-5.1# ls -lh ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a
+    # -rw-r--r--    1 root     root        1.2M Dec  1 18:26 ./gdk/.libs/libgdk-x11-2.0.a
+    # -rw-r--r--    1 root     root        8.9M Dec  1 18:33 ./gtk/.libs/libgtk-x11-2.0.a
+    # make -j$(nproc) #根目录下构建; >> build.sh pcmanfm>> 生成静态文件ok
+    # # bash-5.1# ls -lh ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a
+    # -rw-r--r--    1 root     root        1.2M Dec  1 18:56 ./gdk/.libs/libgdk-x11-2.0.a
+    # -rw-r--r--    1 root     root        8.9M Dec  1 19:05 ./gtk/.libs/libgtk-x11-2.0.a
 
   log "Installing gtk..."
-  # make[3]: *** [/usr/share/gobject-introspection-1.0/Makefile.introspection:156: Gdk-2.0.gir] Error 1
-  make install  #make, make install err:>> 不影响静态库的生成 及安装到/usr/local/lib/libgdk_pixbuf-2.0.a
+    # make[3]: *** [/usr/share/gobject-introspection-1.0/Makefile.introspection:156: Gdk-2.0.gir] Error 1
+    # make install  #make, make install err:>> 不影响静态库的生成 及安装到/usr/local/lib/libgdk_pixbuf-2.0.a
+    # find /usr/local/lib |egrep "g.*k-x11.*\.a$"
+    # cp /usr/local/lib/libgdk-x11-2.0.a /usr/local/lib/libgtk-x11-2.0.a /usr/lib/
 
-  find /usr/local/lib |egrep "g.*k-x11.*\.a$"
-  cp /usr/local/lib/libgdk-x11-2.0.a /usr/local/lib/libgtk-x11-2.0.a /usr/lib/
+    # ./gdk/x11/.libs/libgdk-x11.a 
+    \cp -a ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a /usr/lib/
 }
 
 
 
 # tmux-3
 # bash-5.1# history |grep "apk add"
-#   949  apk add gdk-pixbuf-dev pango-dev
-#   950  apk add libatk-1.0
-#   951  apk add libatk
-#   952  apk add atk
-#  1015  apk add gobject-introspection
-#  1017  apk add gobject-introspection-dev
-#  1184  apk add fontconfig-static
+#   949  apk x gdk-pixbuf-dev pango-dev
+#libatk-1.0
+#libatk
+#atk
+#gobject-introspection
+#gobject-introspection-dev
+#fontconfig-static
 #  1411  history |grep "apk add"
 # 
 # 
-# bash-5.1# apk add gdk-pixbuf-dev #@tmux-8
+# bash-5.1# apk x gdk-pixbuf-dev #@tmux-8
 # (1/10) Installing shared-mime-info (2.1-r2)
 # (2/10) Installing libwebp (1.2.2-r2)
 # (3/10) Installing tiff (4.4.0-r4)
@@ -184,25 +238,21 @@ function gtk(){
 # (9/10) Installing tiff-dev (4.4.0-r4)
 # (10/10) Installing gdk-pixbuf-dev (2.42.8-r0)
 # 
-# bash-5.1# apk add atk
+# bash-5.1# apk x atk
 # (1/1) Installing atk (2.36.0-r0)
 # 
-# bash-5.1# apk add gobject-introspection-dev
+# bash-5.1# apk x gobject-introspection-dev
 # (1/2) Installing gobject-introspection (1.70.0-r1)
 # (2/2) Installing gobject-introspection-dev (1.70.0-r1)
 # 
-# bash-5.1# apk add fontconfig-static
+# bash-5.1# apk x fontconfig-static
 # (1/1) Installing fontconfig-static (2.13.1-r4)
 
 # libfm
 function libfm(){
-  apk add gtk-doc
-  apk add intltool #builder装过了？？ (调试img:没得)
-  apk add vala
-  # 
-  apk add menu-cache-dev
-  apk add gtk+2.0-dev #gtk+
-  apk add menu-cache-dev #1.1.0-r0
+  # intltool #builder装过了？？ (调试img:没得)
+  # apk update; apk add gtk-doc intltool vala \
+  #  menu-cache-dev gtk+2.0-dev menu-cache-dev #1.1.0-r0
 
 
   log "Downloading libfm..."
@@ -250,12 +300,12 @@ function libfm(){
 # 
 
 function menu-cache(){ ##依赖libfm-extra @libfm
-  apk add gtk-doc
-  # apk add libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
+  # apk update; apk add gtk-doc
+  # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
 
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
-  # repo=https://hub.nuaa.cf/lxde/menu-cache
+  # repo=$GITHUB/lxde/menu-cache
   repo=https://gitee.com/g-system/fk-menu-cache
   rm -rf /tmp/menu-cache; git clone --depth=1 $branch $repo /tmp/menu-cache
   cd /tmp/menu-cache
@@ -299,22 +349,21 @@ function menu-cache(){ ##依赖libfm-extra @libfm
 # bash-5.1# find /usr/lib |grep Xcomposite
 # /usr/lib/libXcomposite.so.1  #无静态库
 # /usr/lib/libXcomposite.so.1.0.0
-# # bash-5.1# apk add libxcomposite-dev
+# # bash-5.1# apk x libxcomposite-dev
 # (1/1) Installing libxcomposite-dev (0.4.5-r0)
 # OK: 935 MiB in 321 packages
 # bash-5.1# find /usr/lib |grep Xcomposite
 # /usr/lib/libXcomposite.a
 # 
 function pcmanfm(){
-  apk add fontconfig-static
-  apk add libxcomposite-dev
+  # libxcomposite-dev ##装后，手动configure:  C compiler cannot create executables错误过了;
+  # apk update; apk add fontconfig-static libxcomposite-dev
 
   log "Downloading PCMANFM..."
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
   branch="--branch=1.3.1"
-  # nuaa, yzuu, njuu
-  repo=https://hub.yzuu.cf/lxde/pcmanfm
+  repo=$GITHUB/lxde/pcmanfm
   rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $repo /tmp/pcmanfm #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
@@ -328,22 +377,39 @@ function pcmanfm(){
     #  --enable-static
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -lmenu-cache -luuid -lmount -lpcre -lblkid -lXcomposite"
+    # -lXdamage注释也会用到;
     ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
-    LIBS=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1" \
-     ./configure --prefix=$TARGETPATH
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH
 
-  log "Compiling menu-cache..."
-    make LDFLAGS="-static " 2>&1
+  log "Compiling PCMANFM..."
+    # # x86_64-alpine-linux-musl/bin/ld: cannot find -lXdamage
+    # make LDFLAGS="-static " 2>&1
+    # # build.sh>> 手动make @tmux-8 OK;
+    # # bash-5.1# ls src/pcmanfm -lh
+    # # -rwxr-xr-x    1 root     root       37.6M Dec  1 04:16 src/pcmanfm
+    # 
+    make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
 
   log "Install PCMANFM..."
     # make;
-    make install;
+    make install 2>&1 > /dev/null
 
   # view
-  ls -lh /tmp/pcmanfm/
-  xx-verify --static /tmp/pcmanfm/pcmanfm
+  ls -lh $TARGETPATH/bin/pcmanfm
+  xx-verify --static $TARGETPATH/bin/pcmanfm #/tmp/pcmanfm/src/pcmanfm
 }
 
+function apkdeps(){
+apk update; 
+apk add gtk-doc shared-mime-info \
+  gobject-introspection-dev \
+  \
+  gtk-doc intltool vala \
+    menu-cache-dev gtk+2.0-dev menu-cache-dev \
+  \
+  fontconfig-static libxcomposite-dev #pcmanfm
+}
 
 case "$1" in
 cache)
@@ -359,16 +425,35 @@ full)
     pcmanfm
     ;;
 b_deps)
+    bash /src/openbox/build.sh apkdeps
     bash /src/openbox/build.sh pango & ##needed by gtk
-    bash /src/openbox/build.sh libxrandr &
-    /src/v-pcmanfm/build.sh atk & #needed by gtk
+    bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
+    bash /src/xcompmgr/build.sh Xdamage &
     wait
     # 
-    /src/v-pcmanfm/build.sh gdk-pixbuf &
-    /src/v-pcmanfm/build.sh gtk &
+    apkdeps
+    bash /src/v-pcmanfm/build.sh atk & #needed by gtk
+    bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
     wait
-    /src/v-pcmanfm/build.sh libfm
-    /src/v-pcmanfm/build.sh menu-cache #在libfm之后
+    bash /src/v-pcmanfm/build.sh gtk
+    bash /src/v-pcmanfm/build.sh libfm
+    bash /src/v-pcmanfm/build.sh menu-cache #在libfm之后
+
+    # view x8; +libgdk
+    # lost: Xrandr, atk, gtk
+    find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk|libfm|menu-cache" |grep "\.a$" |sort
+    # /usr/lib/libXdamage.a
+    # /usr/lib/libXrandr.a
+    # /usr/lib/libatk-1.0.a
+    # /usr/lib/libfm-gtk.a
+    # /usr/lib/libfm.a
+    # /usr/lib/libgdk_pixbuf-2.0.a
+    # /usr/lib/libgtk-x11-2.0.a
+    # /usr/lib/libmenu-cache.a
+    # /usr/lib/libpango-1.0.a
+    # /usr/lib/libpangocairo-1.0.a
+    # /usr/lib/libpangoft2-1.0.a
+    # /usr/lib/libpangoxft-1.0.a
     ;;
 *) #compile
     # $1 |tee $LOGS/$1.log
@@ -385,3 +470,23 @@ b_deps)
     ;;          
 esac
 exit 0
+
+# dbg:
+# root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
+apk add gawk git
+cd /mnt2/docker-x11base/compile/
+ln -s $(pwd)/src /src
+export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
+git pull; bash src/v-pcmanfm/build.sh b_deps
+export TARGETPATH=/usr/local/static/pcmanfm
+bash src/v-pcmanfm/build.sh pcmanfm
+
+# #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
+>>> Install PCMANFM...
+-rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
+
+
+# 单独再重试，pcmanfm又出现依赖错: 
+# gdkscreen-x11.c:(.text+0xd69): undefined reference to `XineramaQueryScreens'
+# libgdk-x11-2.0.a(gdkscreen-x11.o): in function `_gdk_x11_screen_size_changed'
+
