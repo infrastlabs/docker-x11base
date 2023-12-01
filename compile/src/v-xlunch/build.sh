@@ -58,6 +58,7 @@ function imlib2(){
     # export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #去-static: 无a库生成
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
     ./configure; 
+    # ./configure --with-x ; 
     # make; make install;
 
   log "Compiling imlib2..."

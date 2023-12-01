@@ -32,10 +32,10 @@ export CPPFLAGS="$CFLAGS"
 # configure: error: C compiler cannot create executables
 export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
 
-export CC=xx-clang
-export CXX=xx-clang++
-# export CC=xx-clang-wrapper
+# export CC=xx-clang
 # export CXX=xx-clang++
+export CC=xx-clang-wrapper
+export CXX=xx-clang++
 
 # set -u; err if not exist
 test -z "$TARGETPATH" && export TARGETPATH=/opt/base
@@ -212,7 +212,7 @@ make DESTDIR=$(xx-info sysroot) -C /tmp/libxrandr install
 # dependent.  Thus, we won't generate one, but it's not a problem since
 # we have very few fonts installed.
 #
-function fontconfig(){
+function fontconfig_drop1(){
 # log "Installing required Alpine packages..."
 # repeatd<< @builder;
 # xx-apk --no-cache add \
@@ -228,7 +228,8 @@ function fontconfig(){
 #     g++ \
 #     freetype-dev \
 #     expat-dev expat-static
-apk add expat-static
+# 
+# apk add expat-static
 
 
 #
@@ -311,9 +312,21 @@ log "Configuring Openbox..."
 (
     #cd /tmp/openbox && LIBS="$LDFLAGS" ./configure \
 
+    # deps:
+    #  pango libxrandr fontconfig
+    #  
     cd /tmp/openbox && \
-        OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lXrandr -lfontconfig -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" \
-        # OB_LIBS="$OB_LIBS -luuid"
+        OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lXrandr -lfontconfig -lfreetype \
+          -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon \
+          -lintl -lfribidi -lharfbuzz -lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0 \
+          -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
+        # view libs
+        grep1=$(echo $OB_LIBS |sed "s^ -l^|lib^g" |sed "s^-lX11^libX11^g"); echo "grep1: $grep1"
+        find /usr/lib |egrep "$grep1" |grep "\.a$" |sort
+
+        OB_LIBS="$OB_LIBS -luuid"
+        # LDFLAGS=
+        # LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
         LDFLAGS="$LDFLAGS -Wl,--start-group $OB_LIBS -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
         --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
         --host=$(xx-clang --print-target-triple) \
@@ -322,18 +335,22 @@ log "Configuring Openbox..."
         --disable-shared \
         --enable-static \
         --disable-nls \
-        --disable-startup-notification \
         --disable-xcursor \
         --disable-librsvg \
+        --disable-startup-notification \
         --disable-session-management \
         --disable-xkb \
-        --disable-xinerama \
+        --disable-xinerama
 )
 
 log "Compiling Openbox..."
-#sed -i 's|--silent|--verbose|' /tmp/openbox/Makefile
-make V=1 -C /tmp/openbox -j$(nproc)
-# make LDFLAGS="-static" V=1 -C /tmp/openbox -j$(nproc) ##still dyn
+  #sed -i 's|--silent|--verbose|' /tmp/openbox/Makefile
+  make V=1 -C /tmp/openbox -j$(nproc)
+  # make LDFLAGS="-static" V=1 -C /tmp/openbox -j$(nproc) ##still dyn
+
+  #view
+  ls -lh /tmp/openbox/openbox/openbox
+  ldd /tmp/openbox/openbox/openbox
 
 log "Installing Openbox..."
 make DESTDIR=$ROOT_DEST_DIR -C /tmp/openbox install
@@ -347,7 +364,7 @@ make DESTDIR=$ROOT_DEST_DIR -C /tmp/openbox install
 xx-verify --static $ROOT_DEST_DIR${INS_PREFIX}/bin/openbox
 }
 
-
+function apkdeps(){ #avoid mutli-build apk lock
 # apk add fribidi-dev fribidi-static ##@each
 log "Installing required Alpine packages..."
 apk --no-cache add \
@@ -388,6 +405,9 @@ xx-apk --no-cache --no-scripts add \
     xz-dev \
     brotli-static
 
+apk add expat-static #fontconfig
+}
+
 case "$1" in
 cache)
     down_catfile ${PANGO_URL} > /dev/null
@@ -402,10 +422,14 @@ full)
     openbox
     ;;
 b_deps)
-    /src/openbox/build.sh pango &
-    /src/openbox/build.sh libxrandr &
-    /src/openbox/build.sh fontconfig &
+    apkdeps
+    apk add fontconfig-dev fontconfig-static
+    # bash /src/openbox/build.sh fontconfig &
+    bash /src/openbox/build.sh libxrandr &
+    bash /src/openbox/build.sh pango &
     wait
+    # view libs
+    find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
     ;;
 *) #compile
     # $1 |tee $LOGS/$1.log
@@ -422,3 +446,27 @@ b_deps)
     ;;          
 esac
 exit 0
+
+# dbg:
+# root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
+apk add gawk git
+cd /mnt2/docker-x11base/compile/
+ln -s $(pwd)/src /src
+export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
+git pull; bash src/openbox/build.sh b_deps
+export TARGETPATH=/usr/local/static/openbox
+bash src/openbox/build.sh openbox
+
+# # 改export CC=xx-clang-wrapper后 编译成功
+# bash-5.1# ls /tmp/openbox/openbox/openbox -lh
+# -rwxr-xr-x    1 root     root        6.3M Dec  1 19:11 /tmp/openbox/openbox/openbox
+
+# 单独再跑，还是不行：C compiler cannot create executables
+# 之前OK: build.sh.bk1.sh 执行后，再执行build.sh b_deps及openbox??
+
+
+# OBOX-ERR.Guess:
+# 一、apk 多处并发执行导致依赖未装? （否）
+# 二、fontconfig 安装后a库未拷贝到/usr/lib?  (apk add fontconfig-static: ./configure错误过了)
+#     fontconfig-static: << -luuid
+

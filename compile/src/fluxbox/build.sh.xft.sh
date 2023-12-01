@@ -61,57 +61,68 @@ log "Configuring FLUXBOX..."
 cd /tmp/fluxbox #&& ./bootstrap;
 
 # ref: suckless/build.sh
+# OB_LIBS=""
 # flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-# fontconfig-static@apk>> -luuid 
-
-
-# OB_LIBS: all open
-# pango="-lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0"
-# xrandr="-lXrandr"
-# EX: -llzma   -lintl -lfribidi -lharfbuzz $pango -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi
-# OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft $xrandr -lfontconfig -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz $pango -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" 
-#
-# flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-
-#  2>&1 |grep musl/10 |awk '{print $2}' |sort -u
-# --static -static >> 一样X11> xcb_xx错误; 
-# --static -static ##ex
 flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-
-# flux=" -lfreetype  -lfribidi   -lXrandr  -lXext     -lXrender -lX11 "
-# /usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lgcc_s
-# ext2="-lstdc++ -lmd -lfribidi -lbsd -lXrandr" #-lgcc_s 
-# make LDFLAGS="$flags $OB_LIBS -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid $flux $ext2"
-
-# ex: -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid
-# EX_LIBS="$flags $OB_LIBS -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid $flux $ext2"
-EX_LIBS="$flags $OB_LIBS -lXinerama   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
+imlib="-lImlib2 -L/usr/local/lib -lX11-xcb -lxcb-shm -luuid "
+EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
 
 # CONFIGURE去EX_LIBS>> OK;  disable_x4> enable_x4
 # --disable-docs #https://github.com/BtbN/FFmpeg-Builds/blob/7b6432add41f4f8a47592f1e1de73ca182e4cc5c/scripts.d/35-fontconfig.sh#L3
 autoreconf -fi
+
 # --disable-remember \
 # Xinerama扩展的多屏显示
+# configure: WARNING: unrecognized options: --disable-docs, --enable-static, --disable-shared
+# ./configure \
+#   --prefix=$TARGETPATH \
+#   --enable-xmb \
+#   --enable-slit \
+#   --enable-toolbar \
+#   --enable-fribidi \
+#   \
+#   --enable-imlib2 \
+#   --disable-nls \
+#   --enable-xft \
+#   --enable-xinerama
+#   \
+#   --disable-docs \
+#   --enable-static \
+#   --disable-shared \
+#   LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS" #$EX_LIBS
+#   #LIBS="-lxcb -lXdmcp -lXau -lpthread    -lfontconfig -lfreetype -luuid"
+
+# ref: ./configure -h
 ./configure \
   --prefix=$TARGETPATH \
-  --enable-xmb \
-  --enable-slit \
-  --enable-toolbar \
-  --enable-fribidi \
+  --disable-dependency-tracking \
+  --disable-silent-rules \
+  --enable-remember=yes \
+  --enable-regexp=yes \
+  --enable-slit=yes \
+  --enable-systray=yes \
+  --enable-toolbar=yes \
+  --enable-ewmh=yes \
+  --enable-debug=no \
+  --enable-test=no \
+  --enable-nls=no \
+  --enable-timedcache=yes \
+  --enable-xmb=yes \
   \
-  --disable-imlib2 \
-  --disable-nls \
-  --enable-xft \
-  --enable-xinerama \
-  --disable-docs \
-  \
-  --enable-static \
-  --disable-shared \
-  LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS" #$EX_LIBS
-  #LIBS="-lxcb -lXdmcp -lXau -lpthread    -lfontconfig -lfreetype -luuid"
+  --enable-imlib2 \
+  --enable-freetype2 \
+  --enable-xrender   \
+  --enable-xft       \
+  --enable-xpm       \
+  --enable-xext      \
+  --enable-xrandr    \
+  --enable-fribidi   \
+  --enable-xinerama  
+  
 
 make clean
-make LDFLAGS="-static"
+# make LDFLAGS="-static"
+make LDFLAGS="-static" LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
 
 log "Install FLUXBOX..."
 # make;
@@ -123,7 +134,9 @@ xx-verify --static /tmp/fluxbox/fluxbox
 }
 
 
-apk add fribidi-dev fribidi-static
+# libxpm-dev: --enable-xpm; /usr/lib/libXpm.a
+apk add fribidi-dev fribidi-static \
+  libxpm-dev
 
 # # dwm@ubt2004: 无fontconfig错误;
 # # ref: suckless/build.sh
