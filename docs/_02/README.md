@@ -4,6 +4,11 @@
 - xlunch
 - xcompmgr
 - pcmanfm
+- 
+- pulseaudio
+- geany
+- perp
+
 
 ```bash
 # root@tenvm2:/mnt/_statics# ll -h

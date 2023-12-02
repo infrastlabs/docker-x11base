@@ -76,7 +76,7 @@ make DESTDIR="${pkgdir}" install
 
 ### dyn build
 
-- try01
+- try01: nls err
 
 ```bash
 # ./configure
@@ -159,7 +159,7 @@ util/fbsetroot.cc:227:5: warning: 'register' storage class specifier is deprecat
 2 warnings generated.
 mv -f util/.deps/fbsetroot-fbsetroot.Tpo util/.deps/fbsetroot-fbsetroot.Po
 xx-clang++  -Os -fomit-frame-pointer    -o fbsetroot src/fbsetroot-FbAtoms.o src/fbsetroot-FbRootWindow.o util/fbsetroot-fbsetroot.o libFbTk.a  -lfribidi   -lXrender -lX11  -lX11   -lrt  -lm
-xx-clang++ -DHAVE_CONFIG_H -I.  -include ./config.h -I./src/FbTk -Os -fomit-frame-pointer  -Os -fomit-frame-pointer  -MT util/fluxbox_remote-fluxbox-remote.o -MD -MP -MF util/.deps/fluxbox_remote-fluxbox-remote.Tpo -c -o util/fluxbox_remote-fluxbox-remote.o 'test -f 'util/fluxbox-remote.cc' || echo './'`util/fluxbox-remote.cc
+xx-clang++ -DHAVE_CONFIG_H -I.  -include ./config.h -I./src/FbTk -Os -fomit-frame-pointer  -Os -fomit-frame-pointer  -MT util/fluxbox_remote-fluxbox-remote.o -MD -MP -MF util/.deps/fluxbox_remote-fluxbox-remote.Tpo -c -o util/fluxbox_remote-fluxbox-remote.o 'test -f 'util/fluxbox-remote.cc' || echo './''util/fluxbox-remote.cc
 util/fluxbox-remote.cc:76:32: error: ordered comparison between pointer and zero ('unsigned char *' and 'int')
             && text_prop.value > 0
                ~~~~~~~~~~~~~~~ ^ ~
@@ -217,7 +217,7 @@ file ./fluxbox is not statically linked: ELF 64-bit LSB pie executable, x86-64, 
 
 ### static build
 
-- try03: static with master '0f95d62b1b1add8ee7327305db7d372010fdb2f4`
+- try03: static with master `0f95d62b1b1add8ee7327305db7d372010fdb2f4` (--enable-static还是动态)
 
 ```bash
 # commit 0f95d62b1b1add8ee7327305db7d372010fdb2f4 (HEAD -> master, origin/master, origin/HEAD)
@@ -280,7 +280,7 @@ CPPFLAGS=-Os -fomit-frame-pointer
 
 ```
 
-- try04: LDFALGS (ref suckless)
+- try04: LDFALGS (ref suckless) `make LDFLAGS="$flags $OB_LIBS -luuid"`
 
 
 ```bash
@@ -350,7 +350,7 @@ xx-clang++  -Os -fomit-frame-pointer
 
 ```
 
-- try05
+- try05: `try: pango,xrandr` 查找/usr/lib下静态库
 
 
 ```bash
@@ -414,7 +414,7 @@ make LDFLAGS="$flags $OB_LIBS -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm
 ```
 
 
-- try06: src//./INSTALL
+- try06: src//`./INSTALL`>> `./configure加参数` >> `undefined reference to 'Remember::s_instance'`
 
 ```bash
 # src//./INSTALL
@@ -484,7 +484,7 @@ make: *** [Makefile:1760: all] Error 2
 
 ```
 
-- notes --disable-remember \ >> static buildOK
+- try07: notes `--disable-remember \` >> static buildOK
 
 ```bash
 # OB_LIBS: all open
@@ -528,7 +528,7 @@ flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp
 make LDFLAGS="$flags $OB_LIBS -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid $flux $ext2"
 
 
-# 需要remember模块：
+# 需要remember模块：注释行(--disable-remember \)
 # /mnt2/fluxbox # make #LDFLAGS="$flags"
 f86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid  -lfreetype  -lfribidi   -lXrandr  -lXext     -lXrender -lX11  -lstdc++ -lmd -lfribidi -lbsd -l Xrandr -lm
 /usr/bin/x86_64-alpine-linux-musl-ld: src/fluxbox-WinClient.o: in function 'WinClient::updateWMNormalHints()':
@@ -613,7 +613,7 @@ Fluxbox 1.3.7 : (c) 2001-2015 Fluxbox Team
 Website: http://www.fluxbox.org/
 ```
 
-- **libs clear**
+- try08: **libs clear** `CONFIGURE去EX_LIBS>> OK;  disable_x4> enable_x4`
 
 ```bash
 # OB_LIBS: all open
@@ -740,7 +740,7 @@ root@718db0a8cfb1:/rootfs/files1/usr/local/static/fluxbox/bin# /usr/bin/fluxbox 
 Fluxbox 1.3.5 : (c) 2001-2011 Fluxbox Team 
 ```
 
-### flux-run @ubt2004
+### flux-run @ubt2004 `Couldn\'t initialize fonts. Check your fontconfig installation.`
 
 ```bash
 # root@VM-12-9-ubuntu:/var/log/supervisor# dpkg -l |grep fontconf
