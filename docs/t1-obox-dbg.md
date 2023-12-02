@@ -1,5 +1,104 @@
 
 
+## Openbox
+
+- ff_built: 尝试Xvnc下启动(验证fontconfig)
+
+```bash
+# /mnt2/docker-x11base/compile/src # ls -lh /tmp/openbox/openbox/openbox
+-rwxr-xr-x    1 root     root        6.3M Nov  6 05:43 /tmp/openbox/openbox/openbox
+/mnt2/docker-x11base/compile/src # xx-verify --static /tmp/openbox/openbox/openbox
+/mnt2/docker-x11base/compile/src # echo $?
+0
+
+# opbox @builder_tmux2
+/tmp/openbox-install/usr/bin # ls -lh
+total 10M    
+-rwxr-xr-x    1 root     root      871.0K Oct 30 13:42 gdm-control
+-rwxr-xr-x    1 root     root      992.2K Oct 30 13:42 gnome-panel-control
+-rwxr-xr-x    1 root     root        1.8M Oct 30 13:42 obxprop
+-rwxr-xr-x    1 root     root        6.3M Oct 30 13:42 openbox
+-rwxr-xr-x    1 root     root        2.0K Oct 30 13:42 openbox-gnome-session
+-rwxr-xr-x    1 root     root         476 Oct 30 13:42 openbox-kde-session
+-rwxr-xr-x    1 root     root         585 Oct 30 13:42 openbox-session
+
+# try-run @builder_tmux2
+/tmp/openbox-install/usr/bin # ps -ef
+PID   USER     TIME  COMMAND
+    1 root      0:02 sh
+474491 root      0:00 ./Xvnc :21
+474527 root      0:00 ps -ef
+
+# 需带配置项，不然启不来
+/tmp/openbox-install/usr/bin # ./openbox 
+Openbox-Message: Unable to find a valid config file, using some simple defaults
+ObRender-Message: Unable to load the theme 'Clearlooks'
+Openbox-Message: Unable to load a theme.
+
+#openbox --config-file ./etc/xdg/openbox/rc.xml 
+/mnt2/openbox-install-cp01/usr # ./bin/openbox --config-file ./etc/xdg/openbox/rc.xml 
+Openbox-Message: Unable to find a valid config file, using some simple defaults
+(openbox:516681): Pango-CRITICAL **: 15:35:07.570: pango_font_describe: assertion 'font != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
+(openbox:516681): Pango-CRITICAL **: 15:35:07.572: pango_font_description_get_variant: assertion 'desc != NULL' failed
+Openbox-Message: Unable to find a valid menu file "menu.xml"
+# ..Running.
+
+
+# fontconfig-bins fc-xxx
+root@VM-12-9-ubuntu:~# dpkg -l |grep fontcon
+root@VM-12-9-ubuntu:~# docker run -it --rm  registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:fluxbox bash
+root@c89a801f8a30:/# dpkg -l |grep font
+ii  fontconfig-config             2.13.1-2ubuntu3                   all          generic font configuration library - configuration
+ii  fonts-dejavu-core             2.37-1                            all          Vera font family derivate with additional characters
+ii  libfontconfig1:amd64          2.13.1-2ubuntu3                   amd64        generic font configuration library - runtime
+ii  libfreetype6:amd64            2.10.1-2ubuntu0.3                 amd64        FreeType 2 font engine, shared library files
+ii  libxft2:amd64                 2.3.3-0ubuntu1                    amd64        FreeType-based font drawing library for X
+root@c89a801f8a30:/#    
+root@c89a801f8a30:/# exit
+```
+
+
+- err ./configure @builder_tmux8
+
+```bash
+# tmux2: hand正常>> 脚本make提示少依赖项;
+/mnt2/docker-x11base/compile/src # env |egrep "clang|FLAGS"
+CXXFLAGS=-Os -fomit-frame-pointer
+CFLAGS=-Os -fomit-frame-pointer
+CPPFLAGS=-Os -fomit-frame-pointer
+CXX=xx-clang++
+CC=xx-clang
+
+
+# tmux8: hand ./configure正常; 脚本: C compiler cannot create executables
+configure: error: in '/tmp/openbox':
+configure: error: C compiler cannot create executables
+#手动
+bash-5.1# env |egrep "clang|FLAGS"
+bash-5.1# 
+# 脚本
+CXXFLAGS=-Os -fomit-frame-pointer
+CFLAGS=-Os -fomit-frame-pointer
+CPPFLAGS=-Os -fomit-frame-pointer
+# LDFLAGS=-Wl,--as-needed --static -static -Wl,--strip-all
+CXX=xx-clang++
+CC=xx-clang
+
+
+# 注释后，./configure正常
+# export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
+
+# make, make install: 非静态
+bash-5.1# ls -lh /tmp/openbox/openbox/openbox
+-rwxr-xr-x    1 root     root      924.4K Nov  6 10:36 /tmp/openbox/openbox/openbox
+```
+
 ## Fluxbox
 
 ```bash
@@ -240,12 +339,15 @@ Couldn\'t initialize fonts. Check your fontconfig installation. ##ERR
 fetch http://mirrors.ustc.edu.cn/alpine/v3.15/main/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.ustc.edu.cn/alpine/v3.15/community/x86_64/APKINDEX.tar.gz
 OK: 915 MiB in 370 packages
+
+
+# src查看; try改/font错误
+# 安装任一font即可?
+
 ```
 
 
-
-
-- cp2 **libs clear**
+- cp2 [**libs clear**], `--disable-xmb`
 
 ```bash
 # OB_LIBS: all open
@@ -301,102 +403,5 @@ make LDFLAGS="-static" #OK;
 # --disable-xmb \ >> 也不行
 ```
 
+- 之后安装font即可？(ubt默认有; alpine:`ttf-dejavu`)
 
-## Openbox
-
-- ff_built: 尝试Xvnc下启动(验证fontconfig)
-
-```bash
-# /mnt2/docker-x11base/compile/src # ls -lh /tmp/openbox/openbox/openbox
--rwxr-xr-x    1 root     root        6.3M Nov  6 05:43 /tmp/openbox/openbox/openbox
-/mnt2/docker-x11base/compile/src # xx-verify --static /tmp/openbox/openbox/openbox
-/mnt2/docker-x11base/compile/src # echo $?
-0
-
-# opbox @builder_tmux2
-/tmp/openbox-install/usr/bin # ls -lh
-total 10M    
--rwxr-xr-x    1 root     root      871.0K Oct 30 13:42 gdm-control
--rwxr-xr-x    1 root     root      992.2K Oct 30 13:42 gnome-panel-control
--rwxr-xr-x    1 root     root        1.8M Oct 30 13:42 obxprop
--rwxr-xr-x    1 root     root        6.3M Oct 30 13:42 openbox
--rwxr-xr-x    1 root     root        2.0K Oct 30 13:42 openbox-gnome-session
--rwxr-xr-x    1 root     root         476 Oct 30 13:42 openbox-kde-session
--rwxr-xr-x    1 root     root         585 Oct 30 13:42 openbox-session
-
-# try-run @builder_tmux2
-/tmp/openbox-install/usr/bin # ps -ef
-PID   USER     TIME  COMMAND
-    1 root      0:02 sh
-474491 root      0:00 ./Xvnc :21
-474527 root      0:00 ps -ef
-
-# 需带配置项，不然启不来
-/tmp/openbox-install/usr/bin # ./openbox 
-Openbox-Message: Unable to find a valid config file, using some simple defaults
-ObRender-Message: Unable to load the theme 'Clearlooks'
-Openbox-Message: Unable to load a theme.
-
-#openbox --config-file ./etc/xdg/openbox/rc.xml 
-/mnt2/openbox-install-cp01/usr # ./bin/openbox --config-file ./etc/xdg/openbox/rc.xml 
-Openbox-Message: Unable to find a valid config file, using some simple defaults
-(openbox:516681): Pango-CRITICAL **: 15:35:07.570: pango_font_describe: assertion 'font != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_description_get_variant: assertion 'desc != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.571: pango_font_describe: assertion 'font != NULL' failed
-(openbox:516681): Pango-CRITICAL **: 15:35:07.572: pango_font_description_get_variant: assertion 'desc != NULL' failed
-Openbox-Message: Unable to find a valid menu file "menu.xml"
-# ..Running.
-
-
-# fontconfig-bins fc-xxx
-root@VM-12-9-ubuntu:~# dpkg -l |grep fontcon
-root@VM-12-9-ubuntu:~# docker run -it --rm  registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:fluxbox bash
-root@c89a801f8a30:/# dpkg -l |grep font
-ii  fontconfig-config             2.13.1-2ubuntu3                   all          generic font configuration library - configuration
-ii  fonts-dejavu-core             2.37-1                            all          Vera font family derivate with additional characters
-ii  libfontconfig1:amd64          2.13.1-2ubuntu3                   amd64        generic font configuration library - runtime
-ii  libfreetype6:amd64            2.10.1-2ubuntu0.3                 amd64        FreeType 2 font engine, shared library files
-ii  libxft2:amd64                 2.3.3-0ubuntu1                    amd64        FreeType-based font drawing library for X
-root@c89a801f8a30:/#    
-root@c89a801f8a30:/# exit
-```
-
-
-- err ./configure @builder_tmux8
-
-```bash
-# tmux2: hand正常>> 脚本make提示少依赖项;
-/mnt2/docker-x11base/compile/src # env |egrep "clang|FLAGS"
-CXXFLAGS=-Os -fomit-frame-pointer
-CFLAGS=-Os -fomit-frame-pointer
-CPPFLAGS=-Os -fomit-frame-pointer
-CXX=xx-clang++
-CC=xx-clang
-
-
-# tmux8: hand ./configure正常; 脚本: C compiler cannot create executables
-configure: error: in '/tmp/openbox':
-configure: error: C compiler cannot create executables
-#手动
-bash-5.1# env |egrep "clang|FLAGS"
-bash-5.1# 
-# 脚本
-CXXFLAGS=-Os -fomit-frame-pointer
-CFLAGS=-Os -fomit-frame-pointer
-CPPFLAGS=-Os -fomit-frame-pointer
-# LDFLAGS=-Wl,--as-needed --static -static -Wl,--strip-all
-CXX=xx-clang++
-CC=xx-clang
-
-
-# 注释后，./configure正常
-# export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
-
-# make, make install: 非静态
-bash-5.1# ls -lh /tmp/openbox/openbox/openbox
--rwxr-xr-x    1 root     root      924.4K Nov  6 10:36 /tmp/openbox/openbox/openbox
-```

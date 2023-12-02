@@ -593,3 +593,27 @@ bash-5.1# ldd src/pcmanfm
 /lib/ld-musl-x86_64.so.1: src/pcmanfm: Not a valid dynamic program
 
 ```
+
+- build.sh执行> err手动调试
+
+```bash
+# gtk编译后; >> pcmanfm构建出错
+# ff
+# 如下make内改LIBS可影响err;
+bash-5.1# make LDFLAGS="-static -lXinerama" LIBS="-LXinerama -lpcre" 2>&1
+
+# try2
+	OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -lmenu-cache -luuid -lmount -lpcre -lblkid -lXcomposite"
+    # -lXdamage注释也会用到;
+    ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1" 
+
+	make LDFLAGS="-static " LIBS="-lXinerama $LIBS0" 2>&1
+	make LDFLAGS="-static " LIBS="-lXinerama -lXfixes $LIBS0" 2>&1
+	# https://forum.lazarus.freepascal.org/index.php?topic=34814.0
+	# undefined reference to 'XRRFreeMonitors'
+	make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1 ##过了
+
+
+```

@@ -1,0 +1,169 @@
+`configure' configures fluxbox 1.3.7 to adapt to many kinds of systems.
+
+Usage: ./configure [OPTION]... [VAR=VALUE]...
+
+To assign environment variables (e.g., CC, CFLAGS...), specify them as
+VAR=VALUE.  See below for descriptions of some of the useful variables.
+
+Defaults for the options are specified in brackets.
+
+Configuration:
+  -h, --help              display this help and exit
+      --help=short        display options specific to this package
+      --help=recursive    display the short help of all the included packages
+  -V, --version           display version information and exit
+  -q, --quiet, --silent   do not print `checking ...' messages
+      --cache-file=FILE   cache test results in FILE [disabled]
+  -C, --config-cache      alias for `--cache-file=config.cache'
+  -n, --no-create         do not create output files
+      --srcdir=DIR        find the sources in DIR [configure dir or `..']
+
+Installation directories:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/usr/local]
+  --exec-prefix=EPREFIX   install architecture-dependent files in EPREFIX
+                          [PREFIX]
+
+By default, `make install' will install all the files in
+`/usr/local/bin', `/usr/local/lib' etc.  You can specify
+an installation prefix other than `/usr/local' using `--prefix',
+for instance `--prefix=$HOME'.
+
+For better control, use the options below.
+
+Fine tuning of the installation directories:
+  --bindir=DIR            user executables [EPREFIX/bin]
+  --sbindir=DIR           system admin executables [EPREFIX/sbin]
+  --libexecdir=DIR        program executables [EPREFIX/libexec]
+  --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
+  --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
+  --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
+  --libdir=DIR            object code libraries [EPREFIX/lib]
+  --includedir=DIR        C header files [PREFIX/include]
+  --oldincludedir=DIR     C header files for non-gcc [/usr/include]
+  --datarootdir=DIR       read-only arch.-independent data root [PREFIX/share]
+  --datadir=DIR           read-only architecture-independent data [DATAROOTDIR]
+  --infodir=DIR           info documentation [DATAROOTDIR/info]
+  --localedir=DIR         locale-dependent data [DATAROOTDIR/locale]
+  --mandir=DIR            man documentation [DATAROOTDIR/man]
+  --docdir=DIR            documentation root [DATAROOTDIR/doc/fluxbox]
+  --htmldir=DIR           html documentation [DOCDIR]
+  --dvidir=DIR            dvi documentation [DOCDIR]
+  --pdfdir=DIR            pdf documentation [DOCDIR]
+  --psdir=DIR             ps documentation [DOCDIR]
+
+Program names:
+  --program-prefix=PREFIX            prepend PREFIX to installed program names
+  --program-suffix=SUFFIX            append SUFFIX to installed program names
+  --program-transform-name=PROGRAM   run sed PROGRAM on installed program names
+
+System types:
+  --build=BUILD     configure for building on BUILD [guessed]
+  --host=HOST       cross-compile to build programs to run on HOST [BUILD]
+
+Optional Features:
+  --disable-option-checking  ignore unrecognized --enable/--with options
+  --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-dependency-tracking
+                          do not reject slow dependency extractors
+  --disable-dependency-tracking
+                          speeds up one-time build
+  --enable-silent-rules   less verbose build output (undo: "make V=1")
+  --disable-silent-rules  verbose build output (undo: "make V=0")
+  --disable-rpath         do not hardcode runtime library paths
+  --enable-remember       include Remembering attributes (default=yes)
+  --enable-regexp         regular expression support (default=yes)
+  --enable-slit           include code for the Slit (default=yes)
+  --enable-systray        include SystemTray (default=yes)
+  --enable-toolbar        include Toolbar (default=yes)
+  --enable-ewmh           enable support for Extended Window Manager Hints
+                          (default=yes)
+  --enable-debug          include verbose debugging code (default=no)
+  --enable-test           build programs used in testing fluxbox (default=no)
+  --enable-nls            include native language support (default=yes)
+  --enable-timedcache     use new timed pixmap cache (default=yes)
+  --enable-xmb            XMB (multibyte font, utf-8) support (default=yes)
+  --disable-imlib2        disable imlib2 support
+  --disable-xft           disable xft support
+  --disable-freetype2     disable freetype2 support
+  --disable-xrender       disable xrender support
+  --disable-xpm           disable xpm support
+  --disable-xinerama      disable xinerama support
+  --disable-xext          disable Misc X Extension Library support
+  --disable-xrandr        disable xrandr support
+  --disable-fribidi       disable fribidi support
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
+  --with-libiconv-prefix[=DIR]  search for libiconv in DIR/include and DIR/lib
+  --without-libiconv-prefix     don't search for libiconv in includedir and libdir
+  --with-menu=path        location menu file (PREFIX/share/fluxbox/menu)
+  --with-windowmenu=path  location windowmenu file
+                          (PREFIX/share/fluxbox/windowmenu)
+  --with-style=path       style by default (PREFIX/share/fluxbox/styles/bloe)
+  --with-keys=path        location keys file (PREFIX/share/fluxbox/keys)
+  --with-apps=path        location apps file (PREFIX/share/fluxbox/apps)
+  --with-overlay=path     location overlay file (PREFIX/share/fluxbox/overlay)
+  --with-init=path        location init file (PREFIX/share/fluxbox/init)
+  --with-locale=path      location for nls files (PREFIX/share/fluxbox/nls)
+
+Some influential environment variables:
+  CC          C compiler command
+  CFLAGS      C compiler flags
+  LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
+              nonstandard directory <lib dir>
+  LIBS        libraries to pass to the linker, e.g. -l<library>
+  CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
+              you have headers in a nonstandard directory <include dir>
+  CXX         C++ compiler command
+  CXXFLAGS    C++ compiler flags
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+  CXXCPP      C++ preprocessor
+  X11_CFLAGS  C compiler flags for X11, overriding pkg-config
+  X11_LIBS    linker flags for X11, overriding pkg-config
+  IMLIB2_CFLAGS
+              C compiler flags for IMLIB2, overriding pkg-config
+  IMLIB2_LIBS linker flags for IMLIB2, overriding pkg-config
+  XFT_CFLAGS  C compiler flags for XFT, overriding pkg-config
+  XFT_LIBS    linker flags for XFT, overriding pkg-config
+  FONTCONFIG_CFLAGS
+              C compiler flags for FONTCONFIG, overriding pkg-config
+  FONTCONFIG_LIBS
+              linker flags for FONTCONFIG, overriding pkg-config
+  FREETYPE2_CFLAGS
+              C compiler flags for FREETYPE2, overriding pkg-config
+  FREETYPE2_LIBS
+              linker flags for FREETYPE2, overriding pkg-config
+  XRENDER_CFLAGS
+              C compiler flags for XRENDER, overriding pkg-config
+  XRENDER_LIBS
+              linker flags for XRENDER, overriding pkg-config
+  XPM_CFLAGS  C compiler flags for XPM, overriding pkg-config
+  XPM_LIBS    linker flags for XPM, overriding pkg-config
+  XINERAMA_CFLAGS
+              C compiler flags for XINERAMA, overriding pkg-config
+  XINERAMA_LIBS
+              linker flags for XINERAMA, overriding pkg-config
+  XEXT_CFLAGS C compiler flags for XEXT, overriding pkg-config
+  XEXT_LIBS   linker flags for XEXT, overriding pkg-config
+  RANDR_CFLAGS
+              C compiler flags for RANDR, overriding pkg-config
+  RANDR_LIBS  linker flags for RANDR, overriding pkg-config
+  FRIBIDI_CFLAGS
+              C compiler flags for FRIBIDI, overriding pkg-config
+  FRIBIDI_LIBS
+              linker flags for FRIBIDI, overriding pkg-config
+
+Use these variables to override the choices made by `configure' or to help
+it to find libraries and programs with nonstandard names/locations.
+
+Report bugs to <fluxbox-devel@lists.sourceforge.net>.
+fluxbox home page: <http://fluxbox.org/>.
