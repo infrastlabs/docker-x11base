@@ -12,7 +12,8 @@ MAINTAINER sam <sldevsir@126.com>
 # mirrors.tuna.tsinghua.edu.cn
 RUN domain="mirrors.tuna.tsinghua.edu.cn"; \
   echo "http://$domain/alpine/v3.13/main" > /etc/apk/repositories; \
-  echo "http://$domain/alpine/v3.13/community" >> /etc/apk/repositories
+  echo "http://$domain/alpine/v3.13/community" >> /etc/apk/repositories; \
+  echo "http://$domain/alpine/edge/testing" >> /etc/apk/repositories
 
 #xshell: grep gawk
 #procps: free -h
@@ -35,6 +36,10 @@ RUN apk add --no-cache \
   #openssh apache2-utils graphviz \
   lftp jq sysstat vim git
 
+# THEME
+RUN apk add --no-cache \
+  papirus-icon-theme greybird-themes-gtk2
+
 # +Apps
 # RUN apk add --no-cache \
 #   pcmanfm geany ristretto engrampa
@@ -45,6 +50,13 @@ COPY --from=rootfs /rootfs/files1 /rootfs/files1
 COPY --from=rootfs /rootfs/files2 /rootfs/files2
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 ENV \
+  # supervisord perpd
+  INIT=supervisord \
+  # dash_port: addr_port - 1
+  FRPC_CONN=127.0.0.1:10080 \
+  FRPS_BIND=:10080 \
+  PERP_BASE=/etc/perp \
+  \
   TERM=xterm \
   SHELL=/bin/bash \
   # 默认约定

@@ -89,6 +89,13 @@ COPY --from=rootfs /rootfs/files1 /rootfs/files1
 COPY --from=rootfs /rootfs/files2 /rootfs/files2
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 ENV \
+  # supervisord perpd
+  INIT=supervisord \
+  # dash_port: addr_port - 1
+  FRPC_CONN=127.0.0.1:10080 \
+  FRPS_BIND=:10080 \
+  PERP_BASE=/etc/perp \
+  \
   TERM=xterm \
   SHELL=/bin/bash \
   # 默认约定
