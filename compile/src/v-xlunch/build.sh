@@ -50,6 +50,9 @@ function log {
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2-1.7.4.tar.gz
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2_loaders-1.7.4.tar.gz
 function imlib2(){
+  apk add xorg-server-dev
+
+  # 
   mkdir -p /tmp/imlib2
   log "Downloading imlib2..."
   # curl -# -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C /tmp/imlib2
@@ -57,8 +60,9 @@ function imlib2(){
   cd /tmp/imlib2
     # export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #去-static: 无a库生成
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
-    ./configure; 
-    # ./configure --with-x ; 
+    # ./configure; 
+    ./configure --with-x \
+      --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ ; 
     # make; make install;
 
   log "Compiling imlib2..."
