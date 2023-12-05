@@ -69,7 +69,6 @@ redirect_stderr=true
 # stdout_logfile_backups  = 10
 # redirect_stderr=true
     """ |sudo tee /etc/supervisor/conf.d/xvnc$N.conf > /dev/null 2>&1
-
     # SV: x$N-de.conf
     echo """
 [program:$xn-de]
@@ -84,6 +83,22 @@ stdout_logfile_maxbytes = 50MB
 stdout_logfile_backups  = 10
 redirect_stderr=true    
     """ |sudo tee /etc/supervisor/conf.d/x$N-de.conf > /dev/null 2>&1
+
+    # PERP: x-xvnc,chansrv,pulse,parec
+    envcmd="export DISPLAY=:$N; export HOME=/home/$user1" #DISPLAY=:$N,HOME=/home/$user1$env_dbus
+    #  de: USER=headless,SHELL=/bin/bash,TERM=xterm,LANG=$L.UTF-8,LANGUAGE=$L:en$env_dbus
+    decmd="export USER=headless; export SHELL=/bin/bash; export TERM=xterm"
+    #  parec: PORT_VNC=$PORT_VNC$env_dbus
+    # 
+    dest=/etc/perp/$xn-xvnc; mkdir -p $dest/
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh xvnc $N\"^g" > $dest/rc.main
+    dest=/etc/perp/$xn-chansrv; mkdir -p $dest
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh chansrv $N\"^g" > $dest/rc.main
+    # 
+    # gosu headless bash -c "xxx"
+    dest=/etc/perp/$xn-de; mkdir -p $dest
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox\"^g" > $dest/rc.main
+
 
     # XRDP /etc/xrdp/xrdp.ini
     echo """
@@ -113,8 +128,71 @@ chansrvport=DISPLAY($N)
     local line2=$(cat /usr/local/webhookd/static/index.html |grep  "ADD_HERE" -n |cut -d':' -f1)
     line2=$(expr $line2 - 1)
     sed -i "$line2 r $tmpDir/novncHtml$N.htm" /usr/local/webhookd/static/index.html
-    rm -f $tmpDir/novncHtml$N.htm
+    rm -f $tmpDir/novncHtml$N.
+    
+    
+    # frpc.ini
+    local ip=$(echo $FRPC_CONN |cut -d':' -f1)
+    local port=$(echo $FRPC_CONN |cut -d':' -f2)
+    local admin_port=$(expr 7500 + $VNC_OFFSET) #7521
+    echo """
+[common]
+server_addr = $ip
+server_port = $port
+
+# set admin address for control frpc's action by http api such as reload
+admin_addr = 127.0.0.1
+admin_port = 7400
+admin_user = headless
+admin_pwd = headless
+
+[$xn-frpc-admin]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 7400
+remote_port = $admin_port
+
+[$xn-ssh]
+type = tcp
+local_ip = 127.0.0.1
+local_port = $(expr $PORT_SSH - 100)
+remote_port = ${PORT_SSH}
+[$xn-xrdp]
+type = tcp
+local_ip = 127.0.0.1
+local_port = $(expr $PORT_RDP - 100)
+remote_port = ${PORT_RDP}
+[$xn-novnc]
+type = tcp
+local_ip = 127.0.0.1
+local_port = $(expr $PORT_VNC - 100)
+remote_port = ${PORT_VNC}
+    """ |sudo tee /etc/frp/frpc.ini > /dev/null 2>&1
 }
+
+function frp(){
+    mkdir -p /etc/frp
+    # frps.ini
+    # local port=$(echo $FRPC_CONN |cut -d':' -f2)
+    local port=$(echo $FRPS_BIND |cut -d':' -f2)
+    echo """
+[common]
+#10080
+bind_port = $port
+
+#10080-1 #10080 forbid by browser
+dashboard_port = $(expr $port - 1)
+#user,pass optional
+dashboard_user = headless
+dashboard_pwd = headless
+# dashboard_tls_mode = true
+# dashboard_tls_cert_file = server.crt
+# dashboard_tls_key_file = server.key
+    """ |sudo tee /etc/frp/frps.ini > /dev/null 2>&1
+    # frpc.ini
+}
+frp
+
 # oneVnc "$id" "$name"
 function setXserver(){
     #tpl replace: each revert clean;
@@ -124,11 +202,15 @@ function setXserver(){
     tmpDir=/tmp/.headless; mkdir -p $tmpDir && chown headless:headless -R $tmpDir ; #pulse: default-xx.pa
 
     # setPorts; sed port=.* || env_ctReset
-    sed -i "s^port=3389^port=${PORT_RDP}^g" /etc/xrdp/xrdp.ini
-    sed -i "s/EFRp 22/EFRp ${PORT_SSH}/g" /etc/supervisor/conf.d/sv.conf #sv.conf
+    sed -i "s^port=3389^port=$(expr $PORT_RDP - 100)^g" /etc/xrdp/xrdp.ini
+    sed -i "s/EFRp 22/EFRp $(expr $PORT_SSH - 100)/g" /etc/supervisor/conf.d/sv.conf #sv.conf
+    sed -i "s/EFRp 22/EFRp $(expr $PORT_SSH - 100)/g" /etc/perp/ssh/rc.main #perp
+    sed -i "3a\PORT_VNC=$(expr $PORT_VNC - 100)" /usr/local/webhookd/run.sh #+
+    # run.sh line4: PORT_VNC=${PORT_VNC:-10091}; echo "PORT_VNC: $PORT_VNC"
+
     # sesman
     # SES_PORT=$(echo "${PORT_RDP%??}50") #ref PORT_RDP, replace last 2 char
-    SES_PORT=$(($PORT_RDP + 100))
+    SES_PORT=$(expr $PORT_RDP - 100 + 1000) #$(($PORT_RDP + 101)); #without sesman's run?
     sed -i "s/ListenPort=3350/ListenPort=${SES_PORT}/g" /etc/xrdp/sesman.ini
 
     # go-sv
@@ -224,6 +306,28 @@ echo "sleep $cnt" && sleep $cnt;
 # test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
 # test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd
 
+# 
+# set rc.* executable
+chmod +x /etc/perp/**/rc.*
+# autostart: <perpctl A xx> dir sticky
+#  设定再启动perpd才有效，启动后再设定会提示err
+ls -F /etc/perp/ |grep "/$" |while read one; do chmod o+t /etc/perp/$one; done
+frps_port=$(echo $FRPS_BIND |cut -d':' -f2)
+test "-1" == "$frps_port" && chmod o-t /etc/perp/frps #-1 不启动; TODO sv.conf: autorestart?
+
+# sv
+# ln -s /usr/bin/supervisorctl /usr/bin/sv
+file=/usr/bin/sv; rm -f $file;
+if [ "$INIT" == "supervisord" ]; then
+  echo -e "#!/bin/bash\ntest -z "\$1" && go-supervisord ctl -h || go-supervisord ctl \$@" > $file;
+else
+  cat /usr/bin/psv.sh > $file;
+fi
+chmod +x $file;
+
 # supervisord -n> go-supervisord
 # exec supervisord -n
-exec go-supervisord
+# exec go-supervisord
+# exec /sbin/tini -- perpd
+# alpine: not /sbin > /usr/sbin
+test "$INIT" == "supervisord" && exec go-supervisord || exec /usr/sbin/tini -- perpd
