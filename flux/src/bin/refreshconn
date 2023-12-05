@@ -1,0 +1,60 @@
+#!/bin/sh
+
+function freshVnc(){
+    # token.conf
+    mkdir -p /etc/novnc; dst=$tmpDir/novnc-token.conf
+    cat /etc/novnc/token.conf |grep -v "127.0.0.1:$port1" > $dst
+    echo "display$N: 127.0.0.1:$port1" |tee -a $dst
+    cat $tmpDir/novnc-token.conf |sudo tee /etc/novnc/token.conf
+
+    # index.html
+    local N=$1
+    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc')\">display$N</a></li>" |sudo tee $tmpDir/novncHtml$N.htm > /dev/null 2>&1
+    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc_lite')\">display$N-lite</a></li>" |sudo tee -a $tmpDir/novncHtml$N.htm > /dev/null 2>&1
+    # 
+    local line2=$(cat /usr/local/webhookd/static/index.html |grep  "ADD_HERE" -n |cut -d':' -f1)
+    line2=$(expr $line2 - 1); sed -i "$line2 r $tmpDir/novncHtml$N.htm" /usr/local/webhookd/static/index.html
+    rm -f $tmpDir/novncHtml$N.htm
+
+}
+
+function freshXrdp(){
+    local N=$1
+    # XRDP /etc/xrdp/xrdp.ini
+    echo """
+[Xvnc$N]
+name=Xvnc$N
+lib=libvnc.so
+username=asknoUser
+password=askheadless
+ip=127.0.0.1
+port=$port1
+chansrvport=DISPLAY($N)
+    """ |sudo tee $tmpDir/xrdp-sesOne$N.conf > /dev/null 2>&1
+    # $N atLast
+    local line=$(cat /etc/xrdp/xrdp.ini |grep  "^# \[PRE_ADD_HERE\]" -n |cut -d':' -f1)
+    line=$(expr $line - 1)
+    sed -i "$line r $tmpDir/xrdp-sesOne$N.conf" /etc/xrdp/xrdp.ini
+    rm -f $tmpDir/xrdp-sesOne$N.conf
+}
+
+
+# tmpDir=/tmp/.headless; mkdir -p $tmpDir
+# cat /etc/novnc/index.html > /usr/local/webhookd/static/index.html
+# # askpass
+# sed -i "s/password=askheadless/password=ask/g" /etc/xrdp/xrdp.ini
+# sed -i "s/value=\"headless\"/value=\"\"/g" /usr/local/webhookd/static/index.html
+
+test -z "$FRPS_BIND" && FRPS_BIND=127.0.0.1:10080
+ip=$(echo $FRPS_BIND |cut -d':' -f1); test -z "$ip" && ip=127.0.0.1
+port=$(echo $FRPS_BIND |cut -d':' -f2); #test -z "$port" && port=10080
+API=http://$ip:$port/api/proxy/tcp; echo "API: $API"
+curl -fsSL -u headless:headless $API |yq ".proxies[].name" |grep novnc |cut -d'-' -f1 |while read one; do
+  idx=$(echo $idx |sed "s/*^x//g"); echo "idx: $idx"
+  export port1=$(expr 5900 + $idx)
+  echo "idx: $idx"
+  #freshVnc $idx
+  #freshXrdp $idx
+done
+
+

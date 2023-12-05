@@ -17,7 +17,6 @@ rm -f /xconf.sh
   mkdir -p /etc/dropbear
 
 ##########################################
-  # && ln -s /usr/bin/supervisorctl /usr/bin/sv \
 $RUN \
   match1=$(cat /etc/group |grep sudo); \
   test -z "$match1" && groupadd sudo; \
@@ -38,7 +37,6 @@ $RUN \
   && rm -f /bin/sh && ln -s /bin/bash /bin/sh; \
   \
   mkdir -p /var/log/supervisor; \
-  rm -f /usr/bin/sv; echo -e "#!/bin/bash\ntest -z "\$1" && go-supervisord ctl -h || go-supervisord ctl \$@" > /usr/bin/sv; chmod +x /usr/bin/sv; \
   echo "alias ll='ls -lF'; alias la='ls -A'; alias l='ls -CF';" |sudo tee -a /home/$user/.bashrc
 
 
