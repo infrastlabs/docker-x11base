@@ -89,7 +89,7 @@ builder)
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64" #dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -107,7 +107,7 @@ builder)
     --build-arg COMPILE_XCOMPMGR=no
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
-    --build-arg COMPILE_PERP=yes
+    --build-arg COMPILE_PERP=no
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"

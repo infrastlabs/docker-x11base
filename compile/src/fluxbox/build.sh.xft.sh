@@ -65,7 +65,7 @@ cd /tmp/fluxbox #&& ./bootstrap;
 # flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
 flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
 imlib="-lImlib2 -L/usr/local/lib -lX11-xcb -lxcb-shm -luuid "
-EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
+EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr" # -lrt
 
 # CONFIGURE去EX_LIBS>> OK;  disable_x4> enable_x4
 # --disable-docs #https://github.com/BtbN/FFmpeg-Builds/blob/7b6432add41f4f8a47592f1e1de73ca182e4cc5c/scripts.d/35-fontconfig.sh#L3
@@ -117,7 +117,7 @@ autoreconf -fi
   --enable-xext      \
   --enable-xrandr    \
   --enable-fribidi   \
-  --enable-xinerama  
+  --enable-xinerama=no
   
 
 make clean
