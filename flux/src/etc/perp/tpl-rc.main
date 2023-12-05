@@ -1,0 +1,23 @@
+#!/bin/sh
+exec 2>&1
+TARGET=${1}
+SVNAME=${2}
+
+start() {
+    cd /; #/etc/perp/x21-de
+    _CMD_
+}
+
+reset() {
+    case $3 in
+      'exit' )
+        echo "*** [${SVNAME}] exited status $4" ;;
+      'signal' )
+        echo "*** [${SVNAME}] killed on signal $5" ;;
+      * )
+        echo "*** [${SVNAME}] stopped ($3)" ;;
+    esac
+    exit 0
+}
+
+eval ${TARGET} "$@"
