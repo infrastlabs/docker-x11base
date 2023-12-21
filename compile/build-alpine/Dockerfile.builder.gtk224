@@ -1,0 +1,15 @@
+ARG COMPILE_IMG=alpine-compile
+FROM infrastlabs/x11-base:builder AS base
+  ARG TARGETPLATFORM
+  ENV CACHE=/usr/local/static/.cache
+  RUN apk update; apk add gawk git;
+  # COPY --from=compile /rootfs${CACHE} ${CACHE}
+  COPY ./src /src
+  # openbox/build(fontconfig,Xrandr,pango); xcompmgr/build(Xdamage);  u-gtk/build(atk,gdk,gtk)
+  # use: lxde,pcmanfm, geany, tint2, xfce414
+  RUN chmod +x /src/**/*.sh; \
+    ls -lh /src/**/*.sh
+  RUN bash /src/u-gtk/build.sh b_deps
+
+
+

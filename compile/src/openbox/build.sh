@@ -416,9 +416,9 @@ cache)
     down_catfile ${OPENBOX_URL} > /dev/null
     ;;
 full)
-    pango
-    libxrandr
     fontconfig
+    libxrandr
+    pango
     openbox
     ;;
 b_deps)

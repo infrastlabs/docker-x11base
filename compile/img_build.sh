@@ -12,13 +12,13 @@ case "$1" in
 builder)
     img="x11-base:alpine-builder"
     args="--build-arg FULL="
-    docker build $cache $pull $args -t $repo/$ns/$img -f src/../Dockerfile.builder . 
+    docker build $cache $pull $args -t $repo/$ns/$img -f src/builder/Dockerfile.builder . 
     # docker push $repo/$ns/$img   
     ;;    
 *) #core
     img="x11-base:alpine-compile"
     # --cache-from $repo/$ns/$img 
-    docker build $cache $pull -t $repo/$ns/$img -f src/../Dockerfile . 
+    docker build $cache $pull -t $repo/$ns/$img -f src/Dockerfile . 
     # docker push $repo/$ns/$img   
     ;;
 esac
