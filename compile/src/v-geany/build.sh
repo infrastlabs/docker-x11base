@@ -88,19 +88,17 @@ full)
     geany
     ;;
 b_deps)
-    bash /src/openbox/build.sh apkdeps
-    bash /src/openbox/build.sh pango & ##needed by gtk
-    bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
-    bash /src/xcompmgr/build.sh Xdamage &
-    wait
-    # 
-    bash /src/v-pcmanfm/build.sh apkdeps
-    bash /src/v-pcmanfm/build.sh atk & #needed by gtk
-    bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
-    wait
-    bash /src/v-pcmanfm/build.sh gtk
-    # bash /src/v-pcmanfm/build.sh libfm
-    # bash /src/v-pcmanfm/build.sh menu-cache #在libfm之后
+    # bash /src/openbox/build.sh apkdeps
+    # bash /src/openbox/build.sh pango & ##needed by gtk
+    # bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
+    # bash /src/xcompmgr/build.sh Xdamage &
+    # wait
+    # # 
+    # bash /src/v-pcmanfm/build.sh apkdeps
+    # bash /src/v-pcmanfm/build.sh atk & #needed by gtk
+    # bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
+    # wait
+    # bash /src/v-pcmanfm/build.sh gtk
 
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk|libfm|menu-cache" |grep "\.a$" |sort

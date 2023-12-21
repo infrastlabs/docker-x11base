@@ -38,7 +38,7 @@ ubt-builder)
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64"
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
-    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../build-ubt/Dockerfile.builder . 
+    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/ubt/Dockerfile.builder . 
     ;;
 deb12-builder)
     repo=registry-1.docker.io
@@ -52,7 +52,7 @@ deb12-builder)
     # plat="--platform linux/arm" #
     # plat="--platform linux/amd64"
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
-    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../build-ubt/Dockerfile.deb12 . 
+    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/ubt/Dockerfile.deb12 . 
     test "0" == "$?" && build_rootfs || exit $err
     ;;
 builder)
@@ -66,7 +66,20 @@ builder)
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm"
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
-    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../build-alpine/Dockerfile.builder . 
+    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/Dockerfile.builder . 
+    ;;
+gtk224)
+    repo=registry-1.docker.io
+    img="x11-base:alpine-builder-gtk224"
+    # cache
+    ali="registry.cn-shenzhen.aliyuncs.com"
+    cimg="x11-base-cache:builder-gtk224"
+    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    
+    plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
+    # plat="--platform linux/amd64" #dbg
+    # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
+    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/Dockerfile.builder.gtk224 . 
     ;;
 *) #compile
     # TigerVNC 1.12.0 |10 Nov 2021
@@ -102,18 +115,20 @@ builder)
     --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
     --build-arg COMPILE_FLUX=no
-    --build-arg COMPILE_OPENBOX=yes
+    --build-arg COMPILE_OPENBOX=no
+    --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_SUCKLESS=no
     --build-arg COMPILE_XCOMPMGR=no
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
+    --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && cimg="${cimg}-dbg"
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
-    docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f src/../build-alpine/Dockerfile . 
+    docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f src/Dockerfile . 
     # err=$?
     # test "0" == "$err" && build_rootfs || exit $err
     ;;          

@@ -1,5 +1,5 @@
 ARG COMPILE_IMG=alpine-compile
-FROM infrastlabs/x11-base:builder AS base
+FROM infrastlabs/x11-base:alpine-builder-gtk224 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
@@ -161,6 +161,20 @@ RUN mkdir -p $TARGETPATH; \
 # RUN /tmp/build-fontconfig.sh
 
 
+# Build lxde
+FROM base as lxde
+ARG COMPILE_LXDE="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/lxde
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-lxde/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_LXDE" && exit 0 || echo doMake; \
+  sh /src/v-lxde/build.sh lxappearance; \
+  sh /src/v-lxde/build.sh lxtask; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
 # Build xlunch
 FROM base as xlunch
 ARG COMPILE_XLUNCH="yes"
@@ -174,6 +188,21 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-xlunch/build.sh xlunch; \
   \
   find ${TARGETPATH} -type f |sort;
+
+# Build tint2
+FROM base as tint2
+ARG COMPILE_TINT2="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/tint2
+RUN mkdir -p $TARGETPATH; \
+  sh /src/v-tint2/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_TINT2" && exit 0 || echo doMake; \
+  sh /src/v-tint2/build.sh b_deps; \
+  sh /src/v-tint2/build.sh tint2; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
 
 FROM base as xcompmgr
 ARG COMPILE_XCOMPMGR="yes"
@@ -261,11 +290,13 @@ COPY --from=xrdp ${STATIC} /rootfs${STATIC}
 COPY --from=dropbear ${STATIC} /rootfs${STATIC}
 COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
 COPY --from=openbox ${STATIC} /rootfs${STATIC}
+COPY --from=tint2 ${STATIC} /rootfs${STATIC}
 COPY --from=suckless ${STATIC} /rootfs${STATIC}
 # 
-COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
+COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
+COPY --from=lxde ${STATIC} /rootfs${STATIC}
 COPY --from=perp ${STATIC} /rootfs${STATIC}
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
