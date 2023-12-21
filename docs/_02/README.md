@@ -3,12 +3,13 @@
 
 - xlunch
 - xcompmgr
-- pcmanfm
+- pcmanfm `lxde, gtk`
 - 
 - pulseaudio
-- geany
+- geany `gtk`
 - perp
 
+**stage1**
 
 ```bash
 # root@tenvm2:/mnt/_statics# ll -h
