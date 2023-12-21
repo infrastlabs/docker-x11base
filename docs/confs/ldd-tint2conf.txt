@@ -1,0 +1,71 @@
+	/lib/ld-musl-x86_64.so.1 (0x7f0d13d27000)
+	libImlib2.so.1 => /usr/local/lib/libImlib2.so.1 (0x7f0d139a5000)
+	libX11-xcb.so.1 => /usr/lib/libX11-xcb.so.1 (0x7f0d12c9b000)
+	libX11.so.6 => /usr/lib/libX11.so.6 (0x7f0d13b90000)
+	libXau.so.6 => /usr/lib/libXau.so.6 (0x7f0d12640000)
+	libXcomposite.so.1 => /usr/lib/libXcomposite.so.1 (0x7f0d12976000)
+	libXdamage.so.1 => /usr/lib/libXdamage.so.1 (0x7f0d13cc4000)
+	libXdmcp.so.6 => /usr/lib/libXdmcp.so.6 (0x7f0d12638000)
+	libXext.so.6 => /usr/lib/libXext.so.6 (0x7f0d12de9000)
+	libXinerama.so.1 => /usr/lib/libXinerama.so.1 (0x7f0d13cbf000)
+	libXrandr.so.2 => /usr/lib/libXrandr.so.2 (0x7f0d13b84000)
+	libXrender.so.1 => /usr/lib/libXrender.so.1 (0x7f0d13cb3000)
+	libblkid.so.1 => /lib/libblkid.so.1 (0x7f0d12503000)
+	libbrotlicommon.so.1 => /usr/lib/libbrotlicommon.so.1 (0x7f0d124aa000)
+	libbrotlidec.so.1 => /usr/lib/libbrotlidec.so.1 (0x7f0d1261c000)
+	libbsd.so.0 => /usr/lib/libbsd.so.0 (0x7f0d124cd000)
+	libbz2.so.1 => /usr/lib/libbz2.so.1 (0x7f0d12629000)
+	libc.musl-x86_64.so.1 => /lib/ld-musl-x86_64.so.1 (0x7f0d13d27000)
+	libcairo.so.2 => /usr/lib/libcairo.so.2 (0x7f0d13011000)
+	libcroco-0.6.so.3 => /usr/local/lib/libcroco-0.6.so.3 (0x7f0d1276f000)
+	libexpat.so.1 => /usr/lib/libexpat.so.1 (0x7f0d125d7000)
+	libffi.so.8 => /usr/lib/libffi.so.8 (0x7f0d12d59000)
+	libfontconfig.so.1 => /usr/lib/libfontconfig.so.1 (0x7f0d12b94000)
+	libfreetype.so.6 => /usr/lib/libfreetype.so.6 (0x7f0d12ca0000)
+	libfribidi.so.0 => /usr/lib/libfribidi.so.0 (0x7f0d12b75000)
+	libgdk_pixbuf-2.0.so.0 => /usr/local/lib/libgdk_pixbuf-2.0.so.0 (0x7f0d12fe7000)
+	libgio-2.0.so.0 => /usr/lib/libgio-2.0.so.0 (0x7f0d12e37000)
+	libglib-2.0.so.0 => /usr/lib/libglib-2.0.so.0 (0x7f0d13a79000)
+	libgmodule-2.0.so.0 => /usr/lib/libgmodule-2.0.so.0 (0x7f0d12c91000)
+	libgobject-2.0.so.0 => /usr/lib/libgobject-2.0.so.0 (0x7f0d13a1f000)
+	libgraphite2.so.3 => /usr/lib/libgraphite2.so.3 (0x7f0d125fc000)
+	libharfbuzz.so.0 => /usr/lib/libharfbuzz.so.0 (0x7f0d12be8000)
+	libintl.so.8 => /usr/lib/libintl.so.8 (0x7f0d13a6c000)
+	libjpeg.so.8 => /usr/lib/libjpeg.so.8 (0x7f0d127ff000)
+	liblzma.so.5 => /usr/lib/liblzma.so.5 (0x7f0d124e0000)
+	libmd.so.0 => /usr/lib/libmd.so.0 (0x7f0d1249e000)
+	libmount.so.1 => /lib/libmount.so.1 (0x7f0d127ac000)
+	libpango-1.0.so.0 => /usr/lib/libpango-1.0.so.0 (0x7f0d13101000)
+	libpangocairo-1.0.so.0 => /usr/lib/libpangocairo-1.0.so.0 (0x7f0d13147000)
+	libpangoft2-1.0.so.0 => /usr/lib/libpangoft2-1.0.so.0 (0x7f0d12bd1000)
+	libpcre.so.1 => /usr/lib/libpcre.so.1 (0x7f0d12d66000)
+	libpixman-1.so.0 => /usr/lib/libpixman-1.so.0 (0x7f0d128e0000)
+	libpng16.so.16 => /usr/lib/libpng16.so.16 (0x7f0d128af000)
+	librsvg-2.so.2 => /usr/local/lib/librsvg-2.so.2 (0x7f0d12dfc000)
+	libxcb-render.so.0 => /usr/lib/libxcb-render.so.0 (0x7f0d128a0000)
+	libxcb-shm.so.0 => /usr/lib/libxcb-shm.so.0 (0x7f0d12c96000)
+	libxcb.so.1 => /usr/lib/libxcb.so.1 (0x7f0d12dc2000)
+	libxml2.so.2 => /usr/lib/libxml2.so.2 (0x7f0d12645000)
+	libuuid.so.1 => /lib/libuuid.so.1 (0x7f0d125ce000)
+	libz.so.1 => /lib/libz.so.1 (0x7f0d12886000)
+	#
+	libXcursor.so.1 => /usr/lib/libXcursor.so.1 (0x7f0d1297b000) ##
+	libXfixes.so.3 => /usr/lib/libXfixes.so.3 (0x7f0d129e4000) ##
+	libXi.so.6 => /usr/lib/libXi.so.6 (0x7f0d12a20000) ##
+	libxkbcommon.so.0 => /usr/lib/libxkbcommon.so.0 (0x7f0d129a5000) ##
+	libatk-1.0.so.0 => /usr/local/lib/libatk-1.0.so.0 (0x7f0d12b41000) ##
+	libatk-bridge-2.0.so.0 => /usr/lib/libatk-bridge-2.0.so.0 (0x7f0d129ec000) ##
+	libatspi.so.0 => /usr/lib/libatspi.so.0 (0x7f0d1254d000) ##
+	libcairo-gobject.so.2 => /usr/lib/libcairo-gobject.so.2 (0x7f0d12b6a000) ##
+	libdbus-1.so.3 => /usr/lib/libdbus-1.so.3 (0x7f0d12584000) ##
+	libepoxy.so.0 => /usr/lib/libepoxy.so.0 (0x7f0d12a31000) ##
+	libgdk-3.so.0 => /usr/lib/libgdk-3.so.0 (0x7f0d13157000) ##
+	libgtk-3.so.0 => /usr/lib/libgtk-3.so.0 (0x7f0d13243000) ##
+	libwayland-client.so.0 => /usr/lib/libwayland-client.so.0 (0x7f0d12995000) ##
+	libwayland-cursor.so.0 => /usr/lib/libwayland-cursor.so.0 (0x7f0d1298c000) ##
+	libwayland-egl.so.1 => /usr/lib/libwayland-egl.so.1 (0x7f0d12987000) ##
+
+# +deps tint2-17.0.1-r1 x86_64 {tint2} (GPL-2.0) [installed] @alpine315
+-lXcursor -lXfixes -lXi -l xkbcommon -latk-1.0 -latk-bridge-2.0 -latspi -lcairo-gobject 
+-ldbus -1epoxy 
+-lgdk-3 -lgtk-3 -lwayland-client -lwayland-cursor -lwayland-egl -l -l -l 
