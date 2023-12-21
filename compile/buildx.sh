@@ -68,6 +68,19 @@ builder)
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../build-alpine/Dockerfile.builder . 
     ;;
+gtk224)
+    repo=registry-1.docker.io
+    img="x11-base:alpine-builder-gtk224"
+    # cache
+    ali="registry.cn-shenzhen.aliyuncs.com"
+    cimg="x11-base-cache:builder-gtk224"
+    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    
+    plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
+    # plat="--platform linux/amd64" #dbg
+    # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
+    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../build-alpine/Dockerfile.builder.gtk224 . 
+    ;;
 *) #compile
     # TigerVNC 1.12.0 |10 Nov 2021
     # old=$(pwd); cd src/..
@@ -102,11 +115,13 @@ builder)
     --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
     --build-arg COMPILE_FLUX=no
-    --build-arg COMPILE_OPENBOX=yes
+    --build-arg COMPILE_OPENBOX=no
+    --build-arg COMPILE_TINT2=yes
     --build-arg COMPILE_SUCKLESS=no
     --build-arg COMPILE_XCOMPMGR=no
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
+    --build-arg COMPILE_LXDE=yes
     --build-arg COMPILE_PERP=no
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
