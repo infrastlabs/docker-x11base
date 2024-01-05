@@ -116,12 +116,12 @@ gtk224)
     --build-arg COMPILE_SSH=no
     --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=no
-    --build-arg COMPILE_TINT2=yes
+    --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_SUCKLESS=no
     --build-arg COMPILE_XCOMPMGR=no
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
-    --build-arg COMPILE_LXDE=yes
+    --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
