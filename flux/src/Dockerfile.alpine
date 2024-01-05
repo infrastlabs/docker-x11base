@@ -45,6 +45,23 @@ RUN apk add --no-cache \
 #   pcmanfm geany ristretto engrampa
 #   # sakura lxtask lxappearance
 
+##glibc
+# https://github.com/SatoshiPortal/alpine-pkg-glibc/releases/
+# glibc-2.31-r0-aarch64.apk 3.11 MB 2021-05-18T15:12:42Z
+# glibc-2.31-r0-armhf.apk   2.34 MB 2021-05-18T15:13:01Z
+# glibc-2.31-r0-x86_64.apk  4.19 MB
+RUN \
+  # export GITHUB=https://hub.yzuu.cf; \
+  export GITHUB=https://github.com; \
+  # file=glibc-2.25-r0.apk; \
+  # wget $GITHUB/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/$file; \
+  arch=x86_64; test ! -z "$(uname -a |grep aarch64)" && arch=aarch64; \
+  file=glibc-2.31-r0-$arch.apk; \
+  wget $GITHUB/SatoshiPortal/alpine-pkg-glibc/releases/download/2.31-r0/$file; \
+  apk add $file --allow-untrusted; \
+  rm -f $file;
+
+
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /rootfs/files1
 COPY --from=rootfs /rootfs/files2 /rootfs/files2
