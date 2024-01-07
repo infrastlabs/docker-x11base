@@ -1,5 +1,10 @@
 
 - xfwm4
+- thunar
+- xfdesktop
+- xfce4-settings
+
+**xfwm4**
 
 ```bash
 # https://distrowatch.com/table.php?distribution=alpine
@@ -174,16 +179,17 @@ bash-5.1# ldd /usr/bin/xfce4-settings-manager |sort |wc
 ```
 
 
-- **thunar** `1.6.18(4.12)> 1.8.17(4.13/4.14)> 4.15.0> 4.19.0`
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.8.17 #5232 2021.5.12  `gtk3.20`
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.8.0  #4308 2018.6.7   `gtk3.20`
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.7.0  #3983 2017.11.26 `gtk3.20`
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.6.18 #4029 2019.11.10 `gtk2.24` **thunar-1.6.18**
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.6.12 #3710 2017.7.1   `gtk2.24`
-  - https://github.com/xfce-mirror/thunar/tree/thunar-1.6.0  #2876 2012.12.3  `gtk2.14`
-  - 
-  - https://www.xfce.org/download/changelogs
-  - https://www.xfce.org/about/screenshots
+**thunar** `1.6.18(4.12)> 1.8.17(4.13/4.14)> 4.15.0> 4.19.0`
+
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.8.17 #5232 2021.5.12  `gtk3.20`
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.8.0  #4308 2018.6.7   `gtk3.20`
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.7.0  #3983 2017.11.26 `gtk3.20`
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.6.18 #4029 2019.11.10 `gtk2.24` **thunar-1.6.18**
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.6.12 #3710 2017.7.1   `gtk2.24`
+- https://github.com/xfce-mirror/thunar/tree/thunar-1.6.0  #2876 2012.12.3  `gtk2.14`
+- 
+- https://www.xfce.org/download/changelogs
+- https://www.xfce.org/about/screenshots
 
 
 ```bash
