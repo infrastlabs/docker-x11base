@@ -1,45 +1,66 @@
 
-## dropbear, jgmenu, sakura, [thunar]
+- ~~tint2~~ `imlib2`
+- jgmenu `dyn:ok`
+- rofi `xcb-ewmh/icccm/cursor`
+- sakura `SAKURA_2_3_7:vte`
 
-
-- **dropbear**
 
 ```bash
-./configure
-make
-make install
-# build ok;
-/mnt2/dropbear # ls -lh dropbear
--rwxr-xr-x    1 root     root      367.0K Oct 31 12:26 dropbear
+   #14  cd jgmenu/
+   15  ls
+   16  ./configure 
+   17  apk add librsvg
+   18  apk add librsvg-dev
+   19  ./configure 
+   20  make
+   21  ls
+   22  ls -lh jgmenu
+   23  ldd jgmenu
 
+# rofi #autoreconf -v --install
+bash-5.1# history |tail -50
+   91  cd rofi/
+   93  autoreconf -v --install
+  100  cp .gitmodules  .gitmodules-bk1
+  101  sed -i "s^github.com^hub.njuu.cf^g" .gitmodules
+  102  cat .gitmodules
+  104  git submodule update
+  106  ls subprojects/libgwater/
+  107  ls subprojects/libnkutils/
+  109  autoreconf -v --install
+  111  ./configure
+  112  apk add bison-dev
+  113  apk add bison
+  115  apk add flex
+  116  apk add flex-dev
+  117  ./configure
+  118  apk add xkbcommon ##no pkg
+  122  apk add libxkbcommon
+  123  apk add libxkbcommon-dev
+Package 'xcb-ewmh', required by 'virtual:world', not found
+Package 'xcb-icccm', required by 'virtual:world', not found
+Package 'xcb-cursor', required by 'virtual:world', not found
 
-# static-build
-./configure  --enable-static --prefix=/usr/local/static/dropbear
-make
+# tint2 https://github.com/o9000/tint2/tree/v16.1
+# --   Package 'imlib2', required by 'virtual:world', not found
+bash-5.1# history |tail -10
+  135  cd tint2/
+  137  git checkout 16.1
+  139  mkdir build
+  140  cd build
+  141  cmake ..
+# make -j4
 
-/mnt2/dropbear # echo $?
-0
-/mnt2/dropbear # ls -lh dropbear
--rwxr-xr-x    1 root     root      367.0K Oct 31 12:27 dropbear
-
-
-# /mnt2/dropbear # make install
-# validate01
-/mnt2/dropbear # xx-verify --static /usr/local/static/dropbear/sbin/dropbear 
-/mnt2/dropbear # echo $?
-0
-/mnt2/dropbear # ls -lh /usr/local/static/dropbear/sbin/dropbear 
--rwxr-xr-x    1 root     root      367.0K Oct 31 12:28 /usr/local/static/dropbear/sbin/dropbear
-
-
-# validate02
-root@VM-12-9-ubuntu:~# cd /mnt/xrdp-static-alpine/
-root@VM-12-9-ubuntu:/mnt/xrdp-static-alpine# ls
-bin  dropbear  etc  include  lib  sbin  share  xrdp-chansrv
-root@VM-12-9-ubuntu:/mnt/xrdp-static-alpine# ./dropbear -h
-Dropbear server v2022.83 https://matt.ucc.asn.au/dropbear/dropbear.html
-Usage: ./dropbear [options]
+# sakura https://github.com/dabisu/sakura/tree/SAKURA_2_3_7
+master 940 # --   Package 'gtk+-3.0', required by 'virtual:world', not found
+SAKURA_3_5_0 758 @2017.7.14 # -- Checking for module 'gtk+-3.0>=3.12' ERR
+SAKURA_3_2_1 630 @2015.7.24 #'glib-2.0>=2.20'ok; #--   Package 'gtk+-3.0', required by 'virtual:world', not found
+SAKURA_3_0_2 476 @2012.3.7 #--   Package 'gtk+-3.0', required by 'virtual:world', not found
+SAKURA_2_3_7 315 @2010.3.4 #'gtk+-2.0>=2.10'ok; --   Package 'vte', required by 'virtual:world', not found
 ```
+
+## jgmenu, sakura
+
 
 - **jgmenu**
 
@@ -120,6 +141,29 @@ make: *** [Makefile:73: jgmenu] Error 1
 /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libpng.a(pngwutil.o):
 ```
 
+
+
+### jgmenu
+
+```bash
+  118  cd jgmenu/
+  119  ls #直接./conf
+  121  ./configure #--enable-static --disable-shared ##无配置项
+  122  make ##static deps err;
+  126  make clean
+  127  make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr -lXcursor -lXi $LIBS0" 2>&1
+
+make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr -lXcursor -lXi $LIBS0" 2>&1
+
+# ref tint2
+deps="Xinerama Xfixes Xrandr gdk-x11-2.0 gtk-x11-2.0 atk-1.0 gdk_pixbuf-2.0 pangocairo-1.0 pangoft2-1.0 pango-1.0 fontconfig X11 xcb Xdmcp Xau Xext Xft freetype png Xrender expat xml2 z bz2 lzma brotlidec brotlicommon intl fribidi harfbuzz gio-2.0 gobject-2.0 glib-2.0 pcre graphite2 ffi gmodule-2.0 gobject-2.0 gpg-error graphite2 pixman-1 jpeg uuid mount pcre blkid Xcomposite fontconfig gio-2.0 cairo Xdamage X11-xcb xcb-shm xcb-render xcb-util md croco-0.6 Imlib2 Xcursor Xi"
+
+# -lImlib2
+make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr -lXcursor -lXi -lImlib2 $LIBS0" 2>&1
+# 错误依旧，LIBS设定无效;
+```
+
+### Sakura
 
 - **sakura**
   - gtk+3.0-dev https://github.com/GNOME/gtk #`c, per862, commits78095` 3.0.12@`commits-26752@2011.7.28`
