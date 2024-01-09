@@ -102,7 +102,7 @@ gtk224)
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    plat="--platform linux/amd64" #dbg
+    # plat="--platform linux/amd64" #dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -122,7 +122,7 @@ gtk224)
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_LXDE=no
-    --build-arg COMPILE_PERP=no
+    --build-arg COMPILE_PERP=yes
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
