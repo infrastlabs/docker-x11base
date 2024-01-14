@@ -1,4 +1,12 @@
 
+- gcc
+  - **v13.99.3** ubt2004-13.99.1
+- clang
+  - clang dyn/static
+  - view >> 非静编; `export LDFALGS="-static .."`
+  - **try02** ref OpenELEC `PKG_CONFIGURE_OPTS_TARGET` (args)
+  - configure.ac>> enable_static_bins
+
 ## gcc
 
 ```bash
@@ -125,6 +133,7 @@ $ ldd module-xrdp-sink.so
 
 ## **clang build**
 
+- clang dyn/static
 
 ```bash
 
@@ -263,7 +272,7 @@ make[1]: Leaving directory '/mnt2/pulseaudio'
 make: *** [Makefile:1141: install] Error 2
 ```
 
-- view LDFALGS="-static ..">> 非静编
+- view >> 非静编; `export LDFALGS="-static .."`
 
 ```bash
 # bash-5.1# du -sh /usr/local/static/pulseaudio*
@@ -327,7 +336,7 @@ lrwxrwxrwx    1 root     root           5 Nov 25 13:54 parecord -> pacat
 /usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-default-device-restore.a
 ```
 
-- **try02** ref OpenELEC `PKG_CONFIGURE_OPTS_TARGET`
+- **try02** ref OpenELEC `PKG_CONFIGURE_OPTS_TARGET` (args)
 
 ```bash
 # args

@@ -1,7 +1,15 @@
 
+- cmds (args)
+  - ref github's x2
+  - view deps
+  - try 11.0
+- LIBS @v13.99.3
+  - configure args
+ - **try03** XXARGS=ABC ./configure
+
 ## cmds
 
-ref github's x2
+- ref github's x2
 
 ```bash
 #https://github.com/hchapman/pulseaudio-android-ndk/blob/80b6b09408e35c176a9731dc7e0f94385ad45d28/build.sh#L27
@@ -70,7 +78,7 @@ bash-5.1# find /usr/lib |egrep "opus|ogg|vorbis|vorbisenc|FLAC" |grep .a$
 /usr/lib/libogg.a
 ```
 
-## view
+- view deps
 
 ```bash
 #view @v13.99.3
@@ -106,7 +114,7 @@ bash-5.1# ldd src/pactl
         libogg.so.0 => /usr/lib/libogg.so.0 (0x7f1a136c3000)
 ```
 
-## try 11.0
+- try 11.0
 
 - stable-`1.x 2.x 3.x; 7.x 11.x 12.x 14.x 16.x`
 - 16.99.1 10234commits, master 10245
@@ -148,13 +156,15 @@ make[1]: *** [Makefile:810: all-recursive] Error 1
 make[1]: Leaving directory '/mnt2/fk-pulseaudio'
 make: *** [Makefile:625: all] Error 2
 
-# 切换到tag: 一样错误
+# origin/stable-11.x>> 切换到tag:v11.0 一样错误
   600  git checkout v11.0
   601  make
 
 ```
 
 ## LIBS @v13.99.3
+
+- configure args
 
 ```bash
 # ss --enable-static-bins >> =yes
@@ -235,7 +245,7 @@ bash-5.1# make LDFLAGS="-static --static" 2>&1 |grep musl/10 |awk '{print $2}' |
 
 ```
 
-- **try03** LDFALGS>> ./configure
+- **try03** XXARGS=ABC ./configure
 
 ```bash
 # ss
