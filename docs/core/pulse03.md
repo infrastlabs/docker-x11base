@@ -28,10 +28,10 @@
         # libpulse.so.0 => /usr/local/lib/libpulse.so.0 (0x7fb099434000)
         # libpulsecommon-13.99.so => /usr/local/lib/pulseaudio/libpulsecommon-13.99.so (0x7fb0993ba000)
         # libpulsecore-13.99.so => /usr/local/lib/pulseaudio/libpulsecore-13.99.so (0x7fb099488000)
-        libFLAC.so.8 => /usr/lib/libFLAC.so.8 (0x7fb0992fe000)
         libogg.so.0 => /usr/lib/libogg.so.0 (0x7fb0991c2000)
         libopus.so.0 => /usr/lib/libopus.so.0 (0x7fb0991cc000)
         libsndfile.so.1 => /usr/lib/libsndfile.so.1 (0x7fb099332000)
+        libFLAC.so.8 => /usr/lib/libFLAC.so.8 (0x7fb0992fe000)
         libvorbis.so.0 => /usr/lib/libvorbis.so.0 (0x7fb0992d6000)
         libvorbisenc.so.2 => /usr/lib/libvorbisenc.so.2 (0x7fb09922c000)
 ```
@@ -333,7 +333,7 @@ bash-5.1# make LDFLAGS="-static --static $dep1"  2>&1 |egrep -v "warning|extern|
 /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o):
 ```
 
-- libsndfile源码编译静态库
+- try-b3: libsndfile源码编译静态库
 
 ```bash
 # https://github.com/libsndfile/libsndfile/tree/1.0.31
@@ -372,4 +372,130 @@ make LDFLAGS="-static --static $dep1"
   # long oggpack_read(oggpack_buffer *b,int bits){
   /* Takes only up to 32 bits. */
   # void oggpack_write(oggpack_buffer *b,unsigned long value,int bits){
+  
+
+
+# ref pulseaudio2, try XXX_LIBS: same err;
+LIBS="$dep1" PREOPEN_LIBS="$dep1" NODELETE_LDFLAGS=" $dep1" \
+make LDFLAGS="-static --static $dep1"
+
+pulse03-static-buildErr1.txt分析:
+libsndfile.a
+local/FLAC.a
+local/vorbis.a >> ogg/opus分法名依赖找不到..; `oggpack_read/oggpack_write/..`
+# ogg/opus等库未能在LD时载入??
+
+bash-5.1# find |grep Makefile$ |sort
+./Makefile ##
+./doxygen/Makefile
+./man/Makefile
+./po/Makefile
+./src/Makefile
+./src/daemon/Makefile ##
+./src/modules/Makefile
+./src/pulse/Makefile #
+./src/pulsecore/Makefile
+./src/tests/Makefile
+./src/utils/Makefile
+# bash-5.1# find |grep Makefile$ |sort |while read one; do echo $one; cat $one |grep ogg -n; done
+./Makefile
+399:LIBS = -logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc
+./doxygen/Makefile
+264:LIBS = -logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc
+./man/Makefile
+313:LIBS = -logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc
+./po/Makefile
+./src/Makefile
+3840:LIBS = -logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc
+./src/daemon/Makefile
+./src/modules/Makefile
+./src/pulse/Makefile
+./src/pulsecore/Makefile
+./src/tests/Makefile
+./src/utils/Makefile
+
+# bash-5.1# find |grep Makefile$ |sort |while read one; do echo -e "\n\n$one"; cat $one |egrep "\(LIBS|_LIBS33" -n; done   |wc
+      233      1164     25381
+
+# bash-5.1# ldd /usr/local/bin/pulseaudio  |sort
+        /lib/ld-musl-x86_64.so.1 (0x7fd58655a000)
+        libc.musl-x86_64.so.1 => /lib/ld-musl-x86_64.so.1 (0x7fd58655a000)
+        libintl.so.8 => /usr/lib/libintl.so.8 (0x7fd5863bf000)
+        libltdl.so.7 => /usr/lib/libltdl.so.7 (0x7fd5863b4000)
+        # libpulse.so.0 => /usr/local/lib/libpulse.so.0 (0x7fd586446000)
+        # libpulsecommon-13.99.so => /usr/local/lib/pulseaudio/libpulsecommon-13.99.so (0x7fd5863cc000)
+        # libpulsecore-13.99.so => /usr/local/lib/pulseaudio/libpulsecore-13.99.so (0x7fd58649a000)
+        libogg.so.0 => /usr/lib/libogg.so.0 (0x7fd5861d4000)
+        libopus.so.0 => /usr/lib/libopus.so.0 (0x7fd5861de000)
+        libsndfile.so.1 => /usr/lib/libsndfile.so.1 (0x7fd586344000)
+        libFLAC.so.8 => /usr/lib/libFLAC.so.8 (0x7fd586310000)
+        libvorbis.so.0 => /usr/lib/libvorbis.so.0 (0x7fd5862e8000)
+        libvorbisenc.so.2 => /usr/lib/libvorbisenc.so.2 (0x7fd58623e000)
+```
+
+- try-b4 `cd src; make #dyn, fix src's ref`
+
+```bash
+clang-12: warning: '-fuse-ld=' taking a path is deprecated. Use '--ld-path=' instead [-Wfuse-ld-path]
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x2f98): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x2f88): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x2fa8): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x2f78): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x3198): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: .libs/pulseaudioS.o:(.data.rel.ro+0x3188): warning: Module auto-loading no longer supported.
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-dumpmodules.o: in function 'pa_dump_modules':
+dumpmodules.c:(.text+0x3c): undefined reference to 'pa_modinfo_get_by_name'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-ltdl-bind-now.o: in function 'pa_ltdl_init':
+ltdl-bind-now.c:(.text+0x4): undefined reference to 'lt_dlinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-ltdl-bind-now.o: in function 'pa_ltdl_done':
+ltdl-bind-now.c:(.text+0x55): undefined reference to 'lt_dlexit'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-main.o: in function `main':
+main.c:(.text+0x198): undefined reference to 'lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: ./.libs/module-ladspa-sink.a(module_ladspa_sink_la-module-ladspa-sink.o): in function `module_ladspa_sink_LTX_pa__init':
+module-ladspa-sink.c:(.text+0x394): undefined reference to 'lt_dlgetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: module-ladspa-sink.c:(.text+0x3a9): undefined reference to 'lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: module-ladspa-sink.c:(.text+0x3b3): undefined reference to 'lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: /mnt2/_misc2/fk-pulseaudio/src/.libs/libpulsecore-13.99.a(libpulsecore_13.99_la-cli-command.o): in function 'pa_cli_command_describe':
+cli-command.c:(.text+0x25c0): undefined reference to 'pa_modinfo_get_by_name'
+/usr/bin/x86_64-alpine-linux-musl-ld: /mnt2/_misc2/fk-pulseaudio/src/.libs/libpulsecore-13.99.a(libpulsecore_13.99_la-module.o): in function 'pa_module_exists':
+module.c:(.text+0x90): undefined reference to 'lt_dlgetsearchpath'
+clang-12: error: linker command failed with exit code 1 (use -v to see invocation)
+make[1]: *** [Makefile:7278: pulseaudio] Error 1
+make[1]: Leaving directory '/mnt2/_misc2/fk-pulseaudio/src'
+make: *** [Makefile:5399: all] Error 2
+bash-5.1# #make
+bash-5.1# pwd
+/mnt2/_misc2/fk-pulseaudio/src
+
+
+# make
+# dyn make 排除src移除`ldtl`后的ref-err
+
+
+bash-5.1# ls -lh pulseaudio 
+-rwxr-xr-x    1 root     root        9.0M Jan 15 13:01 pulseaudio
+bash-5.1# ldd pulseaudio |sort
+        /lib/ld-musl-x86_64.so.1 (0x7f832c462000)
+        libc.musl-x86_64.so.1 => /lib/ld-musl-x86_64.so.1 (0x7f832c462000)
+        libogg.so.0 => /usr/lib/libogg.so.0 (0x7f832b976000)
+        libopus.so.0 => /usr/lib/libopus.so.0 (0x7f832b980000)
+        libsndfile.so.1 => /usr/lib/libsndfile.so.1 (0x7f832bae6000)
+        libFLAC.so.8 => /usr/lib/libFLAC.so.8 (0x7f832bab2000)
+        libvorbis.so.0 => /usr/lib/libvorbis.so.0 (0x7f832ba8a000)
+        libvorbisenc.so.2 => /usr/lib/libvorbisenc.so.2 (0x7f832b9e0000)
+
+
+make clean
+make LDFLAGS="-static --static $dep1"
+
+
+# 
+bash-5.1# git pull; ./autogen.sh
+dep1="-logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc"
+LIBS="$dep1" ./configure \
+    --prefix=${CMAKE_BINARY_DIR} \
+    $args
+make clean
+make LDFLAGS="-static --static $dep1"
+
 ```
