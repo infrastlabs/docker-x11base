@@ -1,0 +1,377 @@
+make  all-recursive
+make[1]: Entering directory '/mnt2/_misc2/fk-pulseaudio'
+Making all in src
+make[2]: Entering directory '/mnt2/_misc2/fk-pulseaudio/src'
+make  all-am
+make[3]: Entering directory '/mnt2/_misc2/fk-pulseaudio/src'
+  CCLD     pulseaudio
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-dumpmodules.o: in function `pa_dump_modules':
+dumpmodules.c:(.text+0x3c): undefined reference to `pa_modinfo_get_by_name'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-ltdl-bind-now.o: in function `pa_ltdl_init':
+ltdl-bind-now.c:(.text+0x4): undefined reference to `lt_dlinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-ltdl-bind-now.o: in function `pa_ltdl_done':
+ltdl-bind-now.c:(.text+0x55): undefined reference to `lt_dlexit'
+/usr/bin/x86_64-alpine-linux-musl-ld: daemon/pulseaudio-main.o: in function `main':
+main.c:(.text+0x198): undefined reference to `lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: ./.libs/module-ladspa-sink.a(module_ladspa_sink_la-module-ladspa-sink.o): in function `module_ladspa_sink_LTX_pa__init':
+module-ladspa-sink.c:(.text+0x394): undefined reference to `lt_dlgetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: module-ladspa-sink.c:(.text+0x3a9): undefined reference to `lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: module-ladspa-sink.c:(.text+0x3b3): undefined reference to `lt_dlsetsearchpath'
+/usr/bin/x86_64-alpine-linux-musl-ld: /mnt2/_misc2/fk-pulseaudio/src/.libs/libpulsecore-13.99.a(libpulsecore_13.99_la-cli-command.o): in function `pa_cli_command_describe':
+cli-command.c:(.text+0x25c0): undefined reference to `pa_modinfo_get_by_name'
+/usr/bin/x86_64-alpine-linux-musl-ld: /mnt2/_misc2/fk-pulseaudio/src/.libs/libpulsecore-13.99.a(libpulsecore_13.99_la-module.o): in function `pa_module_exists':
+module.c:(.text+0x90): undefined reference to `lt_dlgetsearchpath'
+
+
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_close':
+ogg.c:(.text+0xc): undefined reference to `ogg_sync_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x15): undefined reference to `ogg_stream_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_sync_fseek':
+ogg.c:(.text+0xd5): undefined reference to `ogg_sync_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_sync_next_page':
+ogg.c:(.text+0x11a): undefined reference to `ogg_sync_pageseek'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x1b5): undefined reference to `ogg_sync_buffer'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x1ec): undefined reference to `ogg_sync_wrote'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_read_first_page':
+ogg.c:(.text+0x241): undefined reference to `ogg_sync_buffer'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x28b): undefined reference to `ogg_sync_wrote'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x2c2): undefined reference to `ogg_page_bos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x2dc): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x2e6): undefined reference to `ogg_stream_reset_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x2f1): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x30b): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_stream_next_page':
+ogg.c:(.text+0x397): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x3aa): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x3ca): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_stream_unpack_page':
+ogg.c:(.text+0x418): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x46c): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x481): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x49b): undefined reference to `ogg_stream_packetpeek'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_sync_last_page_before':
+ogg.c:(.text+0x598): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x5a6): undefined reference to `ogg_page_granulepos'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_stream_seek_page_search':
+ogg.c:(.text+0x6d4): undefined reference to `ogg_stream_reset_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x824): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x8e8): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x8fd): undefined reference to `ogg_page_packets'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x90d): undefined reference to `ogg_page_granulepos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x94f): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x975): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0x98c): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xa2a): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xab2): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xaff): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xb1d): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xb36): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libcommon_la-ogg.o): in function `ogg_open':
+ogg.c:(.text+0xbc6): undefined reference to `ogg_sync_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xbd1): undefined reference to `ogg_stream_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xc48): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xde6): undefined reference to `ogg_sync_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg.c:(.text+0xdef): undefined reference to `ogg_stream_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o): in function `vorbis_seek':
+ogg_vorbis.c:(.text+0x452): undefined reference to `ogg_stream_reset_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o): in function `vorbis_write_samples':
+ogg_vorbis.c:(.text+0x5a6): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0x5ba): undefined reference to `ogg_stream_pageout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0x5d3): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o): in function `vorbis_write_header':
+ogg_vorbis.c:(.text+0xa84): undefined reference to `ogg_stream_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xaba): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xaca): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xad5): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xae0): undefined reference to `ogg_stream_flush'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o): in function `vorbis_close':
+ogg_vorbis.c:(.text+0xbfd): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xc15): undefined reference to `ogg_stream_pageout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xc2c): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_vorbis.o): in function `ogg_vorbis_open':
+ogg_vorbis.c:(.text+0xedd): undefined reference to `ogg_stream_packetpeek'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xf35): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0xfb2): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_vorbis.c:(.text+0x10c9): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_calculate_page_duration':
+ogg_opus.c:(.text+0x19f): undefined reference to `opus_packet_get_nb_samples'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_setup_decoder':
+ogg_opus.c:(.text+0x246): undefined reference to `opus_multistream_decoder_create'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x261): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x28b): undefined reference to `opus_multistream_decoder_destroy'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2c8): undefined reference to `opus_multistream_decoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_command':
+ogg_opus.c:(.text+0x43b): undefined reference to `opus_multistream_encoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_write_out':
+ogg_opus.c:(.text+0x567): undefined reference to `opus_multistream_encoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x58e): undefined reference to `opus_multistream_encode_float'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x59e): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x649): undefined reference to `ogg_stream_flush_fill'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x650): undefined reference to `ogg_stream_pageout_fill'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x695): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_write_header':
+ogg_opus.c:(.text+0xb6c): undefined reference to `ogg_stream_reset_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xc69): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xcc7): undefined reference to `ogg_stream_flush'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xcff): undefined reference to `opus_get_version_string'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xd2e): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xd39): undefined reference to `ogg_stream_flush'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_close':
+ogg_opus.c:(.text+0xebd): undefined reference to `opus_multistream_encode_float'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xec9): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xf28): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xf33): undefined reference to `ogg_stream_pageout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xf58): undefined reference to `ogg_stream_flush'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xf7c): undefined reference to `ogg_packet_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xf8d): undefined reference to `opus_multistream_encoder_destroy'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0xfa5): undefined reference to `opus_multistream_decoder_destroy'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_byterate':
+ogg_opus.c:(.text+0x10fd): undefined reference to `opus_packet_get_nb_samples'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_seek_manual':
+ogg_opus.c:(.text+0x11c2): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x11f9): undefined reference to `opus_multistream_decoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_read_refill':
+ogg_opus.c:(.text+0x12a1): undefined reference to `opus_multistream_decode_float'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x12bf): undefined reference to `opus_packet_get_nb_samples'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1372): undefined reference to `opus_multistream_decode_float'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1389): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x13df): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_seek':
+ogg_opus.c:(.text+0x1600): undefined reference to `opus_multistream_decoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libsndfile.a(libsndfile_la-ogg_opus.o): in function `ogg_opus_open':
+ogg_opus.c:(.text+0x1c09): undefined reference to `opus_get_version_string'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1c55): undefined reference to `ogg_page_packets'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1c65): undefined reference to `ogg_page_bos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1c75): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1e83): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x1f98): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2021): undefined reference to `ogg_page_eos'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2182): undefined reference to `opus_multistream_encoder_create'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x21ae): undefined reference to `opus_multistream_surround_encoder_create'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x21c5): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2202): undefined reference to `opus_multistream_encoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2234): undefined reference to `opus_multistream_encoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2243): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2270): undefined reference to `opus_multistream_encoder_ctl'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x227f): undefined reference to `opus_strerror'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x22fd): undefined reference to `ogg_packet_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_opus.c:(.text+0x2348): undefined reference to `ogg_stream_init'
+
+
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_decoder_aspect.o): in function `FLAC__ogg_decoder_aspect_init':
+ogg_decoder_aspect.c:(.text+0xe): undefined reference to `ogg_stream_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x20): undefined reference to `ogg_sync_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_decoder_aspect.o): in function `FLAC__ogg_decoder_aspect_finish':
+ogg_decoder_aspect.c:(.text+0x60): undefined reference to `ogg_sync_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x6d): undefined reference to `ogg_stream_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_decoder_aspect.o): in function `FLAC__ogg_decoder_aspect_flush':
+ogg_decoder_aspect.c:(.text+0x8c): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x98): undefined reference to `ogg_sync_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_decoder_aspect.o): in function `FLAC__ogg_decoder_aspect_reset':
+ogg_decoder_aspect.c:(.text+0xb2): undefined reference to `ogg_stream_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0xbe): undefined reference to `ogg_sync_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_decoder_aspect.o): in function `FLAC__ogg_decoder_aspect_read_callback_wrapper':
+ogg_decoder_aspect.c:(.text+0x1db): undefined reference to `ogg_sync_pageout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x1f4): undefined reference to `ogg_page_serialno'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x218): undefined reference to `ogg_stream_pagein'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x248): undefined reference to `ogg_stream_packetout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x324): undefined reference to `ogg_sync_buffer'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_decoder_aspect.c:(.text+0x384): undefined reference to `ogg_sync_wrote'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_encoder_aspect.o): in function `FLAC__ogg_encoder_aspect_init':
+ogg_encoder_aspect.c:(.text+0xb): undefined reference to `ogg_stream_init'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_encoder_aspect.o): in function `FLAC__ogg_encoder_aspect_finish':
+ogg_encoder_aspect.c:(.text+0x3f): undefined reference to `ogg_stream_clear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_encoder_aspect.o): in function `FLAC__ogg_encoder_aspect_write_callback_wrapper':
+ogg_encoder_aspect.c:(.text+0x1a9): undefined reference to `ogg_stream_packetin'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_encoder_aspect.c:(.text+0x214): undefined reference to `ogg_stream_pageout'
+/usr/bin/x86_64-alpine-linux-musl-ld: ogg_encoder_aspect.c:(.text+0x2ca): undefined reference to `ogg_stream_flush'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_helper.o): in function `simple_ogg_page__get_at':
+ogg_helper.c:(.text+0x183): undefined reference to `ogg_page_checksum_set'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libFLAC.a(ogg_helper.o): in function `simple_ogg_page__set_at':
+ogg_helper.c:(.text+0x29f): undefined reference to `ogg_page_checksum_set'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(block.o): in function `vorbis_block_init':
+block.c:(.text+0x7e): undefined reference to `oggpack_writeinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(block.o): in function `vorbis_block_clear':
+block.c:(.text+0x1c8): undefined reference to `oggpack_writeclear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(analysis.o): in function `vorbis_analysis':
+analysis.c:(.text+0x2e): undefined reference to `oggpack_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: analysis.c:(.text+0x7e): undefined reference to `oggpack_get_buffer'
+/usr/bin/x86_64-alpine-linux-musl-ld: analysis.c:(.text+0x89): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(synthesis.o): in function `vorbis_synthesis':
+synthesis.c:(.text+0x90): undefined reference to `oggpack_readinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x9d): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0xb5): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0xe3): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0xf4): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(synthesis.o): in function `vorbis_synthesis_trackonly':
+synthesis.c:(.text+0x20d): undefined reference to `oggpack_readinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x21a): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x241): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x273): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x284): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(synthesis.o): in function `vorbis_packet_blocksize':
+synthesis.c:(.text+0x300): undefined reference to `oggpack_readinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x30d): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: synthesis.c:(.text+0x34a): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_synthesis_idheader':
+info.c:(.text+0x599): undefined reference to `oggpack_readinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x5ad): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x5d4): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_synthesis_headerin':
+info.c:(.text+0x659): undefined reference to `oggpack_readinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x666): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x687): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x707): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x72a): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x73b): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o):info.c:(.text+0x74c): more undefined references to `oggpack_read' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_synthesis_headerin':
+info.c:(.text+0xb84): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xbed): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xc08): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xc60): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xc8a): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_commentheader_out':
+info.c:(.text+0xd03): undefined reference to `oggpack_writeinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xd16): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xd31): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xd47): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xd6f): undefined reference to `oggpack_writeclear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `_vorbis_pack_comment':
+info.c:(.text+0xdb2): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xdcd): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xde7): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xe02): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xe1b): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o):info.c:(.text+0xe44): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_analysis_headerout':
+info.c:(.text+0xf00): undefined reference to `oggpack_writeinit'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0xfa0): undefined reference to `oggpack_writeclear'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x102b): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1047): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1063): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1079): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x108a): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o):info.c:(.text+0x109b): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_analysis_headerout':
+info.c:(.text+0x111f): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x113a): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1158): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1180): undefined reference to `oggpack_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x11b0): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x11ce): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x11ee): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1212): undefined reference to `oggpack_reset'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x1240): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x125c): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x127a): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x12c4): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x12d3): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o):info.c:(.text+0x12e7): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(info.o): in function `vorbis_analysis_headerout':
+info.c:(.text+0x14ce): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x14ec): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x150c): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: info.c:(.text+0x152f): undefined reference to `oggpack_writeclear'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o): in function `vorbis_staticbook_pack':
+codebook.c:(.text+0x1f): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x2f): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x40): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x90): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0xa8): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o):codebook.c:(.text+0xec): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o): in function `vorbis_staticbook_unpack':
+codebook.c:(.text+0x32b): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x344): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x354): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x38d): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x3ab): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x3d7): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x414): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x426): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x458): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x494): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x515): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o):codebook.c:(.text+0x53e): more undefined references to `oggpack_read' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o): in function `vorbis_staticbook_unpack':
+codebook.c:(.text+0x5e8): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x617): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o): in function `vorbis_book_encode':
+codebook.c:(.text+0x681): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(codebook.o): in function `decode_packed_entry_number':
+codebook.c:(.text+0x6e6): undefined reference to `oggpack_look'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x741): undefined reference to `oggpack_look'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x75f): undefined reference to `oggpack_look'
+/usr/bin/x86_64-alpine-linux-musl-ld: codebook.c:(.text+0x821): undefined reference to `oggpack_adv'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(bitrate.o): in function `vorbis_bitrate_addblock':
+bitrate.c:(.text+0x199): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x2b8): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x326): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x3d5): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x44e): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(bitrate.o):bitrate.c:(.text+0x4d7): more undefined references to `oggpack_bytes' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(bitrate.o): in function `vorbis_bitrate_addblock':
+bitrate.c:(.text+0x579): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x5bf): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x5d7): undefined reference to `oggpack_writetrunc'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x5df): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(bitrate.o): in function `vorbis_bitrate_flushpacket':
+bitrate.c:(.text+0x714): undefined reference to `oggpack_get_buffer'
+/usr/bin/x86_64-alpine-linux-musl-ld: bitrate.c:(.text+0x721): undefined reference to `oggpack_bytes'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(floor1.o): in function `floor1_encode':
+floor1.c:(.text+0xf5e): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0xf9b): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0xfbd): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0x12c6): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(floor1.o): in function `floor1_pack':
+floor1.c:(.text+0x1382): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(floor1.o):floor1.c:(.text+0x13a7): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(floor1.o): in function `floor1_unpack':
+floor1.c:(.text+0x155c): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0x157c): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0x15bb): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0x15d2): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: floor1.c:(.text+0x15f1): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(floor1.o):floor1.c:(.text+0x1634): more undefined references to `oggpack_read' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(res0.o): in function `res0_pack':
+res0.c:(.text+0x9d): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0xae): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0xc2): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0xd6): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0xe7): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(res0.o):res0.c:(.text+0x117): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(res0.o): in function `res0_unpack':
+res0.c:(.text+0x1d7): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0x1e7): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0x1f8): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0x20b): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: res0.c:(.text+0x223): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(res0.o):res0.c:(.text+0x256): more undefined references to `oggpack_read' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(mapping0.o): in function `mapping0_pack':
+mapping0.c:(.text+0x25): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x45): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x66): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x7e): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0xab): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(mapping0.o):mapping0.c:(.text+0xcb): more undefined references to `oggpack_write' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(mapping0.o): in function `mapping0_unpack':
+mapping0.c:(.text+0x1da): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x1f1): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x224): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x23b): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0x263): undefined reference to `oggpack_read'
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(mapping0.o):mapping0.c:(.text+0x283): more undefined references to `oggpack_read' follow
+/usr/bin/x86_64-alpine-linux-musl-ld: /usr/local/lib/libvorbis.a(mapping0.o): in function `mapping0_forward':
+mapping0.c:(.text+0xb70): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0xb83): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0xb9b): undefined reference to `oggpack_write'
+/usr/bin/x86_64-alpine-linux-musl-ld: mapping0.c:(.text+0xbac): undefined reference to `oggpack_write'
+
+clang-12: error: linker command failed with exit code 1 (use -v to see invocation)
+make[3]: *** [Makefile:7278: pulseaudio] Error 1
+make[3]: Leaving directory '/mnt2/_misc2/fk-pulseaudio/src'
+make[2]: *** [Makefile:5399: all] Error 2
+make[2]: Leaving directory '/mnt2/_misc2/fk-pulseaudio/src'
+make[1]: *** [Makefile:833: all-recursive] Error 1
+make[1]: Leaving directory '/mnt2/_misc2/fk-pulseaudio'
+make: *** [Makefile:648: all] Error 2
