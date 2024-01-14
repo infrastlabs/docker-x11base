@@ -5,7 +5,7 @@
 - package the system by your dotfiles with docker
 - box/server side headless deploy
 - multi remote entry: noVNC, Xrdp, SSH; Audio supported
-- suckless misc, static built binary for any distritions
+- suckless misc, static built binary for any distribution
 - multi arch, current suport: amd64, arm64, armv7
 
 [![Docker Image Size](https://img.shields.io/docker/image-size/infrastlabs/x11-base/fluxbox)](https://hub.docker.com/r/infrastlabs/docker-x11base/tags)
