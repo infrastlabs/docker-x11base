@@ -33,8 +33,12 @@ FROM ubuntu:20.04 as files1
   #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022; armel, armhf
   curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.10/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
   \
-  # https://github.com/upx/upx/releases/download/v4.2.1/upx-4.2.1-amd64_linux.tar.xz
+  # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
+  # https://github.com/upx/upx/releases/download/v4.2.1/upx-4.2.1-amd64_linux.tar.xz ##arm-23.2-err(hand down)
+  # [root@arm-ky10-23-2 upx-4.2.1-amd64_linux]# ./upx  -h
+  # -bash: ./upx: cannot execute binary file: Exec format error
   # armel> armeb;
+  echo a.1; \
   case ${TARGETPLATFORM} in \
     "linux/amd64")  arch=amd64    ;; \
     "linux/arm64")  arch=arm64     ;; \
@@ -42,8 +46,8 @@ FROM ubuntu:20.04 as files1
     "linux/arm/v6") arch=armeb   ;; \
     "linux/386")    arch=NONE_i386 ;; \
   esac; \
-  file=upx-4.2.1-${arch}_linux.tar.xz; \
-  cd /tmp; curl -fSL -k -O https://github.com/upx/upx/releases/download/v4.2.1/$file; \
+  file=upx-4.2.2-${arch}_linux.tar.xz; \
+  cd /tmp; curl -fSL -k -O https://github.com/upx/upx/releases/download/v4.2.2/$file; \
   upack=/tmp/unpack-upx; mkdir -p $upack; tar -Jxf $file -C $upack --strip-components 1; \
   \cp -a $upack/upx /rootfs/usr/local/static/3rd/bin/; rm -rf $file $upack; /rootfs/usr/local/static/3rd/bin/upx -V; \
   \
