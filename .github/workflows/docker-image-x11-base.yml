@@ -42,12 +42,12 @@ jobs:
 
           # BUILD
           echo compile; cd compile;
-            # bash buildx.sh ubt-builder
-            # bash buildx.sh deb12-builder
-            # 
-            # bash buildx.sh builder
-            # bash buildx.sh gtk224 #builder-gtk224
-            bash buildx.sh #compile
+            # # bash buildx.sh ubt-builder
+            # # bash buildx.sh deb12-builder
+            # # 
+            # # bash buildx.sh builder
+            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh #compile
           echo flux; cd ../flux;
             bash buildx.sh flux
             bash buildx.sh alpine
