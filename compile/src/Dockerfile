@@ -77,6 +77,18 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort; 
 
+FROM base as pulseaudio
+ARG COMPILE_PULSE="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pulseaudio
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/x-dropbear/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PULSE" && exit 0 || echo doMake; \
+  sh /src/x-pulseaudio/build.sh b_deps; \
+  sh /src/x-pulseaudio/build.sh pulseaudio; \
+  \
+  find ${TARGETPATH} -type f |sort; 
 
 FROM base as fluxbox
 ARG COMPILE_FLUX="yes"
@@ -288,6 +300,7 @@ RUN find /rootfs${STATIC} -type f |sort |wc
 COPY --from=tiger ${STATIC} /rootfs${STATIC}
 COPY --from=xrdp ${STATIC} /rootfs${STATIC}
 COPY --from=dropbear ${STATIC} /rootfs${STATIC}
+COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
 COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
 COPY --from=openbox ${STATIC} /rootfs${STATIC}
 COPY --from=tint2 ${STATIC} /rootfs${STATIC}
