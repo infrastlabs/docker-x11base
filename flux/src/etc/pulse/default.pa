@@ -1,0 +1,24 @@
+#ref fk-pulseaudio//_t1/pulse.pa
+.fail
+  # Accept clients -- very important
+  load-module module-native-protocol-unix
+  #static 4711: can only with one VNC_LIMIT.
+  #load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1;192.168.0.0/24 auth-anonymous=1 port=4711
+
+.nofail
+  load-module module-augment-properties
+  load-module module-always-sink
+  # Publish to X11 so the clients know how to connect to Pulse. Will clear itself on unload.
+  .ifexists module-x11-publish.so
+      load-module module-x11-publish
+  .endif
+
+  # xrdp-sink/source
+  # .ifexists /var/lib/xrdp-pulseaudio-installer/module-xrdp-sink.so
+  #     load-module /var/lib/xrdp-pulseaudio-installer/module-xrdp-sink.so
+  # .endif
+  # .ifexists /var/lib/xrdp-pulseaudio-installer/module-xrdp-source.so
+  #     load-module /var/lib/xrdp-pulseaudio-installer/module-xrdp-source.so
+  # .endif
+  load-module module-xrdp-sink
+  load-module module-xrdp-source
