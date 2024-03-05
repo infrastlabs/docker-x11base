@@ -102,7 +102,7 @@ gtk224)
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    plat="--platform linux/amd64" #dbg
+    # plat="--platform linux/amd64" #dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -114,12 +114,13 @@ gtk224)
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
+    --build-arg COMPILE_PULSE=no
     --build-arg COMPILE_FLUX=no
-    --build-arg COMPILE_OPENBOX=no
+    --build-arg COMPILE_OPENBOX=yes
     --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_SUCKLESS=no
-    --build-arg COMPILE_XCOMPMGR=no
-    --build-arg COMPILE_XLUNCH=no
+    --build-arg COMPILE_XCOMPMGR=yes
+    --build-arg COMPILE_XLUNCH=yes
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
