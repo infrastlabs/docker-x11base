@@ -114,6 +114,7 @@ gtk224)
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
+    --build-arg COMPILE_PULSE=yes
     --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=no
     --build-arg COMPILE_TINT2=no
@@ -122,7 +123,7 @@ gtk224)
     --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_LXDE=no
-    --build-arg COMPILE_PERP=yes
+    --build-arg COMPILE_PERP=no
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
