@@ -45,29 +45,29 @@ stdout_logfile_maxbytes = 50MB
 stdout_logfile_backups  = 10
 redirect_stderr=true
 
-# [program:$xn-pulse]
-# environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-# priority=36
-# user=$user1
-# startretries=5
-# autorestart=true
-# command=/xvnc.sh pulse $N
-# stdout_logfile=$varlog/$xn-pulse.log
-# stdout_logfile_maxbytes = 50MB
-# stdout_logfile_backups  = 10
-# redirect_stderr=true
+[program:$xn-pulse]
+environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
+priority=36
+user=$user1
+startretries=5
+autorestart=true
+command=/xvnc.sh pulse $N
+stdout_logfile=$varlog/$xn-pulse.log
+stdout_logfile_maxbytes = 50MB
+stdout_logfile_backups  = 10
+redirect_stderr=true
 
-# [program:$xn-parec]
-# environment=DISPLAY=:$N,HOME=/home/$user1,PORT_VNC=$PORT_VNC$env_dbus
-# priority=37
-# user=$user1
-# startretries=5
-# autorestart=true
-# command=/xvnc.sh parec $N
-# stdout_logfile=$varlog/$xn-parec.log
-# stdout_logfile_maxbytes = 50MB
-# stdout_logfile_backups  = 10
-# redirect_stderr=true
+[program:$xn-parec]
+environment=DISPLAY=:$N,HOME=/home/$user1,PORT_VNC=$PORT_VNC$env_dbus
+priority=37
+user=$user1
+startretries=5
+autorestart=true
+command=/xvnc.sh parec $N
+stdout_logfile=$varlog/$xn-parec.log
+stdout_logfile_maxbytes = 50MB
+stdout_logfile_backups  = 10
+redirect_stderr=true
     """ |sudo tee /etc/supervisor/conf.d/xvnc$N.conf > /dev/null 2>&1
     # SV: x$N-de.conf
     echo """
@@ -94,6 +94,11 @@ redirect_stderr=true
     cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh xvnc $N\"^g" > $dest/rc.main
     dest=/etc/perp/$xn-chansrv; mkdir -p $dest
     cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh chansrv $N\"^g" > $dest/rc.main
+    # pulse,parec
+    dest=/etc/perp/$xn-pulse; mkdir -p $dest
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh pulse $N\"^g" > $dest/rc.main
+    dest=/etc/perp/$xn-parec; mkdir -p $dest
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh parec $N\"^g" > $dest/rc.main
     # 
     # gosu headless bash -c "xxx"
     dest=/etc/perp/$xn-de; mkdir -p $dest
@@ -305,6 +310,9 @@ cnt=0.1
 echo "sleep $cnt" && sleep $cnt;
 # test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
 # test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd
+
+# link parec
+rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
 
 # 
 # set rc.* executable
