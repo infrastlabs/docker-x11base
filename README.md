@@ -59,18 +59,27 @@ alma   |AlmaLinux| 8.6 | amd64,arm64 | perp/supervisor | [![Docker Image Size](h
 **Run**
 
 ```bash
+# cmd: [novnc:10081, ssh:10022, xrdp:10089]; -e INIT=perpd
+docker run -it --rm --net=host -e VNC_OFFSET=21 infrastlabs/x11-base:fluxbox #fluxbox-dbg
+
+# dcp
 echo "TAG=fluxbox-dbg" > .env
 dcp pull; dcp up -d
 ```
 
-**dbg**
+**CompileDbg**
 
 ```bash
-root@VM-12-9-ubuntu:~# docker run -it --rm -v /mnt:/mnt2  infrastlabs/x11-base:builder sh
-/ # 
-/ # apk add git gawk
-/ # cd /mnt2/docker-x11base/compile/src/
-/mnt2/docker-x11base/compile/src # git pull; bash fluxbox/build.sh fluxbox
+# infrastlabs/x11-base:builder ##alpine-builder-gtk224
+# --privileged>> make: /bin/sh: Operation not permitted
+root@VM-12-9-ubuntu:~# docker run -it --rm -v /mnt:/mnt2 --privileged infrastlabs/x11-base:alpine-builder-gtk224 sh
+# apk add git gawk
+export GITHUB=https://hub.yzuu.cf
+cd /mnt2/docker-x11base/compile/src/
+# /mnt2/docker-x11base/compile/src # 
+rm -rf /src; ln -s $(pwd) /src
+git pull; bash x-pulseaudio/build.sh libogg #b_deps
+git pull; bash fluxbox/build.sh fluxbox
 ```
 
 **links**
