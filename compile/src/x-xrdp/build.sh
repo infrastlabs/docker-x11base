@@ -255,8 +255,8 @@ full)
     xrdp
     ;;
 b_deps)
-    /src/x-xrdp/build.sh libxrandr &
-    /src/x-xrdp/build.sh fdkaac &
+    bash /src/x-xrdp/build.sh libxrandr &
+    bash /src/x-xrdp/build.sh fdkaac &
     wait
     ;;
 *) #compile
