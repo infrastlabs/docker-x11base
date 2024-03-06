@@ -20,12 +20,15 @@ pulse)
     ;;    
 parec)
     # sv: environment=DISPLAY=:10,HOME=/home/headless
-    echo "PORT_VNC: $PORT_VNC"
+    PORT_VNC2=$(expr $PORT_VNC - 100)
+    echo "PORT_VNC2: $PORT_VNC2"
     echo "sleep 2.5" && sleep 2.5 #wait
 
     src="-d xrdp-sink.monitor"
-    url="localhost:$PORT_VNC/bcs/PULSE.mp3?stream=true&advertise=true"
-    # headless下执行
+    url="localhost:$PORT_VNC2/bcs/PULSE.mp3?stream=true&advertise=true"
+    # headless下执行; parec, apt install lame
+    # rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
+    ##non-root, just use pacat>> parec软链才能用
     exec parec --format=s16le $src |lame -r -ab 52 - - \
         | curl -k -H "Transfer-Encoding: chunked" -X POST -T -  "$url"    
     ;;
