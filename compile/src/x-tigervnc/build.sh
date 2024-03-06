@@ -523,16 +523,16 @@ full)
     ;;
 b_deps)
     # /src/tigervnc/build.sh gnutls &
-    /src/x-tigervnc/build.sh libxfont2 &
-    /src/x-tigervnc/build.sh libfontenc &
-    /src/x-tigervnc/build.sh libtasn1 &
-    /src/x-tigervnc/build.sh libxshmfence &
+    bash /src/x-tigervnc/build.sh libxfont2 &
+    bash /src/x-tigervnc/build.sh libfontenc &
+    bash /src/x-tigervnc/build.sh libtasn1 &
+    bash /src/x-tigervnc/build.sh libxshmfence &
     wait
     ;;
 b_tiger)
-    /src/x-tigervnc/build.sh tigervnc &
-    /src/x-tigervnc/build.sh xkb &
-    /src/x-tigervnc/build.sh xkbcomp &
+    bash /src/x-tigervnc/build.sh tigervnc &
+    bash /src/x-tigervnc/build.sh xkb &
+    bash /src/x-tigervnc/build.sh xkbcomp &
     wait
     ;;
 *) #compile
