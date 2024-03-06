@@ -36,8 +36,9 @@ RUN apk add --no-cache \
   #openssh apache2-utils graphviz \
   lftp jq sysstat vim git
 
-# THEME
+# pacat.lame; THEME
 RUN apk add --no-cache \
+  lame \
   papirus-icon-theme greybird-themes-gtk2
 
 # +Apps
@@ -68,7 +69,7 @@ COPY --from=rootfs /rootfs/files2 /rootfs/files2
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 ENV \
   # supervisord perpd
-  INIT=supervisord \
+  INIT=perpd \
   # dash_port: addr_port - 1
   FRPC_CONN=127.0.0.1:10080 \
   FRPS_BIND=:10080 \

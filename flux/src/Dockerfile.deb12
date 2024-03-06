@@ -108,7 +108,7 @@ COPY --from=rootfs /rootfs/files2 /rootfs/files2
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 ENV \
   # supervisord perpd
-  INIT=supervisord \
+  INIT=perpd \
   # dash_port: addr_port - 1
   FRPC_CONN=127.0.0.1:10080 \
   FRPS_BIND=:10080 \
