@@ -219,8 +219,9 @@ RUN apt.sh \
  lxtask lxappearance pavucontrol
 RUN apt.sh gparted
 
-# vscode-deps
+# pacat.lame; vscode-deps
 RUN apt.sh \
+  lame \
   libdrm2 libgbm1 libnspr4 libnss3 libsecret-1-0 libxkbfile1 xdg-utils
 
 # ASBRU: 3586 kB (disk: 15.5 MB)
@@ -266,7 +267,7 @@ COPY --from=files2 /rootfs /rootfs/files2
 
 ENV \
   # supervisord perpd
-  INIT=supervisord \
+  INIT=perpd \
   # dash_port: addr_port - 1
   FRPC_CONN=127.0.0.1:10080 \
   FRPS_BIND=:10080 \
