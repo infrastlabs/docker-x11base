@@ -13,36 +13,15 @@
 [![Last commit](https://img.shields.io/github/last-commit/infrastlabs/docker-x11base.svg)](https://www.github.com/infrastlabs/docker-x11base/graphs/contributors)
 [![GitHub issues](https://img.shields.io/github/issues/infrastlabs/docker-x11base.svg)](https://www.github.com/infrastlabs/docker-x11base/issues)
 
-**X11/Core**
+**Run**
 
 ```bash
-3rd:  tini/gosu/upx/
-util: xcompmgr, perp
-core: x11, pulseaudio
-entry: frp/chisel-poll
-bind-uds: dropbear, xorg, webhookd
-```
+# cmd: [novnc:10081, ssh:10022, xrdp:10089]; -e INIT=perpd
+docker run -it --rm --net=host -e VNC_OFFSET=21 infrastlabs/x11-base:fluxbox #fluxbox-dbg
 
-**Box/Misc**
-
-```bash
-box:  fluxbox/openbox, suckless/chadwm/bspwm, .dots
-apps: vscode, wps, firefox/chrome, asbru (pavucontrol, xf-display-settings)
-misc: st, xlunch, tint2, jgmenu, rofi, geany (sakura, plank, engrammpa)
-lxde: pcmanfm, lxtask, lxappearance, gpicview (dbus, err)
-xfce: thunar, xfwm4, xfdesktop, xfce4-settings, ristretto, mousepad (4.12-gtk224)
-# server/device
-device-static: arm64/armv7 busybox/alpine315/glibc (core, box/suckless, scripts/dev) "[shell/perl/lua/py/php]"
-server-shared: amd64 debian12/ubt2004 (core, xfce4) "[vscode, wps]"
-```
-
-**Distro/DE**
-
-```bash
-deb: debian12, ubt2004 #free
-rpm: alma/fedora/opensuse #comm
-busybox, alpine, archlinux #musl,wiki
-desktop: mate, gnome, plasma #DE, Server/Experience
+# dcp
+echo "TAG=fluxbox-dbg" > .env
+dcp pull; dcp up -d
 ```
 
 **Tags**
@@ -56,15 +35,36 @@ alma   |AlmaLinux| 8.6 | amd64,arm64 | perp/supervisor | [![Docker Image Size](h
 ---|---|---|---|---|---|---
 alpine-compile |Alpine| 3.15 | amd64,arm64,armv7  | perp/supervisor | [![Docker Image Size](https://img.shields.io/docker/image-size/infrastlabs/x11-base/alpine-compile)](https://hub.docker.com/r/infrastlabs/x11-base/tags)|★★★★★
 
-**Run**
+**X11/Core**
 
 ```bash
-# cmd: [novnc:10081, ssh:10022, xrdp:10089]; -e INIT=perpd
-docker run -it --rm --net=host -e VNC_OFFSET=21 infrastlabs/x11-base:fluxbox #fluxbox-dbg
+3rd:  tini/gosu/upx/
+util: xcompmgr, perp
+core: x11, pulseaudio
+entry: frp/chisel-poll
+bind-uds: dropbear, xorg, webhookd
+```
 
-# dcp
-echo "TAG=fluxbox-dbg" > .env
-dcp pull; dcp up -d
+**Distro**
+
+```bash
+deb: debian12, ubt2004 #free
+rpm: alma/fedora/opensuse #comm
+busybox, alpine, archlinux #musl,wiki
+desktop: mate, gnome, plasma #DE, Server/Experience
+```
+
+**Box/Misc**
+
+```bash
+box:  fluxbox/openbox, suckless/chadwm/bspwm, .dots
+apps: vscode, wps, firefox/chrome, asbru (pavucontrol, xf-display-settings)
+misc: st, xlunch, tint2, jgmenu, rofi, geany (sakura, plank, engrammpa)
+lxde: pcmanfm, lxtask, lxappearance, gpicview (dbus, err)
+xfce: thunar, xfwm4, xfdesktop, xfce4-settings, ristretto, mousepad (4.12-gtk224)
+# server/device
+device-static: arm64/armv7 busybox/alpine315/glibc (core, box/suckless, scripts/dev) "[shell/perl/lua/py/php]"
+server-shared: amd64 debian12/ubt2004 (core, xfce4) "[vscode, wps]"
 ```
 
 **CompileDbg**
