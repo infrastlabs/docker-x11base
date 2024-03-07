@@ -40,7 +40,7 @@ RUN apk add --no-cache \
 # THEME
 # fontconfig>> ttf-dejavu
 RUN apk add --no-cache \
-  ttf-dejavu \
+  ttf-dejavu
 #   papirus-icon-theme greybird-themes-gtk2
 
 # +Apps
