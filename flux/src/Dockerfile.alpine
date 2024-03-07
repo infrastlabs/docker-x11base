@@ -37,9 +37,10 @@ RUN apk add --no-cache \
   lftp jq sysstat lame 
   # vim git
 
-# pacat.lame; THEME
-# RUN apk add --no-cache \
-#   ttf-dejavu \
+# THEME
+# fontconfig>> ttf-dejavu
+RUN apk add --no-cache \
+  ttf-dejavu \
 #   papirus-icon-theme greybird-themes-gtk2
 
 # +Apps
