@@ -34,12 +34,13 @@ RUN apk add --no-cache \
 # Install
 RUN apk add --no-cache \
   #openssh apache2-utils graphviz \
-  lftp jq sysstat vim git
+  lftp jq sysstat lame 
+  # vim git
 
 # pacat.lame; THEME
-RUN apk add --no-cache \
-  lame \
-  papirus-icon-theme greybird-themes-gtk2
+# RUN apk add --no-cache \
+#   ttf-dejavu \
+#   papirus-icon-theme greybird-themes-gtk2
 
 # +Apps
 # RUN apk add --no-cache \
@@ -92,7 +93,6 @@ ENV \
   VNC_PASS_RO=View123 \
   VNC_OFFSET=10
 
-RUN apk add --no-cache ttf-dejavu
 RUN \
   echo -e "cp -a /rootfs/files1/* /; \n\
 cp -a /rootfs/files2/* /; \n\
