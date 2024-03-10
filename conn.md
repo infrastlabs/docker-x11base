@@ -16,6 +16,30 @@ curl -fsSL -u headless:headless http://127.0.0.1:10079/api/proxy/tcp |yq ".proxi
 - noVnc 10081 `webhookd:cur none uds-mode`
 - xrdp 10089 ``
 
+```bash
+root@20cd9a831df8:/# netstat -ntlp |sort
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+# Xvnc
+tcp        0      0 0.0.0.0:5921            0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:6021            0.0.0.0:*               LISTEN      -                   
+tcp6       0      0 :::5921                 :::*                    LISTEN      -                   
+tcp6       0      0 :::6021                 :::*                    LISTEN      -                   
+# xrdp,webhookd,ssh
+tcp        0      0 0.0.0.0:9989            0.0.0.0:*               LISTEN      490/xrdp            
+tcp6       0      0 :::9981                 :::*                    LISTEN      485/./webhookd 
+tcp        0      0 0.0.0.0:9922            0.0.0.0:*               LISTEN      489/dropbear        
+tcp6       0      0 :::9922                 :::*                    LISTEN      489/dropbear        
+# 
+tcp        0      0 127.0.0.1:7400          0.0.0.0:*               LISTEN      558/frpc            
+tcp6       0      0 :::10022                :::*                    LISTEN      494/frps            
+tcp6       0      0 :::10079                :::*                    LISTEN      494/frps            
+tcp6       0      0 :::10080                :::*                    LISTEN      494/frps            
+tcp6       0      0 :::10081                :::*                    LISTEN      494/frps            
+tcp6       0      0 :::10089                :::*                    LISTEN      494/frps            
+tcp6       0      0 :::7521                 :::*                    LISTEN      494/frps            
+```
+
 
 **xrdp**
 
