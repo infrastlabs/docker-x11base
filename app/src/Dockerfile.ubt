@@ -1,3 +1,4 @@
 FROM infrastlabs/x11-base:fluxbox
+# app: firefox, vscode, wps
 RUN apt.sh firefox
 
