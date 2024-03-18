@@ -48,11 +48,17 @@ jobs:
             # # bash buildx.sh builder
             # # bash buildx.sh gtk224 #builder-gtk224
             # bash buildx.sh #compile
-          echo flux; cd ../flux;
-            bash buildx.sh flux
+          # echo flux; cd ../flux;
+          #   bash buildx.sh flux
+          #   bash buildx.sh alpine
+          #   # bash buildx.sh alma
+          #   # bash buildx.sh deb12
+          # 
+          echo app; cd ../app;
+            bash buildx.sh ubt
+            bash buildx.sh deb12
             bash buildx.sh alpine
-            # bash buildx.sh alma
-            # bash buildx.sh deb12
+            bash buildx.sh alma
 
   # post-build:
   #   name: Post-build
