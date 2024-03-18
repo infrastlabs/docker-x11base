@@ -1,0 +1,3 @@
+FROM infrastlabs/x11-base:deb12
+RUN apt.sh firefox
+
