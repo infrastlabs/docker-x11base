@@ -1,0 +1,168 @@
+/usr/local/static/fluxbox/bin/fbrun
+/usr/local/static/fluxbox/bin/fluxbox-generate_menu
+/usr/local/static/fluxbox/bin/fluxbox-remote
+/usr/local/static/fluxbox/bin/fluxbox-update_configs
+/usr/local/static/fluxbox/share/man/man1/fbrun.1
+/usr/local/static/fluxbox/share/man/man1/fbsetbg.1
+/usr/local/static/fluxbox/share/man/man1/fbsetroot.1
+/usr/local/static/fluxbox/share/man/man1/fluxbox-remote.1
+/usr/local/static/fluxbox/share/man/man1/fluxbox.1
+/usr/local/static/fluxbox/share/man/man1/startfluxbox.1
+/usr/local/static/fluxbox/share/man/man5/fluxbox-apps.5
+/usr/local/static/fluxbox/share/man/man5/fluxbox-keys.5
+/usr/local/static/fluxbox/share/man/man5/fluxbox-menu.5
+/usr/local/static/fluxbox/share/man/man5/fluxbox-style.5
+# /usr/local/static/fluxbox/share/fluxbox/styles/MerleyKay
+# /usr/local/static/fluxbox/share/fluxbox/styles/bora_black/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/carp/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_darkblue/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_green/theme.cfg
+##left:
+# MerleyKay
+# Squared_blue
+# Squared_green
+# bora_black
+# carp
+# ubuntu-light
+# zimek_darkblue
+# zimek_green
+
+
+# bash-5.1# find /usr/local/static/fluxbox/ -type f |sort
+# /usr/local/static/fluxbox/bin/fbsetbg
+# /usr/local/static/fluxbox/bin/fbsetroot
+# /usr/local/static/fluxbox/bin/fluxbox
+# /usr/local/static/fluxbox/bin/startfluxbox
+# /usr/local/static/fluxbox/share/fluxbox/apps
+# /usr/local/static/fluxbox/share/fluxbox/init
+# /usr/local/static/fluxbox/share/fluxbox/keys
+# /usr/local/static/fluxbox/share/fluxbox/menu
+# /usr/local/static/fluxbox/share/fluxbox/overlay
+# /usr/local/static/fluxbox/share/fluxbox/windowmenu
+/usr/local/static/fluxbox/share/fluxbox/styles/Artwiz
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_close_active.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_close_pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_close_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_max_active.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_max_pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_max_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_min_active.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_min_pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_min_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_stick_active.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_stick_pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_stick_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_stuck.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_stuck_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_toolbar.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/button_toolbar_pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/menu_frame.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/title_bar.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/title_bar_unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/toolbar.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps/toolbar_label.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueNight
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/bullet.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/close-pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/close-unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/close.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/icon-pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/icon-unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/icon.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/max-pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/max-unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/max.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/selected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stick-pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stick-unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stick.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stuck-pressed.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stuck-unfocus.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/stuck.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps/unselected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/Flux
+/usr/local/static/fluxbox/share/fluxbox/styles/LemonSpace
+/usr/local/static/fluxbox/share/fluxbox/styles/Makro
+# /usr/local/static/fluxbox/share/fluxbox/styles/MerleyKay
+/usr/local/static/fluxbox/share/fluxbox/styles/Meta
+/usr/local/static/fluxbox/share/fluxbox/styles/Nyz
+/usr/local/static/fluxbox/share/fluxbox/styles/Operation
+/usr/local/static/fluxbox/share/fluxbox/styles/Outcomes
+/usr/local/static/fluxbox/share/fluxbox/styles/Results
+/usr/local/static/fluxbox/share/fluxbox/styles/Shade
+/usr/local/static/fluxbox/share/fluxbox/styles/Twice
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/bullet.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/closefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/closepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/closeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/frame.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/gripfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/maxfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/maxpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/maxufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/menuiconfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/menuiconpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/menuiconufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/minfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/minpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/minufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/selected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/shadefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/shadepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/shadeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/stickfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/stickpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/stickufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/stuckfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/stuckufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/tbarfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/tbarufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/unselected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/unshadefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/unshadepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps/unshadeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/bullet.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/closefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/closepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/closeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/frame.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/maxfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/maxpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/maxufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/menuiconfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/menuiconpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/menuiconufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/minfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/minpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/minufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/selected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/shadefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/shadepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/shadeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/stickfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/stickpr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/stickufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/stuckfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/stuckufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/tbarfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/tbarufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/unselected.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/unshadefcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/unshadepr.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/unshadeufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/windowlabelfcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps/windowlabelufcs.xpm
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/bora_black/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/bora_blue/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/bora_green/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/carp/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/green_tea/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/ostrich/theme.cfg
+/usr/local/static/fluxbox/share/fluxbox/styles/qnx-photon
+/usr/local/static/fluxbox/share/fluxbox/styles/zimek_bisque/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_darkblue/theme.cfg
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_green/theme.cfg

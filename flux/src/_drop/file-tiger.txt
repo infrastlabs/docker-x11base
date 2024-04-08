@@ -1,0 +1,37 @@
+# /usr/local/static/tigervnc/bin/Xvnc
+# /usr/local/static/tigervnc/bin/vncpasswd
+# /usr/local/static/tigervnc/bin/xkbcomp
+/usr/local/static/tigervnc/lib/pkgconfig/xkbcomp.pc
+/usr/local/static/tigervnc/lib/xorg/modules/extensions/libvnc.a
+/usr/local/static/tigervnc/lib/xorg/modules/extensions/libvnc.la
+# /usr/local/static/tigervnc/lib/xorg/protocol.txt
+# /usr/local/static/tigervnc/share/X11/xkb/compat/accessx
+# /usr/local/static/tigervnc/share/X11/xkb/compat/basic
+# /usr/local/static/tigervnc/share/X11/xkb/compat/caps
+# /usr/local/static/tigervnc/share/X11/xkb/compat/complete
+# /usr/local/static/tigervnc/share/X11/xkb/compat/iso9995
+# /usr/local/static/tigervnc/share/X11/xkb/compat/ledcaps
+# /usr/local/static/tigervnc/share/X11/xkb/compat/lednum
+# /usr/local/static/tigervnc/share/X11/xkb/compat/ledscroll
+# /usr/local/static/tigervnc/share/X11/xkb/compat/level5
+# /usr/local/static/tigervnc/share/X11/xkb/compat/misc
+# /usr/local/static/tigervnc/share/X11/xkb/compat/mousekeys
+# /usr/local/static/tigervnc/share/X11/xkb/compat/xfree86
+# /usr/local/static/tigervnc/share/X11/xkb/geometry/pc
+# /usr/local/static/tigervnc/share/X11/xkb/keycodes/aliases
+# /usr/local/static/tigervnc/share/X11/xkb/keycodes/evdev
+# /usr/local/static/tigervnc/share/X11/xkb/rules/evdev
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/altwin
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/inet
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/keypad
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/pc
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/srvr_ctrl
+# /usr/local/static/tigervnc/share/X11/xkb/symbols/us
+# /usr/local/static/tigervnc/share/X11/xkb/types/basic
+# /usr/local/static/tigervnc/share/X11/xkb/types/complete
+# /usr/local/static/tigervnc/share/X11/xkb/types/extra
+# /usr/local/static/tigervnc/share/X11/xkb/types/iso9995
+# /usr/local/static/tigervnc/share/X11/xkb/types/level5
+# /usr/local/static/tigervnc/share/X11/xkb/types/mousekeys
+# /usr/local/static/tigervnc/share/X11/xkb/types/numpad
+# /usr/local/static/tigervnc/share/X11/xkb/types/pc

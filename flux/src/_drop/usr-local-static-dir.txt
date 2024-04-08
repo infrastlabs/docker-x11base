@@ -1,0 +1,155 @@
+# # root@deb1013:/usr/local/static# find /usr/local/static/ -maxdepth 3 -type d |sort
+/usr/local/static/.cache
+/usr/local/static/.logs
+# /usr/local/static/dropbear
+# /usr/local/static/dropbear/bin
+# /usr/local/static/dropbear/sbin
+/usr/local/static/dropbear/share
+
+# /usr/local/static/suckless
+# /usr/local/static/suckless/bin
+/usr/local/static/suckless/man1
+
+# tigervnc
+# /usr/local/static/tigervnc
+# /usr/local/static/tigervnc/bin
+# /usr/local/static/tigervnc/lib
+/usr/local/static/tigervnc/lib/pkgconfig
+/usr/local/static/tigervnc/lib/xorg/modules
+# /usr/local/static/tigervnc/lib/xorg
+# /usr/local/static/tigervnc/share
+# /usr/local/static/tigervnc/share/X11
+
+# xrdp
+# /usr/local/static/xrdp
+# /usr/local/static/xrdp/bin
+/usr/local/static/xrdp/etc
+# /usr/local/static/xrdp/etc/xrdp
+/usr/local/static/xrdp/include
+/usr/local/static/xrdp/lib
+# /usr/local/static/xrdp/lib/pkgconfig
+# /usr/local/static/xrdp/lib/xrdp
+# /usr/local/static/xrdp/sbin
+# /usr/local/static/xrdp/share
+# /usr/local/static/xrdp/share/xrdp
+
+# fluxbox
+# /usr/local/static/fluxbox
+# /usr/local/static/fluxbox/bin
+# /usr/local/static/fluxbox/share
+# /usr/local/static/fluxbox/share/fluxbox
+/usr/local/static/fluxbox/share/man
+# bash-5.1# find /usr/local/static/fluxbox/share/fluxbox/styles -type d  |sort
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux
+/usr/local/static/fluxbox/share/fluxbox/styles/BlueFlux/pixmaps
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge
+/usr/local/static/fluxbox/share/fluxbox/styles/Emerge/pixmaps
+/usr/local/static/fluxbox/share/fluxbox/styles/arch
+/usr/local/static/fluxbox/share/fluxbox/styles/arch/pixmaps
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe
+/usr/local/static/fluxbox/share/fluxbox/styles/bloe/pixmaps
+# /usr/local/static/fluxbox/share/fluxbox/styles/bora_black
+/usr/local/static/fluxbox/share/fluxbox/styles/bora_blue
+/usr/local/static/fluxbox/share/fluxbox/styles/bora_green
+# /usr/local/static/fluxbox/share/fluxbox/styles/carp
+/usr/local/static/fluxbox/share/fluxbox/styles/green_tea
+/usr/local/static/fluxbox/share/fluxbox/styles/ostrich
+/usr/local/static/fluxbox/share/fluxbox/styles/zimek_bisque
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_darkblue
+# /usr/local/static/fluxbox/share/fluxbox/styles/zimek_green
+
+# openbox
+# /usr/local/static/openbox
+# /usr/local/static/openbox/bin
+# /usr/local/static/openbox/etc
+# /usr/local/static/openbox/etc/xdg
+/usr/local/static/openbox/include
+# /usr/local/static/openbox/include/openbox
+/usr/local/static/openbox/lib
+# /usr/local/static/openbox/lib/pkgconfig
+# /usr/local/static/openbox/libexec
+# /usr/local/static/openbox/share
+# /usr/local/static/openbox/share/applications
+/usr/local/static/openbox/share/doc
+/usr/local/static/openbox/share/gnome
+/usr/local/static/openbox/share/gnome-session
+# /usr/local/static/openbox/share/pixmaps
+# /usr/local/static/openbox/share/themes
+# /usr/local/static/openbox/share/xsessions
+
+# tint2
+# /usr/local/static/tint2/bin
+# /usr/local/static/tint2/etc
+# /usr/local/static/tint2/etc/xdg
+# /usr/local/static/tint2/share
+# /usr/local/static/tint2/share/applications
+/usr/local/static/tint2/share/doc
+# /usr/local/static/tint2/share/icons
+# /usr/local/static/tint2/share/locale
+/usr/local/static/tint2/share/man
+# /usr/local/static/tint2/share/mime
+# /usr/local/static/tint2/share/tint2
+
+# pulse
+# /usr/local/static/pulseaudio/bin
+# /usr/local/static/pulseaudio/etc
+# /usr/local/static/pulseaudio/etc/pulse
+/usr/local/static/pulseaudio/include
+/usr/local/static/pulseaudio/include/pulse
+/usr/local/static/pulseaudio/lib
+/usr/local/static/pulseaudio/lib/cmake
+/usr/local/static/pulseaudio/lib/pkgconfig
+/usr/local/static/pulseaudio/lib/pulse-13.99
+/usr/local/static/pulseaudio/lib/pulseaudio
+/usr/local/static/pulseaudio/share
+/usr/local/static/pulseaudio/share/bash-completion
+/usr/local/static/pulseaudio/share/vala
+/usr/local/static/pulseaudio/share/zsh
+
+# perp
+# /usr/local/static/perp/sbin
+/usr/local/static/perp/share
+/usr/local/static/perp/share/man
+
+# pcmanfm
+# /usr/local/static/pcmanfm/bin
+# /usr/local/static/pcmanfm/etc
+# /usr/local/static/pcmanfm/etc/xdg
+/usr/local/static/pcmanfm/include
+/usr/local/static/pcmanfm/lib
+/usr/local/static/pcmanfm/lib/pcmanfm
+# /usr/local/static/pcmanfm/share
+# /usr/local/static/pcmanfm/share/applications
+# /usr/local/static/pcmanfm/share/locale
+/usr/local/static/pcmanfm/share/man
+# /usr/local/static/pcmanfm/share/pcmanfm
+
+# lxde
+/usr/local/static/lxde/bin
+# /usr/local/static/lxde/include
+# /usr/local/static/lxde/include/lxappearance
+# /usr/local/static/lxde/lib
+# /usr/local/static/lxde/lib/pkgconfig
+/usr/local/static/lxde/share
+/usr/local/static/lxde/share/applications
+/usr/local/static/lxde/share/locale
+/usr/local/static/lxde/share/lxappearance
+# /usr/local/static/lxde/share/man
+
+# emp-4Kb: xcompmgr, xlunch, openbox
+
+### handAdd
+# /usr/local/static/3rd
+# /usr/local/static/dropbear
+# /usr/local/static/fluxbox
+/usr/local/static/lxde
+/usr/local/static/openbox
+/usr/local/static/pcmanfm
+# /usr/local/static/perp
+# /usr/local/static/pulseaudio
+# /usr/local/static/suckless
+# /usr/local/static/tigervnc
+/usr/local/static/tint2
+# /usr/local/static/xcompmgr
+/usr/local/static/xlunch
+# /usr/local/static/xrdp
