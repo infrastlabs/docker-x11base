@@ -1,4 +1,5 @@
 #!/bin/bash
+export PERP_BASE=/etc/perp
 
 cmd=$1
 shift
