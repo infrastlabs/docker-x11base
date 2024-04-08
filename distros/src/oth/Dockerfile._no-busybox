@@ -1,0 +1,51 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+# FROM busybox:1.36
+FROM busybox:1.36.1
+MAINTAINER sam <sldevsir@126.com>
+
+
+# # sed grep gawk bash; curl wget
+# RUN apk add --no-cache \
+#   ca-certificates tzdata curl wget \
+#   sed grep gawk findutils sudo tree unzip procps htop \
+#   expect shadow xterm bash bash-completion coreutils busybox-extras \
+#   \
+#   lftp jq sysstat lame 
+# # fontconfig>> ttf-dejavu
+# RUN apk add --no-cache \
+#   ttf-dejavu
+
+# TODO bash-static
+# https://github.com/luciusmagn/tar-static
+# https://github.com/robxu9/bash-static
+# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-aarch64
+# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-armv7
+# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64
+# RUN \
+#   case ${TARGETPLATFORM} in \
+#     "linux/amd64")  arch=x86_64  ;; \
+#     "linux/arm64")  arch=aarch64    ;; \
+#     "linux/arm/v7") arch=armv7   ;; \
+#     "linux/arm/v6") arch=armv6   ;; \
+#     "linux/386")    arch=NONE_i386 ;; \
+#   esac; \
+#   wget -O /usr/bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-$arch; \
+#   chmod +x /usr/bin/bash; exit 0
+
+RUN \
+  wget -O /bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64; \
+  chmod +x /bin/bash; exit 0
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; exit 0
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash
+
+CMD ["bash", "-c", "exec /entry.sh"]

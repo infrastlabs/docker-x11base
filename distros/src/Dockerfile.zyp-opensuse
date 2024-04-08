@@ -1,0 +1,36 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+# FROM fedora:39
+FROM opensuse/leap:15.5
+  # # link yum
+  # ln -s /usr/bin/dnf /usr/bin/yum; \
+RUN \
+  zypper clean && zypper refresh \
+  \
+  && zypper install -y iproute net-tools \
+  sudo psmisc sysstat tree tmux lrzsz which wget openssl \
+  zip unzip \
+  procps jq \
+  lame \
+  && zypper clean; rm -rf /var/cache/zypp
+
+
+# # fluxbox: /usr/share/fonts
+# # zypper search dejavu
+# RUN \
+#   zypper refresh; \
+#   zypper install -y dejavu-fonts; \
+#   zypper clean; rm -rf /var/cache/zypp 
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; exit 0;
+
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash

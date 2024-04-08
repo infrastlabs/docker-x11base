@@ -1,0 +1,56 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+FROM ubuntu:20.04
+ENV \
+  DEBIAN_FRONTEND=noninteractive \
+  LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
+  # LOCALE_INCLUDE="en"
+ARG TARGETPLATFORM
+RUN export DOMAIN="mirrors.ustc.edu.cn"; \
+  test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
+  echo "deb http://${DOMAIN}/$target focal main restricted universe multiverse" > /etc/apt/sources.list \
+  && echo "deb http://${DOMAIN}/$target focal-updates main restricted universe multiverse">> /etc/apt/sources.list; \
+    \
+  # default:echo -e;
+  echo "path-exclude /usr/share/doc/*\n\
+path-exclude /usr/share/man/*\n\
+path-exclude /usr/share/locale/*\n\
+path-exclude /usr/share/info/*\n\
+path-exclude /usr/share/help/*\n\
+path-exclude /usr/share/lintian/*\n\
+" > /etc/dpkg/dpkg.cfg.d/excludes; \
+  echo $LOCALE_INCLUDE |sed "s/ /\n/g" |while read one; do echo "path-include /usr/share/locale/$one/*" >> /etc/dpkg/dpkg.cfg.d/excludes; done; \
+  cat /etc/dpkg/dpkg.cfg.d/excludes; \
+  rm -rf /usr/share/locale/* ; \
+  \
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
+    && chmod +x /usr/local/bin/apt.sh; 
+
+# MISC 15.1 MB
+#  lame sox libsox-fmt-mp3 
+# dropbear-bin dropbear-run openssh-sftp-server 
+# bash-completion
+RUN \
+  apt.sh wget ca-certificates \
+  curl \
+  htop rsync tree tmux lrzsz psmisc fuse net-tools netcat iputils-ping \
+  procps sudo iproute2 iptables zip unzip xz-utils vim-tiny \
+  openssh-sftp-server lftp jq \
+  lame
+
+# 拆分包体与配置项两块，免频繁变动基础包
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; exit 0;
+
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash
+  # 默认约定
+  # L="en_US" \
+  # TZ="Asia/Shanghai" \
