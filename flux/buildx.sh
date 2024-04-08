@@ -23,13 +23,13 @@ function doBuildx(){
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #
 
-    compile="alpine-compile"; flux="fluxbox"
-    test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
-    test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && flux="${flux}-dbg"
+    compile="alpine-compile"; #flux="fluxbox"
+    # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
+    # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && flux="${flux}-dbg"
+    # --build-arg FLUXBOX_IMG=$flux
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile
-    --build-arg FLUXBOX_IMG=$flux
     """
 
     # cd flux
@@ -37,8 +37,8 @@ function doBuildx(){
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && cimg="${cimg}-dbg"
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
-    # alma:无armv7
-    test "alma" == "$tag" && plat="--platform linux/amd64,linux/arm64"
+    # # alma:无armv7
+    # test "alma" == "$tag" && plat="--platform linux/amd64,linux/arm64"
     docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f $dockerfile . 
 }
 
@@ -46,9 +46,10 @@ ns=infrastlabs
 ver=v51 #base-v5 base-v5-slim
 case "$1" in
 flux)
-    doBuildx fluxbox src/Dockerfile
+    doBuildx rootfs src/Dockerfile
     ;;
 *)
-    doBuildx $1 src/Dockerfile.$1
+    # doBuildx $1 src/Dockerfile.$1
+    echo "emp params"
     ;;          
 esac

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+test -z "$PORT_SSH" && export PORT_SSH=10022
+test -z "$PORT_RDP" && export PORT_RDP=10089
+test -z "$PORT_VNC" && export PORT_VNC=10081
+# 
+test -z "$SSH_PASS" && export SSH_PASS=headless
+test -z "$VNC_PASS" && export VNC_PASS=headless
+test -z "$VNC_PASS_RO" && export VNC_PASS_RO=View123
+test -z "$VNC_OFFSET" && export VNC_OFFSET=10
+
+# TODO: check port: ssh, rdp, vnc
+
 function oneVnc(){
     local N=$1
     local name1=$2
@@ -18,78 +29,13 @@ function oneVnc(){
 
     # SV: xvnc$N.conf
     local xn="x$N"
-    local varlog=/var/log/supervisor
-    echo """
-#[program:xvnc$N-$name1]
-[program:$xn-xvnc]
-environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-priority=35
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh xvnc $N
-stdout_logfile=$varlog/$xn-xvnc.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
 
-[program:$xn-chansrv]
-environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-priority=36
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh chansrv $N
-stdout_logfile=$varlog/$xn-chansrv.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
-
-[program:$xn-pulse]
-environment=DISPLAY=:$N,HOME=/home/$user1$env_dbus
-priority=36
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh pulse $N
-stdout_logfile=$varlog/$xn-pulse.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
-
-[program:$xn-parec]
-environment=DISPLAY=:$N,HOME=/home/$user1,PORT_VNC=$PORT_VNC$env_dbus
-priority=37
-user=$user1
-startretries=5
-autorestart=true
-command=/xvnc.sh parec $N
-stdout_logfile=$varlog/$xn-parec.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true
-    """ |sudo tee /etc/supervisor/conf.d/xvnc$N.conf > /dev/null 2>&1
-    # SV: x$N-de.conf
-    echo """
-[program:$xn-de]
-#,LANG=$L.UTF-8,LANGUAGE=$L:en #cur: 不加没中文
-environment=DISPLAY=:$N,HOME=/home/headless,USER=headless,SHELL=/bin/bash,TERM=xterm,LANG=$L.UTF-8,LANGUAGE=$L:en$env_dbus
-priority=45
-user=headless
-startretries=5
-command=bash -c \"env |grep -v PASS; source /.env; exec startfluxbox\"
-stdout_logfile=/var/log/supervisor/$xn-de.log
-stdout_logfile_maxbytes = 50MB
-stdout_logfile_backups  = 10
-redirect_stderr=true    
-    """ |sudo tee /etc/supervisor/conf.d/x$N-de.conf > /dev/null 2>&1
-
-    # PERP: x-xvnc,chansrv,pulse,parec
+    # PERP: 
     envcmd="export DISPLAY=:$N; export HOME=/home/$user1" #DISPLAY=:$N,HOME=/home/$user1$env_dbus
     #  de: USER=headless,SHELL=/bin/bash,TERM=xterm,LANG=$L.UTF-8,LANGUAGE=$L:en$env_dbus
     decmd="export USER=headless; export SHELL=/bin/bash; export TERM=xterm"
     #  parec: PORT_VNC=$PORT_VNC$env_dbus
-    # 
+    # xvnc,chansrv
     dest=/etc/perp/$xn-xvnc; mkdir -p $dest/
     cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh xvnc $N\"^g" > $dest/rc.main
     dest=/etc/perp/$xn-chansrv; mkdir -p $dest
@@ -100,9 +46,9 @@ redirect_stderr=true
     dest=/etc/perp/$xn-parec; mkdir -p $dest
     cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; exec /xvnc.sh parec $N\"^g" > $dest/rc.main
     # 
-    # gosu headless bash -c "xxx"
+    # de: gosu headless bash -c "xxx"
     dest=/etc/perp/$xn-de; mkdir -p $dest
-    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox\"^g" > $dest/rc.main
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox > /dev/null 2>\&1\"^g" > $dest/rc.main
 
 
     # XRDP /etc/xrdp/xrdp.ini
@@ -134,69 +80,7 @@ chansrvport=DISPLAY($N)
     line2=$(expr $line2 - 1)
     sed -i "$line2 r $tmpDir/novncHtml$N.htm" /usr/local/webhookd/static/index.html
     rm -f $tmpDir/novncHtml$N.
-    
-    
-    # frpc.ini
-    local ip=$(echo $FRPC_CONN |cut -d':' -f1)
-    local port=$(echo $FRPC_CONN |cut -d':' -f2)
-    local admin_port=$(expr 7500 + $VNC_OFFSET) #7521
-    echo """
-[common]
-server_addr = $ip
-server_port = $port
-
-# set admin address for control frpc's action by http api such as reload
-admin_addr = 127.0.0.1
-admin_port = 7400
-admin_user = headless
-admin_pwd = headless
-
-[$xn-frpc-admin]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 7400
-remote_port = $admin_port
-
-[$xn-ssh]
-type = tcp
-local_ip = 127.0.0.1
-local_port = $(expr $PORT_SSH - 100)
-remote_port = ${PORT_SSH}
-[$xn-xrdp]
-type = tcp
-local_ip = 127.0.0.1
-local_port = $(expr $PORT_RDP - 100)
-remote_port = ${PORT_RDP}
-[$xn-novnc]
-type = tcp
-local_ip = 127.0.0.1
-local_port = $(expr $PORT_VNC - 100)
-remote_port = ${PORT_VNC}
-    """ |sudo tee /etc/frp/frpc.ini > /dev/null 2>&1
 }
-
-function frp(){
-    mkdir -p /etc/frp
-    # frps.ini
-    # local port=$(echo $FRPC_CONN |cut -d':' -f2)
-    local port=$(echo $FRPS_BIND |cut -d':' -f2)
-    echo """
-[common]
-#10080
-bind_port = $port
-
-#10080-1 #10080 forbid by browser
-dashboard_port = $(expr $port - 1)
-#user,pass optional
-dashboard_user = headless
-dashboard_pwd = headless
-# dashboard_tls_mode = true
-# dashboard_tls_cert_file = server.crt
-# dashboard_tls_key_file = server.key
-    """ |sudo tee /etc/frp/frps.ini > /dev/null 2>&1
-    # frpc.ini
-}
-frp
 
 # oneVnc "$id" "$name"
 function setXserver(){
@@ -204,34 +88,24 @@ function setXserver(){
     cat /etc/xrdp/xrdp.ini.tpl > /etc/xrdp/xrdp.ini
     cat /etc/novnc/index.html > /usr/local/webhookd/static/index.html
     # /xvnc.sh pulse X; oneVnc: xrdp,novnc sed_add_tmpfile
-    tmpDir=/tmp/.headless; mkdir -p $tmpDir && chown headless:headless -R $tmpDir ; #pulse: default-xx.pa
+    # busybox: chown headless:headless > chmod 777
+    tmpDir=/tmp/.headless; mkdir -p $tmpDir && chmod 777 -R $tmpDir ; #pulse: default-xx.pa
 
     # setPorts; sed port=.* || env_ctReset
-    sed -i "s^port=3389^port=$(expr $PORT_RDP - 100)^g" /etc/xrdp/xrdp.ini
-    sed -i "s/EFRp 22/EFRp $(expr $PORT_SSH - 100)/g" /etc/supervisor/conf.d/sv.conf #sv.conf
-    sed -i "s/EFRp 22/EFRp $(expr $PORT_SSH - 100)/g" /etc/perp/ssh/rc.main #perp
-    sed -i "3a\PORT_VNC=$(expr $PORT_VNC - 100)" /usr/local/webhookd/run.sh #+
+    sed -i "s^port=3389^port=$PORT_RDP^g" /etc/xrdp/xrdp.ini
+    sed -i "s/EFRp 22/EFRp $PORT_SSH/g" /etc/perp/ssh/rc.main #perp
+    sed -i "3a\PORT_VNC=$PORT_VNC" /usr/local/webhookd/run.sh #+
     # run.sh line4: PORT_VNC=${PORT_VNC:-10091}; echo "PORT_VNC: $PORT_VNC"
 
     # sesman
     # SES_PORT=$(echo "${PORT_RDP%??}50") #ref PORT_RDP, replace last 2 char
-    SES_PORT=$(expr $PORT_RDP - 100 + 1000) #$(($PORT_RDP + 101)); #without sesman's run?
+    SES_PORT=$(expr $PORT_RDP + 1000) #$(($PORT_RDP + 101)); #without sesman's run?
     sed -i "s/ListenPort=3350/ListenPort=${SES_PORT}/g" /etc/xrdp/sesman.ini
 
-    # go-sv
-    PORT_SV=$(($PORT_SSH + 1)) #10022> 10023
-    sed -i "s/port=0.0.0.0:.*/port=0.0.0.0:${PORT_SV}/g" /etc/supervisor/supervisord.conf
-    
     # xvnc0-de
     port0=$(expr 0 + $VNC_OFFSET) #vnc: 5900+10
-    # sed -i "s/_DISPLAY_/$port0/" /etc/supervisor/conf.d/sv.conf
     oneVnc "$port0" "headless" #sv
     
-    # de-start.service
-    # sed -i "s/Environment=DISPLAY=.*/Environment=DISPLAY=:$VNC_OFFSET/g" /etc/systemd/system/de-start.service
-    # sed -i "s/Environment=LANG=.*/Environment=LANG=$L.UTF-8/g" /etc/systemd/system/de-start.service
-    # sed -i "s/Environment=LANGUAGE=.*/Environment=LANGUAGE=$L:en/g" /etc/systemd/system/de-start.service
-
     # clearPass: if not default
     if [ "headless" != "$VNC_PASS" ]; then
         sed -i "s/password=askheadless/password=ask/g" /etc/xrdp/xrdp.ini
@@ -243,23 +117,10 @@ function setXserver(){
         echo "headless:$SSH_PASS" |chpasswd
         echo -e "$VNC_PASS\n$VNC_PASS\ny\n$VNC_PASS_RO\n$VNC_PASS_RO"  |vncpasswd /etc/xrdp/vnc_pass; chmod 644 /etc/xrdp/vnc_pass
         echo "" #newLine
-        # SV: headless:VNC_PASS_RO
-        sed -i "s/password=.*/password=${VNC_PASS_RO}/g" /etc/supervisor/supervisord.conf
     fi
     unset SSH_PASS VNC_PASS VNC_PASS_RO #unset, not show in desktopEnv.
     unset LOC_XFCE LOC_APPS LOC_APPS2 DEBIAN_FRONTEND    
 }
-
-# touch /var/run/dbus/system_bus_socket && chmod 777 /var/run/dbus/system_bus_socket; #pulse: conn dbus err.
-# # Start DBUS session bus: (ref: deb9 .flubxbox/startup)
-# if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-#     #dbus-daemon --syslog --fork --print-pid 4 --print-address 6 --session
-#     eval $(dbus-launch --sh-syntax --exit-with-session)
-    echo "D-Bus per-session daemon address is: $DBUS_SESSION_BUS_ADDRESS"
-# fi
-test -z "$DBUS_SESSION_BUS_ADDRESS" || env_dbus=",DBUS_SESSION_BUS_ADDRESS=\"$DBUS_SESSION_BUS_ADDRESS\""
-lock=/.1stinit.lock
-setXserver
 
 ##xconf.sh#########
 #   # 
@@ -271,10 +132,20 @@ setXserver
 #   su - headless -c "dbus-launch dconf reset -f /; dbus-launch dconf load / < /usr/share/dconf.ini; ";\
 #   dbus-launch dconf update;
 
-# setLocale: bin/setlocale
-test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
+# touch /var/run/dbus/system_bus_socket && chmod 777 /var/run/dbus/system_bus_socket; #pulse: conn dbus err.
+# # Start DBUS session bus: (ref: deb9 .flubxbox/startup)
+# if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+#     #dbus-daemon --syslog --fork --print-pid 4 --print-address 6 --session
+#     eval $(dbus-launch --sh-syntax --exit-with-session)
+    echo "D-Bus per-session daemon address is: $DBUS_SESSION_BUS_ADDRESS"
+# fi
+test -z "$DBUS_SESSION_BUS_ADDRESS" || env_dbus=",DBUS_SESSION_BUS_ADDRESS=\"$DBUS_SESSION_BUS_ADDRESS\""
+
+# setlocale: bin/setlocale
+lock=/.1stinit.lock
+setXserver
+# test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
 touch $lock
-# TODO export LANG LANGUAGE to supervisord <sv,sysd>
 
 # Dump environment variables
 # https://hub.fastgit.org/hectorm/docker-xubuntu/blob/master/scripts/bin/container-init
@@ -287,9 +158,9 @@ env \
 # source /.env
 : |sudo tee /.env
 cat /etc/environment |while read one; do echo export $one | sudo tee -a /.env > /dev/null 2>&1; done
-echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env
-echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env
-echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env
+# echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env
+# echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env
+# echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env
 
 # ENV
 # DISPLAY=${DISPLAY:-localhost:21}
@@ -303,13 +174,8 @@ rm -f /home/headless/.config/autostart/pulseaudio.desktop
 # chmod +x /usr/share/applications/*.desktop ##fluxbox> pcmanfm> exec-dialog
 
 # startCMD
-test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/systemd/system/de-start.service
-test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
-
 cnt=0.1
 echo "sleep $cnt" && sleep $cnt;
-# test "true" != "$START_SYSTEMD" || rm -f /etc/supervisor/conf.d/x$VNC_OFFSET-de.conf
-# test "true" != "$START_SYSTEMD" && exec go-supervisord || exec /lib/systemd/systemd
 
 # link parec
 rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
@@ -319,23 +185,14 @@ rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
 chmod +x /etc/perp/**/rc.*
 # autostart: <perpctl A xx> dir sticky
 #  设定再启动perpd才有效，启动后再设定会提示err
-ls -F /etc/perp/ |grep "/$" |while read one; do chmod o+t /etc/perp/$one; done
-frps_port=$(echo $FRPS_BIND |cut -d':' -f2)
-test "-1" == "$frps_port" && chmod o-t /etc/perp/frps #-1 不启动; TODO sv.conf: autorestart?
+# https://blog.csdn.net/qq_21438461/article/details/131021640
+# chmod o+t > chmod 1755 #o+t: busybox,openwrt不支持
+ls -F /etc/perp/ |grep "/$" |while read one; do chmod 1755 /etc/perp/$one; done
 
 # sv
-# ln -s /usr/bin/supervisorctl /usr/bin/sv
 file=/usr/bin/sv; rm -f $file;
-if [ "$INIT" == "supervisord" ]; then
-  echo -e "#!/bin/bash\ntest -z "\$1" && go-supervisord ctl -h || go-supervisord ctl \$@" > $file;
-else
-  cat /usr/bin/psv.sh > $file;
-fi
+cat /usr/bin/psv.sh > $file;
 chmod +x $file;
 
-# supervisord -n> go-supervisord
-# exec supervisord -n
-# exec go-supervisord
-# exec /sbin/tini -- perpd
-# alpine: not /sbin > /usr/sbin
-test "$INIT" == "supervisord" && exec go-supervisord || exec /usr/sbin/tini -- perpd
+export PERP_BASE=/etc/perp
+exec /usr/sbin/tini -- perpd

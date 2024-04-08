@@ -6,7 +6,16 @@ $RUN \
   # wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; 
   wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/pure-blue.jpg; 
 
-# theme
+# # theme
+##left:
+# MerleyKay
+# Squared_blue
+# Squared_green
+# bora_black
+# carp
+# ubuntu-light
+# zimek_darkblue
+# zimek_green
 echo """
 # Artwiz
 # Bity_fluxbox

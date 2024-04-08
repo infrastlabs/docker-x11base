@@ -20,7 +20,7 @@ pulse)
     ;;    
 parec)
     # sv: environment=DISPLAY=:10,HOME=/home/headless
-    PORT_VNC2=$(expr $PORT_VNC - 100)
+    PORT_VNC2=$PORT_VNC #$(expr $PORT_VNC - 100 + 100)
     echo "PORT_VNC2: $PORT_VNC2"
     echo "sleep 2.5" && sleep 2.5 #wait
 
@@ -30,7 +30,7 @@ parec)
     # rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
     ##non-root, just use pacat>> parec软链才能用
     exec parec --format=s16le $src |lame -r -ab 52 - - \
-        | curl -k -H "Transfer-Encoding: chunked" -X POST -T -  "$url"    
+        | curl -s -k -H "Transfer-Encoding: chunked" -X POST -T -  "$url"
     ;;
 *)
     echo "please call with: xvnc.sh xvnc/chansrv/pulse/parec xx"
