@@ -1,0 +1,35 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+FROM fedora:39
+# su: util-linux; ping: iputils
+RUN \
+  # link yum
+  ln -s /usr/bin/dnf /usr/bin/yum; \
+  yum -y clean all && yum -y makecache \
+  \
+  && yum -y install iproute net-tools \
+  sudo psmisc sysstat tree tmux lrzsz which wget openssl \
+  zip unzip \
+  procps jq \
+  lame \
+  iputils util-linux \
+  && yum -y clean all 
+
+
+# # fluxbox: /usr/share/fonts
+# RUN \
+#   yum -y install dejavu-sans-fonts; \
+#   yum -y clean all 
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; exit 0;
+
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash

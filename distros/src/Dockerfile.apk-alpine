@@ -1,0 +1,74 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+## ref kube-cmd/src/Dockerfile
+# FROM registry.cn-shenzhen.aliyuncs.com/infrasync/alpine:3.13.12 #x64,arm64
+FROM alpine:3.13.12
+MAINTAINER sam <sldevsir@126.com>
+
+# https://www.jakehu.me/2021/alpine-mirrors/
+# domain="mirrors.ustc.edu.cn"
+# domain="mirrors.aliyun.com";
+# mirrors.tuna.tsinghua.edu.cn
+RUN domain="mirrors.tuna.tsinghua.edu.cn"; ver=v3.13; \
+  echo "http://$domain/alpine/$ver/main" > /etc/apk/repositories; \
+  echo "http://$domain/alpine/$ver/community" >> /etc/apk/repositories; \
+  echo "http://$domain/alpine/edge/testing" >> /etc/apk/repositories
+
+#xshell: grep gawk
+#procps: free -h
+#shadow: chpasswd jumpserver, expect<mkpasswd>
+# tmux: libevent ncurses (2.7-VimEnter-err, by hand with low ver); compile with src: v2.3
+# findutils: for k3s agent node.
+# coreutils: base64 for secrets
+# busybox-extras: telnet  ## nc -vzw 2 host port
+# dig: bind-tools
+# alpine.gzip: by tinylog
+RUN apk add --no-cache \
+  ca-certificates tzdata curl wget gzip \
+  sed grep gawk findutils sudo tree unzip procps htop \
+  expect shadow xterm bash bash-completion coreutils busybox-extras \
+  \
+  lftp jq sysstat lame 
+  # \
+  # dropbear openssh-sftp-server openssh-client \
+  # libevent ncurses openssl bind-tools
+  
+# # fontconfig>> ttf-dejavu
+# RUN apk add --no-cache \
+#   ttf-dejavu
+
+# +Apps
+# RUN apk add --no-cache \
+#   pcmanfm geany ristretto engrampa
+#   # sakura lxtask lxappearance
+
+# ##glibc
+# # https://github.com/SatoshiPortal/alpine-pkg-glibc/releases/
+# # glibc-2.31-r0-aarch64.apk 3.11 MB 2021-05-18T15:12:42Z
+# # glibc-2.31-r0-armhf.apk   2.34 MB 2021-05-18T15:13:01Z
+# # glibc-2.31-r0-x86_64.apk  4.19 MB
+# RUN \
+#   # export GITHUB=https://hub.yzuu.cf; \
+#   export GITHUB=https://github.com; \
+#   # file=glibc-2.25-r0.apk; \
+#   # wget $GITHUB/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/$file; \
+#   arch=x86_64; test ! -z "$(uname -a |grep aarch64)" && arch=aarch64; \
+#   file=glibc-2.31-r0-$arch.apk; \
+#   wget $GITHUB/SatoshiPortal/alpine-pkg-glibc/releases/download/2.31-r0/$file; \
+#   apk add $file --allow-untrusted; \
+#   rm -f $file;
+
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN find /etc/skel; \
+  bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; exit 0;
+
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash

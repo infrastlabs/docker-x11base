@@ -1,0 +1,80 @@
+ARG ROOTBOX_IMG=rootfs
+FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+
+# FROM openwrt/rootfs:x86_64
+# FROM openwrt/rootfs
+# https://github.com/openwrt/docker
+# https://github.com/openwrt/docker/pkgs/container/rootfs/versions?filters%5Bversion_type%5D=tagged
+# BUILDPLATFORM、TARGETOS、TARGETARCH、TARGETPLATFORM四个变量是BuildKit提供的全局变量,
+#  分别表示构建镜像所在平台、操作系统、架构、构建镜像的目标平台
+# FROM openwrt/rootfs:x86_64-openwrt-23.05 as amd64
+# FROM openwrt/rootfs:aarch64_generic-openwrt-23.05 as arm64
+# FROM openwrt/rootfs:armsr-armv7-openwrt-23.05 as arm
+#   # mips_24kc-openwrt-23.05
+#   # i386_pentium4-openwrt-23.05
+#   # i386_pentium-mmx-openwrt-23.05
+#   # x86-legacy-openwrt-23.05
+#   # arm_cortex-a9_vfpv3-d16-openwrt-23.05
+# # FROM openwrt/rootfs:x86-64-openwrt-23.05
+# # FROM scratch
+# # ARG TARGETARCH
+# # COPY --from=${TARGETARCH} / /
+# FROM alpine:3.13.12 as rootfs1
+# COPY --from=amd64 / /amd64
+# COPY --from=arm64 / /arm64
+# COPY --from=arm / /arm
+# ARG TARGETARCH
+# RUN \cp -a ${TARGETARCH} /rootfs
+
+# FROM scratch
+# COPY --from=rootfs1 /rootfs /
+ARG TARGETARCH
+FROM infrastlabs/x11-base:openwrt-rootfs-${TARGETARCH}
+MAINTAINER sam <sldevsir@126.com>
+
+# https://blog.csdn.net/seaneer/article/details/135011487
+# https://mirror.tuna.tsinghua.edu.cn/openwrt/
+  # https://mirror.tuna.tsinghua.edu.cn/openwrt/releases/23.05.3/packages/
+  # core,kmods
+  # https://downloads.openwrt.org/releases/23.05-SNAPSHOT/targets/x86/64/packages
+  # https://mirror.tuna.tsinghua.edu.cn/openwrt/snapshots/targets/ #404
+# https://mirrors.ustc.edu.cn/openwrt/
+  # Downloading https://openwrt.proxy.ustclug.org/snapshots/targets/x86/64/kmods/5.15.153-1-e496746edd89318b9810e48e36a8bd9c/Packages.gz
+  # *** Failed to download the package list from https://openwrt.proxy.ustclug.org/snapshots/targets/x86/64/kmods/5.15.153-1-e496746edd89318b9810e48e36a8bd9c/Packages.gz
+RUN \
+  file=/etc/opkg/distfeeds.conf; test -f ${file}-bk1 || cat $file > ${file}-bk1; \
+  sed -i "s^https://downloads.openwrt.org/releases/23.05-SNAPSHOT/packages/^https://mirrors.ustc.edu.cn/openwrt/releases/23.05.3/packages/^g" $file; \
+  sed -i "s^https://downloads.openwrt.org/releases/23.05-SNAPSHOT/targets/^https://openwrt.proxy.ustclug.org/snapshots/targets/^g" $file
+
+# ex: tzdata procps expect xterm bash-completion busybox-extras 
+RUN \
+  mkdir /var/lock/; opkg update; \
+  \
+  opkg install \
+  ca-certificates curl wget \
+  sed grep gawk findutils sudo tree unzip htop \
+  shadow bash coreutils \
+  \
+  lftp jq sysstat lame 
+
+# fontconfig>> ttf-dejavu
+# RUN apk add --no-cache \
+#   ttf-dejavu
+
+# HEADLESS
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN find /etc/skel; \
+  bash /etc/skel/.fluxbox/fluxbox.sh; \
+  bash /xconf.sh; \
+  \
+  # cause: dropbear Early exit: Bad  buf_getptr
+  rm -f /etc/dropbear/*; \
+  # dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+  exit 0; 
+
+EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash
