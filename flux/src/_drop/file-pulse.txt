@@ -1,0 +1,117 @@
+# bash-5.1# find /usr/local/static/pulseaudio/ |sort
+# /usr/local/static/pulseaudio/bin/pa-info
+# /usr/local/static/pulseaudio/bin/pacat
+# /usr/local/static/pulseaudio/bin/pacmd
+# /usr/local/static/pulseaudio/bin/pactl
+/usr/local/static/pulseaudio/bin/padsp
+## link: mon, play, rec, record -> pacat; 
+/usr/local/static/pulseaudio/bin/pamon
+/usr/local/static/pulseaudio/bin/paplay
+/usr/local/static/pulseaudio/bin/parec
+/usr/local/static/pulseaudio/bin/parecord
+/usr/local/static/pulseaudio/bin/pasuspender
+# /usr/local/static/pulseaudio/bin/pulseaudio
+# /usr/local/static/pulseaudio/etc
+# /usr/local/static/pulseaudio/etc/pulse
+# /usr/local/static/pulseaudio/etc/pulse/client.conf
+# /usr/local/static/pulseaudio/etc/pulse/daemon.conf
+# /usr/local/static/pulseaudio/etc/pulse/default.pa
+# /usr/local/static/pulseaudio/etc/pulse/system.pa
+
+/usr/local/static/pulseaudio/include
+/usr/local/static/pulseaudio/include/pulse
+/usr/local/static/pulseaudio/include/pulse/cdecl.h
+/usr/local/static/pulseaudio/include/pulse/channelmap.h
+/usr/local/static/pulseaudio/include/pulse/context.h
+/usr/local/static/pulseaudio/include/pulse/def.h
+/usr/local/static/pulseaudio/include/pulse/direction.h
+/usr/local/static/pulseaudio/include/pulse/error.h
+/usr/local/static/pulseaudio/include/pulse/ext-device-manager.h
+/usr/local/static/pulseaudio/include/pulse/ext-device-restore.h
+/usr/local/static/pulseaudio/include/pulse/ext-stream-restore.h
+/usr/local/static/pulseaudio/include/pulse/format.h
+/usr/local/static/pulseaudio/include/pulse/gccmacro.h
+/usr/local/static/pulseaudio/include/pulse/introspect.h
+/usr/local/static/pulseaudio/include/pulse/mainloop-api.h
+/usr/local/static/pulseaudio/include/pulse/mainloop-signal.h
+/usr/local/static/pulseaudio/include/pulse/mainloop.h
+/usr/local/static/pulseaudio/include/pulse/operation.h
+/usr/local/static/pulseaudio/include/pulse/proplist.h
+/usr/local/static/pulseaudio/include/pulse/pulseaudio.h
+/usr/local/static/pulseaudio/include/pulse/rtclock.h
+/usr/local/static/pulseaudio/include/pulse/sample.h
+/usr/local/static/pulseaudio/include/pulse/scache.h
+/usr/local/static/pulseaudio/include/pulse/simple.h
+/usr/local/static/pulseaudio/include/pulse/stream.h
+/usr/local/static/pulseaudio/include/pulse/subscribe.h
+/usr/local/static/pulseaudio/include/pulse/thread-mainloop.h
+/usr/local/static/pulseaudio/include/pulse/timeval.h
+/usr/local/static/pulseaudio/include/pulse/utf8.h
+/usr/local/static/pulseaudio/include/pulse/util.h
+/usr/local/static/pulseaudio/include/pulse/version.h
+/usr/local/static/pulseaudio/include/pulse/volume.h
+/usr/local/static/pulseaudio/include/pulse/xmalloc.h
+/usr/local/static/pulseaudio/lib
+/usr/local/static/pulseaudio/lib/cmake
+/usr/local/static/pulseaudio/lib/cmake/PulseAudio
+/usr/local/static/pulseaudio/lib/cmake/PulseAudio/PulseAudioConfig.cmake
+/usr/local/static/pulseaudio/lib/cmake/PulseAudio/PulseAudioConfigVersion.cmake
+/usr/local/static/pulseaudio/lib/libpulse-simple.a
+/usr/local/static/pulseaudio/lib/libpulse-simple.la
+/usr/local/static/pulseaudio/lib/libpulse.a
+/usr/local/static/pulseaudio/lib/libpulse.la
+/usr/local/static/pulseaudio/lib/pkgconfig
+/usr/local/static/pulseaudio/lib/pkgconfig/libpulse-simple.pc
+/usr/local/static/pulseaudio/lib/pkgconfig/libpulse.pc
+/usr/local/static/pulseaudio/lib/pulse-13.99
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/libcli.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/liboss-util.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/libprotocol-cli.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/libprotocol-http.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/libprotocol-native.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/libprotocol-simple.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/librtp.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-cli-protocol-unix.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-http-protocol-unix.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-match.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-mmkbd-evdev.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-native-protocol-unix.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-oss.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-pipe-sink.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-pipe-source.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-rtp-recv.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-rtp-send.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-simple-protocol-unix.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-xrdp-sink.a
+/usr/local/static/pulseaudio/lib/pulse-13.99/modules/module-xrdp-source.a
+/usr/local/static/pulseaudio/lib/pulseaudio
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.a
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.la
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecore-13.99.a
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecore-13.99.la
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsedsp.a
+/usr/local/static/pulseaudio/lib/pulseaudio/libpulsedsp.la
+
+# /usr/local/static/pulseaudio/share/bash-completion/completions
+# /usr/local/static/pulseaudio/share/bash-completion/completions/pacat
+# /usr/local/static/pulseaudio/share/bash-completion/completions/pacmd
+# /usr/local/static/pulseaudio/share/bash-completion/completions/pactl
+/usr/local/static/pulseaudio/share/bash-completion/completions/padsp
+# /usr/local/static/pulseaudio/share/bash-completion/completions/paplay
+# /usr/local/static/pulseaudio/share/bash-completion/completions/parec
+# /usr/local/static/pulseaudio/share/bash-completion/completions/parecord
+/usr/local/static/pulseaudio/share/bash-completion/completions/pasuspender
+# /usr/local/static/pulseaudio/share/bash-completion/completions/pulseaudio
+
+/usr/local/static/pulseaudio/share/vala
+/usr/local/static/pulseaudio/share/vala/vapi
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse-mainloop-glib.deps
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse-mainloop-glib.vapi
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse-simple.deps
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse-simple.vapi
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse.deps
+/usr/local/static/pulseaudio/share/vala/vapi/libpulse.vapi
+/usr/local/static/pulseaudio/share/zsh
+/usr/local/static/pulseaudio/share/zsh/site-functions
+/usr/local/static/pulseaudio/share/zsh/site-functions/_pulseaudio

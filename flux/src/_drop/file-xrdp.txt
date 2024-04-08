@@ -1,0 +1,44 @@
+# /usr/local/static/xrdp/bin/xrdp-genkeymap
+# /usr/local/static/xrdp/bin/xrdp-keygen
+# /usr/local/static/xrdp/sbin/xrdp
+# /usr/local/static/xrdp/sbin/xrdp-chansrv
+/usr/local/static/xrdp/include/ms-erref.h
+/usr/local/static/xrdp/include/ms-fscc.h
+/usr/local/static/xrdp/include/ms-rdpbcgr.h
+/usr/local/static/xrdp/include/ms-rdpedisp.h
+/usr/local/static/xrdp/include/ms-rdpefs.h
+/usr/local/static/xrdp/include/ms-rdpegdi.h
+/usr/local/static/xrdp/include/ms-rdpele.h
+/usr/local/static/xrdp/include/ms-rdperp.h
+/usr/local/static/xrdp/include/ms-smb2.h
+/usr/local/static/xrdp/include/painter.h
+/usr/local/static/xrdp/include/rfxcodec_common.h
+/usr/local/static/xrdp/include/rfxcodec_decode.h
+/usr/local/static/xrdp/include/rfxcodec_encode.h
+/usr/local/static/xrdp/include/xrdp_client_info.h
+/usr/local/static/xrdp/include/xrdp_constants.h
+/usr/local/static/xrdp/include/xrdp_rail.h
+/usr/local/static/xrdp/include/xrdp_sockets.h
+/usr/local/static/xrdp/lib/libpainter.a
+/usr/local/static/xrdp/lib/libpainter.la
+/usr/local/static/xrdp/lib/librfxencode.a
+/usr/local/static/xrdp/lib/librfxencode.la
+/usr/local/static/xrdp/lib/pkgconfig/libpainter.pc
+/usr/local/static/xrdp/lib/pkgconfig/rfxcodec.pc
+/usr/local/static/xrdp/lib/pkgconfig/xrdp.pc
+/usr/local/static/xrdp/lib/xrdp/libcommon.a
+/usr/local/static/xrdp/lib/xrdp/libcommon.la
+/usr/local/static/xrdp/lib/xrdp/libvnc.a
+/usr/local/static/xrdp/lib/xrdp/libvnc.la
+/usr/local/static/xrdp/lib/xrdp/libxrdp.a
+/usr/local/static/xrdp/lib/xrdp/libxrdp.la
+/usr/local/static/xrdp/lib/xrdp/libxrdpapi.a
+/usr/local/static/xrdp/lib/xrdp/libxrdpapi.la
+# /usr/local/static/xrdp/share/xrdp/ad24b.bmp
+# /usr/local/static/xrdp/share/xrdp/ad256.bmp
+# /usr/local/static/xrdp/share/xrdp/cursor0.cur
+# /usr/local/static/xrdp/share/xrdp/cursor1.cur
+# /usr/local/static/xrdp/share/xrdp/sans-10.fv1
+# /usr/local/static/xrdp/share/xrdp/xrdp24b.bmp
+# /usr/local/static/xrdp/share/xrdp/xrdp256.bmp
+# /usr/local/static/xrdp/share/xrdp/xrdp_logo.bmp

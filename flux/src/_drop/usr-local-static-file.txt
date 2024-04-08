@@ -1,0 +1,18 @@
+# # root@deb1013:/usr/local/static# find /usr/local/static/ -type f |egrep -v "/.cache/|/.logs/" |sort
+# /usr/local/static/dropbear/sbin/dropbear
+# /usr/local/static/dropbear/bin/dropbearkey
+/usr/local/static/dropbear/bin/dbclient
+/usr/local/static/dropbear/bin/dropbearconvert
+
+# /usr/local/static/suckless/bin/dwm
+# /usr/local/static/suckless/bin/st
+/usr/local/static/suckless/bin/dmenu
+/usr/local/static/suckless/bin/dmenu_path
+/usr/local/static/suckless/bin/dmenu_run
+/usr/local/static/suckless/bin/st-copyout
+/usr/local/static/suckless/bin/st-urlhandler
+/usr/local/static/suckless/bin/stest
+/usr/local/static/suckless/man1/dmenu.1
+/usr/local/static/suckless/man1/dwm.1
+/usr/local/static/suckless/man1/st.1
+/usr/local/static/suckless/man1/stest.1

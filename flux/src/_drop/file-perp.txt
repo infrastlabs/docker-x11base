@@ -1,0 +1,13 @@
+# bash-5.1# find /usr/local/static/perp/ |sort
+/usr/local/static/perp/sbin/perp-setup
+/usr/local/static/perp/sbin/perpboot
+/usr/local/static/perp/sbin/perphup
+/usr/local/static/perp/sbin/perpok
+# /usr/local/static/perp/sbin/perpctl
+# /usr/local/static/perp/sbin/perpd
+# /usr/local/static/perp/sbin/perpls
+# /usr/local/static/perp/sbin/perpstat
+/usr/local/static/perp/sbin/sissylog
+/usr/local/static/perp/sbin/tinylog
+/usr/local/static/perp/sbin/tinylog_run
+/usr/local/static/perp/share
