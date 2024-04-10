@@ -4,6 +4,7 @@ $RUN \
   # wget -qO /usr/share/images/fluxbox/debian-squared.jpg https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; \
   \
   # wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/bg-debian-liteblue.png; 
+  # openwrt: wget: unrecognized option: connect-timeout=3
   wget --connect-timeout=3 -qO /usr/share/images/fluxbox/ubuntu-light.png https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bg/pure-blue.jpg; 
 
 # # theme
@@ -53,22 +54,26 @@ zimek_green
 """ > /tmp/_flux_themes.txt
 dst=/usr/local/static/fluxbox/share/fluxbox #/styles
 ls $dst/styles |while read one; do
-  match1=$(cat /tmp/_flux_themes.txt |egrep -v "^#|^$" |grep "$one")
+  match1=$(cat /tmp/_flux_themes.txt |grep -Ev "^#|^$" |grep "$one")
   test -z "$match1" && rm -rf $dst/styles/$one
 done
 dst=/usr/share/fluxbox; mkdir -p $dst
 \cp -a /usr/local/static/fluxbox/share/fluxbox/* $dst/ #copy
 # origin's clear
 ls $dst/styles |while read one; do
-  match1=$(cat /tmp/_flux_themes.txt |egrep -v "^#|^$" |grep "$one")
+  match1=$(cat /tmp/_flux_themes.txt |grep -Ev "^#|^$" |grep "$one")
   test -z "$match1" && rm -rf $dst/styles/$one
 done
 
 
 
 # skel
-mkdir -p /etc/skel/.config/clipit /etc/skel/.config/pnmixer /etc/skel/.config/gtk-3.0 /etc/skel/.fluxbox \
-    /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml;
+  # /etc/skel/.config/clipit \
+  # /etc/skel/.config/pnmixer \
+  # /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml \
+mkdir -p \
+  /etc/skel/.config/gtk-3.0 \
+  /etc/skel/.fluxbox;
 
 file=/etc/skel/.fluxbox/overlay; \
 echo -e "\
@@ -105,32 +110,32 @@ session.screen0.toolbar.tools: prevworkspace, workspacename, nextworkspace, icon
 session.screen0.toolbar.widthPercent: 99\n\
   " > $file; 
   
-file=/etc/skel/.config/clipit/clipitrc; \
-echo -e "\
-[rc]\n\
-save_history=true\n\
-  " > $file; 
+# file=/etc/skel/.config/clipit/clipitrc; \
+# echo -e "\
+# [rc]\n\
+# save_history=true\n\
+#   " > $file; 
   
-file=/etc/skel/.config/pnmixer/config; \
-echo -e "\
-[PNMixer]\n\
-VolumeControlCommand=pavucontrol\n\
-  " > $file; 
+# file=/etc/skel/.config/pnmixer/config; \
+# echo -e "\
+# [PNMixer]\n\
+# VolumeControlCommand=pavucontrol\n\
+#   " > $file; 
   
-file=/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml; \
-echo -e "\
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-\n\
-<channel name=\"thunar\" version=\"1.0\">\n\
-  <property name=\"last-view\" type=\"string\" value=\"ThunarIconView\"/>\n\
-  <property name=\"last-location-bar\" type=\"string\" value=\"ThunarLocationEntry\"/>\n\
-  <property name=\"last-icon-view-zoom-level\" type=\"string\" value=\"THUNAR_ZOOM_LEVEL_100_PERCENT\"/>\n\
-  <property name=\"last-separator-position\" type=\"int\" value=\"170\"/>\n\
-  <property name=\"hidden-bookmarks\" type=\"array\">\n\
-    <value type=\"string\" value=\"network://\"/>\n\
-  </property>\n\
-</channel>\n\
-  " > $file; 
+# file=/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml; \
+# echo -e "\
+# <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+# \n\
+# <channel name=\"thunar\" version=\"1.0\">\n\
+#   <property name=\"last-view\" type=\"string\" value=\"ThunarIconView\"/>\n\
+#   <property name=\"last-location-bar\" type=\"string\" value=\"ThunarLocationEntry\"/>\n\
+#   <property name=\"last-icon-view-zoom-level\" type=\"string\" value=\"THUNAR_ZOOM_LEVEL_100_PERCENT\"/>\n\
+#   <property name=\"last-separator-position\" type=\"int\" value=\"170\"/>\n\
+#   <property name=\"hidden-bookmarks\" type=\"array\">\n\
+#     <value type=\"string\" value=\"network://\"/>\n\
+#   </property>\n\
+# </channel>\n\
+#   " > $file; 
   
 file=/etc/skel/.config/gtk-3.0/settings.ini; \
 echo -e "\

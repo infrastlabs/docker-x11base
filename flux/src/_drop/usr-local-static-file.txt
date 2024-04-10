@@ -1,4 +1,4 @@
-# # root@deb1013:/usr/local/static# find /usr/local/static/ -type f |egrep -v "/.cache/|/.logs/" |sort
+# # root@deb1013:/usr/local/static# find /usr/local/static/ -type f |grep -Ev "/.cache/|/.logs/" |sort
 # /usr/local/static/dropbear/sbin/dropbear
 # /usr/local/static/dropbear/bin/dropbearkey
 /usr/local/static/dropbear/bin/dbclient
