@@ -1,14 +1,12 @@
 ARG COMPILE_IMG=alpine-compile
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as bin2
 FROM infrastlabs/x11-base:${COMPILE_IMG} as bin2
-FROM ubuntu:20.04 as files1
+FROM alpine:3.13.12 as files1
   # files1: 三方文件, files2: src编译
+  # xz-utils > xz
   ARG TARGETPLATFORM
-  RUN export DOMAIN="mirrors.ustc.edu.cn"; \
-    test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
-    echo "deb http://${DOMAIN}/$target focal main restricted universe multiverse" > /etc/apt/sources.list \
-    && echo "deb http://${DOMAIN}/$target focal-updates main restricted universe multiverse">> /etc/apt/sources.list; \
-    apt update && apt -y install curl xz-utils
+  RUN sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories; \
+    apk add bash curl xz
   RUN \
   # test -z "$(echo $TARGETPLATFORM |grep arm)" && arch=amd64 || arch=arm64; \
   case ${TARGETPLATFORM} in \
@@ -30,6 +28,7 @@ FROM ubuntu:20.04 as files1
   #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022; armel, armhf
   curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.10/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
   \
+  # upx
   # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
   echo a.1; \
   case ${TARGETPLATFORM} in \
@@ -42,7 +41,18 @@ FROM ubuntu:20.04 as files1
   file=upx-4.2.2-${arch}_linux.tar.xz; \
   cd /tmp; curl -fSL -k -O https://github.com/upx/upx/releases/download/v4.2.2/$file; \
   upack=/tmp/unpack-upx; mkdir -p $upack; tar -Jxf $file -C $upack --strip-components 1; \
-  \cp -a $upack/upx /rootfs/usr/local/static/3rd/bin/; rm -rf $file $upack; /rootfs/usr/local/static/3rd/bin/upx -V; 
+  \cp -a $upack/upx /rootfs/usr/local/static/3rd/bin/; rm -rf $file $upack; /rootfs/usr/local/static/3rd/bin/upx -V; \
+  # curl-static
+  # https://github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-aarch64
+  case ${TARGETPLATFORM} in \
+    "linux/amd64")  arch=amd64    ;; \
+    "linux/arm64")  arch=aarch64  ;; \
+    "linux/arm/v7") arch=armv7    ;; \
+    "linux/arm/v6") arch=NONE_v6  ;; \
+    "linux/386")    arch=i386     ;; \
+  esac; \
+  dst=/rootfs/usr/local/static/3rd/bin/curl; \
+  curl -o $dst -k -fSL github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-$arch; chmod +x $dst;
 
   COPY --from=bin2 /rootfs /rootfs/
   RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
@@ -51,14 +61,10 @@ FROM ubuntu:20.04 as files1
   
 
 
-FROM ubuntu:20.04 as files2
+FROM alpine:3.13.12 as files2
   ARG TARGETPLATFORM
-  RUN export DOMAIN="mirrors.ustc.edu.cn"; \
-    test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
-    echo "deb http://${DOMAIN}/$target focal main restricted universe multiverse" > /etc/apt/sources.list \
-    && echo "deb http://${DOMAIN}/$target focal-updates main restricted universe multiverse">> /etc/apt/sources.list; \
-    apt update && apt -y install curl wget
-
+  RUN sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories; \
+    apk add bash curl wget git
   # webhookd, noVNC
   # https://gitee.com/infrastlabs/fk-webhookd/releases/download/v22.08.18/webhookd.tar.gz
   # https://gitee.com/infrastlabs/fk-webhookd/releases/download/v22.08.18/webhookd-armv7.tar.gz
@@ -90,9 +96,13 @@ FROM ubuntu:20.04 as files2
     find |sort; \
     bash down_vnc.sh; rm -f $file; \
     \
-    exit 0;
     # test -s /rootfs/usr/local/webhookd/webhookd || exit 1; \
     # test -s /rootfs/usr/local/webhookd/static/noVNC-1.3.0/vnc.html || exit 1;
+    # fonts: DejaVuSansMono
+    git clone https://gitee.com/g-system/fk-fonts /tmp/powerline-fonts; \
+    dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
+    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/; \
+    exit 0; 
   # 
   COPY src/*.sh /rootfs/
   ADD src/dot /rootfs/etc/skel
@@ -109,18 +119,18 @@ MAINTAINER sam <sldevsir@126.com>
 # domain="mirrors.ustc.edu.cn"
 # domain="mirrors.aliyun.com";
 # mirrors.tuna.tsinghua.edu.cn
-RUN domain="mirrors.tuna.tsinghua.edu.cn"; ver=v3.13; \
-  echo "http://$domain/alpine/$ver/main" > /etc/apk/repositories; \
-  echo "http://$domain/alpine/$ver/community" >> /etc/apk/repositories; \
-  echo "http://$domain/alpine/edge/testing" >> /etc/apk/repositories
+RUN \
+  sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories
+  # ca-certificates tzdata 
+  #  bash-completion coreutils busybox-extras 
 RUN apk add --no-cache \
-  ca-certificates tzdata curl wget \
+  bash curl wget \
   sed grep gawk findutils sudo tree unzip procps htop \
-  expect shadow xterm bash bash-completion coreutils busybox-extras \
+  expect shadow xterm \
   jq sysstat lame 
 # fontconfig>> ttf-dejavu
-RUN apk add --no-cache \
-  ttf-dejavu
+# RUN apk add --no-cache \
+#   ttf-dejavu
 
 # 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
@@ -132,16 +142,7 @@ ENV \
   SHELL=/bin/bash
   # 默认约定
 #   L="en_US" \
-#   TZ="Asia/Shanghai" \
-  # \
-  # PORT_SSH=10022 \
-  # PORT_RDP=10089 \
-  # PORT_VNC=10081 \
-  # # 
-  # SSH_PASS=headless \
-  # VNC_PASS=headless \
-  # VNC_PASS_RO=View123 \
-  # VNC_OFFSET=10
+#   TZ="Asia/Shanghai"
 
 RUN \
   echo -e "cp -a /rootfs/files1/* /; \n\

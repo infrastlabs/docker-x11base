@@ -144,7 +144,9 @@ test -z "$DBUS_SESSION_BUS_ADDRESS" || env_dbus=",DBUS_SESSION_BUS_ADDRESS=\"$DB
 # setlocale: bin/setlocale
 lock=/.1stinit.lock
 setXserver
-# test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
+test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
+# sudo: unable to resolve host x11-ubuntu: Name or service not known
+test -f "$lock" && echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
 touch $lock
 
 # Dump environment variables
@@ -194,5 +196,10 @@ file=/usr/bin/sv; rm -f $file;
 cat /usr/bin/psv.sh > $file;
 chmod +x $file;
 
+# bash-5.2# echo $PS1  ##@openwrt
+# \s-\v\$
+export PS1='[\u@\h \W]\$ '
+
 export PERP_BASE=/etc/perp
-exec /usr/sbin/tini -- perpd
+# exec /usr/sbin/tini -- perpd
+exec perpd

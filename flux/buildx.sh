@@ -23,10 +23,8 @@ function doBuildx(){
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #
 
-    compile="alpine-compile"; #flux="fluxbox"
+    compile="alpine-compile";
     # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
-    # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && flux="${flux}-dbg"
-    # --build-arg FLUXBOX_IMG=$flux
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile
@@ -45,7 +43,7 @@ function doBuildx(){
 ns=infrastlabs
 ver=v51 #base-v5 base-v5-slim
 case "$1" in
-flux)
+rootfs)
     doBuildx rootfs src/Dockerfile
     ;;
 *)
