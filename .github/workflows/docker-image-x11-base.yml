@@ -1,0 +1,231 @@
+name: docker-image-x11-base
+on:
+  push:
+    branches: [ "dev", "sam-custom" ]
+  pull_request:
+    branches: [ "dev" ]
+jobs:
+  build:
+    # runs-on: ubuntu-latest
+    # runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup QEMU
+        # uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2 #ref docker-baseimage-gui
+        with:
+          platforms: arm,arm64,ppc64le,mips64,s390x
+
+      - name: Setup Docker Buildx
+        # uses: docker/setup-buildx-action@
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: network=host
+
+      - name: Call buildx.sh(build with ali's cache, push)
+        run: |
+          # VARS
+          echo ${{ github.repository_owner }} #infrastlabs
+          echo ${{ github.repository }}
+          echo ${{ secrets.DOCKER_REGISTRY_PW_DOCKERHUB }} #fill not show in log
+          # INFO
+          pwd && ls -l
+          docker version
+          free -h; df -h; ip a |grep inet; uname -a;
+          docker image prune -a -f; df -h
+          
+          # ENV
+          # registry-1.docker.io| noneView
+          export DOCKER_REGISTRY_USER_dockerhub=${{ secrets.DOCKER_REGISTRY_USER_DOCKERHUB }}
+          export DOCKER_REGISTRY_PW_dockerhub=${{ secrets.DOCKER_REGISTRY_PW_DOCKERHUB }}
+          # ali's| size, none-arch, layers;
+          export DOCKER_REGISTRY_USER_infrastSubUser2=${{ secrets.DOCKER_REGISTRY_USER_INFRASTSUBUSER2 }}
+          export DOCKER_REGISTRY_PW_infrastSubUser2=${{ secrets.DOCKER_REGISTRY_PW_INFRASTSUBUSER2 }}
+          # tencloud| type:Docker-Manifest-List; none: size, arch, layers; x10:x500; slowPushBack;
+          export DOCKER_REGISTRY_TENCLOUD_USER=${{ secrets.DOCKER_REGISTRY_TENCLOUD_USER }}
+          export DOCKER_REGISTRY_TENCLOUD_PASS=${{ secrets.DOCKER_REGISTRY_TENCLOUD_PASS }}
+          # qingcloud| tag, size-only; none-arch,layer;
+          export DOCKER_REGISTRY_QCLOUD_USER=${{ secrets.DOCKER_REGISTRY_QCLOUD_USER }}
+          export DOCKER_REGISTRY_QCLOUD_PASS=${{ secrets.DOCKER_REGISTRY_QCLOUD_PASS }}
+
+          export REPO_HUB=registry-1.docker.io
+          export REPO_ALI=registry.cn-shenzhen.aliyuncs.com
+          export REPO_TEN=ccr.ccs.tencentyun.com
+          export REPO_TEN_HK=hkccr.ccs.tencentyun.com
+          export REPO_QING=dockerhub.qingcloud.com
+          export REPO=$REPO_ALI #REPO_HUB REPO_ALI ##without "xx/"
+
+          
+          # JUST LOGIN HERE
+          # echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN
+          echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN_HK
+          # echo "${DOCKER_REGISTRY_QCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_QCLOUD_USER} --password-stdin $REPO_QING
+
+          # BUILD
+          :> /tmp/.timecost
+
+          # #############################
+          cd .github; 
+          echo compile; cd ../compile;
+            # # bash buildx.sh ubt-builder
+            # # bash buildx.sh deb12-builder
+            # # 
+            # # bash buildx.sh builder
+            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh #compile
+          echo rootfs; cd ../rootfs;
+            # 25.9.14: 不识别ARG参? @28.0.4
+            # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
+            # bash buildx.sh rootfs
+            # exit 0
+          # 
+          # #############################
+          doDistros=false
+          if [ "true" == "$doDistros" ]; then
+          echo distros; cd ../distros;
+            # bash buildx.sh type dist ver [latest]
+            bash buildx.sh core alpine 3.1 & ##
+            bash buildx.sh core alpine 3.2 & ##
+            bash buildx.sh core alpine 3.3 & ##
+            bash buildx.sh core alpine 3.4 & ##
+            bash buildx.sh core alpine 3.5 & ##
+            bash buildx.sh core alpine 3.6 & ##start-with-armv8,v7
+            bash buildx.sh core alpine 3.8 & ##
+            bash buildx.sh core alpine 3.10 & ##
+            bash buildx.sh core alpine 3.11 & ##
+            bash buildx.sh core alpine 3.12 & ##
+            bash buildx.sh core alpine 3.13 & ##
+            bash buildx.sh core alpine 3.14 & ##
+            bash buildx.sh core alpine 3.19 latest &
+            bash buildx.sh core ubuntu 14.04 & ##
+            bash buildx.sh core ubuntu 16.04 & ##
+            bash buildx.sh core ubuntu 18.04 & ##
+            bash buildx.sh core ubuntu 20.04 &
+            bash buildx.sh core ubuntu 22.04 &
+            bash buildx.sh core ubuntu 24.04 latest &
+            bash buildx.sh core opensuse 15.0 & ##
+            bash buildx.sh core opensuse 15.1 & ##
+            bash buildx.sh core opensuse 15.2 &
+            bash buildx.sh core opensuse 15.3 &
+            bash buildx.sh core opensuse 15.4 &
+            bash buildx.sh core opensuse 15.5 &
+            bash buildx.sh core opensuse 15.6 latest &
+            # oth
+            bash buildx.sh core busybox 1.36.1 latest &
+            bash buildx.sh core openwrt 23.05 latest &
+            bash buildx.sh core debian 7 &
+            bash buildx.sh core debian 8 &
+            bash buildx.sh core debian 10 &
+            bash buildx.sh core debian 11 &
+            bash buildx.sh core debian 12 &
+            bash buildx.sh core debian 13 latest &
+            bash buildx.sh core fedora 39 latest &
+            bash buildx.sh core voidlinux v2509 latest &
+            bash buildx.sh core openeuler 22.03-lts-sp4 &
+            wait
+            # app
+            bash buildx.sh app alpine 3.1 & ##
+            bash buildx.sh app alpine 3.2 & ##
+            bash buildx.sh app alpine 3.3 & ##
+            bash buildx.sh app alpine 3.4 & ##
+            bash buildx.sh app alpine 3.5 & ##
+            bash buildx.sh app alpine 3.6 & ##start-with-armv8,v7
+            bash buildx.sh app alpine 3.8 & ##
+            bash buildx.sh app alpine 3.10 & ##
+            bash buildx.sh app alpine 3.11 & ##
+            bash buildx.sh app alpine 3.12 & ##
+            bash buildx.sh app alpine 3.13 & ##
+            bash buildx.sh app alpine 3.14 & ##
+            bash buildx.sh app alpine 3.19 latest &
+            bash buildx.sh app ubuntu 14.04 & ##
+            bash buildx.sh app ubuntu 16.04 & ##
+            bash buildx.sh app ubuntu 18.04 & ##
+            bash buildx.sh app ubuntu 20.04 &
+            bash buildx.sh app ubuntu 22.04 &
+            bash buildx.sh app ubuntu 24.04 latest &
+            bash buildx.sh app opensuse 15.0 & ##
+            bash buildx.sh app opensuse 15.1 & ##
+            bash buildx.sh app opensuse 15.2 &
+            bash buildx.sh app opensuse 15.3 &
+            bash buildx.sh app opensuse 15.4 &
+            bash buildx.sh app opensuse 15.5 &
+            bash buildx.sh app opensuse 15.6 latest &
+            wait
+            # 
+          fi
+          # 
+          # #############################
+          # 同步到ali仓
+          #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
+          unset REPO_ALI REPO_TEN REPO_QING #skipSync; QINGCLOUD.REPO net failed
+          echo syncer; doSync=true
+          cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
+          # 
+          # #############################
+          echo undockPkg; doPkg=false
+          cd ../../.github/workflows; test "true" == "$doPkg" && bash undock.sh;
+          # 
+          # view timecost
+          cat /tmp/.timecost
+      # ###############################################
+      # https://blog.csdn.net/heroboyluck/article/details/142185264
+      #  GitHub Releases requires a tag
+      # https://github.com/softprops/action-gh-release
+      #  outputs
+      # ###############################################
+      - name: create github release
+        id: new_release
+        uses: softprops/action-gh-release@v2 #v2.0.8
+        # if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: latest
+          tag_name: v24.12
+          make_latest: true
+          token: ${{ github.token }} #Defaults to ${{ github.token }}
+          body: |
+            Automated release-2024 for tag ${{ github.ref }}          
+          # append_body
+          # generate_release_notes
+          draft: false
+          prerelease: false
+          preserve_order: true
+          fail_on_unmatched_files: false
+          # repository:  #Defaults to GITHUB_REPOSITORY env variable
+          # body_path: 
+          # target_commitish
+          # files: ebook.pdf
+          files: |
+            # ebook.pdf
+            # LICENSE
+            .github/workflows/.ws/pkgs/dropbear-*.tar.gz
+            .github/workflows/.ws/pkgs/perp-*.tar.gz
+            .github/workflows/.ws/pkgs/tigervnc-*.tar.gz
+            .github/workflows/.ws/pkgs/pulseaudio-*.tar.gz
+            .github/workflows/.ws/pkgs/xrdp-*.tar.gz
+            .github/workflows/.ws/pkgs/3rd-*.tar.gz
+            .github/workflows/.ws/pkgs/misc-*.tar.gz
+            .github/workflows/.ws/pkgs/fluxbox-*.tar.gz
+            .github/workflows/.ws/pkgs/openbox-*.tar.gz
+            .github/workflows/.ws/pkgs/suckless-*.tar.gz
+            .github/workflows/.ws/pkgs/tint2-*.tar.gz
+            # .github/workflows/.ws/pkgs/xcompmgr-amd64.tar.gz
+            # .github/workflows/.ws/pkgs/xlunch-amd64.tar.gz
+            # .github/workflows/.ws/pkgs/feh-amd64.tar.gz
+            # .github/workflows/.ws/pkgs/lxde-amd64.tar.gz
+  # post-build:
+  #   name: Post-build
+  #   needs: [ build ]
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Prepare
+  #       id: prep
+  #       run: |
+  #         # Determine the release type.
+  #         echo 123
+  # notification:
+  #   name: Notification
+  #   needs: [ build, post-build ]
+  #   runs-on: ubuntu-20.04
+  #   if: ${{ always() }}
