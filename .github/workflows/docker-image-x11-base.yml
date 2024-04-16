@@ -1,0 +1,131 @@
+name: docker-image-x11-base
+on:
+  push:
+    branches: [ "dev", "sam-custom" ]
+  pull_request:
+    branches: [ "dev" ]
+jobs:
+  build:
+    # runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup QEMU
+        # uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2 #ref docker-baseimage-gui
+        with:
+          platforms: arm,arm64,ppc64le,mips64,s390x
+
+      - name: Setup Docker Buildx
+        # uses: docker/setup-buildx-action@
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: network=host
+
+      - name: Call buildx.sh(build with ali's cache, push)
+        run: |
+          # VARS
+          echo ${{ github.repository_owner }} #infrastlabs
+          echo ${{ github.repository }}
+          echo ${{ secrets.DOCKER_REGISTRY_PW_DOCKERHUB }} #fill not show in log
+          # INFO
+          pwd && ls -l
+          docker version
+          free -h; df -h; ip a |grep inet; uname -a;
+          
+          # ENV
+          # registry-1.docker.io| noneView
+          export DOCKER_REGISTRY_USER_dockerhub=${{ secrets.DOCKER_REGISTRY_USER_DOCKERHUB }}
+          export DOCKER_REGISTRY_PW_dockerhub=${{ secrets.DOCKER_REGISTRY_PW_DOCKERHUB }}
+          # ali's| size, none-arch, layers;
+          export DOCKER_REGISTRY_USER_infrastSubUser2=${{ secrets.DOCKER_REGISTRY_USER_INFRASTSUBUSER2 }}
+          export DOCKER_REGISTRY_PW_infrastSubUser2=${{ secrets.DOCKER_REGISTRY_PW_INFRASTSUBUSER2 }}
+          # tencloud| type:Docker-Manifest-List; none: size, arch, layers; x10:x500; slowPushBack;
+          export DOCKER_REGISTRY_TENCLOUD_USER=${{ secrets.DOCKER_REGISTRY_TENCLOUD_USER }}
+          export DOCKER_REGISTRY_TENCLOUD_PASS=${{ secrets.DOCKER_REGISTRY_TENCLOUD_PASS }}
+          # qingcloud| tag, size-only; none-arch,layer;
+          export DOCKER_REGISTRY_QCLOUD_USER=${{ secrets.DOCKER_REGISTRY_QCLOUD_USER }}
+          export DOCKER_REGISTRY_QCLOUD_PASS=${{ secrets.DOCKER_REGISTRY_QCLOUD_PASS }}
+          
+          # JUST LOGIN HERE
+          repo=ccr.ccs.tencentyun.com
+          echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $repo
+          repo=dockerhub.qingcloud.com
+          echo "${DOCKER_REGISTRY_QCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_QCLOUD_USER} --password-stdin $repo
+
+
+          export REPO_HUB=registry-1.docker.io
+          export REPO_ALI=registry.cn-shenzhen.aliyuncs.com
+          export REPO_TEN=ccr.ccs.tencentyun.com
+          export REPO_QING=dockerhub.qingcloud.com
+          export REPO=$REPO_ALI #REPO_HUB REPO_ALI ##without "xx/"
+          # BUILD
+          :> /tmp/.timecost
+
+          cd .github; doBuild=true
+          if [ "true" == "$doBuild" ]; then
+          echo compile; cd ../compile;
+            # # bash buildx.sh ubt-builder
+            # # bash buildx.sh deb12-builder
+            # # 
+            # # bash buildx.sh builder
+            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh #compile
+          # #############################
+          echo rootfs; cd ../rootfs;
+            bash buildx.sh rootfs
+            # exit 0
+          # 
+          echo distros; cd ../distros;
+            # bash buildx.sh type dist ver [latest]
+            # bash buildx.sh core alpine 3.8 & ##
+            # bash buildx.sh core alpine 3.19 latest &
+            # bash buildx.sh core ubuntu 18.04 & ##
+            # bash buildx.sh core ubuntu 20.04 &
+            # bash buildx.sh core ubuntu 22.04 &
+            # bash buildx.sh core ubuntu 24.04 latest &
+            bash buildx.sh core opensuse 15.0 &
+            # bash buildx.sh core opensuse 15.5 latest &
+            # # oth
+            # bash buildx.sh core busybox 1.36.1 latest &
+            # bash buildx.sh core openwrt 23.05 latest &
+            # bash buildx.sh core debian 12 latest &
+            # bash buildx.sh core fedora 39 latest &
+            wait
+            # app
+            # bash buildx.sh app alpine 3.8 & ##
+            # bash buildx.sh app alpine 3.19 latest &
+            # bash buildx.sh app ubuntu 18.04 & ##
+            # bash buildx.sh app ubuntu 20.04 &
+            # bash buildx.sh app ubuntu 22.04 &
+            # bash buildx.sh app ubuntu 24.04 latest &
+            bash buildx.sh app opensuse 15.0 &
+            # bash buildx.sh app opensuse 15.5 latest &
+            wait
+            # 
+          fi
+          # 
+          # 同步到ali仓
+          #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
+          unset REPO_ALI REPO_TEN REPO_QING #skipSync; QINGCLOUD.REPO net failed
+          echo syncer; doSync=true
+          cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
+          # 
+          # view timecost
+          cat /tmp/.timecost
+  # post-build:
+  #   name: Post-build
+  #   needs: [ build ]
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Prepare
+  #       id: prep
+  #       run: |
+  #         # Determine the release type.
+  #         echo 123
+  # notification:
+  #   name: Notification
+  #   needs: [ build, post-build ]
+  #   runs-on: ubuntu-20.04
+  #   if: ${{ always() }}
