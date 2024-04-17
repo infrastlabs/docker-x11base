@@ -8,7 +8,7 @@ function setLocale(){
     lang_area=${L%%.*}
     export LANG=${lang_area}.${charset}
     export LANGUAGE=${lang_area}:en #default> en
-    echo "====LANG: $LANG, LANGUAGE: $LANGUAGE=========================="
+    echo "=[locale update: LANG=$LANG, LANGUAGE=$LANGUAGE]==========="
     sleep 1
 
     # LOCALE
@@ -18,7 +18,7 @@ function setLocale(){
     sudo update-locale LANG=${LANG} LANGUAGE=${LANGUAGE}
     # echo "# " > /etc/default/locale;
 
-    echo "==[locale -a]===================================="
+    echo "=[locale view]==========="
     locale -a
     cat /etc/default/locale
     # sleep 2
