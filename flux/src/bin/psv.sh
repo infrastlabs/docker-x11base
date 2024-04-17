@@ -14,6 +14,13 @@ status)
       perpstat $args
     fi
     ;;
+reload)
+    perphup
+    ;;
+log)
+    find /var/log/tinylog/$args/ -type f |sort
+    tail -n 200 -f /var/log/tinylog/$args/current
+    ;;
 start|stop)
     if [ "start" == "$cmd" ]; then
       perpctl up $args
@@ -31,8 +38,8 @@ enable|disable)
       perpctl X $args
     fi
     ;;
-help)
-    echo "example: sv status, sv start/stop xxx, sv enable/disable xxx, sv pause/continue xxx"
+-h|help)
+    echo "example: sv status/reload/help, sv log xxx, sv start/stop xxx, sv enable/disable xxx, sv pause/continue xxx"
     ;;
     # a (alarm)
     # h (hup)

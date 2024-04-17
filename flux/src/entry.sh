@@ -10,6 +10,9 @@ test -z "$VNC_PASS_RO" && export VNC_PASS_RO=View123
 test -z "$VNC_OFFSET" && export VNC_OFFSET=10
 
 # TODO: check port: ssh, rdp, vnc
+# sudo: unable to resolve host x11-ubuntu: Name or service not known
+match1=$(cat /etc/hosts |egrep "^127.0.0.1 $HOSTNAME")
+test ! -z "$match1" && echo "[hosts] existed, skip." || echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
 
 function oneVnc(){
     local N=$1
@@ -48,7 +51,8 @@ function oneVnc(){
     # 
     # de: gosu headless bash -c "xxx"
     dest=/etc/perp/$xn-de; mkdir -p $dest
-    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox > /dev/null 2>\&1\"^g" > $dest/rc.main
+    # exec startfluxbox > /dev/null 2>\&1
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox\"^g" > $dest/rc.main
 
 
     # XRDP /etc/xrdp/xrdp.ini
@@ -114,12 +118,13 @@ function setXserver(){
 
     # SSH_PASS VNC_PASS VNC_PASS_RO
     if [ ! -f "$lock" ]; then
-        echo "headless:$SSH_PASS" |chpasswd
-        echo -e "$VNC_PASS\n$VNC_PASS\ny\n$VNC_PASS_RO\n$VNC_PASS_RO"  |vncpasswd /etc/xrdp/vnc_pass; chmod 644 /etc/xrdp/vnc_pass
-        echo "" #newLine
+        echo "headless:$SSH_PASS" |chpasswd > /dev/null 2>&1
+        echo -e "$VNC_PASS\n$VNC_PASS\ny\n$VNC_PASS_RO\n$VNC_PASS_RO"  |vncpasswd /etc/xrdp/vnc_pass > /dev/null 2>&1;
+        chmod 644 /etc/xrdp/vnc_pass
+        # echo "" #newLine
     fi
     unset SSH_PASS VNC_PASS VNC_PASS_RO #unset, not show in desktopEnv.
-    unset LOC_XFCE LOC_APPS LOC_APPS2 DEBIAN_FRONTEND    
+    unset LOC_XFCE LOC_APPS LOC_APPS2 DEBIAN_FRONTEND LOCALE_INCLUDE 
 }
 
 ##xconf.sh#########
@@ -141,28 +146,32 @@ function setXserver(){
 # fi
 test -z "$DBUS_SESSION_BUS_ADDRESS" || env_dbus=",DBUS_SESSION_BUS_ADDRESS=\"$DBUS_SESSION_BUS_ADDRESS\""
 
-# setlocale: bin/setlocale
-lock=/.1stinit.lock
-setXserver
-test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
-# sudo: unable to resolve host x11-ubuntu: Name or service not known
-test -f "$lock" && echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
-touch $lock
 
 # Dump environment variables
 # https://hub.fastgit.org/hectorm/docker-xubuntu/blob/master/scripts/bin/container-init
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export DISPLAY=:$VNC_OFFSET
+if [ ! -z "$L" ]; then #export LANG,LANGUAGE
+    charset=${L##*.}; test "$charset" == "$L" && charset="UTF-8" || echo "charset: $charset"
+    lang_area=${L%%.*}
+    export LANG=${lang_area}.${charset}
+    export LANGUAGE=${lang_area}:en #default> en
+    echo "====LANG: $LANG, LANGUAGE: $LANGUAGE=========================="
+fi
  #| grep -Ev '^(.*PASS.*|PWD|OLDPWD|HOME|USER|SHELL|TERM|([^=]*(PASSWORD|SECRET)[^=]*))=' \
 env \
- |grep -Ev '_PASS$|^SHLVL|^HOSTNAME|^PWD|^OLDPWD|^HOME|^USER|^SHELL|^TERM' \
+ |grep -Ev '_PASS.*|^SHLVL|^HOSTNAME|^PWD|^OLDPWD|^HOME|^USER|^SHELL|^TERM' \
  |grep -Ev "LOC_|DEBIAN_FRONTEND|LOCALE_INCLUDE" | sort |sudo tee /etc/environment > /dev/null 2>&1
 # source /.env
 : |sudo tee /.env
 cat /etc/environment |while read one; do echo export $one | sudo tee -a /.env > /dev/null 2>&1; done
-# echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env
-# echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env
-# echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env
+echo "export XMODIFIERS=@im=ibus" |sudo tee -a /etc/profile;\
+echo "export GTK_IM_MODULE=ibus" |sudo tee -a /etc/profile;\
+echo "export QT_IM_MODULE=ibus" |sudo tee -a /etc/profile;
+# \
+echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env;\
+echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env;\
+echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env;
 
 # ENV
 # DISPLAY=${DISPLAY:-localhost:21}
@@ -170,12 +179,22 @@ cat /etc/environment |while read one; do echo export $one | sudo tee -a /.env > 
 # echo "export DISPLAY=$DISPLAY" |sudo tee -a /tmp/profile.txt
 # echo "export PULSE_SERVER=$PULSE_SERVER" |sudo tee -a /tmp/profile.txt
 
+
+# setlocale: bin/setlocale
+lock=/.1stinit.lock
+setXserver
+test -f "$lock" && echo "[locale] none-first, skip." || setlocale #locale只首次设定(arm下单核cpu占满, 切换-e L=zh_HK时容器重置)
+touch $lock
+
 # CONF
 test -f /home/headless/.ICEauthority && chmod 644 /home/headless/.ICEauthority #mate err
 rm -f /home/headless/.config/autostart/pulseaudio.desktop
 # chmod +x /usr/share/applications/*.desktop ##fluxbox> pcmanfm> exec-dialog
 
 # startCMD
+# test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/systemd/system/de-start.service
+test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/perp/x$VNC_OFFSET-de/rc.main
+
 cnt=0.1
 echo "sleep $cnt" && sleep $cnt;
 
@@ -183,13 +202,47 @@ echo "sleep $cnt" && sleep $cnt;
 rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
 
 # 
-# set rc.* executable
-chmod +x /etc/perp/**/rc.*
+# http://b0llix.net/perp/site.cgi?page=tinylog.8
+cat > /etc/tinylog.conf  <<EOF
+export TINYLOG_USER=root #tinylog
+export TINYLOG_BASE=/var/log/tinylog #/var/log
+export TINYLOG_OPTS="-k2 -s1000 -z" #keep2, size1000, gzip
+EOF
+
+cat > /usr/sbin/runtool <<EOF
+#!/bin/bash
+# -u xxx;
+# shift
+# shift
+# exec \$@
+#DO gosu
+shift; user1=\$1
+shift
+cmd="\$@" #fix bash -c "exec \$@"
+exec gosu \$user1 bash -c "exec \$cmd";
+EOF
+chmod +x /usr/sbin/runtool
+
+function rclog(){
+cat > /etc/perp/$one/rc.log <<EOF
+#!/bin/sh
+if test \${1} = 'start' ; then
+  exec tinylog_run \${2}
+fi
+exit 0
+EOF
+}
+
 # autostart: <perpctl A xx> dir sticky
 #  设定再启动perpd才有效，启动后再设定会提示err
 # https://blog.csdn.net/qq_21438461/article/details/131021640
 # chmod o+t > chmod 1755 #o+t: busybox,openwrt不支持
-ls -F /etc/perp/ |grep "/$" |while read one; do chmod 1755 /etc/perp/$one; done
+ls -F /etc/perp/ |grep "/$" |while read one; do
+  chmod 1755 /etc/perp/$one;
+  test ! -z "$(echo $one |grep -E '^x.*-de|^x.*-xvnc')" && rclog;
+done
+# set rc.* executable 
+chmod +x /etc/perp/**/rc.*
 
 # sv
 file=/usr/bin/sv; rm -f $file;
@@ -200,6 +253,7 @@ chmod +x $file;
 # \s-\v\$
 export PS1='[\u@\h \W]\$ '
 
-export PERP_BASE=/etc/perp
+export PERP_BASE=/etc/perp; dst=/var/log/tinylog/_perp; mkdir -p $dst
 # exec /usr/sbin/tini -- perpd
-exec perpd
+# exec perpd |tinylog -k2 -s1000 -z $dst
+exec perpd > >(exec tinylog -k2 -s1000 -z $dst) 2>&1
