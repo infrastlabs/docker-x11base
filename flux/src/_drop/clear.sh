@@ -28,7 +28,7 @@ find /rootfs/usr/local/static -type f |grep -E "/sbin/|/bin/" |grep -v "/3rd/bin
   du -sh $one
 done
 
-# link
+# link-bin,sbin
   rm -rf  /rootfs/usr/bin /rootfs/usr/sbin; mkdir -p /rootfs/usr/bin /rootfs/usr/sbin;
 
   # clear-xrdp;
@@ -43,3 +43,14 @@ done
   find /rootfs/usr/local/static -type f |grep "/bin/" |sort | \
     while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/bin/; done;
 
+# link-openbox-theme
+find  /rootfs/usr/local/static/openbox/share/ -type d |grep openbox-3 |while read one; do
+  one=$(echo $one |sed "s^/rootfs^^g"); 
+  dst=$(echo $one |sed "s^local/static/openbox/^^g"); 
+  # dst-not-exist: 56.08 ln: /rootfs/usr/share/themes/Clearlooks-Olive/openbox-3: No such file or directory
+  dst=/rootfs$dst
+  mkdir -p $dst; rm -rf $dst;
+  ln -s $one $dst #link
+done
+
+exit 0

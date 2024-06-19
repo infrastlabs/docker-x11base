@@ -1,0 +1,28 @@
+# x11-alpine:/usr/local/static# find /usr/local/static/tint2/ -type f |sort
+# /usr/local/static/tint2/bin/tint2
+# /usr/local/static/tint2/bin/tint2conf
+# /usr/local/static/tint2/etc/xdg/tint2/tint2rc
+/usr/local/static/tint2/share/applications/tint2.desktop
+/usr/local/static/tint2/share/applications/tint2conf.desktop
+/usr/local/static/tint2/share/icons/hicolor/scalable/apps/tint2.svg
+/usr/local/static/tint2/share/icons/hicolor/scalable/apps/tint2conf.svg
+/usr/local/static/tint2/share/locale/bs/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/es/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/fr/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/hr/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/pl/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/ru/LC_MESSAGES/tint2conf.mo
+/usr/local/static/tint2/share/locale/sr/LC_MESSAGES/tint2conf.mo
+# /usr/local/static/tint2/share/mime/packages/tint2conf.xml
+# /usr/local/static/tint2/share/tint2/default_icon.png
+# /usr/local/static/tint2/share/tint2/horizontal-dark-opaque.tint2rc
+# /usr/local/static/tint2/share/tint2/horizontal-dark-transparent.tint2rc
+# /usr/local/static/tint2/share/tint2/horizontal-icon-only.tint2rc
+# /usr/local/static/tint2/share/tint2/horizontal-light-opaque.tint2rc
+# /usr/local/static/tint2/share/tint2/horizontal-light-transparent.tint2rc
+# /usr/local/static/tint2/share/tint2/horizontal-text-only.tint2rc
+# /usr/local/static/tint2/share/tint2/vertical-dark-opaque.tint2rc
+# /usr/local/static/tint2/share/tint2/vertical-dark-transparent.tint2rc
+# /usr/local/static/tint2/share/tint2/vertical-light-opaque.tint2rc
+# /usr/local/static/tint2/share/tint2/vertical-light-transparent.tint2rc
+# /usr/local/static/tint2/share/tint2/vertical-neutral-icons.tint2rc

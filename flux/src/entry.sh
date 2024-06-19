@@ -52,7 +52,8 @@ function oneVnc(){
     # de: gosu headless bash -c "xxx"
     dest=/etc/perp/$xn-de; mkdir -p $dest
     # exec startfluxbox > /dev/null 2>\&1
-    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS |sort; source /.env; source /.env2; sleep 2; exec startfluxbox\"^g" > $dest/rc.main
+    # source /.env2; 
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS |sort; source /.env; sleep 1; exec \$START_SESSION\"^g" > $dest/rc.main
 
 
     # XRDP /etc/xrdp/xrdp.ini
@@ -97,7 +98,7 @@ function setXserver(){
 
     # setPorts; sed port=.* || env_ctReset
     sed -i "s^port=3389^port=$PORT_RDP^g" /etc/xrdp/xrdp.ini
-    sed -i "s/EFRp 22/EFRp $PORT_SSH/g" /etc/perp/ssh/rc.main #perp
+    sed -i "s/EFRp 22$/EFRp $PORT_SSH/g" /etc/perp/ssh/rc.main #perp
     sed -i "3a\PORT_VNC=$PORT_VNC" /usr/local/webhookd/run.sh #+
     # run.sh line4: PORT_VNC=${PORT_VNC:-10091}; echo "PORT_VNC: $PORT_VNC"
 
@@ -158,6 +159,13 @@ if [ ! -z "$L" ]; then #export LANG,LANGUAGE
     export LANGUAGE=${lang_area}:en #default> en
     echo "====LANG: $LANG, LANGUAGE: $LANGUAGE=========================="
 fi
+
+
+# startCMD
+# test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/systemd/system/de-start.service
+# test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/perp/x$VNC_OFFSET-de/rc.main
+test -z "$START_SESSION" && export START_SESSION=startfluxbox
+
  #| grep -Ev '^(.*PASS.*|PWD|OLDPWD|HOME|USER|SHELL|TERM|([^=]*(PASSWORD|SECRET)[^=]*))=' \
 env \
  |grep -Ev '_PASS.*|^SHLVL|^HOSTNAME|^PWD|^OLDPWD|^HOME|^USER|^SHELL|^TERM' \
@@ -165,13 +173,13 @@ env \
 # source /.env
 : |sudo tee /.env
 cat /etc/environment |while read one; do echo "export $one" | sudo tee -a /.env > /dev/null 2>&1; done
-echo "export XMODIFIERS=@im=ibus" |sudo tee -a /etc/profile;\
-echo "export GTK_IM_MODULE=ibus" |sudo tee -a /etc/profile;\
-echo "export QT_IM_MODULE=ibus" |sudo tee -a /etc/profile;
-# \
 echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env;\
 echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env;\
 echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env;
+# \
+echo "export XMODIFIERS=@im=ibus" |sudo tee -a /etc/profile;\
+echo "export GTK_IM_MODULE=ibus" |sudo tee -a /etc/profile;\
+echo "export QT_IM_MODULE=ibus" |sudo tee -a /etc/profile;
 
 # ENV
 # DISPLAY=${DISPLAY:-localhost:21}
@@ -190,10 +198,6 @@ touch $lock
 test -f /home/headless/.ICEauthority && chmod 644 /home/headless/.ICEauthority #mate err
 rm -f /home/headless/.config/autostart/pulseaudio.desktop
 # chmod +x /usr/share/applications/*.desktop ##fluxbox> pcmanfm> exec-dialog
-
-# startCMD
-# test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/systemd/system/de-start.service
-test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/perp/x$VNC_OFFSET-de/rc.main
 
 cnt=0.1
 echo "sleep $cnt" && sleep $cnt;

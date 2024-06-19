@@ -56,6 +56,15 @@ function core(){
     # #        gosu 1000:1 id
     # gosu headless bash -c "mkdir -p /home/headless/.config/plank/dock1/launchers"
     # echo "curl mp3.." && gosu headless bash -c "curl --connect-timeout 3 -k -O -fSL https://www.51mp3ring.com/51mp3ring_com3/at20131018141155.mp3";
+
+
+# dotfiles
+# rm -rf /tmp/dots; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /tmp/dots
+# cd /tmp/dots && bash refresh.sh
+# rm -rf /tmp/dots;
+# 
+# git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles
+bash /usr/local/static/.dotfiles/refresh.sh
 }
 
 
@@ -105,10 +114,6 @@ test "app" != "$TYPE" && exit 0 || echo appInstall;
   sed -i "s^OSH_THEME=\"font\"^OSH_THEME=\"axin\"^g" /home/headless/.bashrc; 
   # sed -i "s^value=\"gnome\"^value=\"Papirus-Bunsen-grey\"^g" /home/headless/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
 
-# dotfiles
-rm -rf /tmp/dots; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /tmp/dots
-cd /tmp/dots && bash refresh.sh
-rm -rf /tmp/dots;
 }
 
 $1

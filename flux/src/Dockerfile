@@ -104,7 +104,11 @@ FROM alpine:3.13.12 AS files2
     # fonts: DejaVuSansMono
     git clone https://gitee.com/g-system/fk-fonts /tmp/powerline-fonts; \
     dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
-    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/; \
+    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/;
+  
+  RUN echo a.121; \
+    dst=/rootfs/usr/local/static/.dotfiles; \
+    mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
     exit 0; 
   # 
   COPY src/*.sh /rootfs/
