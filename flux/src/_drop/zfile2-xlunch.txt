@@ -1,0 +1,9 @@
+# x11-alpine:/usr/local/static# find /usr/local/static/xlunch/ -type f |sort
+/usr/local/static/xlunch/bin/genentries.desktop.sh
+# /usr/local/static/xlunch/bin/genentries
+# /usr/local/static/xlunch/bin/updateentries
+# /usr/local/static/xlunch/bin/xlunch
+# /usr/local/static/xlunch/bin/xlunch_genquick
+# /usr/local/static/xlunch/share/applications/genentries.desktop
+# /usr/local/static/xlunch/share/icons/hicolor/48x48/apps/xlunch.png
+/usr/local/static/xlunch/share/icons/hicolor/48x48/apps/xlunch_ghost.png
