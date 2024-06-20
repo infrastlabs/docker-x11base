@@ -2,10 +2,9 @@
 
 
 source /etc/profile
-export |grep DOCKER_REG
+export |grep DOCKER_REG |grep -Ev "PASS|PW"
 repo=registry.cn-shenzhen.aliyuncs.com
 echo "${DOCKER_REGISTRY_PW_infrastSubUser2}" |docker login --username=${DOCKER_REGISTRY_USER_infrastSubUser2} --password-stdin $repo
-
 repoHub=docker.io
 echo "${DOCKER_REGISTRY_PW_dockerhub}" |docker login --username=${DOCKER_REGISTRY_USER_dockerhub} --password-stdin $repoHub
 
@@ -95,6 +94,7 @@ gtk224)
     #  
     repo=registry-1.docker.io
     # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac
     img="x11-base:alpine-compile"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
@@ -103,6 +103,7 @@ gtk224)
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #dbg
+    # plat="--platform linux/arm64" #pulse-arm-dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -114,13 +115,13 @@ gtk224)
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
     --build-arg COMPILE_SSH=no
-    --build-arg COMPILE_PULSE=no
+    --build-arg COMPILE_PULSE=yes
     --build-arg COMPILE_FLUX=no
-    --build-arg COMPILE_OPENBOX=yes
+    --build-arg COMPILE_OPENBOX=no
     --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_SUCKLESS=no
-    --build-arg COMPILE_XCOMPMGR=yes
-    --build-arg COMPILE_XLUNCH=yes
+    --build-arg COMPILE_XCOMPMGR=no
+    --build-arg COMPILE_XLUNCH=no
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no

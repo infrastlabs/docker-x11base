@@ -198,7 +198,7 @@ function pulseaudio(){
 log "Downloading PULSEAUDIO..."
 rm -rf /tmp/pulseaudio; # mkdir -p /tmp/pulseaudio
 # down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C /tmp/pulseaudio
-PULSEAUDIO_VER=br-v13-99-3
+PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
 branch="--branch=$PULSEAUDIO_VER"
 # --depth=1 ##./git-version-gen .tarball-version
 git clone $branch https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio #;
@@ -220,6 +220,8 @@ xx-verify --static /tmp/pulseaudio/src/pactl
 }
 
 
+# https://blog.csdn.net/Zxiuping/article/details/120764834
+git config --global http.sslVerify false ##关闭SSL验证
 case "$1" in
 cache)
     # down_catfile ${XRDP_URL} > /dev/null
