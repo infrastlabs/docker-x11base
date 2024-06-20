@@ -1,6 +1,4 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
-
+FROM infrastlabs/x11-base:rootfs AS rootfs
 FROM fedora:39
 # su: util-linux; ping: iputils
 RUN \

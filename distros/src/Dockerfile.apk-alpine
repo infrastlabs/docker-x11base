@@ -1,23 +1,35 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+# - FromAsCasing: 'as' and 'FROM' keywords' casing do not match (line 2)
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+
+FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu AS ubt
+FROM scratch AS res
+  COPY --from=ubt /usr/share/fonts/DejaVuSansMono /usr/share/fonts/DejaVuSansMono
+  COPY --from=ubt /usr/share/fonts/truetype/wqy /usr/share/fonts/truetype/wqy
+  COPY --from=ubt /usr/share/themes/Greybird /usr/share/themes/Greybird
+  COPY --from=ubt /usr/share/themes/Greybird-compact /usr/share/themes/Greybird-compact
+  COPY --from=ubt /usr/share/themes/Greybird-dark /usr/share/themes/Greybird-dark
+  COPY --from=ubt /usr/share/icons/Papirus /usr/share/icons/Papirus
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-bluegrey /usr/share/icons/Papirus-Bunsen-bluegrey
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-grey /usr/share/icons/Papirus-Bunsen-grey
+  COPY --from=ubt /etc/fonts /etc/fonts
+  #COPY --from=ubt /usr/share/
 
 ## ref kube-cmd/src/Dockerfile
-# FROM registry.cn-shenzhen.aliyuncs.com/infrasync/alpine:3.13.12 #x64,arm64
-FROM alpine:3.13.12
+# FROM alpine:3.13.12
+FROM alpine:3.19
 MAINTAINER sam <sldevsir@126.com>
+ARG TYPE=core
 
 # https://www.jakehu.me/2021/alpine-mirrors/
-# domain="mirrors.ustc.edu.cn"
-# domain="mirrors.aliyun.com";
-# mirrors.tuna.tsinghua.edu.cn
-RUN domain="mirrors.tuna.tsinghua.edu.cn"; ver=v3.13; \
+#   mirrors.tuna.tsinghua.edu.cn  mirrors.ustc.edu.cn  mirrors.aliyun.com
+RUN domain="mirrors.tuna.tsinghua.edu.cn"; ver=v3.19; \
   echo "http://$domain/alpine/$ver/main" > /etc/apk/repositories; \
   echo "http://$domain/alpine/$ver/community" >> /etc/apk/repositories; \
   echo "http://$domain/alpine/edge/testing" >> /etc/apk/repositories
 
-#xshell: grep gawk
-#procps: free -h
-#shadow: chpasswd jumpserver, expect<mkpasswd>
+# procps: free -h
+# shadow: chpasswd jumpserver, expect<mkpasswd>
 # tmux: libevent ncurses (2.7-VimEnter-err, by hand with low ver); compile with src: v2.3
 # findutils: for k3s agent node.
 # coreutils: base64 for secrets
@@ -33,32 +45,66 @@ RUN apk add --no-cache \
   # \
   # dropbear openssh-sftp-server openssh-client \
   # libevent ncurses openssl bind-tools
-  
-# # fontconfig>> ttf-dejavu
+
+##APP################################################
+# font-wqy-zenhei@edge
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apk add --no-cache firefox 
+
+# greybird-gtk-theme
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   apk add --no-cache \
+#   papirus-icon-theme 
+
+# locales dconf-cli gtk2-engines-pixbuf x11-xkb-utils
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apk add --no-cache \
+  tzdata  binutils  dbus-x11 at-spi2-core    xdg-utils
+
+# sakura #@3.19
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apk add --no-cache \
+  git \
+  pavucontrol \
+  thunar geany ristretto gnome-system-monitor
+
+# # flameshot-lib-err; engrampa-mate-deskDeps; ibus-tray-err;
+# # pnmixer/clipit-segfault-err; lxapperance-func-err; 
 # RUN apk add --no-cache \
+#   ibus flameshot \
+#   clipit pnmixer lxappearance engrampa 
+
+# TODO
+#  +font; theme-icon-conf;
+
+# # fontconfig>> ttf-dejavu
+# RUN apk add --no-cache --no-cache \
 #   ttf-dejavu
 
 # +Apps
-# RUN apk add --no-cache \
+# RUN apk add --no-cache --no-cache \
 #   pcmanfm geany ristretto engrampa
 #   # sakura lxtask lxappearance
 
-# ##glibc
-# # https://github.com/SatoshiPortal/alpine-pkg-glibc/releases/
-# # glibc-2.31-r0-aarch64.apk 3.11 MB 2021-05-18T15:12:42Z
-# # glibc-2.31-r0-armhf.apk   2.34 MB 2021-05-18T15:13:01Z
-# # glibc-2.31-r0-x86_64.apk  4.19 MB
-# RUN \
-#   # export GITHUB=https://hub.yzuu.cf; \
-#   export GITHUB=https://github.com; \
-#   # file=glibc-2.25-r0.apk; \
-#   # wget $GITHUB/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/$file; \
-#   arch=x86_64; test ! -z "$(uname -a |grep aarch64)" && arch=aarch64; \
-#   file=glibc-2.31-r0-$arch.apk; \
-#   wget $GITHUB/SatoshiPortal/alpine-pkg-glibc/releases/download/2.31-r0/$file; \
-#   apk add $file --allow-untrusted; \
-#   rm -f $file;
+# Apps2
+# lxtask: none
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apk add --no-cache \
+  sakura rofi clipit pnmixer lxappearance
 
+# XFCE4
+  # plank #none
+  # rofi clipit pnmixer lxappearance \ #@3.19
+  # thunar tint2
+  # xfdesktop4 > xfdesktop @alpine3.19
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apk add --no-cache \
+  # 2536 kB #18.9 MB > 14.3 MB
+  xfwm4 xfdesktop \
+  xfce4-notifyd xfce4-settings xfce4-session
+
+# xrdb font;
+RUN apk add --no-cache xrdb; 
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
@@ -67,8 +113,17 @@ RUN find /etc/skel; \
   bash /etc/skel/.fluxbox/fluxbox.sh; \
   bash /xconf.sh; exit 0;
 
+# HEADLESS2
+COPY --from=res / /
+ADD ./src/xconf2.sh /
+RUN \
+  bash /xconf2.sh; exit 0;
+
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash
+  SHELL=/bin/bash \
+  # 默认约定
+  L="zh_CN" \
+  TZ="Asia/Shanghai"

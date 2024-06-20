@@ -1,20 +1,70 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 
-# FROM fedora:39
+FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu AS ubt
+FROM scratch AS res
+  COPY --from=ubt /usr/share/fonts/DejaVuSansMono /usr/share/fonts/DejaVuSansMono
+  COPY --from=ubt /usr/share/fonts/truetype/wqy /usr/share/fonts/truetype/wqy
+  COPY --from=ubt /usr/share/themes/Greybird /usr/share/themes/Greybird
+  COPY --from=ubt /usr/share/themes/Greybird-compact /usr/share/themes/Greybird-compact
+  COPY --from=ubt /usr/share/themes/Greybird-dark /usr/share/themes/Greybird-dark
+  COPY --from=ubt /usr/share/icons/Papirus /usr/share/icons/Papirus
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-bluegrey /usr/share/icons/Papirus-Bunsen-bluegrey
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-grey /usr/share/icons/Papirus-Bunsen-grey
+  COPY --from=ubt /etc/fonts /etc/fonts
+  #COPY --from=ubt /usr/share/
+
 FROM opensuse/leap:15.5
-  # # link yum
-  # ln -s /usr/bin/dnf /usr/bin/yum; \
+ARG TYPE=core
+
+# zyp-source
+# http://mirrors.ustc.edu.cn/help/opensuse.html
+# https://blog.csdn.net/zhuzhenyu215/article/details/133523918
+# mirrors.ustc.edu.cn  mirrors.aliyun.com
 RUN \
-  zypper clean && zypper refresh \
+  export dm="mirrors.ustc.edu.cn"; \
+  zypper ar -fc https://$dm/opensuse/distribution/leap/15.5/repo/oss openSUSE-Aliyun-OSS; \
+  zypper ar -fc https://$dm/opensuse/distribution/leap/15.5/repo/non-oss openSUSE-Aliyun-NON-OSS; \
+  zypper ar -fc https://$dm/opensuse/update/leap/15.5/oss openSUSE-Aliyun-UPDATE-OSS; \
+  zypper ar -fc https://$dm/opensuse/update/leap/15.5/non-oss openSUSE-Aliyun-UPDATE-NON-OSS; \
   \
-  && zypper install -y iproute net-tools \
+  zypper clean; rm -rf /var/cache/zypp; \
+  \
+  echo 'zypper install -y $@ && zypper clean; rm -rf /var/cache/zypp; ' > /usr/local/bin/zyp.sh \
+    && chmod +x /usr/local/bin/zyp.sh; 
+  # 刷新更新
+  # zypper refresh; 
+
+# zypper clean && zypper refresh \
+RUN \
+  zyp.sh iproute net-tools \
   sudo psmisc sysstat tree tmux lrzsz which wget openssl \
   zip unzip \
   procps jq \
-  lame \
-  && zypper clean; rm -rf /var/cache/zypp
+  lame;
 
+
+##APP################################################
+# gpg check failed too? @alma 8.7
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh firefox;
+
+# greybird-gtk-theme
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   zyp.sh papirus-icon-theme;
+
+
+# locales dconf-cli gtk2-engines-pixbuf x11-xkb-utils
+#  zyp-ex: tzdata dbus-x11
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh binutils at-spi2-core xdg-utils;
+
+# sakura+
+# zyp-ex: clipit pnmixer 
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh pavucontrol \
+  ibus flameshot \
+  sakura thunar lxappearance   geany ristretto engrampa gnome-system-monitor;
 
 # # fluxbox: /usr/share/fonts
 # # zypper search dejavu
@@ -23,14 +73,41 @@ RUN \
 #   zypper install -y dejavu-fonts; \
 #   zypper clean; rm -rf /var/cache/zypp 
 
+# XFCE4
+  # plank rofi clipit pnmixer lxappearance thunar \
+  # tint2
+  # xfdesktop4 > xfdesktop @opsuse15.5
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh \
+  # 2536 kB #18.9 MB > 14.3 MB
+  xfwm4 xfdesktop \
+  xfce4-notifyd xfce4-settings xfce4-session;
+
+# xrdb font;
+RUN zyp.sh xrdb; 
+
+
+# dbus-x11: not existed >> @dbus-1 installd.
+# dbg: xfce4-session>> dbus-launch not permitted.
+RUN chmod 777 /usr/bin/dbus-launch.nox11
+
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
 RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
   bash /xconf.sh; exit 0;
 
+# HEADLESS2
+COPY --from=res / /
+ADD ./src/xconf2.sh /
+RUN \
+  bash /xconf2.sh; exit 0;
+
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash
+  SHELL=/bin/bash \
+  # 默认约定
+  L="zh_CN" \
+  TZ="Asia/Shanghai"

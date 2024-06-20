@@ -1,12 +1,12 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
-
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 FROM ubuntu:20.04
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
   # LOCALE_INCLUDE="en"
 ARG TARGETPLATFORM
+ARG TYPE=core
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
   echo "deb http://${DOMAIN}/$target focal main restricted universe multiverse" > /etc/apt/sources.list \
@@ -39,6 +39,160 @@ RUN \
   openssh-sftp-server lftp jq \
   lame
 
+
+##APP################################################
+# img: 362MB> 444MB (none-font); after mv-top: 610MB> 546MB
+# FONT, THEME, ICON
+# font-ttf: @win:msyh.zip> fonts-wqy-microhei
+# papirus-icon-theme
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apt.sh \
+  fonts-wqy-microhei language-pack-gnome-zh-hans \
+  \
+  papirus-icon-theme greybird-gtk-theme; \
+  rm -f /usr/share/backgrounds/greybird.svg; \
+  \
+  # 清理ubt自带图标, keep项: hicolor 
+  # locolor gnome bloom
+  cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
+  \
+  wget https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
+  \
+  # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
+  cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
+  ls -lh /usr/share/icons/Papirus; \
+  \
+  dpkg -l |grep bunsen && exit 0 || exit 1;
+
+# MESA-LLVM img: 362MB> 398MB
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\  
+  # VIDEO: 30.5 MB
+  # libllvm12 已包含 # libgl1-mesa-glx >libgl1-mesa-dri ##ex:  mesa-utils 
+  apt.sh libgl1-mesa-glx libglu1-mesa \
+  \
+  # LLVM(定制版这里删调它,除gnome,cinna其它de无影响); clear big lib: 88M (qt: flameshot,sogoupinyin) > img: -27M
+  rm -f /usr/lib/x86_64-linux-gnu/libLLVM-12.so.1; \
+  rm -f /usr/lib/aarch64-linux-gnu/libLLVM-12.so.1; 
+
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  mkdir -p /usr/share/X11/xkb; \
+  apt.sh \
+  # firefox #esr/115.1>> libdbus-glib-1-2
+  libxtst6 libdbus-glib-1-2 \
+# 163music v1.2.1
+# RUN apt.sh \
+  libharfbuzz0b libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libasound2 \
+# wps2019 11.1.0.11719
+# RUN apt.sh \
+  libfreetype6 libcups2 libglib2.0-0 libglu1-mesa libsm6 libxrender1 libfontconfig1 libxext6 libxcb1 \
+# vscode 1.88.1 ##libgtk-3-0: 16M; img: 362MB> 398MB > 475MB
+# RUN apt.sh \
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1
+
+# img: 362MB> 398MB > 433MB
+# LOC 87.4 MB
+# strip: binutils
+# xrdp-chansrv: libfdk-aac1 libopus0
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  # LOCALE 15.0 MB 
+  apt.sh tzdata locales binutils dconf-cli \
+  dbus-x11 at-spi2-core gtk2-engines-pixbuf \
+  # 343 kB
+  apt-utils x11-xkb-utils xdg-utils 
+
+  # AUD img: 546MB[239M]> 560MB
+  # INPUT img: 546MB[239M]> 658MB[252M]
+  RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh \
+    # Audio 39.8 MB 
+    pavucontrol \
+    \
+    # \12.3 MB (默认不含输入法: IBus/Fcitx)
+    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi
+
+  # # 2868 kB #fcitx ##img:78.095 MB
+  # # 15.3 kB #输入法依赖 https://shurufa.sogou.com/linux/guide
+  # RUN apt.sh fcitx fcitx-bin fcitx-config-common fcitx-config-gtk fcitx-data \
+  #   fcitx-frontend-all fcitx-frontend-gtk2 fcitx-frontend-gtk3 \
+  #   fcitx-frontend-qt5 fcitx-module-dbus fcitx-module-kimpanel fcitx-module-lua \
+  #   fcitx-module-x11 fcitx-modules fcitx-table fcitx-ui-classic \
+  #   # libxss1: needed by sogou, fcitx -r for debug
+  #   lsb-release libxss1 im-config \
+  #   libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 libgsettings-qt1
+
+
+  # MISC2 arandr 
+  RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh \
+    # tumbler gnupg \
+    # # \20.5 MB
+    flameshot; \
+    # flameshot_qt;
+    strip --remove-section=.note.ABI-tag /usr/lib/x86_64-linux-gnu/libQt5Core.so.5; \
+    strip --remove-section=.note.ABI-tag /usr/lib/aarch64-linux-gnu/libQt5Core.so.5; \
+    exit 0
+
+  # XFCE4
+    # plank rofi clipit pnmixer lxappearance thunar \
+  RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh tint2 \
+    # 2536 kB #18.9 MB > 14.3 MB
+    xfwm4 xfdesktop4 \
+    xfce4-notifyd xfce4-settings xfce4-session
+
+
+    
+  # 预装软件: sakura geany ristretto sys-monitor engrampa asbru
+  # RUN apt.sh \  
+  #   libsecret-1-0 libnss3 libxtst6 libasound2 \
+  #   \
+  #   # APPS 25.7 MB
+  #   # LOC_APPS="tint2 plank thunar sakura" # clipit; +pnmixer: 159 kB; +sv # 7056 kB
+  #   # LOC_APPS2="gnome-system-monitor engrampa ristretto" # 11.2 MB 
+  #   sakura geany ristretto engrampa gnome-system-monitor \
+  #   \
+  #   # 2422 kB #https://github.com/j8r/dockerfiles
+  #   xinit xterm systemd systemd-sysv;
+  
+# gparted
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apt.sh thunar dunst clipit pnmixer plank lxappearance \
+  # misc2
+  sakura geany ristretto engrampa gnome-system-monitor; \
+  \
+  # link: sakura, thunar
+  ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
+  mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st;
+
+  # # wps: libxss1
+  # # Xvnc-compile: libunwind8 libxfont2
+  # RUN apt.sh libxss1 libunwind8 libxfont2
+
+# # ASBRU: 3586 kB (disk: 15.5 MB)
+# # curl -k -1sLf 'https://dl.cloudsmith.io/public/asbru-cm/release/cfg/setup/bash.deb.sh' | \
+# #  distro=ubuntu version=20.04 codename=focal sudo -E bash;
+# #   err: Importing 'asbru-cm/release' repository GPG keys ...gpg: 找不到有效的 OpenPGP 数据。
+# RUN apt.sh gnupg;
+# RUN echo 1;\
+#   curl -k -1sLf 'https://dl.cloudsmith.io/public/asbru-cm/release/cfg/setup/bash.deb.sh' | sudo -E bash; \
+#   apt.sh asbru-cm; rm -f /etc/apt/sources.list.d/asbru-cm-release.list; \
+#   mv /opt/asbru /usr/local; rm -f /usr/bin/asbru-cm; ln -s /usr/local/asbru/asbru-cm /usr/bin/; \
+#   cd /usr/share/icons/hicolor/scalable/apps; rm -f asbru-cm.svg; ln -s /usr/local/asbru/res/asbru-logo.svg ./asbru-cm.svg; \
+#   dpkg -l |grep asbru && exit 0 || exit 1; 
+
+
+# OHMYBASH
+# git ohmybash # \12.6 MB
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apt.sh firefox git;
+
+
+# xrdb
+RUN \
+  apt.sh x11-xserver-utils
+
 # 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
@@ -46,11 +200,16 @@ COPY --from=rootfs /rootfs/files2 /
 RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
   bash /xconf.sh; exit 0;
 
+# HEADLESS2
+ADD ./src/xconf2.sh /
+RUN \
+  bash /xconf2.sh; exit 0;
+
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash
+  SHELL=/bin/bash \
   # 默认约定
-  # L="en_US" \
-  # TZ="Asia/Shanghai" \
+  L="zh_CN" \
+  TZ="Asia/Shanghai"

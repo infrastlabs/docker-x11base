@@ -1,46 +1,45 @@
 
 source /etc/profile
-export |grep DOCKER_REG
+export |grep DOCKER_REG |grep -Ev "PASS|PW"
 repo=registry.cn-shenzhen.aliyuncs.com
 echo "${DOCKER_REGISTRY_PW_infrastSubUser2}" |docker login --username=${DOCKER_REGISTRY_USER_infrastSubUser2} --password-stdin $repo
-
 repoHub=docker.io
 echo "${DOCKER_REGISTRY_PW_dockerhub}" |docker login --username=${DOCKER_REGISTRY_USER_dockerhub} --password-stdin $repoHub
 
-
+function print_time_cost(){
+    local item_name=$1
+    local begin_time=$2
+	gawk 'BEGIN{
+		print "['$item_name']本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
+		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
+		" 共历时" systime()-'$begin_time' "秒";
+	}'
+}
+PLAT0="--platform linux/amd64,linux/arm64,linux/arm"
+test "$type" != "app" && PLAT0="--platform linux/amd64,linux/arm64" #app:none-armv7
 function doBuildx(){
     local tag=$1
     local dockerfile=$2
 
     repo=registry-1.docker.io
-    repo=registry.cn-shenzhen.aliyuncs.com
+    # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac
     img="x11-base:$tag"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="x11-base-cache:$tag"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
-    plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #
-
     compile="alpine-compile"; flux=rootfs #fluxbox
-    # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
-    # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && flux="${flux}-dbg"
-    args="""
-    --provenance=false 
-    --build-arg COMPILE_IMG=$compile
-    --build-arg ROOTBOX_IMG=$flux
-    """
+    plat="$PLAT0" #,linux/arm
+    test "fedora" == "$tag" && plat="--platform linux/amd64,linux/arm64" # alma/fedora:无armv7
+    # plat="--platform linux/amd64" #dbg
 
-    # cd flux
-    test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
-    test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && cimg="${cimg}-dbg"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    test "$plat" != "$PLAT0" && compile="${compile}-dbg"
+    test "$plat" != "$PLAT0" && img="${img}-dbg"
+    test "$plat" != "$PLAT0" && cimg="${cimg}-dbg"
     
-    # alma:无armv7
-    test "alma" == "$tag" && plat="--platform linux/amd64,linux/arm64"
-    test "fedora" == "$tag" && plat="--platform linux/amd64,linux/arm64"
 
+    # 提前pull,转换tag格式
     if [ "openwrt" == "$tag" ]; then
         docker pull --platform=linux/amd64 openwrt/rootfs:x86_64-openwrt-23.05
         docker pull --platform=linux/aarch64_generic openwrt/rootfs:armsr-armv8-openwrt-23.05 #aarch64_generic-openwrt-23.05
@@ -51,14 +50,29 @@ function doBuildx(){
         docker tag openwrt/rootfs:armsr-armv7-openwrt-23.05 $dst-arm; docker push $dst-arm
     fi
     
-
+    args="""
+    --provenance=false 
+    --build-arg COMPILE_IMG=$compile
+    --build-arg TYPE=$type
+    --build-arg REPO=$repo/
+    """
+    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f $dockerfile . 
 }
 
 ns=infrastlabs
 ver=v51 #base-v5 base-v5-slim
-case "$1" in
+type=$1
+dist=$2
+
+:> /tmp/.timecost
+begin_time="`gawk 'BEGIN{print systime()}'`"
+case "$dist" in
+alpine|ubuntu|opensuse)
+    doBuildx "$type-$dist" src/Dockerfile.*-$dist #core,app
+    ;;  
 *)
-    doBuildx "core-$1" src/Dockerfile.*-$1
+    doBuildx "$type-$dist" src/oth/Dockerfile.*-$dist #core only
     ;;          
 esac
+print_time_cost "$type-$dist" $begin_time >> /tmp/.timecost #tee -a

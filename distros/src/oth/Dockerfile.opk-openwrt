@@ -1,33 +1,11 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
-
-# FROM openwrt/rootfs:x86_64
-# FROM openwrt/rootfs
-# https://github.com/openwrt/docker
-# https://github.com/openwrt/docker/pkgs/container/rootfs/versions?filters%5Bversion_type%5D=tagged
+FROM infrastlabs/x11-base:rootfs AS rootfs
 # BUILDPLATFORM、TARGETOS、TARGETARCH、TARGETPLATFORM四个变量是BuildKit提供的全局变量,
 #  分别表示构建镜像所在平台、操作系统、架构、构建镜像的目标平台
-# FROM openwrt/rootfs:x86_64-openwrt-23.05 as amd64
-# FROM openwrt/rootfs:aarch64_generic-openwrt-23.05 as arm64
-# FROM openwrt/rootfs:armsr-armv7-openwrt-23.05 as arm
-#   # mips_24kc-openwrt-23.05
-#   # i386_pentium4-openwrt-23.05
-#   # i386_pentium-mmx-openwrt-23.05
-#   # x86-legacy-openwrt-23.05
-#   # arm_cortex-a9_vfpv3-d16-openwrt-23.05
-# # FROM openwrt/rootfs:x86-64-openwrt-23.05
-# # FROM scratch
-# # ARG TARGETARCH
-# # COPY --from=${TARGETARCH} / /
-# FROM alpine:3.13.12 as rootfs1
-# COPY --from=amd64 / /amd64
-# COPY --from=arm64 / /arm64
-# COPY --from=arm / /arm
-# ARG TARGETARCH
-# RUN \cp -a ${TARGETARCH} /rootfs
 
-# FROM scratch
-# COPY --from=rootfs1 /rootfs /
+# https://github.com/openwrt/docker/pkgs/container/rootfs/versions?filters%5Bversion_type%5D=tagged
+# FROM openwrt/rootfs:x86_64-openwrt-23.05 AS amd64
+# FROM openwrt/rootfs:aarch64_generic-openwrt-23.05 AS arm64
+# FROM openwrt/rootfs:armsr-armv7-openwrt-23.05 AS arm
 ARG TARGETARCH
 FROM infrastlabs/x11-base:openwrt-rootfs-${TARGETARCH}
 MAINTAINER sam <sldevsir@126.com>

@@ -1,7 +1,4 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
-
-# FROM busybox:1.36
+FROM infrastlabs/x11-base:rootfs AS rootfs
 FROM busybox:1.36.1
 MAINTAINER sam <sldevsir@126.com>
 
@@ -13,10 +10,14 @@ MAINTAINER sam <sldevsir@126.com>
 #   expect shadow xterm bash bash-completion coreutils busybox-extras \
 #   \
 #   lftp jq sysstat lame 
+
 # # fontconfig>> ttf-dejavu
 # RUN apk add --no-cache \
 #   ttf-dejavu
 
+RUN \
+  wget -O /bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64; \
+  chmod +x /bin/bash; exit 0
 # TODO bash-static
 # https://github.com/luciusmagn/tar-static
 # https://github.com/robxu9/bash-static
@@ -34,9 +35,6 @@ MAINTAINER sam <sldevsir@126.com>
 #   wget -O /usr/bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-$arch; \
 #   chmod +x /usr/bin/bash; exit 0
 
-RUN \
-  wget -O /bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64; \
-  chmod +x /bin/bash; exit 0
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
