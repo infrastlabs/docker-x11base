@@ -3,13 +3,15 @@ FROM infrastlabs/x11-base:alpine-builder-gtk224 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
+  ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
+  RUN git config --global http.sslVerify false
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     ls -lh /src/**/*.sh
 
 # --platform=$BUILDPLATFORM 
-FROM base as tiger
+FROM base AS tiger
 ARG COMPILE_TIGER="yes"
 ENV TARGETPATH=/usr/local/static/tigervnc
 RUN mkdir -p $TARGETPATH; \
@@ -45,7 +47,7 @@ RUN \
 
 
 
-FROM base as xrdp
+FROM base AS xrdp
 ARG COMPILE_XRDP="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xrdp
@@ -65,7 +67,7 @@ RUN mkdir -p $TARGETPATH; \
 # xrdp-mods-cut
 # RUN mkdir -p $TARGETPATH/etc/xrdp;
 
-FROM base as dropbear
+FROM base AS dropbear
 ARG COMPILE_SSH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/dropbear
@@ -77,7 +79,7 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort; 
 
-FROM base as pulseaudio
+FROM base AS pulseaudio
 ARG COMPILE_PULSE="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pulseaudio
@@ -90,7 +92,7 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort; 
 
-FROM base as fluxbox
+FROM base AS fluxbox
 ARG COMPILE_FLUX="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/fluxbox
@@ -109,7 +111,7 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort; 
 
-FROM base as suckless
+FROM base AS suckless
 ARG COMPILE_SUCKLESS="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/suckless
@@ -126,7 +128,7 @@ RUN mkdir -p $TARGETPATH; \
 
 # Build Openbox.
 # FROM infrastlabs/x11-base:builder AS openbox
-FROM base as openbox
+FROM base AS openbox
 ARG COMPILE_OPENBOX="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/openbox
@@ -174,7 +176,7 @@ RUN mkdir -p $TARGETPATH; \
 
 
 # Build lxde
-FROM base as lxde
+FROM base AS lxde
 ARG COMPILE_LXDE="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/lxde
@@ -188,7 +190,7 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |sort;
 
 # Build xlunch
-FROM base as xlunch
+FROM base AS xlunch
 ARG COMPILE_XLUNCH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xlunch
@@ -202,7 +204,7 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |sort;
 
 # Build tint2
-FROM base as tint2
+FROM base AS tint2
 ARG COMPILE_TINT2="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/tint2
@@ -216,7 +218,7 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |sort;
 
 
-FROM base as xcompmgr
+FROM base AS xcompmgr
 ARG COMPILE_XCOMPMGR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xcompmgr
@@ -229,7 +231,7 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
-FROM base as pcmanfm
+FROM base AS pcmanfm
 ARG COMPILE_PCMANFM="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pcmanfm
@@ -244,7 +246,7 @@ RUN mkdir -p $TARGETPATH; \
 
 
 
-FROM base as perp
+FROM base AS perp
 ARG COMPILE_PERP="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/perp
@@ -258,8 +260,8 @@ RUN mkdir -p $TARGETPATH; \
 
 # FROM compile
 # FROM ${BASEIMAGE} #导致img嵌套，层次达max;
-# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as ff
-FROM infrastlabs/x11-base:${COMPILE_IMG} as ff
+# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS ff
+FROM infrastlabs/x11-base:${COMPILE_IMG} AS ff
 FROM alpine:3.15
 COPY --from=ff /rootfs /rootfs
 RUN export domain="mirrors.ustc.edu.cn"; \
