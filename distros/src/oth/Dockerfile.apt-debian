@@ -1,18 +1,18 @@
-ARG ROOTBOX_IMG=rootfs
-FROM infrastlabs/x11-base:${ROOTBOX_IMG} as rootfs
-
-# ref headless//br-deb12
-# 29.15M @23.10.14
+FROM infrastlabs/x11-base:rootfs AS rootfs
+# ref headless//br-deb12 #29.15M @23.10.14
 FROM debian:12-slim
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
-# mirrors.tuna.tsinghua.edu.cn
-# mirrors.ustc.edu.cn
-# mirrors.163.com
-# mirrors.aliyun.com
-# mirrors.tencentyun.com
+# mirrors.tuna.tsinghua.edu.cn  mirrors.ustc.edu.cn
+# mirrors.163.com  mirrors.aliyun.com  mirrors.tencentyun.com
 ARG TARGETPLATFORM
+RUN echo "Acquire {\n\
+  APT::Get::Allow-Unauthenticated \"true\";\n\
+  GPG::Ignore \"true\";\n\
+  AllowInsecureRepositories \"true\";\n\
+  AllowDowngradeToInsecureRepositories \"true\";\n\
+}" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN \
   # \
   # https://mirrors.ustc.edu.cn/help/debian.html #deb12: invalid signature
@@ -50,42 +50,11 @@ RUN \
   # \2476 kB
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
 
-# # fontconfig>> ttf-dejavu
-# # Unable to locate package ttf-dejavu
-# # https://packages.debian.org/zh-cn/
-# RUN apt.sh \
-#   fonts-dejavu-core
-
-# # VID, AUD, LOC 87.4 MB
-# # 预装软件: geany sakura ristretto sys-monitor engrampa asbru
-# # xrdp-chansrv: libfdk-aac1 libopus0
-# # strip: binutils
-# # deb12.out: libfdk-aac1 
-# # ex: fonts-wqy-zenhei pulseaudio pavucontrol \
-# RUN \
-#   # LOCALE 15.0 MB 
-#   apt.sh dconf-cli locales tzdata binutils apt-utils \
-#   # Audio 39.8 MB 
-#   # pulseaudio pavucontrol \
-#   \
-#   # 343 kB
-#   # +xrdp 0.9.12 (compile: 0.9.16/19)
-#   # supervisor \
-#   x11-xkb-utils \
-#   libsecret-1-0 libnss3 libxtst6 libasound2 xdg-utils \
-#   \
-#   # APPS 25.7 MB
-#   # LOC_APPS="tint2 plank thunar sakura" # clipit; +pnmixer: 159 kB; +sv # 7056 kB
-#   # LOC_APPS2="gnome-system-monitor engrampa ristretto" # 11.2 MB 
-#   geany sakura \
-#   gnome-system-monitor engrampa ristretto 
-
-
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
 RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh; exit 0;
+  bash /xconf.sh core; exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
