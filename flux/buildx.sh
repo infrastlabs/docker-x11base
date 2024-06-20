@@ -1,9 +1,8 @@
 
 source /etc/profile
-export |grep DOCKER_REG
+export |grep DOCKER_REG |grep -Ev "PASS|PW"
 repo=registry.cn-shenzhen.aliyuncs.com
 echo "${DOCKER_REGISTRY_PW_infrastSubUser2}" |docker login --username=${DOCKER_REGISTRY_USER_infrastSubUser2} --password-stdin $repo
-
 repoHub=docker.io
 echo "${DOCKER_REGISTRY_PW_dockerhub}" |docker login --username=${DOCKER_REGISTRY_USER_dockerhub} --password-stdin $repoHub
 
@@ -14,6 +13,7 @@ function doBuildx(){
 
     repo=registry-1.docker.io
     # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac
     img="x11-base:$tag"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
@@ -25,6 +25,7 @@ function doBuildx(){
 
     compile="alpine-compile";
     # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
+    # --build-arg REPO=$repo/ #temp notes, just use dockerHub's
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile

@@ -8,10 +8,12 @@
 .nofail
   load-module module-augment-properties
   load-module module-always-sink
+  
   # Publish to X11 so the clients know how to connect to Pulse. Will clear itself on unload.
-  .ifexists module-x11-publish.so
-      load-module module-x11-publish
-  .endif
+  # ERR: Segmentation fault @arm64  #ref fk-pulseaudio//_t1/p2.pa
+  #.ifexists module-x11-publish.so
+  #    load-module module-x11-publish
+  #.endif
 
   # xrdp-sink/source
   # .ifexists /var/lib/xrdp-pulseaudio-installer/module-xrdp-sink.so

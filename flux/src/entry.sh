@@ -52,7 +52,7 @@ function oneVnc(){
     # de: gosu headless bash -c "xxx"
     dest=/etc/perp/$xn-de; mkdir -p $dest
     # exec startfluxbox > /dev/null 2>\&1
-    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS; source /.env; exec startfluxbox\"^g" > $dest/rc.main
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS |sort; source /.env; source /.env2; sleep 2; exec startfluxbox\"^g" > $dest/rc.main
 
 
     # XRDP /etc/xrdp/xrdp.ini
@@ -164,7 +164,7 @@ env \
  |grep -Ev "LOC_|DEBIAN_FRONTEND|LOCALE_INCLUDE" | sort |sudo tee /etc/environment > /dev/null 2>&1
 # source /.env
 : |sudo tee /.env
-cat /etc/environment |while read one; do echo export $one | sudo tee -a /.env > /dev/null 2>&1; done
+cat /etc/environment |while read one; do echo "export $one" | sudo tee -a /.env > /dev/null 2>&1; done
 echo "export XMODIFIERS=@im=ibus" |sudo tee -a /etc/profile;\
 echo "export GTK_IM_MODULE=ibus" |sudo tee -a /etc/profile;\
 echo "export QT_IM_MODULE=ibus" |sudo tee -a /etc/profile;
@@ -254,6 +254,8 @@ chmod +x $file;
 export PS1='[\u@\h \W]\$ '
 
 export PERP_BASE=/etc/perp; dst=/var/log/tinylog/_perp; mkdir -p $dst
-# exec /usr/sbin/tini -- perpd
 # exec perpd |tinylog -k2 -s1000 -z $dst
-exec perpd > >(exec tinylog -k2 -s1000 -z $dst) 2>&1
+# exec perpd > >(exec tinylog -k2 -s1000 -z $dst) 2>&1
+
+# exec /usr/sbin/tini -- perpd #avoid defunc-process
+exec /usr/sbin/tini -- perpd > >(exec tinylog -k2 -s1000 -z $dst) 2>&1 
