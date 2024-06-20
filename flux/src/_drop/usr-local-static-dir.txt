@@ -143,13 +143,13 @@
 # /usr/local/static/dropbear
 # /usr/local/static/fluxbox
 /usr/local/static/lxde
-/usr/local/static/openbox
+#/usr/local/static/openbox
 /usr/local/static/pcmanfm
 # /usr/local/static/perp
 # /usr/local/static/pulseaudio
 # /usr/local/static/suckless
 # /usr/local/static/tigervnc
-/usr/local/static/tint2
+#/usr/local/static/tint2
 # /usr/local/static/xcompmgr
-/usr/local/static/xlunch
+#/usr/local/static/xlunch
 # /usr/local/static/xrdp

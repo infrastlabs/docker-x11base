@@ -30,7 +30,7 @@ parec)
     # rm -f /usr/bin/parec; ln -s /usr/bin/pacat /usr/bin/parec
     ##non-root, just use pacat>> parec软链才能用
     exec parec --format=s16le $src |lame -r -ab 52 - - \
-        | curl -s -k -H "Transfer-Encoding: chunked" -X POST -T -  "$url"
+        | exec curl -s -k -H "Transfer-Encoding: chunked" -X POST -T -  "$url"
     ;;
 *)
     echo "please call with: xvnc.sh xvnc/chansrv/pulse/parec xx"

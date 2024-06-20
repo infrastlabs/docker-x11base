@@ -1,7 +1,8 @@
+ARG REPO=
 ARG COMPILE_IMG=alpine-compile
-# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} as bin2
-FROM infrastlabs/x11-base:${COMPILE_IMG} as bin2
-FROM alpine:3.13.12 as files1
+# FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS bin2
+FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
+FROM alpine:3.13.12 AS files1
   # files1: 三方文件, files2: src编译
   # xz-utils > xz
   ARG TARGETPLATFORM
@@ -26,7 +27,9 @@ FROM alpine:3.13.12 as files1
   # https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64
   curl -o /rootfs/usr/local/static/3rd/sbin/tini -k -fSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-$arch; chmod +x /rootfs/usr/local/static/3rd/sbin/tini; \
   #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022; armel, armhf
-  curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.10/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
+  # https://github.com/tianon/gosu/issues/93 ##err-with-qemu; >> ok with 1.14+; 1.17@Nov 3, 2023
+  # https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64
+  curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.17/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
   \
   # upx
   # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
@@ -61,7 +64,7 @@ FROM alpine:3.13.12 as files1
   
 
 
-FROM alpine:3.13.12 as files2
+FROM alpine:3.13.12 AS files2
   ARG TARGETPLATFORM
   RUN sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories; \
     apk add bash curl wget git
@@ -105,10 +108,10 @@ FROM alpine:3.13.12 as files2
     exit 0; 
   # 
   COPY src/*.sh /rootfs/
-  ADD src/dot /rootfs/etc/skel
-  ADD src/bin /rootfs/usr/bin
+  # ADD src/dot /rootfs/etc/skel
+  # ADD src/bin /rootfs/usr/bin
   ADD src/etc /rootfs/etc
-  RUN chmod +x /rootfs/*.sh; chmod +x /rootfs/usr/bin/*
+  RUN chmod +x /rootfs/*.sh;
 
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
