@@ -35,16 +35,12 @@ RUN \
   \
   lftp jq sysstat lame 
 
-# fontconfig>> ttf-dejavu
-# RUN apk add --no-cache \
-#   ttf-dejavu
-
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
 RUN find /etc/skel; \
   bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh; \
+  bash /xconf.sh core; \
   \
   # cause: dropbear Early exit: Bad  buf_getptr
   rm -f /etc/dropbear/*; \

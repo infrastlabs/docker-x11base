@@ -31,7 +31,7 @@ function doBuildx(){
     
     compile="alpine-compile"; flux=rootfs #fluxbox
     plat="$PLAT0" #,linux/arm
-    test "fedora" == "$tag" && plat="--platform linux/amd64,linux/arm64" # alma/fedora:无armv7
+    test "fedora" == "$dist" && plat="--platform linux/amd64,linux/arm64" # alma/fedora:无armv7
     # plat="--platform linux/amd64" #dbg
 
     test "$plat" != "$PLAT0" && compile="${compile}-dbg"
@@ -40,7 +40,7 @@ function doBuildx(){
     
 
     # 提前pull,转换tag格式
-    if [ "openwrt" == "$tag" ]; then
+    if [ "openwrt" == "$dist" ]; then
         docker pull --platform=linux/amd64 openwrt/rootfs:x86_64-openwrt-23.05
         docker pull --platform=linux/aarch64_generic openwrt/rootfs:armsr-armv8-openwrt-23.05 #aarch64_generic-openwrt-23.05
         docker pull --platform=linux/arm_cortex-a15_neon-vfpv4   openwrt/rootfs:armsr-armv7-openwrt-23.05
@@ -53,8 +53,9 @@ function doBuildx(){
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile
-    --build-arg TYPE=$type
     --build-arg REPO=$repo/
+    --build-arg TYPE=$type
+    --build-arg VER=$dver
     """
     cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f $dockerfile . 
@@ -64,15 +65,18 @@ ns=infrastlabs
 ver=v51 #base-v5 base-v5-slim
 type=$1
 dist=$2
+dver=$3
+tag=$type-$dist
+test ! -z "$dver" && tag=$type-$dist-$dver
 
 :> /tmp/.timecost
 begin_time="`gawk 'BEGIN{print systime()}'`"
 case "$dist" in
 alpine|ubuntu|opensuse)
-    doBuildx "$type-$dist" src/Dockerfile.*-$dist #core,app
+    doBuildx "$tag" src/Dockerfile.*-$dist #core,app
     ;;  
 *)
-    doBuildx "$type-$dist" src/oth/Dockerfile.*-$dist #core only
+    doBuildx "$tag" src/oth/Dockerfile.*-$dist #core only
     ;;          
 esac
-print_time_cost "$type-$dist" $begin_time >> /tmp/.timecost #tee -a
+print_time_cost "$tag" $begin_time >> /tmp/.timecost #tee -a

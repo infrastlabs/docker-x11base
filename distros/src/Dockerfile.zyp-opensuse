@@ -1,21 +1,31 @@
 ARG REPO=
+ARG VER=15.5
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 
-FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu AS ubt
+# 20.04> 24.04: betterThemeView
+FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
 FROM scratch AS res
-  COPY --from=ubt /usr/share/fonts/DejaVuSansMono /usr/share/fonts/DejaVuSansMono
-  COPY --from=ubt /usr/share/fonts/truetype/wqy /usr/share/fonts/truetype/wqy
   COPY --from=ubt /usr/share/themes/Greybird /usr/share/themes/Greybird
   COPY --from=ubt /usr/share/themes/Greybird-compact /usr/share/themes/Greybird-compact
   COPY --from=ubt /usr/share/themes/Greybird-dark /usr/share/themes/Greybird-dark
   COPY --from=ubt /usr/share/icons/Papirus /usr/share/icons/Papirus
   COPY --from=ubt /usr/share/icons/Papirus-Bunsen-bluegrey /usr/share/icons/Papirus-Bunsen-bluegrey
   COPY --from=ubt /usr/share/icons/Papirus-Bunsen-grey /usr/share/icons/Papirus-Bunsen-grey
+  COPY --from=ubt /usr/share/fonts/DejaVuSansMono /usr/share/fonts/DejaVuSansMono
+  COPY --from=ubt /usr/share/fonts/truetype/wqy /usr/share/fonts/truetype/wqy
   COPY --from=ubt /etc/fonts /etc/fonts
+  # locale_ubt: /usr/sbin/locale-gen,update-locale; /etc/default/locale
+  COPY --from=ubt /usr/share/locale /usr/share/locale
+  # COPY --from=ubt /usr/share/i18n /usr/share/i18n
+  COPY --from=ubt /usr/sbin/locale-gen /usr/sbin/locale-gen
+  COPY --from=ubt /usr/sbin/update-locale /usr/sbin/update-locale
+  COPY --from=ubt /etc/locale.gen /etc/locale.gen
+  COPY --from=ubt /etc/default/locale /etc/default/locale
   #COPY --from=ubt /usr/share/
 
-FROM opensuse/leap:15.5
+FROM opensuse/leap:${VER}
 ARG TYPE=core
+ARG VER=15.5
 
 # zyp-source
 # http://mirrors.ustc.edu.cn/help/opensuse.html
@@ -23,10 +33,13 @@ ARG TYPE=core
 # mirrors.ustc.edu.cn  mirrors.aliyun.com
 RUN \
   export dm="mirrors.ustc.edu.cn"; \
-  zypper ar -fc https://$dm/opensuse/distribution/leap/15.5/repo/oss openSUSE-Aliyun-OSS; \
-  zypper ar -fc https://$dm/opensuse/distribution/leap/15.5/repo/non-oss openSUSE-Aliyun-NON-OSS; \
-  zypper ar -fc https://$dm/opensuse/update/leap/15.5/oss openSUSE-Aliyun-UPDATE-OSS; \
-  zypper ar -fc https://$dm/opensuse/update/leap/15.5/non-oss openSUSE-Aliyun-UPDATE-NON-OSS; \
+  zypper ar -fc https://$dm/opensuse/distribution/leap/${VER}/repo/oss openSUSE-Aliyun-OSS; \
+  zypper ar -fc https://$dm/opensuse/distribution/leap/${VER}/repo/non-oss openSUSE-Aliyun-NON-OSS; \
+  zypper ar -fc https://$dm/opensuse/update/leap/${VER}/oss openSUSE-Aliyun-UPDATE-OSS; \
+  zypper ar -fc https://$dm/opensuse/update/leap/${VER}/non-oss openSUSE-Aliyun-UPDATE-NON-OSS; \
+  \
+  cd /etc/zypp/repos.d && ls |grep -v Aliyun |while read one; do rm -f $one; done; \
+  find /etc/zypp/repos.d; \
   \
   zypper clean; rm -rf /var/cache/zypp; \
   \
@@ -49,65 +62,52 @@ RUN \
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   zyp.sh firefox;
 
-# greybird-gtk-theme
-# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-#   zyp.sh papirus-icon-theme;
-
-
-# locales dconf-cli gtk2-engines-pixbuf x11-xkb-utils
-#  zyp-ex: tzdata dbus-x11
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  zyp.sh binutils at-spi2-core xdg-utils;
-
 # sakura+
 # zyp-ex: clipit pnmixer 
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   zyp.sh pavucontrol \
-  ibus flameshot \
+  ibus ibus-rime flameshot \
   sakura thunar lxappearance   geany ristretto engrampa gnome-system-monitor;
-
-# # fluxbox: /usr/share/fonts
-# # zypper search dejavu
-# RUN \
-#   zypper refresh; \
-#   zypper install -y dejavu-fonts; \
-#   zypper clean; rm -rf /var/cache/zypp 
 
 # XFCE4
   # plank rofi clipit pnmixer lxappearance thunar \
   # tint2
   # xfdesktop4 > xfdesktop @opsuse15.5
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  zyp.sh \
   # 2536 kB #18.9 MB > 14.3 MB
+  echo a.123; \
+  zyp.sh \
   xfwm4 xfdesktop \
   xfce4-notifyd xfce4-settings xfce4-session;
 
-# xrdb font;
-RUN zyp.sh xrdb; 
+# locales dconf-cli gtk2-engines-pixbuf x11-xkb-utils
+#  zyp-ex: tzdata dbus-x11
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh binutils at-spi2-core xdg-utils \
+  # lanpacks: rhel>> yum install langpacks-zh_CN;
+  glibc-locale plank \
+  # xrdb-font
+  xrdb git \
+  # vim, locale, ping; ubt:iptuils-ping; vim 2.2M;
+  iputils vim \
+  # dbus-x11: perp> xfce4-session: err #hand run> xfce4-session: ok
+  dbus-1-x11; \
+  # 01: chmod u+s /bin/ping #02: sudo setcap cap_net_raw+p /bin/ping #setcap 无指令
+  chmod u+s /bin/ping;
 
-
-# dbus-x11: not existed >> @dbus-1 installd.
-# dbg: xfce4-session>> dbus-launch not permitted.
-RUN chmod 777 /usr/bin/dbus-launch.nox11
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh; exit 0;
+RUN \
+  bash /xconf.sh core; bash /xconf.sh app; \
+  exit 0;
 
 # HEADLESS2
 COPY --from=res / /
-ADD ./src/xconf2.sh /
-RUN \
-  bash /xconf2.sh; exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash \
-  # 默认约定
-  L="zh_CN" \
-  TZ="Asia/Shanghai"
+  SHELL=/bin/bash

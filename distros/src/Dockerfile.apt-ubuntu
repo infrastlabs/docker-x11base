@@ -1,16 +1,29 @@
 ARG REPO=
+ARG VER=20.04
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
-FROM ubuntu:20.04
+FROM ubuntu:${VER}
+ARG VER=20.04
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
   # LOCALE_INCLUDE="en"
 ARG TARGETPLATFORM
 ARG TYPE=core
+RUN echo "Acquire {\n\
+  APT::Get::Allow-Unauthenticated \"true\";\n\
+  GPG::Ignore \"true\";\n\
+  AllowInsecureRepositories \"true\";\n\
+  AllowDowngradeToInsecureRepositories \"true\";\n\
+}" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
+  case ${VER} in \
+    "20.04")  V2=focal   ;; \
+    "22.04")  V2=jammy   ;; \
+    "24.04")  V2=noble   ;; \
+  esac; \
   test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
-  echo "deb http://${DOMAIN}/$target focal main restricted universe multiverse" > /etc/apt/sources.list \
-  && echo "deb http://${DOMAIN}/$target focal-updates main restricted universe multiverse">> /etc/apt/sources.list; \
+  echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
+  && echo "deb http://${DOMAIN}/$target ${V2}-updates main restricted universe multiverse">> /etc/apt/sources.list; \
     \
   # default:echo -e;
   echo "path-exclude /usr/share/doc/*\n\
@@ -31,10 +44,11 @@ path-exclude /usr/share/lintian/*\n\
 #  lame sox libsox-fmt-mp3 
 # dropbear-bin dropbear-run openssh-sftp-server 
 # bash-completion
+# ex-ubt-2404: netcat 
 RUN \
   apt.sh wget ca-certificates \
   curl \
-  htop rsync tree tmux lrzsz psmisc fuse net-tools netcat iputils-ping \
+  htop rsync tree tmux lrzsz psmisc fuse net-tools iputils-ping \
   procps sudo iproute2 iptables zip unzip xz-utils vim-tiny \
   openssh-sftp-server lftp jq \
   lame
@@ -76,6 +90,10 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   rm -f /usr/lib/x86_64-linux-gnu/libLLVM-12.so.1; \
   rm -f /usr/lib/aarch64-linux-gnu/libLLVM-12.so.1; 
 
+# ubt2404-drop: libasound2 
+  # 2.573 Package libasound2 is a virtual package provided by:
+  # 2.573   liboss4-salsa-asound2 4.2-build2020-1ubuntu3
+  # 2.573   libasound2t64 1.2.11-1build2 (= 1.2.11-1build2)
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   mkdir -p /usr/share/X11/xkb; \
   apt.sh \
@@ -83,7 +101,7 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   libxtst6 libdbus-glib-1-2 \
 # 163music v1.2.1
 # RUN apt.sh \
-  libharfbuzz0b libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libasound2 \
+  libharfbuzz0b libpangocairo-1.0-0 libgdk-pixbuf2.0-0 \
 # wps2019 11.1.0.11719
 # RUN apt.sh \
   libfreetype6 libcups2 libglib2.0-0 libglu1-mesa libsm6 libxrender1 libfontconfig1 libxext6 libxcb1 \
@@ -135,9 +153,10 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
     exit 0
 
   # XFCE4
+    # tint2 
     # plank rofi clipit pnmixer lxappearance thunar \
   RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-    apt.sh tint2 \
+    apt.sh \
     # 2536 kB #18.9 MB > 14.3 MB
     xfwm4 xfdesktop4 \
     xfce4-notifyd xfce4-settings xfce4-session
@@ -185,8 +204,9 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 
 # OHMYBASH
 # git ohmybash # \12.6 MB
+# firefox: ubt2204+>> @snap: snap install firefox
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh firefox git;
+  apt.sh git;
 
 
 # xrdb
@@ -197,19 +217,15 @@ RUN \
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh; exit 0;
-
-# HEADLESS2
-ADD ./src/xconf2.sh /
 RUN \
-  bash /xconf2.sh; exit 0;
+  bash /xconf.sh core; bash /xconf.sh app; \
+  exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash \
+  SHELL=/bin/bash
   # 默认约定
-  L="zh_CN" \
-  TZ="Asia/Shanghai"
+  # L="zh_CN" \
+  # TZ="Asia/Shanghai"

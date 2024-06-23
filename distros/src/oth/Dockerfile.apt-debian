@@ -7,6 +7,12 @@ ENV \
 # mirrors.tuna.tsinghua.edu.cn  mirrors.ustc.edu.cn
 # mirrors.163.com  mirrors.aliyun.com  mirrors.tencentyun.com
 ARG TARGETPLATFORM
+RUN echo "Acquire {\n\
+  APT::Get::Allow-Unauthenticated \"true\";\n\
+  GPG::Ignore \"true\";\n\
+  AllowInsecureRepositories \"true\";\n\
+  AllowDowngradeToInsecureRepositories \"true\";\n\
+}" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN \
   # \
   # https://mirrors.ustc.edu.cn/help/debian.html #deb12: invalid signature
@@ -44,18 +50,11 @@ RUN \
   # \2476 kB
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
 
-# # fontconfig>> ttf-dejavu
-# # Unable to locate package ttf-dejavu
-# # https://packages.debian.org/zh-cn/
-# RUN apt.sh \
-#   fonts-dejavu-core
-
-
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
 RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh; exit 0;
+  bash /xconf.sh core; exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
