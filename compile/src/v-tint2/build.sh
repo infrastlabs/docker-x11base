@@ -130,8 +130,9 @@ function xcbutil(){
   cd /tmp/xcb-util
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
+  apk add util-macros #ubt: xorg-macros
+  sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^https://gitee.com/g-system/util-common-m4.git^g" .gitmodules
   git submodule update --init
-  apk add xorg-macros
   ./autogen.sh 
   #  
   # cd /mnt2/_deps/xcb__util/
