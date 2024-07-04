@@ -217,6 +217,19 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
+# Build feh
+FROM base AS feh
+ARG COMPILE_FEH="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/feh
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-feh/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_FEH" && exit 0 || echo doMake; \
+  sh /src/v-feh/build.sh b_deps; \
+  sh /src/v-feh/build.sh feh; \
+  \
+  find ${TARGETPATH} -type f |sort;
 
 FROM base AS xcompmgr
 ARG COMPILE_XCOMPMGR="yes"
@@ -305,11 +318,12 @@ COPY --from=dropbear ${STATIC} /rootfs${STATIC}
 COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
 COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
 COPY --from=openbox ${STATIC} /rootfs${STATIC}
-COPY --from=tint2 ${STATIC} /rootfs${STATIC}
 COPY --from=suckless ${STATIC} /rootfs${STATIC}
 # 
 COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
 COPY --from=xlunch ${STATIC} /rootfs${STATIC}
+COPY --from=tint2 ${STATIC} /rootfs${STATIC}
+COPY --from=feh ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
 COPY --from=lxde ${STATIC} /rootfs${STATIC}
 COPY --from=perp ${STATIC} /rootfs${STATIC}

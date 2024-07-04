@@ -1,17 +1,9 @@
 #!/bin/sh
-#
-# Helper script that builds the TigerVNC server as a static binary.
-#
-# This also builds a customized version of XKeyboard config files and the
-# compiler (xkbcomp).  By using a different instance/version of XKeyboard, we
-# prevent version mismatch issues thay could occur by using packages from the
-# distro of the baseimage.
-#
 # NOTE: This script is expected to be run under Alpine Linux.
-#
+set -e
+source /src/common.sh
 
-set -e # Exit immediately if a command exits with a non-zero status.
-# set -u # Treat unset variables as an error.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Define software versions.
 TIGERVNC_VERSION=1.13.1
@@ -62,16 +54,6 @@ LIBXSHMFENCE_URL=https://www.x.org/releases/individual/lib/libxshmfence-${LIBXSH
 XKEYBOARDCONFIG_URL=https://www.x.org/archive/individual/data/xkeyboard-config/xkeyboard-config-${XKEYBOARDCONFIG_VERSION}.tar.bz2
 XKBCOMP_URL=https://www.x.org/releases/individual/app/xkbcomp-${XKBCOMP_VERSION}.tar.bz2
 
-# Set same default compilation flags as abuild.
-export CFLAGS="-Os -fomit-frame-pointer"
-export CXXFLAGS="$CFLAGS"
-export CPPFLAGS="$CFLAGS"
-export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
-
-export CC=xx-clang
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
 
 # set -u; err if not exist
 test -z "$TARGETPATH" && export TARGETPATH=/opt/base
@@ -80,27 +62,6 @@ INS_PREFIX=$TARGETPATH
 # 
 XKB_DEST_DIR="/tmp/xkb-install" #final: /tmp/xkb-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
 XKB_REF_PATH=$TARGETPATH
-
-# rm -rf $LOGS; #avoid deleted @batch-mode
-CACHE=$TARGETPATH/../.cache; LOGS=$TARGETPATH/../.logs; mkdir -p $CACHE $LOGS
-function down_catfile(){
-  url=$1
-  file=${url##*/}
-  #curl -# -L -f 
-  test -f $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
-  cat $CACHE/$file
-}
-function print_time_cost(){
-    local begin_time=$1
-	gawk 'BEGIN{
-		print "本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
-		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
-		" 共历时" systime()-'$begin_time' "秒";
-	}' 2>&1 | tee -a $logfile
-}
-function log {
-    echo ">>> $*"
-}
 
 #
 # Install required packages.
@@ -536,14 +497,7 @@ b_tiger)
     wait
     ;;
 *) #compile
-    # $1 |tee $LOGS/$1.log
-    set +e
-    echo -e "\n$1, start building.."
-    begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/tiger-$1.log
-    $1 > $logfile 2>&1;
-    
-    test "0" !=  "$?" && tail -200 $logfile || echo "err 0, pass"
-    print_time_cost $begin_time; echo "$1, finished."
+    oneBuild $1
     ;;          
 esac
 exit 0
