@@ -1,8 +1,7 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
-FROM busybox:1.36.1
-MAINTAINER sam <sldevsir@126.com>
-
-
+ARG REPO=
+ARG VER=1.36.1
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--busybox---${VER}
 # # sed grep gawk bash; curl wget
 # RUN apk add --no-cache \
 #   ca-certificates tzdata curl wget \
@@ -13,33 +12,27 @@ MAINTAINER sam <sldevsir@126.com>
 
 RUN \
   wget -O /bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64; \
-  chmod +x /bin/bash; exit 0
-# TODO bash-static
-# https://github.com/luciusmagn/tar-static
-# https://github.com/robxu9/bash-static
-# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-aarch64
-# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-armv7
-# https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64
-# RUN \
-#   case ${TARGETPLATFORM} in \
-#     "linux/amd64")  arch=x86_64  ;; \
-#     "linux/arm64")  arch=aarch64    ;; \
-#     "linux/arm/v7") arch=armv7   ;; \
-#     "linux/arm/v6") arch=armv6   ;; \
-#     "linux/386")    arch=NONE_i386 ;; \
-#   esac; \
-#   wget -O /usr/bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-$arch; \
-#   chmod +x /usr/bin/bash; exit 0
-
+  chmod +x /bin/bash; chmod u+s /bin/ping; exit 0
+# DO bash-static@rfs
 
 # HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN ln -s /usr/local/static/3rd/bin/bash /bin/; \
   bash /xconf.sh core; exit 0
-EXPOSE 10089/tcp 10081/tcp 10022/tcp
+
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
   SHELL=/bin/bash
 
-CMD ["bash", "-c", "exec /entry.sh"]
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

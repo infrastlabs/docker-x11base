@@ -1,14 +1,16 @@
 ARG REPO=
 ARG VER=20.04
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
-FROM ubuntu:${VER}
+
+# TOOD origin-hub's sync to ${REPO}
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---${VER}
+ARG TARGETPLATFORM
+ARG TYPE=core
 ARG VER=20.04
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
   # LOCALE_INCLUDE="en"
-ARG TARGETPLATFORM
-ARG TYPE=core
 RUN echo "Acquire {\n\
   APT::Get::Allow-Unauthenticated \"true\";\n\
   GPG::Ignore \"true\";\n\
@@ -17,6 +19,9 @@ RUN echo "Acquire {\n\
 }" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   case ${VER} in \
+    "14.04")  V2=trusty  ;; \
+    "16.04")  V2=xenial  ;; \
+    "18.04")  V2=bionic  ;; \
     "20.04")  V2=focal   ;; \
     "22.04")  V2=jammy   ;; \
     "24.04")  V2=noble   ;; \
@@ -24,6 +29,7 @@ RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
   echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
   && echo "deb http://${DOMAIN}/$target ${V2}-updates main restricted universe multiverse">> /etc/apt/sources.list; \
+  rm -f /etc/apt/sources.list.d/*; \
     \
   # default:echo -e;
   echo "path-exclude /usr/share/doc/*\n\
@@ -37,7 +43,8 @@ path-exclude /usr/share/lintian/*\n\
   cat /etc/dpkg/dpkg.cfg.d/excludes; \
   rm -rf /usr/share/locale/* ; \
   \
-  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
+  # ubt14.04: err apt clean; E: Invalid operation clean
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean; rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
     && chmod +x /usr/local/bin/apt.sh; 
 
 # MISC 15.1 MB
@@ -45,6 +52,7 @@ path-exclude /usr/share/lintian/*\n\
 # dropbear-bin dropbear-run openssh-sftp-server 
 # bash-completion
 # ex-ubt-2404: netcat 
+# -rwsr-xr-x 1 root root 73200 Apr 11  2023 /bin/ping* || chmod u+s /bin/ping;
 RUN \
   apt.sh wget ca-certificates \
   curl \
@@ -53,38 +61,23 @@ RUN \
   openssh-sftp-server lftp jq \
   lame
 
+  
+# xrdb; +leafpad mousepad@app
+# 24.04_none: leafpad
+# xrandr: @x11-xserver-utils
+RUN \
+  apt.sh x11-xserver-utils ; \
+  test "24.04" != "${VER}" && apt.sh leafpad; \
+  exit 0
+
 
 ##APP################################################
 # img: 362MB> 444MB (none-font); after mv-top: 610MB> 546MB
-# FONT, THEME, ICON
-# font-ttf: @win:msyh.zip> fonts-wqy-microhei
-# papirus-icon-theme
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh \
-  fonts-wqy-microhei language-pack-gnome-zh-hans \
-  \
-  papirus-icon-theme greybird-gtk-theme; \
-  rm -f /usr/share/backgrounds/greybird.svg; \
-  \
-  # 清理ubt自带图标, keep项: hicolor 
-  # locolor gnome bloom
-  cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
-  \
-  wget https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
-  dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
-  cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
-  \
-  # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
-  cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
-  ls -lh /usr/share/icons/Papirus; \
-  \
-  dpkg -l |grep bunsen && exit 0 || exit 1;
-
 # MESA-LLVM img: 362MB> 398MB
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\  
   # VIDEO: 30.5 MB
   # libllvm12 已包含 # libgl1-mesa-glx >libgl1-mesa-dri ##ex:  mesa-utils 
-  apt.sh libgl1-mesa-glx libglu1-mesa \
+  apt.sh libgl1-mesa-glx libglu1-mesa; \
   \
   # LLVM(定制版这里删调它,除gnome,cinna其它de无影响); clear big lib: 88M (qt: flameshot,sogoupinyin) > img: -27M
   rm -f /usr/lib/x86_64-linux-gnu/libLLVM-12.so.1; \
@@ -107,7 +100,9 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   libfreetype6 libcups2 libglib2.0-0 libglu1-mesa libsm6 libxrender1 libfontconfig1 libxext6 libxcb1 \
 # vscode 1.88.1 ##libgtk-3-0: 16M; img: 362MB> 398MB > 475MB
 # RUN apt.sh \
-  libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1; \
+  # err: ubt1604
+  exit 0
 
 # img: 362MB> 398MB > 433MB
 # LOC 87.4 MB
@@ -118,17 +113,20 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apt.sh tzdata locales binutils dconf-cli \
   dbus-x11 at-spi2-core gtk2-engines-pixbuf \
   # 343 kB
-  apt-utils x11-xkb-utils xdg-utils 
+  apt-utils x11-xkb-utils xdg-utils; \
+  exit 0
 
   # AUD img: 546MB[239M]> 560MB
   # INPUT img: 546MB[239M]> 658MB[252M]
+  # librime-data-wubi> rime-data-wubi
   RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
     apt.sh \
     # Audio 39.8 MB 
     pavucontrol \
     \
     # \12.3 MB (默认不含输入法: IBus/Fcitx)
-    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi
+    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi; \
+    exit 0
 
   # # 2868 kB #fcitx ##img:78.095 MB
   # # 15.3 kB #输入法依赖 https://shurufa.sogou.com/linux/guide
@@ -140,9 +138,18 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   #   lsb-release libxss1 im-config \
   #   libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 libgsettings-qt1
 
-
-  # MISC2 arandr 
+  # ubt icon-theme clear;
   RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh \
+    hicolor-icon-theme adwaita-icon-theme humanity-icon-theme; \
+    cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
+    exit 0
+
+  # MISC2 arandr
+  # flameshot: none@1604,1404 
+  RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    test "14.04" == "${VER}" && exit 0; \
+    test "16.04" == "${VER}" && exit 0; \
     apt.sh \
     # tumbler gnupg \
     # # \20.5 MB
@@ -159,7 +166,8 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
     apt.sh \
     # 2536 kB #18.9 MB > 14.3 MB
     xfwm4 xfdesktop4 \
-    xfce4-notifyd xfce4-settings xfce4-session
+    xfce4-notifyd xfce4-settings xfce4-session; \
+    exit 0
 
 
     
@@ -176,14 +184,21 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   #   xinit xterm systemd systemd-sysv;
   
 # gparted
+# ubt14.04_none: pnmixer plank engrampa
+# pnmixer> pasystray
+# xrandr @x11-xserver-utils
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh thunar dunst clipit pnmixer plank lxappearance \
+  apt.sh thunar dunst clipit pasystray \
+  pcmanfm lxappearance \
+  sakura geany ristretto gnome-system-monitor; \
   # misc2
-  sakura geany ristretto engrampa gnome-system-monitor; \
   \
   # link: sakura, thunar
-  ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
-  mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st;
+  # ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
+  mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st; \
+  test "14.04" == "${VER}" && exit 0; \
+  apt.sh plank engrampa; \
+  exit 0
 
   # # wps: libxss1
   # # Xvnc-compile: libunwind8 libxfont2
@@ -204,24 +219,69 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 
 # OHMYBASH
 # git ohmybash # \12.6 MB
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apt.sh git mousepad; \
+  exit 0
+
+# xrdb; +leafpad mousepad@app
+# 24.04_none: leafpad
+# xrandr: @x11-xserver-utils
+RUN \
+  apt.sh x11-xserver-utils git mousepad scrot ; \
+  test "24.04" != "${VER}" && apt.sh leafpad; \
+  exit 0
+
 # firefox: ubt2204+>> @snap: snap install firefox
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh git;
+  match1=$(echo "${VER}" |grep -E "22.04$|24.04$"); \
+  test -z "$match1" && apt.sh firefox; \
+  exit 0
 
 
-# xrdb
-RUN \
-  apt.sh x11-xserver-utils
+# # FONT, THEME, ICON
+# # font-ttf: @win:msyh.zip> fonts-wqy-microhei
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   apt.sh \
+#   greybird-gtk-theme \
+#   fonts-wqy-microhei language-pack-gnome-zh-hans; \
+#   \
+#   rm -f /usr/share/backgrounds/greybird.svg;
+
+# # split papirus-icon-theme: none@1604,1404
+# # bunsen-papirus-icon-theme> papirus-icon-theme; ERR: 14.04 16.04 1804?
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   test "14.04" == "${VER}" && exit 0; \
+#   test "16.04" == "${VER}" && exit 0; \
+#   test "18.04" == "${VER}" && exit 0; \
+#   echo a.123; \
+#   apt.sh \
+#   papirus-icon-theme; \
+#   \
+#   # 清理ubt自带图标, keep项: hicolor 
+#   # locolor gnome bloom
+#   cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
+#   \
+#   wget https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
+#   dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
+#   cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
+#   \
+#   # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
+#   cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
+#   ls -lh /usr/share/icons/Papirus; \
+#   \
+#   dpkg -l |grep bunsen && exit 0 || exit 1;
+
 
 # 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
 RUN \
   bash /xconf.sh core; bash /xconf.sh app; \
   exit 0;
 
-EXPOSE 10089/tcp 10081/tcp 10022/tcp
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
@@ -229,3 +289,12 @@ ENV \
   # 默认约定
   # L="zh_CN" \
   # TZ="Asia/Shanghai"
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

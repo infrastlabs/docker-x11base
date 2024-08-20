@@ -1,6 +1,8 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
+ARG REPO=
+ARG VER=12
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 # ref headless//br-deb12 #29.15M @23.10.14
-FROM debian:12-slim
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--debian---${VER}-slim
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
@@ -13,6 +15,13 @@ RUN echo "Acquire {\n\
   AllowInsecureRepositories \"true\";\n\
   AllowDowngradeToInsecureRepositories \"true\";\n\
 }" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
+# RUN export DOMAIN="mirrors.ustc.edu.cn"; \
+#   case ${VER} in \
+#     "9")   V2=stretch   ;; \
+#     "10")  V2=buster    ;; \
+#     "11")  V2=bullseye  ;; \
+#     "12")  V2=bookworm  ;; \
+#   esac; \
 RUN \
   # \
   # https://mirrors.ustc.edu.cn/help/debian.html #deb12: invalid signature
@@ -51,13 +60,23 @@ RUN \
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
 
 # HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN \
   bash /xconf.sh core; exit 0;
 
-EXPOSE 10089/tcp 10081/tcp 10022/tcp
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
   SHELL=/bin/bash
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

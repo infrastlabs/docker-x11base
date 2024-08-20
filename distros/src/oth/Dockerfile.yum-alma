@@ -1,6 +1,6 @@
 FROM infrastlabs/x11-base:rootfs AS rootfs
 #ref alpine-dockerfiles//env/env-alma; #ps: procps
-FROM registry.cn-shenzhen.aliyuncs.com/infrasync/almalinux:8.7
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--almalinux---8.7
 RUN \
   # curl http://mirrors.163.com/.help/CentOS7-Base-163.repo -o /etc/yum.repos.d/CentOS-Base.repo \
   # 原文链接：https://blog.csdn.net/ximaiyao1984/article/details/126970827
@@ -48,14 +48,30 @@ RUN \
 #   pcmanfm geany ristretto engrampa
 #   # sakura lxtask lxappearance
 
+
+# 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh core; exit 0;
+RUN \
+  bash /xconf.sh core; bash /xconf.sh app; \
+  exit 0;
 
-EXPOSE 10089/tcp 10081/tcp 10022/tcp
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
   SHELL=/bin/bash
+  # 默认约定
+  # L="zh_CN" \
+  # TZ="Asia/Shanghai"
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

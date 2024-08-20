@@ -1,27 +1,40 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
-FROM fedora:39
+ARG REPO=
+ARG VER=39
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--fedora---${VER}
 # su: util-linux; ping: iputils
 RUN \
   # link yum
   ln -s /usr/bin/dnf /usr/bin/yum; \
-  yum -y clean all && yum -y makecache \
+  yum -y clean all && yum -y makecache; \
   \
-  && yum -y install iproute net-tools \
+  yum -y install iproute net-tools \
   sudo psmisc sysstat tree tmux lrzsz which wget openssl \
   zip unzip \
   procps jq \
   lame \
   iputils util-linux \
-  && yum -y clean all 
+  && yum -y clean all; \
+  chmod u+s /bin/ping;
 
 # HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN \
   bash /xconf.sh core; exit 0;
 
-EXPOSE 10089/tcp 10081/tcp 10022/tcp
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
   SHELL=/bin/bash
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"
