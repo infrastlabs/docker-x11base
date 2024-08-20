@@ -7,3 +7,5 @@
 
 *.vswp
 #*.docx
+/pkgs/down
+.github/workflows/.ws
