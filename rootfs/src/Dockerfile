@@ -21,18 +21,16 @@ FROM alpine:3.13.12 AS files1
   # armhf php环境搭建,armel、armhf 和 arm64 区别选择
   #  1.在一些社区的支持下，armhf目前已经得到了很大的发展。像Ubuntu，已经计划在之后的发行版中放弃armel，转而支持armhf编译的版本。正如目前依然很火热的Raspberry Pi(ARM11)，由于ubuntu只支持armv7架构的编译，Raspberry Pi将不能直接安装ubuntu系统。而 BB Black(Cortex-A8)和 Cubietruct(Cortex-A7)则同时支持ubuntu的armel与armhf的编译。
   #  2.armhf的开启需要硬件的支持，在Debian的wiki上要求 ARMv7 CPU、Thumb-2 指令集以及 VFP3D16 浮点处理器
-  mkdir -p /rootfs/usr/local/static/3rd/sbin /rootfs/usr/local/static/3rd/bin; \
+  export third=/rootfs/usr/local/static/3rd; mkdir -p $third/sbin $third/bin; \
   \
   # tini armel, armhf
   # https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64
-  curl -o /rootfs/usr/local/static/3rd/sbin/tini -k -fSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-$arch; chmod +x /rootfs/usr/local/static/3rd/sbin/tini; \
+  curl -o $third/sbin/tini -k -fSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-$arch; chmod +x $third/sbin/tini; \
   #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022; armel, armhf
   # https://github.com/tianon/gosu/issues/93 ##err-with-qemu; >> ok with 1.14+; 1.17@Nov 3, 2023
   # https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64
-  curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.17/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
+  curl -o $third/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.17/gosu-$arch; chmod +x $third/bin/gosu; \
   \
-  # upx
-  # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
   echo a.1; \
   case ${TARGETPLATFORM} in \
     "linux/amd64")  arch=amd64    ;; \
@@ -41,10 +39,14 @@ FROM alpine:3.13.12 AS files1
     "linux/arm/v6") arch=armeb   ;; \
     "linux/386")    arch=NONE_i386 ;; \
   esac; \
+  # yq v4.44.3
+  curl -o $third/bin/yq -k -fSL https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_$arch; chmod +x $third/bin/yq; \
+  # upx
+  # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
   file=upx-4.2.2-${arch}_linux.tar.xz; \
   cd /tmp; curl -fSL -k -O https://github.com/upx/upx/releases/download/v4.2.2/$file; \
   upack=/tmp/unpack-upx; mkdir -p $upack; tar -Jxf $file -C $upack --strip-components 1; \
-  \cp -a $upack/upx /rootfs/usr/local/static/3rd/bin/; rm -rf $file $upack; /rootfs/usr/local/static/3rd/bin/upx -V; \
+  \cp -a $upack/upx $third/bin/; rm -rf $file $upack; $third/bin/upx -V; \
   # curl-static
   # https://github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-aarch64
   case ${TARGETPLATFORM} in \
@@ -54,8 +56,24 @@ FROM alpine:3.13.12 AS files1
     "linux/arm/v6") arch=NONE_v6  ;; \
     "linux/386")    arch=i386     ;; \
   esac; \
-  dst=/rootfs/usr/local/static/3rd/bin/curl; \
-  curl -o $dst -k -fSL github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-$arch; chmod +x $dst;
+  dst=$third/bin/curl; \
+  curl -o $dst -k -fSL github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-$arch; chmod +x $dst; \
+  # 24.8.20: +undock
+  # https://github.com/crazy-max/undock/releases/download/v0.8.0/undock_0.8.0_linux_amd64.tar.gz
+  case ${TARGETPLATFORM} in \
+    "linux/amd64")  arch=amd64      ;; \
+    "linux/arm64")  arch=arm64      ;; \
+    "linux/arm/v7") arch=armv7      ;; \
+    "linux/arm/v6") arch=NONE_v6    ;; \
+    "linux/386")    arch=NONE_i386  ;; \
+  esac; \
+  file=undock_0.8.0_linux_$arch.tar.gz; \
+  cd /tmp; curl -O -k -fSL https://github.com/crazy-max/undock/releases/download/v0.8.0/$file; \
+  upack=/tmp/unpack-undock; mkdir -p $upack; tar -zxf $file -C $upack; \
+  \cp -a $upack/undock $third/bin/; rm -rf $file $upack; \
+  # validate: ref quickstart-dockerfile//env-sdk/ubt20
+  export PATH=$third/sbin/:$third/bin/:$PATH; \
+  set -e; yq --version; tini --version; gosu -v; undock --version; 
 
   COPY --from=bin2 /rootfs /rootfs/
   RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
@@ -120,7 +138,13 @@ FROM alpine:3.13.12 AS files2
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
 FROM alpine:3.13.12
-MAINTAINER sam <sldevsir@126.com>
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
 
 # https://www.jakehu.me/2021/alpine-mirrors/
 # domain="mirrors.ustc.edu.cn"
@@ -130,11 +154,14 @@ RUN \
   sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories
   # ca-certificates tzdata 
   #  bash-completion coreutils busybox-extras 
+  # xterm :/usr/share/applications/{xterm,uxterm}
+  # ping: @busybox / @iputils-ping
 RUN apk add --no-cache \
   bash curl wget \
   sed grep gawk findutils sudo tree unzip procps htop \
-  expect shadow xterm \
-  jq sysstat lame 
+  expect shadow \
+  jq sysstat lame iproute2-ss net-tools; \
+  chmod u+s /bin/ping;
 # fontconfig>> ttf-dejavu
 # RUN apk add --no-cache \
 #   ttf-dejavu
@@ -152,10 +179,10 @@ ENV \
 #   TZ="Asia/Shanghai"
 
 RUN \
-  echo -e "cp -a /rootfs/files1/* /; \n\
+  echo -e "\n\
+cp -a /rootfs/files1/* /; \n\
 cp -a /rootfs/files2/* /; \n\
-bash /etc/skel/.fluxbox/fluxbox.sh; \n\
-bash /xconf.sh;\n\
+bash /xconf.sh core;\n\
 touch /rootfs/.core-init-lock\n\
 " > /rootfs/.core-init
 # # tini: https://www.5axxw.com/wiki/content/01ppi2
