@@ -1,4 +1,6 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
+ARG REPO=
+ARG VER=23.05
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 # BUILDPLATFORM、TARGETOS、TARGETARCH、TARGETPLATFORM四个变量是BuildKit提供的全局变量,
 #  分别表示构建镜像所在平台、操作系统、架构、构建镜像的目标平台
 
@@ -38,9 +40,8 @@ RUN \
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN find /etc/skel; \
-  bash /etc/skel/.fluxbox/fluxbox.sh; \
-  bash /xconf.sh core; \
+RUN \
+  bash /xconf.sh core; exit 0; \
   \
   # cause: dropbear Early exit: Bad  buf_getptr
   rm -f /etc/dropbear/*; \

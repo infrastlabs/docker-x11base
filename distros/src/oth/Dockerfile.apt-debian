@@ -1,6 +1,8 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
+ARG REPO=
+ARG VER=12
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 # ref headless//br-deb12 #29.15M @23.10.14
-FROM debian:12-slim
+FROM debian:${VER}-slim
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
@@ -53,7 +55,7 @@ RUN \
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN \
   bash /xconf.sh core; exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp

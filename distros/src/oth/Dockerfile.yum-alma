@@ -51,7 +51,7 @@ RUN \
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN \
   bash /xconf.sh core; exit 0;
 
 EXPOSE 10089/tcp 10081/tcp 10022/tcp

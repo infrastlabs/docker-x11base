@@ -1,5 +1,7 @@
-FROM infrastlabs/x11-base:rootfs AS rootfs
-FROM busybox:1.36.1
+ARG REPO=
+ARG VER=1.36.1
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+FROM busybox:${VER}
 MAINTAINER sam <sldevsir@126.com>
 
 
@@ -35,7 +37,7 @@ RUN \
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /
 COPY --from=rootfs /rootfs/files2 /
-RUN bash /etc/skel/.fluxbox/fluxbox.sh; \
+RUN \
   bash /xconf.sh core; exit 0
 EXPOSE 10089/tcp 10081/tcp 10022/tcp
 ENV \
