@@ -59,12 +59,9 @@ function core(){
 
 
 # dotfiles
-# rm -rf /tmp/dots; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /tmp/dots
-# cd /tmp/dots && bash refresh.sh
-# rm -rf /tmp/dots;
-# 
-# git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles
-bash /usr/local/static/.dotfiles/refresh.sh
+  # git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles #git@files2
+  bash /usr/local/static/.dotfiles/refresh.sh
+  # bash /etc/skel/.fluxbox/fluxbox.sh #@refresh.sh
 }
 
 
