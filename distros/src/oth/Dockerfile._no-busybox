@@ -2,8 +2,13 @@ ARG REPO=
 ARG VER=1.36.1
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 FROM busybox:${VER}
-MAINTAINER sam <sldevsir@126.com>
-
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
 
 # # sed grep gawk bash; curl wget
 # RUN apk add --no-cache \
@@ -15,7 +20,7 @@ MAINTAINER sam <sldevsir@126.com>
 
 RUN \
   wget -O /bin/bash --no-check-certificate https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64; \
-  chmod +x /bin/bash; exit 0
+  chmod +x /bin/bash; chmod u+s /bin/ping; exit 0
 # TODO bash-static
 # https://github.com/luciusmagn/tar-static
 # https://github.com/robxu9/bash-static

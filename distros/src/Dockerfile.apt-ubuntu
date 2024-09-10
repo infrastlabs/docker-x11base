@@ -1,14 +1,24 @@
 ARG REPO=
 ARG VER=20.04
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+
+# TOOD origin-hub's sync to ${REPO}
 FROM ubuntu:${VER}
+ARG TARGETPLATFORM
+ARG TYPE=core
 ARG VER=20.04
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
+
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
   # LOCALE_INCLUDE="en"
-ARG TARGETPLATFORM
-ARG TYPE=core
 RUN echo "Acquire {\n\
   APT::Get::Allow-Unauthenticated \"true\";\n\
   GPG::Ignore \"true\";\n\
@@ -45,6 +55,7 @@ path-exclude /usr/share/lintian/*\n\
 # dropbear-bin dropbear-run openssh-sftp-server 
 # bash-completion
 # ex-ubt-2404: netcat 
+# -rwsr-xr-x 1 root root 73200 Apr 11  2023 /bin/ping* || chmod u+s /bin/ping;
 RUN \
   apt.sh wget ca-certificates \
   curl \

@@ -21,9 +21,17 @@ FROM scratch AS res
 ## ref kube-cmd/src/Dockerfile
 # FROM alpine:3.13.12
 FROM alpine:${VER}
-ARG VER=3.19
-MAINTAINER sam <sldevsir@126.com>
+ARG TARGETPLATFORM
 ARG TYPE=core
+ARG VER=3.19
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
+
 
 # https://www.jakehu.me/2021/alpine-mirrors/
 #   mirrors.tuna.tsinghua.edu.cn  mirrors.ustc.edu.cn  mirrors.aliyun.com
@@ -38,14 +46,15 @@ RUN domain="mirrors.tuna.tsinghua.edu.cn"; \
 # findutils: for k3s agent node.
 # coreutils: base64 for secrets
 # busybox-extras: telnet  ## nc -vzw 2 host port
-# dig: bind-tools
+# dig: bind-tools; netstat:net-tools; 
 # alpine.gzip: by tinylog
+# xterm :/usr/share/applications/{xterm,uxterm}
 RUN apk add --no-cache \
   ca-certificates tzdata curl wget gzip \
   sed grep gawk findutils sudo tree unzip procps htop \
-  expect shadow xterm bash bash-completion coreutils busybox-extras \
+  expect shadow bash bash-completion coreutils busybox-extras \
   \
-  lftp jq sysstat lame iputils-ping; \
+  lftp jq sysstat lame iputils-ping iproute2-ss net-tools; \
   chmod u+s /bin/ping;
   # \
   # dropbear openssh-sftp-server openssh-client \
@@ -61,7 +70,6 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apk add --no-cache \
   tzdata  binutils  dbus-x11 at-spi2-core    xdg-utils
 
-# sakura #@3.19
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apk add --no-cache \
   git \
@@ -81,6 +89,7 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 
 # Apps2
 # lxtask: none
+# sakura #@3.19
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apk add --no-cache \
   sakura rofi clipit pnmixer lxappearance

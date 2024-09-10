@@ -10,7 +10,14 @@ FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 # FROM openwrt/rootfs:armsr-armv7-openwrt-23.05 AS arm
 ARG TARGETARCH
 FROM infrastlabs/x11-base:openwrt-rootfs-${TARGETARCH}
-MAINTAINER sam <sldevsir@126.com>
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
+
 
 # https://blog.csdn.net/seaneer/article/details/135011487
 # https://mirror.tuna.tsinghua.edu.cn/openwrt/
@@ -35,7 +42,8 @@ RUN \
   sed grep gawk findutils sudo tree unzip htop \
   shadow bash coreutils \
   \
-  lftp jq sysstat lame 
+  lftp jq sysstat lame; \
+  chmod u+s /bin/ping;
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /

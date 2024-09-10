@@ -2,19 +2,27 @@ ARG REPO=
 ARG VER=39
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 FROM fedora:${VER}
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
 # su: util-linux; ping: iputils
 RUN \
   # link yum
   ln -s /usr/bin/dnf /usr/bin/yum; \
-  yum -y clean all && yum -y makecache \
+  yum -y clean all && yum -y makecache; \
   \
-  && yum -y install iproute net-tools \
+  yum -y install iproute net-tools \
   sudo psmisc sysstat tree tmux lrzsz which wget openssl \
   zip unzip \
   procps jq \
   lame \
   iputils util-linux \
-  && yum -y clean all 
+  && yum -y clean all; \
+  chmod u+s /bin/ping;
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /

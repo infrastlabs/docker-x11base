@@ -24,8 +24,16 @@ FROM scratch AS res
   #COPY --from=ubt /usr/share/
 
 FROM opensuse/leap:${VER}
+ARG TARGETPLATFORM
 ARG TYPE=core
 ARG VER=15.5
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
 
 # zyp-source
 # http://mirrors.ustc.edu.cn/help/opensuse.html
@@ -49,13 +57,15 @@ RUN \
   # zypper refresh; 
 
 # zypper clean && zypper refresh \
+# ping: @iputils
 RUN \
   zyp.sh iproute net-tools \
   sudo psmisc sysstat tree tmux lrzsz which wget openssl \
-  zip unzip \
+  iputils zip unzip \
   procps jq \
-  lame;
-
+  lame; \
+  # 01: chmod u+s /bin/ping #02: sudo setcap cap_net_raw+p /bin/ping #setcap 无指令
+  chmod u+s /bin/ping;
 
 ##APP################################################
 # gpg check failed too? @alma 8.7
@@ -91,9 +101,7 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   # vim, locale, ping; ubt:iptuils-ping; vim 2.2M;
   iputils vim \
   # dbus-x11: perp> xfce4-session: err #hand run> xfce4-session: ok
-  dbus-1-x11; \
-  # 01: chmod u+s /bin/ping #02: sudo setcap cap_net_raw+p /bin/ping #setcap 无指令
-  chmod u+s /bin/ping;
+  dbus-1-x11;
 
 
 # HEADLESS
