@@ -1,5 +1,13 @@
 #!/bin/bash
 
+test -z "$VNC_OFFSET" && export VNC_OFFSET=10
+# if PORT_XXX not set, quick set mode
+if [ $VNC_OFFSET -gt 10 ] && [ "$VNC_OFFSET" -lt 66 ]; then
+    test -z "$PORT_SSH" && export PORT_SSH=$(($VNC_OFFSET*1000+22))
+    test -z "$PORT_RDP" && export PORT_RDP=$(($VNC_OFFSET*1000+89))
+    test -z "$PORT_VNC" && export PORT_VNC=$(($VNC_OFFSET*1000+81))
+    echo "entry.sh: VNC_OFFSET=$VNC_OFFSET, quick set PORT_SSH=$PORT_SSH, PORT_RDP=$PORT_RDP, PORT_VNC=$PORT_VNC"
+fi
 test -z "$PORT_SSH" && export PORT_SSH=10022
 test -z "$PORT_RDP" && export PORT_RDP=10089
 test -z "$PORT_VNC" && export PORT_VNC=10081
@@ -7,10 +15,10 @@ test -z "$PORT_VNC" && export PORT_VNC=10081
 test -z "$SSH_PASS" && export SSH_PASS=headless
 test -z "$VNC_PASS" && export VNC_PASS=headless
 test -z "$VNC_PASS_RO" && export VNC_PASS_RO=View123
-test -z "$VNC_OFFSET" && export VNC_OFFSET=10
 
 # TODO: check port: ssh, rdp, vnc
 # sudo: unable to resolve host x11-ubuntu: Name or service not known
+sudo -V > /dev/null 2>&1; test "0" == "$?" && sudo=sudo
 match1=$(cat /etc/hosts |egrep "^127.0.0.1 $HOSTNAME")
 test ! -z "$match1" && echo "[hosts] existed, skip." || echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
 
@@ -23,7 +31,7 @@ function oneVnc(){
 
     # createUser
     if [ "headless" != "$name1" ]; then #固定headless名?
-        echo "SKEL=/etc/skel2" |sudo tee -a /etc/default/useradd
+        echo "SKEL=/etc/skel2" |$sudo tee -a /etc/default/useradd
         useradd -ms /usr/sbin/nologin xvnc$N;
         sed -i "s^SKEL=/etc/skel2^# SKEL=/etc/skel2^g" /etc/default/useradd
     else
@@ -66,7 +74,7 @@ password=askheadless
 ip=127.0.0.1
 port=$port1
 chansrvport=DISPLAY($N)
-    """ |sudo tee $tmpDir/xrdp-sesOne$N.conf > /dev/null 2>&1
+    """ |$sudo tee $tmpDir/xrdp-sesOne$N.conf > /dev/null 2>&1
     # $N atLast
     local line=$(cat /etc/xrdp/xrdp.ini |grep  "^# \[PRE_ADD_HERE\]" -n |cut -d':' -f1)
     line=$(expr $line - 1)
@@ -76,11 +84,11 @@ chansrvport=DISPLAY($N)
     # noVNC /usr/local/webhookd/static/index.html
     # TODO: fk-webhookd: wsconn识别display10参数; 
     mkdir -p /etc/novnc
-    echo "display$N: 127.0.0.1:$port1" |sudo tee -a /etc/novnc/token.conf
+    echo "display$N: 127.0.0.1:$port1" |$sudo tee -a /etc/novnc/token.conf
     # 
-    # echo "<li>[<a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc')\">$N-resize</a>&nbsp;&nbsp; <a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc_lite')\">lite</a>] | $name1</li>" |sudo tee -a $tmpDir/novncHtml$N.htm
-    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc')\">display$N</a></li>" |sudo tee $tmpDir/novncHtml$N.htm > /dev/null 2>&1
-    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc_lite')\">display$N-lite</a></li>" |sudo tee -a $tmpDir/novncHtml$N.htm > /dev/null 2>&1
+    # echo "<li>[<a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc')\">$N-resize</a>&nbsp;&nbsp; <a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc_lite')\">lite</a>] | $name1</li>" |$sudo tee -a $tmpDir/novncHtml$N.htm
+    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc')\">display$N</a></li>" |$sudo tee $tmpDir/novncHtml$N.htm > /dev/null 2>&1
+    echo "<li><a href=\"javascript:void(0);\" onclick=\"openVnc('display$N', 'vnc_lite')\">display$N-lite</a></li>" |$sudo tee -a $tmpDir/novncHtml$N.htm > /dev/null 2>&1
     local line2=$(cat /usr/local/webhookd/static/index.html |grep  "ADD_HERE" -n |cut -d':' -f1)
     line2=$(expr $line2 - 1)
     sed -i "$line2 r $tmpDir/novncHtml$N.htm" /usr/local/webhookd/static/index.html
@@ -169,23 +177,23 @@ test -z "$START_SESSION" && export START_SESSION=startfluxbox
  #| grep -Ev '^(.*PASS.*|PWD|OLDPWD|HOME|USER|SHELL|TERM|([^=]*(PASSWORD|SECRET)[^=]*))=' \
 env \
  |grep -Ev '_PASS.*|^SHLVL|^HOSTNAME|^PWD|^OLDPWD|^HOME|^USER|^SHELL|^TERM' \
- |grep -Ev "LOC_|DEBIAN_FRONTEND|LOCALE_INCLUDE" | sort |sudo tee /etc/environment > /dev/null 2>&1
+ |grep -Ev "LOC_|DEBIAN_FRONTEND|LOCALE_INCLUDE" | sort |$sudo tee /etc/environment > /dev/null 2>&1
 # source /.env
-: |sudo tee /.env
-cat /etc/environment |while read one; do echo "export $one" | sudo tee -a /.env > /dev/null 2>&1; done
-echo "export XMODIFIERS=@im=ibus" |sudo tee -a /.env;\
-echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env;\
-echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env;
+: |$sudo tee /.env
+cat /etc/environment |while read one; do echo "export $one" | $sudo tee -a /.env > /dev/null 2>&1; done
+echo "export XMODIFIERS=@im=ibus" |$sudo tee -a /.env;\
+echo "export GTK_IM_MODULE=ibus" |$sudo tee -a /.env;\
+echo "export QT_IM_MODULE=ibus" |$sudo tee -a /.env;
 # \
-echo "export XMODIFIERS=@im=ibus" |sudo tee -a /etc/profile;\
-echo "export GTK_IM_MODULE=ibus" |sudo tee -a /etc/profile;\
-echo "export QT_IM_MODULE=ibus" |sudo tee -a /etc/profile;
+echo "export XMODIFIERS=@im=ibus" |$sudo tee -a /etc/profile;\
+echo "export GTK_IM_MODULE=ibus" |$sudo tee -a /etc/profile;\
+echo "export QT_IM_MODULE=ibus" |$sudo tee -a /etc/profile;
 
 # ENV
 # DISPLAY=${DISPLAY:-localhost:21}
 # PULSE_SERVER=${PULSE_SERVER:-tcp:localhost:4721}
-# echo "export DISPLAY=$DISPLAY" |sudo tee -a /tmp/profile.txt
-# echo "export PULSE_SERVER=$PULSE_SERVER" |sudo tee -a /tmp/profile.txt
+# echo "export DISPLAY=$DISPLAY" |$sudo tee -a /tmp/profile.txt
+# echo "export PULSE_SERVER=$PULSE_SERVER" |$sudo tee -a /tmp/profile.txt
 
 
 # setlocale: bin/setlocale
