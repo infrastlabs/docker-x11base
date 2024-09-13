@@ -1,0 +1,142 @@
+##All-Distros #####################################
+#  rootfs(20)
+#  hot : alpine(21), ubuntu(22), opensuse(23)
+#  musl: busybox(24), openwrt(25)
+#  deb : debian(26)
+#  rpm : fedora(27)
+###################################################
+version: '2.4'
+services:
+  rootfs:
+    image: ${REPO:-}infrastlabs/x11-base:rootfs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-rootfs
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=30 #PORT_VNC=21081 PORT_SSH=21022 PORT_RDP=21089
+      - START_SESSION=${DESK:-startfluxbox} #startfluxbox openbox-session
+      # - SSH_PASS=headless
+      # - VNC_PASS=headless
+      # - VNC_PASS_RO=View123
+      # - L=zh_CN
+      # - TZ=Asia/Shanghai
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+      # - /:/mnt  
+  
+  alpine:
+    image: ${REPO:-}infrastlabs/x11-base:core-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-alpine
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=31
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes:
+      - /_ext:/_ext
+      - /opt:/opt
+
+  ubuntu:
+    image: ${REPO:-}infrastlabs/x11-base:core-ubuntu #20.04 22.04 24.04
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-ubuntu
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=32
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+
+  opensuse:
+    image: ${REPO:-}infrastlabs/x11-base:core-opensuse
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-opensuse
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=33
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+
+  busybox:
+    image: ${REPO:-}infrastlabs/x11-base:core-busybox
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-busybox
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=34 #PORT_VNC=24081 PORT_SSH=24022  PORT_RDP=24089
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+
+  openwrt:
+    image: ${REPO:-}infrastlabs/x11-base:core-openwrt
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-opwnwrt
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=35
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+
+  debian:
+    image: ${REPO:-}infrastlabs/x11-base:core-debian
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-debian
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=36
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
+
+  fedora:
+    image: ${REPO:-}infrastlabs/x11-base:core-fedora
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "sv status |grep -v '+ +++ ' && exit 1 || exit 0 "]
+    shm_size: 1g
+    hostname: x11-fedora
+    privileged: true
+    network_mode: host
+    environment:
+      - VNC_OFFSET=37
+      - START_SESSION=${DESK:-startfluxbox}
+    volumes: 
+      - /_ext:/_ext
+      - /opt:/opt
