@@ -1,7 +1,7 @@
 #!/bin/bash
 cur=$(cd "$(dirname "$0")"; pwd)
 
-# clear
+# clear ###########################################
 cat $cur/usr-local-static-dir.txt |grep -Ev "^#|^$" |while read one; do
   rm -rf /rootfs/$one
 done
@@ -9,7 +9,7 @@ cat $cur/*file*.txt |grep -Ev "^#|^$" |while read one; do
   rm -f /rootfs/$one
 done
 
-# upx
+# upx ###########################################
 ln -s /rootfs/usr/local/static/3rd/bin/upx /bin/upx
 upx -V
 # root@tenvm2:/usr/local/static/3rd# tree -h
@@ -28,8 +28,10 @@ find /rootfs/usr/local/static -type f |grep -E "/sbin/|/bin/" |grep -v "/3rd/bin
   du -sh $one
 done
 
-# link-bin,sbin
-  rm -rf  /rootfs/usr/bin /rootfs/usr/sbin; mkdir -p /rootfs/usr/bin /rootfs/usr/sbin;
+# link-bin,sbin ###########################################
+  rm -rf  /rootfs/usr/bin /rootfs/usr/sbin; mkdir -p /rootfs/usr/bin /rootfs/usr/sbin; #/rootfs/bin
+  # ERROR: failed to solve: cannot copy to non-directory: /var/lib/buildkit/runc-overlayfs/cachemounts/buildkit2366480739/bin
+  # ln -s /usr/local/static/3rd/bin/bash /rootfs/bin/; # #!/bin/bash @busybox
 
   # clear-xrdp;
   # needed: lib/xrdp/libvnc.so;
@@ -43,7 +45,7 @@ done
   find /rootfs/usr/local/static -type f |grep "/bin/" |sort | \
     while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/bin/; done;
 
-# link-openbox-theme
+# link-openbox-theme ###########################################
 find  /rootfs/usr/local/static/openbox/share/ -type d |grep openbox-3 |while read one; do
   one=$(echo $one |sed "s^/rootfs^^g"); 
   dst=$(echo $one |sed "s^local/static/openbox/^^g"); 

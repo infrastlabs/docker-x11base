@@ -1,8 +1,113 @@
+# 20.04> 24.04: betterThemeView #TODO: FROM --platform=linux/amd64
+# 20.04[alpine_font_毛刺]  22.04[alpine_font_毛刺]  24.04 
+# FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
+FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---24.04 as ubt
+# ARG TARGETPLATFORM
+# ARG TYPE=app
+# ARG VER=24.04
+ENV \
+  DEBIAN_FRONTEND=noninteractive \
+  LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
+  # LOCALE_INCLUDE="en"
+RUN echo "Acquire {\n\
+  APT::Get::Allow-Unauthenticated \"true\";\n\
+  GPG::Ignore \"true\";\n\
+  AllowInsecureRepositories \"true\";\n\
+  AllowDowngradeToInsecureRepositories \"true\";\n\
+}" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
+RUN export DOMAIN="mirrors.ustc.edu.cn"; \
+  # case ${VER} in \
+  #   "14.04")  V2=trusty  ;; \
+  #   "16.04")  V2=xenial  ;; \
+  #   "18.04")  V2=bionic  ;; \
+  #   "20.04")  V2=focal   ;; \
+  #   "22.04")  V2=jammy   ;; \
+  #   "24.04")  V2=noble   ;; \
+  # esac; \
+  V2=noble; \
+  # test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
+  target=ubuntu; \
+  echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
+  && echo "deb http://${DOMAIN}/$target ${V2}-updates main restricted universe multiverse">> /etc/apt/sources.list; \
+  rm -f /etc/apt/sources.list.d/*; \
+    \
+  # default:echo -e;
+  echo "path-exclude /usr/share/doc/*\n\
+path-exclude /usr/share/man/*\n\
+path-exclude /usr/share/locale/*\n\
+path-exclude /usr/share/info/*\n\
+path-exclude /usr/share/help/*\n\
+path-exclude /usr/share/lintian/*\n\
+" > /etc/dpkg/dpkg.cfg.d/excludes; \
+  echo $LOCALE_INCLUDE |sed "s/ /\n/g" |while read one; do echo "path-include /usr/share/locale/$one/*" >> /etc/dpkg/dpkg.cfg.d/excludes; done; \
+  cat /etc/dpkg/dpkg.cfg.d/excludes; \
+  rm -rf /usr/share/locale/* ; \
+  \
+  # ubt14.04: err apt clean; E: Invalid operation clean
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean; rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
+    && chmod +x /usr/local/bin/apt.sh; 
+# FONT, THEME, ICON
+# font-ttf: @win:msyh.zip> fonts-wqy-microhei
+#  fonts-dejavu: fonts-dejavu-core fonts-dejavu-extra fonts-dejavu-mono
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+RUN apt.sh \
+  curl wget tzdata locales \
+  greybird-gtk-theme \
+  fonts-dejavu fonts-wqy-microhei language-pack-gnome-zh-hans; \
+  \
+  ls -lh /usr/share/fonts; find /usr/share/fonts |sort; \
+  rm -f /usr/share/backgrounds/greybird.svg;
+
+# split papirus-icon-theme: none@1604,1404
+# bunsen-papirus-icon-theme> papirus-icon-theme; ERR: 14.04 16.04 1804?
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   test "14.04" == "${VER}" && exit 0; \
+#   test "16.04" == "${VER}" && exit 0; \
+#   test "18.04" == "${VER}" && exit 0; \
+RUN echo a.123; \
+  apt.sh \
+  papirus-icon-theme; \
+  \
+  # 清理ubt自带图标, keep项: hicolor 
+  # locolor gnome bloom
+  cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
+  \
+  wget --no-check-certificate https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
+  \
+  # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
+  cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
+  ls -lh /usr/share/icons/Papirus; \
+  \
+  dpkg -l |grep bunsen && exit 0 || exit 1;
+
+FROM scratch AS res
+  COPY --from=ubt /usr/share/themes/Greybird /usr/share/themes/Greybird
+  COPY --from=ubt /usr/share/themes/Greybird-compact /usr/share/themes/Greybird-compact
+  COPY --from=ubt /usr/share/themes/Greybird-dark /usr/share/themes/Greybird-dark
+  COPY --from=ubt /usr/share/icons/Papirus /usr/share/icons/Papirus
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-bluegrey /usr/share/icons/Papirus-Bunsen-bluegrey
+  COPY --from=ubt /usr/share/icons/Papirus-Bunsen-grey /usr/share/icons/Papirus-Bunsen-grey
+  # powerline-fonts @files2
+  # COPY --from=ubt /usr/share/fonts/DejaVuSansMono /usr/share/fonts/DejaVuSansMono
+  COPY --from=ubt /usr/share/fonts/truetype/wqy /usr/share/fonts/truetype/wqy
+  COPY --from=ubt /etc/fonts /etc/fonts
+  # locale_ubt: /usr/sbin/locale-gen,update-locale; /etc/default/locale
+  COPY --from=ubt /usr/share/locale /usr/share/locale
+  # COPY --from=ubt /usr/share/i18n /usr/share/i18n
+  COPY --from=ubt /usr/sbin/locale-gen /usr/sbin/locale-gen
+  COPY --from=ubt /usr/sbin/update-locale /usr/sbin/update-locale
+  COPY --from=ubt /etc/locale.gen /etc/locale.gen
+  COPY --from=ubt /etc/default/locale /etc/default/locale
+  #COPY --from=ubt /usr/share/
+
+
 ARG REPO=
 ARG COMPILE_IMG=alpine-compile
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS bin2
 FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
-FROM alpine:3.13.12 AS files1
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12 AS files1
   # files1: 三方文件, files2: src编译
   # xz-utils > xz
   ARG TARGETPLATFORM
@@ -21,18 +126,16 @@ FROM alpine:3.13.12 AS files1
   # armhf php环境搭建,armel、armhf 和 arm64 区别选择
   #  1.在一些社区的支持下，armhf目前已经得到了很大的发展。像Ubuntu，已经计划在之后的发行版中放弃armel，转而支持armhf编译的版本。正如目前依然很火热的Raspberry Pi(ARM11)，由于ubuntu只支持armv7架构的编译，Raspberry Pi将不能直接安装ubuntu系统。而 BB Black(Cortex-A8)和 Cubietruct(Cortex-A7)则同时支持ubuntu的armel与armhf的编译。
   #  2.armhf的开启需要硬件的支持，在Debian的wiki上要求 ARMv7 CPU、Thumb-2 指令集以及 VFP3D16 浮点处理器
-  mkdir -p /rootfs/usr/local/static/3rd/sbin /rootfs/usr/local/static/3rd/bin; \
+  export third=/rootfs/usr/local/static/3rd; mkdir -p $third/sbin $third/bin; \
   \
   # tini armel, armhf
   # https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64
-  curl -o /rootfs/usr/local/static/3rd/sbin/tini -k -fSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-$arch; chmod +x /rootfs/usr/local/static/3rd/sbin/tini; \
+  curl -o $third/sbin/tini -k -fSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-$arch; chmod +x $third/sbin/tini; \
   #gosu-1.10_1.23MB @Sep 29, 2016;  1.16_2.25MB @Dec 20, 2022; armel, armhf
   # https://github.com/tianon/gosu/issues/93 ##err-with-qemu; >> ok with 1.14+; 1.17@Nov 3, 2023
   # https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64
-  curl -o /rootfs/usr/local/static/3rd/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.17/gosu-$arch; chmod +x /rootfs/usr/local/static/3rd/bin/gosu; \
+  curl -o $third/bin/gosu -k -fSL https://github.com/tianon/gosu/releases/download/1.17/gosu-$arch; chmod +x $third/bin/gosu; \
   \
-  # upx
-  # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
   echo a.1; \
   case ${TARGETPLATFORM} in \
     "linux/amd64")  arch=amd64    ;; \
@@ -41,10 +144,14 @@ FROM alpine:3.13.12 AS files1
     "linux/arm/v6") arch=armeb   ;; \
     "linux/386")    arch=NONE_i386 ;; \
   esac; \
+  # yq v4.44.3
+  curl -o $third/bin/yq -k -fSL https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_$arch; chmod +x $third/bin/yq; \
+  # upx
+  # https://github.com/upx/upx/releases/download/v4.2.2/upx-4.2.2-arm64_linux.tar.xz #ok;
   file=upx-4.2.2-${arch}_linux.tar.xz; \
   cd /tmp; curl -fSL -k -O https://github.com/upx/upx/releases/download/v4.2.2/$file; \
   upack=/tmp/unpack-upx; mkdir -p $upack; tar -Jxf $file -C $upack --strip-components 1; \
-  \cp -a $upack/upx /rootfs/usr/local/static/3rd/bin/; rm -rf $file $upack; /rootfs/usr/local/static/3rd/bin/upx -V; \
+  \cp -a $upack/upx $third/bin/; rm -rf $file $upack; $third/bin/upx -V; \
   # curl-static
   # https://github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-aarch64
   case ${TARGETPLATFORM} in \
@@ -54,17 +161,44 @@ FROM alpine:3.13.12 AS files1
     "linux/arm/v6") arch=NONE_v6  ;; \
     "linux/386")    arch=i386     ;; \
   esac; \
-  dst=/rootfs/usr/local/static/3rd/bin/curl; \
-  curl -o $dst -k -fSL github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-$arch; chmod +x $dst;
+  dst=$third/bin/curl; \
+  curl -o $dst -k -fSL github.com/moparisthebest/static-curl/releases/download/v7.69.1/curl-$arch; chmod +x $dst; \
+  # 24.8.20: +undock
+  # https://github.com/crazy-max/undock/releases/download/v0.8.0/undock_0.8.0_linux_amd64.tar.gz
+  case ${TARGETPLATFORM} in \
+    "linux/amd64")  arch=amd64      ;; \
+    "linux/arm64")  arch=arm64      ;; \
+    "linux/arm/v7") arch=armv7      ;; \
+    "linux/arm/v6") arch=NONE_v6    ;; \
+    "linux/386")    arch=NONE_i386  ;; \
+  esac; \
+  file=undock_0.8.0_linux_$arch.tar.gz; \
+  cd /tmp; curl -O -k -fSL https://github.com/crazy-max/undock/releases/download/v0.8.0/$file; \
+  upack=/tmp/unpack-undock; mkdir -p $upack; tar -zxf $file -C $upack; \
+  \cp -a $upack/undock $third/bin/; rm -rf $file $upack; \
+  # bash-static
+  # https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64
+  case ${TARGETPLATFORM} in \
+    "linux/amd64")  arch=x86_64    ;; \
+    "linux/arm64")  arch=aarch64  ;; \
+    "linux/arm/v7") arch=armv7    ;; \
+    "linux/arm/v6") arch=armv6  ;; \
+    "linux/386")    arch=i386     ;; \
+  esac; \
+  dst=$third/bin/bash; \
+  curl -o $dst -k -fSL https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-$arch; chmod +x $dst; \
+  # validate: ref quickstart-dockerfile//env-sdk/ubt20
+  export PATH=$third/sbin/:$third/bin/:$PATH; \
+  set -e; yq --version; tini --version; gosu -v; undock --version; 
 
   COPY --from=bin2 /rootfs /rootfs/
   RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
-  ADD src/_drop /tmp/drop
-  RUN bash /tmp/drop/clear.sh
+  ADD src/static/clear /tmp/static-clear
+  RUN bash /tmp/static-clear/clear.sh
   
 
 
-FROM alpine:3.13.12 AS files2
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12 AS files2
   ARG TARGETPLATFORM
   RUN sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories; \
     apk add bash curl wget git
@@ -106,22 +240,22 @@ FROM alpine:3.13.12 AS files2
     dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
     mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/;
   
-  RUN echo a.121; \
-    dst=/rootfs/usr/local/static/.dotfiles; \
-    mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
-    exit 0; 
-  # 
   COPY src/*.sh /rootfs/
   # ADD src/dot /rootfs/etc/skel
   # ADD src/bin /rootfs/usr/bin
   ADD src/etc /rootfs/etc
   RUN chmod +x /rootfs/*.sh;
+  # DO: build-arg NOCACHE=$rand.time
+  ARG NOCACHE
+  RUN echo "NOCACHE=${NOCACHE}"; \
+    dst=/rootfs/usr/local/static/.dotfiles; \
+    mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
+    exit 0; 
 
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
-FROM alpine:3.13.12
-MAINTAINER sam <sldevsir@126.com>
-
+# FROM alpine:3.13.12
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
 # https://www.jakehu.me/2021/alpine-mirrors/
 # domain="mirrors.ustc.edu.cn"
 # domain="mirrors.aliyun.com";
@@ -130,11 +264,14 @@ RUN \
   sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories
   # ca-certificates tzdata 
   #  bash-completion coreutils busybox-extras 
+  # xterm :/usr/share/applications/{xterm,uxterm}
+  # ping: @busybox / @iputils-ping
 RUN apk add --no-cache \
   bash curl wget \
   sed grep gawk findutils sudo tree unzip procps htop \
-  expect shadow xterm \
-  jq sysstat lame 
+  expect shadow \
+  jq sysstat lame iproute2-ss net-tools; \
+  chmod u+s /bin/ping;
 # fontconfig>> ttf-dejavu
 # RUN apk add --no-cache \
 #   ttf-dejavu
@@ -143,6 +280,7 @@ RUN apk add --no-cache \
 # HEADLESS
 COPY --from=files1 /rootfs /rootfs/files1
 COPY --from=files2 /rootfs /rootfs/files2
+COPY --from=res / /rootfs/res_ubt_share
 
 ENV \
   TERM=xterm \
@@ -152,12 +290,22 @@ ENV \
 #   TZ="Asia/Shanghai"
 
 RUN \
-  echo -e "cp -a /rootfs/files1/* /; \n\
+  echo -e "\n\
+cp -a /rootfs/files1/* /; \n\
 cp -a /rootfs/files2/* /; \n\
-bash /etc/skel/.fluxbox/fluxbox.sh; \n\
-bash /xconf.sh;\n\
+cp -a /rootfs/res_ubt_share/* /; \n\
+bash /xconf.sh core;\n\
 touch /rootfs/.core-init-lock\n\
 " > /rootfs/.core-init
 # # tini: https://www.5axxw.com/wiki/content/01ppi2
 # ENTRYPOINT ["/sbin/tini","--"]
 CMD ["bash", "-c", "test -f /rootfs/.core-init-lock || bash /rootfs/.core-init;  exec /entry.sh"]
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"
+  # github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"

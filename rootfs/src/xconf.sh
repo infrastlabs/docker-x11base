@@ -8,6 +8,9 @@ function core(){
   # dropbear
   mkdir -p /etc/dropbear
 
+  # link-static-bash /bin/bash
+  # rm -f /bin/bash; ln -s /usr/local/static/3rd/bin/bash /bin/bash; # #!/bin/bash @busybox
+
 ##########################################
 # $RUN
   export group=headless
@@ -16,19 +19,21 @@ function core(){
   # group: $user, sudo
   match1=$(cat /etc/group |grep sudo)
   # groupadd > addgroup
-  if [ -s /bin/addgroup ]; then
-    addgroup $group; #opsuse15
-    test -z "$match1" && addgroup sudo
-  else
+  groupaddpath=$(which groupadd)
+  if [ ! -z "$groupaddpath" ]; then
     groupadd $group; #opsuse15
     test -z "$match1" && groupadd sudo
-  fi
-  # user
-  if [ -s /bin/adduser ]; then
-    # busybox: adduser -s /bin/bash -G sudo u2 -S #-S 免密码询问
-    adduser -s /bin/bash -g $group -G sudo $user -S
   else
+    addgroup $group; #opsuse15
+    test -z "$match1" && addgroup sudo
+  fi
+  # user; alpine_v3.1_v3.2: /usr/sbin/adduser
+  useraddrpath=$(which useradd)
+  if [ ! -z "$useraddrpath" ]; then
     useradd -mp j9X2HRQvPCphA -s /bin/bash -g $group -G sudo $user
+  else
+    # busybox: adduser -s /bin/bash -G sudo u2 -S #-S 免密码询问
+    adduser -s /bin/bash -g $group -G sudo $user -S #busyboxOK,ubtErr;
   fi
 
 
@@ -59,12 +64,9 @@ function core(){
 
 
 # dotfiles
-# rm -rf /tmp/dots; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /tmp/dots
-# cd /tmp/dots && bash refresh.sh
-# rm -rf /tmp/dots;
-# 
-# git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles
-bash /usr/local/static/.dotfiles/refresh.sh
+  # git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles #git@files2
+  bash /usr/local/static/.dotfiles/refresh.sh
+  # bash /etc/skel/.fluxbox/fluxbox.sh #@refresh.sh
 }
 
 

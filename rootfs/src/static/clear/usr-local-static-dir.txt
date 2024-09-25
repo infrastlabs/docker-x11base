@@ -125,31 +125,35 @@
 # /usr/local/static/pcmanfm/share/pcmanfm
 
 # lxde
-/usr/local/static/lxde/bin
-# /usr/local/static/lxde/include
+# /usr/local/static/lxde/bin
+/usr/local/static/lxde/include
 # /usr/local/static/lxde/include/lxappearance
 # /usr/local/static/lxde/lib
 # /usr/local/static/lxde/lib/pkgconfig
-/usr/local/static/lxde/share
-/usr/local/static/lxde/share/applications
+# /usr/local/static/lxde/share
+# /usr/local/static/lxde/share/applications
 /usr/local/static/lxde/share/locale
-/usr/local/static/lxde/share/lxappearance
+# /usr/local/static/lxde/share/lxappearance
 # /usr/local/static/lxde/share/man
 
 # emp-4Kb: xcompmgr, xlunch, openbox
 
 ### handAdd
 # /usr/local/static/3rd
-# /usr/local/static/dropbear
-# /usr/local/static/fluxbox
-/usr/local/static/lxde
-#/usr/local/static/openbox
-/usr/local/static/pcmanfm
 # /usr/local/static/perp
+# /usr/local/static/dropbear
+# /usr/local/static/tigervnc
+# /usr/local/static/xrdp
+# /usr/local/static/fluxbox
+#/usr/local/static/openbox
 # /usr/local/static/pulseaudio
 # /usr/local/static/suckless
-# /usr/local/static/tigervnc
-#/usr/local/static/tint2
 # /usr/local/static/xcompmgr
+# 
+#/usr/local/static/tint2
 #/usr/local/static/xlunch
-# /usr/local/static/xrdp
+# /usr/local/static/lxde
+/usr/local/static/pcmanfm
+# cmisc
+/usr/local/static/misc/share
+
