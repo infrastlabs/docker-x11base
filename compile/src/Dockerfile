@@ -271,11 +271,35 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
+# Build misc:su-exec,lrzsz,n2n,tinc
+FROM base AS misc
+ARG COMPILE_MISC="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/misc
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-misc/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_MISC" && exit 0 || echo doMake; \
+  sh /src/u-misc/build.sh su_exec; \
+  sh /src/u-misc/build.sh lrzsz; \
+  sh /src/u-misc/build.sh n2n; \
+  sh /src/u-misc/build.sh tinc; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
 # FROM compile
 # FROM ${BASEIMAGE} #导致img嵌套，层次达max;
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS ff
-FROM infrastlabs/x11-base:${COMPILE_IMG} AS ff
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS ff
 FROM alpine:3.15
+# Set multiple labels at once, author,builtdate
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$(date -u +'%Y-%m-%d %H:%M:%S')"
 COPY --from=ff /rootfs /rootfs
 RUN export domain="mirrors.ustc.edu.cn"; \
   echo "http://$domain/alpine/v3.15/main" > /etc/apk/repositories; \
@@ -305,7 +329,11 @@ WORKDIR ${STATIC}
 
 # view01
 # find |while read one; do md5sum..; echo "$md5|$one" > list-$rq-f.txt; done
-RUN find /rootfs${STATIC} -type f |sort |wc
+RUN \
+  # clear old
+  # rm -rf /rootfs${STATIC}/misc; \
+  \
+  find /rootfs${STATIC} -type f |sort |wc
 
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tigervnc
@@ -327,6 +355,7 @@ COPY --from=feh ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
 COPY --from=lxde ${STATIC} /rootfs${STATIC}
 COPY --from=perp ${STATIC} /rootfs${STATIC}
+COPY --from=misc ${STATIC} /rootfs${STATIC}
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
 RUN rm -rf  /rootfs/bin /rootfs/sbin;
