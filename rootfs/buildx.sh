@@ -28,7 +28,9 @@ function doBuildx(){
     # --build-arg REPO=$repo/ #temp notes, just use dockerHub's
     args="""
     --provenance=false 
+    --build-arg REPO=$repo/
     --build-arg COMPILE_IMG=$compile
+    --build-arg NOCACHE=$(date +%Y-%m-%d_%H:%M:%S)
     """
 
     # cd flux
