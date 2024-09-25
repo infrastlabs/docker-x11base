@@ -5,10 +5,10 @@ source /src/common.sh
 # 
 LIBCROCO_URL=https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
 
-function libcroco(){
 # libcroco
 # https://github.com/OpenMandrivaAssociation/libcroco0.6/blob/master/libcroco0.6.spec #ref url @gnome
 # https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
+function libcroco(){
   # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
   export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
 
@@ -46,7 +46,7 @@ function libcroco(){
 # https://sourceforge.net/projects/librsvg/files/librsvg/2.5.0/librsvg-2.5.0.tar.gz
 # /mnt2/_deps/librsvg-2.5.0
 # bash-5.1# ./configure
-function librsvg(){
+# 
 # [librsvg]
 # https://github.com/GNOME/librsvg #9298commits [rust 83.6%]
 # https://github.com/GNOME/librsvg/tree/2.50.7 #6499commits
@@ -57,9 +57,10 @@ function librsvg(){
 # https://github.com/loic/librsvg/tree/LIBRSVG_2_31_0 #1149commits
 # Package 'libcroco-0.6', required by 'virtual:world', not found
 # 
-# attempted static link of dynamic object `/usr/local/lib/libcroco-0.6.so'
-export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
-log "Downloading librsvg..."
+function librsvg(){
+  # attempted static link of dynamic object `/usr/local/lib/libcroco-0.6.so'
+  export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+  log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
   repo=$GITHUB/GNOME/librsvg
@@ -182,12 +183,12 @@ function libxi(){
 # cat ../src/battery/battery.c |grep strnappend
 # # 重名方法改名>> tint2过了; tint2conf err:
 function tint2(){
-# xcomposite-dev gtk+2.0-dev
-apk add pango-dev librsvg-dev
-apk add startup-notification-dev
-apk add libxcursor-dev
-# 
-# apk add imlib2-dev librsvg-dev gtk+2.0-dev  ##本地安装了，则会跳过install;
+  # xcomposite-dev gtk+2.0-dev
+  apk add pango-dev librsvg-dev
+  apk add startup-notification-dev
+  apk add libxcursor-dev
+  # 
+  # apk add imlib2-dev librsvg-dev gtk+2.0-dev  ##本地安装了，则会跳过install;
 
 
   log "Downloading TINT2..."
@@ -286,23 +287,6 @@ full)
     ;;
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
-    # bash /src/v-xlunch/build.sh imlib2
-    # 
-    # # 
-    # bash /src/openbox/build.sh apkdeps
-    # bash /src/openbox/build.sh pango & ##needed by gtk
-    # bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
-    # bash /src/xcompmgr/build.sh Xdamage &
-    # wait
-    # # 
-    # bash /src/v-pcmanfm/build.sh apkdeps
-    # bash /src/v-pcmanfm/build.sh atk & #needed by gtk
-    # bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
-    # wait
-    # bash /src/v-pcmanfm/build.sh gtk
-
-    ##################
-    # bash /src/xcompmgr/build.sh Xdamage
     apk add xorg-server-dev;
     bash /src/v-xlunch/build.sh imlib2
     # 
@@ -327,28 +311,3 @@ exit 0
 rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
 bash /src/v-tint2/build.sh b_deps
-
-# 
-# ld: cannot find -lXdamage
-# ld: cannot find -lXrandr
-# ld: cannot find -lpangocairo-1.0
-# ld: cannot find -lpango-1.0
-# ld: cannot find -lpango-1.0
-# ld: cannot find -lcairo
-# ld: cannot find -lcairo
-# ld: cannot find -lcairo
-# ld: cannot find -lharfbuzz
-# ld: cannot find -lharfbuzz
-# 
-# ld: cannot find -lrsvg-2
-# ld: cannot find -lgio-2.0
-# ld: cannot find -lgdk_pixbuf-2.0
-# ld: cannot find -lglib-2.0
-# ld: cannot find -lglib-2.0
-# ld: cannot find -lglib-2.0
-# ld: cannot find -lglib-2.0
-# ld: cannot find -lglib-2.0
-# ld: cannot find -lgobject-2.0
-# ld: cannot find -lgobject-2.0
-# ld: cannot find -lgobject-2.0
-# ld: cannot find -lgobject-2.0

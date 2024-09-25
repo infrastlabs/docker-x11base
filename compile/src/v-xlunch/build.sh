@@ -47,18 +47,17 @@ function imlib2(){
 # Build xlunch
 # export TARGETPATH=/usr/local/static/xlunch
 function xlunch(){
-apk add hicolor-icon-theme #need hicolor
-# ref: xcompmgr
-apk add cairo-static expat-static fribidi-static glib-static graphite2-static harfbuzz-static
-apk add libxml2-dev ##>> -lxml2 -llzma 
+  apk add hicolor-icon-theme #need hicolor
+  # ref: xcompmgr
+  apk add cairo-static expat-static fribidi-static glib-static graphite2-static harfbuzz-static
+  apk add libxml2-dev ##>> -lxml2 -llzma 
 
   log "Downloading XLUNCH..."
   rm -rf /tmp/xlunch; # mkdir -p /tmp/xlunch
   # down_catfile ${XLUNCH_URL} | tar -zx --strip 1 -C /tmp/xlunch
   # branch="--branch=$XLUNCH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/xlunch
-  repo=https://gitee.com/g-system/fk-xlunch
-  git clone --depth=1 $branch $repo /tmp/xlunch #;
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-xlunch /tmp/xlunch #;
   log "Configuring XLUNCH..."
   cd /tmp/xlunch #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf

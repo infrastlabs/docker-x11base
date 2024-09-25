@@ -10,8 +10,7 @@ function geany(){
     rm -rf /tmp/geany; # mkdir -p /tmp/geany
     # down_catfile ${GEANY_URL} | tar -zx --strip 1 -C /tmp/geany
     branch="--branch=1.3.1"
-    repo=$GITHUB/lxde/geany
-    rm -rf /tmp/geany; git clone --depth=1 $branch $repo /tmp/geany #;
+    rm -rf /tmp/geany; git clone --depth=1 $branch $GITHUB/lxde/geany /tmp/geany #;
   log "Configuring GEANY..."
   cd /tmp/geany #&& ./bootstrap;
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"

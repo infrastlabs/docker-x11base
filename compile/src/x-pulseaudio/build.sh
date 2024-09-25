@@ -150,33 +150,31 @@ function libsndfile(){
 # Build pulseaudio
 #
 function pulseaudio(){
-log "Downloading PULSEAUDIO..."
-rm -rf /tmp/pulseaudio; # mkdir -p /tmp/pulseaudio
-# down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C /tmp/pulseaudio
-PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
-branch="--branch=$PULSEAUDIO_VER"
-# --depth=1 ##./git-version-gen .tarball-version
-git clone $branch https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio #;
-log "Configuring PULSEAUDIO..."
-cd /tmp/pulseaudio #&& ./bootstrap;
-# ./configure  --enable-static --prefix=$TARGETPATH
-# make
-export CMAKE_BINARY_DIR=$TARGETPATH
-bash sam-build.sh
+  log "Downloading PULSEAUDIO..."
+  rm -rf /tmp/pulseaudio; # mkdir -p /tmp/pulseaudio
+  # down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C /tmp/pulseaudio
+  PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
+  branch="--branch=$PULSEAUDIO_VER"
+  # --depth=1 ##./git-version-gen .tarball-version
+  git clone $branch https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio #;
+  log "Configuring PULSEAUDIO..."
+  cd /tmp/pulseaudio #&& ./bootstrap;
+  # ./configure  --enable-static --prefix=$TARGETPATH
+  # make
+  export CMAKE_BINARY_DIR=$TARGETPATH
+  bash sam-build.sh
 
-log "Install PULSEAUDIO..."
-# make;
-make install;
+  log "Install PULSEAUDIO..."
+  # make;
+  make install;
 
-# view
-ls -lh /tmp/pulseaudio/src/pa*
-xx-verify --static /tmp/pulseaudio/src/pulseaudio
-xx-verify --static /tmp/pulseaudio/src/pactl
+  # view
+  ls -lh /tmp/pulseaudio/src/pa*
+  xx-verify --static /tmp/pulseaudio/src/pulseaudio
+  xx-verify --static /tmp/pulseaudio/src/pactl
 }
 
 
-# https://blog.csdn.net/Zxiuping/article/details/120764834
-git config --global http.sslVerify false ##关闭SSL验证
 case "$1" in
 cache)
     # down_catfile ${XRDP_URL} > /dev/null
@@ -185,13 +183,13 @@ cache)
 full)
     pulseaudio
     ;;
-# dep1="-logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc"
-# 尝试重编译deps ogg> [opus]flac,vorbis> sndfile  (ref: docs/core/pulse05.md)
-    # ogg-v135 https://hub.yzuu.cf/xiph/ogg #324, Ogg media container Sep 3, 2000+
-    # opus-v131 https://hub.yzuu.cf/xiph/opus #2k, audio compression Nov 25, 2007+
-    # Flac-v134 https://hub.yzuu.cf/xiph/flac #1.4k, Free Lossless Audio Codec Dec 10, 2000+ (2012+)
-    # vorbis/enc-v137 https://hub.yzuu.cf/xiph/vorbis #432, Ogg Vorbis audio format Jul 11, 1999+
-    # libsndfile-v1.0.31 https://hub.yzuu.cf/libsndfile/libsndfile #1.3k, A C library for reading and writing sound files Jan 18, 2004+
+    # dep1="-logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc"
+    # 尝试重编译deps ogg> [opus]flac,vorbis> sndfile  (ref: docs/core/pulse05.md)
+      # ogg-v135 https://hub.yzuu.cf/xiph/ogg #324, Ogg media container Sep 3, 2000+
+      # opus-v131 https://hub.yzuu.cf/xiph/opus #2k, audio compression Nov 25, 2007+
+      # Flac-v134 https://hub.yzuu.cf/xiph/flac #1.4k, Free Lossless Audio Codec Dec 10, 2000+ (2012+)
+      # vorbis/enc-v137 https://hub.yzuu.cf/xiph/vorbis #432, Ogg Vorbis audio format Jul 11, 1999+
+      # libsndfile-v1.0.31 https://hub.yzuu.cf/libsndfile/libsndfile #1.3k, A C library for reading and writing sound files Jan 18, 2004+
 b_deps) #TODO1
     bash /src/x-pulseaudio/build.sh libogg &
     wait

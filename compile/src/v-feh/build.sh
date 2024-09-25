@@ -9,16 +9,15 @@ FEH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}
 # Build feh
 # export TARGETPATH=/usr/local/static/feh
 function feh(){
-# ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
-apk add libxt-dev
+  # ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
+  apk add libxt-dev
 
   log "Downloading FEH..."
   rm -rf /tmp/fk-feh; # mkdir -p /tmp/fk-feh ##feh> fk-feh
   # down_catfile ${FEH_URL} | tar -zx --strip 1 -C /tmp/fk-feh
   # branch="--branch=$FEH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/feh
-  repo=https://gitee.com/g-system/fk-feh
-  git clone --depth=1 $branch $repo /tmp/fk-feh #;
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-feh /tmp/fk-feh #;
   log "Configuring FEH..."
   cd /tmp/fk-feh #&& ./bootstrap;
     deps1="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"

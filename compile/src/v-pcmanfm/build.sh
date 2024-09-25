@@ -53,8 +53,7 @@ function libfm(){
   # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/libfm
   branch="--branch=1.3.1" #1.3.2
   branch="--branch=1.3.2" # #ok with automake @alpine315 
-  repo=https://gitee.com/g-system/fk-libfm
-  rm -rf /tmp/libfm; git clone --depth=1 $branch $repo /tmp/libfm
+  rm -rf /tmp/libfm; git clone --depth=1 $branch https://gitee.com/g-system/fk-libfm /tmp/libfm
   cd /tmp/libfm
     # attempted static link of dynamic object `/usr/lib/libmenu-cache.so'
     #ref_pcmanfm.md>> # 改动态编译：OK
@@ -92,7 +91,6 @@ function libfm(){
 # (6/7) Installing harfbuzz-static (3.0.0-r2)
 # (7/7) Installing libxml2-dev (2.9.14-r2)
 # 
-
 function menu-cache(){ ##依赖libfm-extra @libfm
   # apk update; apk add gtk-doc
   # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
@@ -100,8 +98,7 @@ function menu-cache(){ ##依赖libfm-extra @libfm
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
-  repo=https://gitee.com/g-system/fk-menu-cache
-  rm -rf /tmp/menu-cache; git clone --depth=1 $branch $repo /tmp/menu-cache
+  rm -rf /tmp/menu-cache; git clone --depth=1 $branch https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache
   cd /tmp/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -157,8 +154,7 @@ function pcmanfm(){
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
   branch="--branch=1.3.1"
-  repo=$GITHUB/lxde/pcmanfm
-  rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $repo /tmp/pcmanfm #;
+  rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $GITHUB/lxde/pcmanfm /tmp/pcmanfm #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -195,14 +191,14 @@ function pcmanfm(){
 }
 
 function apkdeps(){
-apk update; 
-apk add gtk-doc shared-mime-info \
-  gobject-introspection-dev \
-  \
-  gtk-doc intltool vala \
-    menu-cache-dev gtk+2.0-dev menu-cache-dev \
-  \
-  fontconfig-static libxcomposite-dev #pcmanfm
+  apk update; 
+  apk add gtk-doc shared-mime-info \
+    gobject-introspection-dev \
+    \
+    gtk-doc intltool vala \
+      menu-cache-dev gtk+2.0-dev menu-cache-dev \
+    \
+    fontconfig-static libxcomposite-dev #pcmanfm
 }
 
 case "$1" in

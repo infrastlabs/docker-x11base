@@ -2,15 +2,13 @@
 set -e
 source /src/common.sh
 
-
 function atk(){ ##@meson
   # apk update; apk add gobject-introspection-dev
 
   log "Downloading atk..."
   branch="--branch=ATK_2_35_1" #ATK_2_36_0  [2.35.1@ubt2004; 2.36.0@alpine315]
   branch="--branch=ATK_2_36_0"
-  repo=$GITHUB/GNOME/atk #nuaa> njuu
-  rm -rf /tmp/atk; git clone --depth=1 $branch $repo /tmp/atk
+  rm -rf /tmp/atk; git clone --depth=1 $branch $GITHUB/GNOME/atk /tmp/atk
   cd /tmp/atk
     # [44/53] Linking static target atk/libatk-1.0.a
     # [45/53] Linking target atk/libatk-1.0.so.0.23510.1 ##err attempted static link of dynamic object '/usr/lib/libglib-2.0.so'
@@ -40,8 +38,7 @@ function gdk-pixbuf(){ ##@meson
   log "Downloading gdk-pixbuf..."
   branch="--branch=2.40.0" #2.42.8 [2.40.0@ubt2004; 2.42.8@alpine315]
   branch="--branch=2.42.8"
-  repo=$GITHUB/GNOME/gdk-pixbuf
-  rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $repo /tmp/gdk-pixbuf
+  rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $GITHUB/GNOME/gdk-pixbuf /tmp/gdk-pixbuf
   cd /tmp/gdk-pixbuf
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
@@ -91,8 +88,7 @@ function gtk(){
   branch="--branch=2.24.32" #2.24.33  ##提示automake版本不符(过高)
   branch="--branch=2.24.33"
   # https://blog.csdn.net/weixin_46591962/article/details/132247425
-  repo=$GITHUB/GNOME/gtk
-  rm -rf /tmp/gtk; git clone --depth=1 $branch $repo /tmp/gtk
+  rm -rf /tmp/gtk; git clone --depth=1 $branch $GITHUB/GNOME/gtk /tmp/gtk
   cd /tmp/gtk
     args="--disable-option-checking \
       --disable-FEATURE  \
@@ -165,15 +161,15 @@ function gtk(){
 
 
 function apkdeps(){
-apk update; 
-    # menu-cache-dev \
-apk add gtk-doc shared-mime-info \
-  gobject-introspection-dev \
-  \
-  gtk-doc intltool vala \
-    gtk+2.0-dev \
-  \
-  fontconfig-static libxcomposite-dev #pcmanfm
+  apk update; 
+      # menu-cache-dev \
+  apk add gtk-doc shared-mime-info \
+    gobject-introspection-dev \
+    \
+    gtk-doc intltool vala \
+      gtk+2.0-dev \
+    \
+    fontconfig-static libxcomposite-dev #pcmanfm
 }
 
 case "$1" in
