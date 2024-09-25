@@ -1,8 +1,6 @@
 #!/bin/sh
-
-set -e # Exit immediately if a command exits with a non-zero status.
-# set -u # Treat unset variables as an error.
-
+set -e
+source /src/common.sh
 
 # Define software download URLs.
 LIBXRANDR_VERSION=1.5.3
@@ -12,48 +10,8 @@ gh=https://ghproxy.com/
 gh=https://gh.api.99988866.xyz/
 gh=https://ghps.cc/
 # 
-XRDP_VER=0.9.16
-XRDP_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}/xrdp-${XRDP_VER}.tar.gz
 FDKAAC_VER=2.0.2
 FDKAAC_URL=https://downloads.sourceforge.net/project/opencore-amr/fdk-aac/fdk-aac-${FDKAAC_VER}.tar.gz
-
-# Set same default compilation flags as abuild.
-export CFLAGS="-Os -fomit-frame-pointer"
-export CXXFLAGS="$CFLAGS"
-export CPPFLAGS="$CFLAGS"
-export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
-# 
-export CC=xx-clang
-
-# set -u; err if not exist
-test -z "$TARGETPATH" && export TARGETPATH=/opt/base
-test -z "$CONSOLE_LOG" && export CONSOLE_LOG=yes
-# rm -rf $LOGS; #avoid deleted @batch-mode
-CACHE=$TARGETPATH/../.cache; LOGS=$TARGETPATH/../.logs; mkdir -p $CACHE $LOGS
-function down_catfile(){
-  url=$1
-  file=${url##*/}
-  #curl -# -L -f 
-  test -f $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
-  cat $CACHE/$file
-}
-function print_time_cost(){
-    local begin_time=$1
-	gawk 'BEGIN{
-		print "本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
-		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
-		" 共历时" systime()-'$begin_time' "秒";
-	}' 2>&1 | tee -a $logfile
-}
-function log {
-    echo -e "\n\n>>> $*"
-}
-
-
-
-
-# export CC=clang
-# export CXX=clang++
 
 #
 # Build libXrandr.
@@ -246,7 +204,7 @@ make install;
 
 case "$1" in
 cache)
-    down_catfile ${XRDP_URL} > /dev/null
+    # down_catfile ${XRDP_URL} > /dev/null
     down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
@@ -260,19 +218,7 @@ b_deps)
     wait
     ;;
 *) #compile
-    # $1 |tee $LOGS/$1.log
-    env #view
-    set +e
-    echo -e "\n$1, start building.."
-    begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/xrdp-$1.log
-    # test "yes" == "$CONSOLE_LOG" && $1 |tee $logfile || $1 > $logfile 2>&1; #|tee >> $? always ok..;
-    test "yes" == "$CONSOLE_LOG" && echo yes || echo no
-    test "yes" == "$CONSOLE_LOG" && $1 |tee $logfile || $1 > $logfile 2>&1;
-    # test "yes" == "$CONSOLE_LOG" && $1 |tee $logfile
-    # $1 > $logfile 2>&1;
-
-    test "0" !=  "$?" && tail -200 $logfile || echo "err 0, pass"
-    print_time_cost $begin_time; echo "$1, finished."
+    oneBuild $1
     ;;          
 esac
 exit 0
