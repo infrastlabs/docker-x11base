@@ -1,0 +1,25 @@
+
+
+fluxbox|master|git clone --depth=1 https://gitee.com/g-system/fk-fluxbox
+openbox|3.6.1|down_catfile http://openbox.org/dist/openbox/openbox-${OPENBOX_VERSION}.tar.xz | tar -xJ --strip 1 -C /tmp/openbox
+suckless-st|luke-st|git clone --depth=1 --branch=br-luke-st https://gitee.com/g-system/fk-suckless-st
+suckless-dwm|6.2|git clone --depth=1 --branch=6.2 git://git.suckless.org/dwm
+suckless-dmenu|5.0|git clone --depth=1 --branch=5.0 git://git.suckless.org/dmenu
+gtk|2.24.33|git clone --depth=1 --branch=2.24.33 $GITHUB/GNOME/gtk
+misc-su-exec|master|git clone --depth=1 https://gitee.com/g-system/fk-su-exec
+misc-lrzsz|master|git clone --depth=1 https://gitee.com/g-system/fk-lrzsz
+misc-n2n|lucktu-new2|git clone --depth=1 https://gitee.com/g-system/fk-lucktu-n2n
+misc-tinc|master-v1.0|git clone --depth=1 https://gitee.com/g-system/fk-tinc
+feh|master|git clone --depth=1 https://gitee.com/g-system/fk-feh TODO
+geany|1.3.1|git clone --depth=1 --branch=1.3.1 $GITHUB/lxde/geany
+lxde-lxappearance|master|git clone --depth=1 $GITHUB/lxde/lxappearance
+lxde-lxtask|master|git clone --depth=1 $GITHUB/lxde/lxtask
+pcmanfm|1.3.1|git clone --depth=1 --branch=1.3.1 $GITHUB/lxde/pcmanfm
+tint2|16.1|git clone --depth=1 --branch=16.1 $GITHUB/o9000/tint2
+xlunch|master|git clone --depth=1 https://gitee.com/g-system/fk-xlunch
+dropbear|master|git clone --depth=1 https://github.com/mkj/dropbear
+pulseaudio|v13-99-3|git clone --branch=br-v13-99-3 https://gitee.com/g-system/fk-pulseaudio
+tigervnc|1.13.1-1.20.14|down_catfile https://github.com/TigerVNC/tigervnc/archive/v${TIGERVNC_VERSION}.tar.gz
+xrdp|v0.9.16-cust|git clone -b sam-custom --depth=1 https://gitee.com/g-system/fk-xrdp
+xcompmgr|master|git clone --depth=1 https://gitee.com/g-system/fk-xcompmgr
+perp|master-cust|git clone https://gitee.com/infrastlabs/fk-perp

@@ -47,6 +47,19 @@ RUN \
 
 
 
+FROM base AS pulseaudio
+ARG COMPILE_PULSE="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pulseaudio
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/x-dropbear/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PULSE" && exit 0 || echo doMake; \
+  sh /src/x-pulseaudio/build.sh b_deps; \
+  sh /src/x-pulseaudio/build.sh pulseaudio; \
+  \
+  find ${TARGETPATH} -type f |sort; 
+
 FROM base AS xrdp
 ARG COMPILE_XRDP="yes"
 ENV CONSOLE_LOG=no \
@@ -76,19 +89,6 @@ RUN mkdir -p $TARGETPATH; \
   \
   test "yes" != "$COMPILE_SSH" && exit 0 || echo doMake; \
   sh /src/x-dropbear/build.sh dropbear; \
-  \
-  find ${TARGETPATH} -type f |sort; 
-
-FROM base AS pulseaudio
-ARG COMPILE_PULSE="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/pulseaudio
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/x-dropbear/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_PULSE" && exit 0 || echo doMake; \
-  sh /src/x-pulseaudio/build.sh b_deps; \
-  sh /src/x-pulseaudio/build.sh pulseaudio; \
   \
   find ${TARGETPATH} -type f |sort; 
 
@@ -175,17 +175,30 @@ RUN mkdir -p $TARGETPATH; \
 # RUN /tmp/build-fontconfig.sh
 
 
-# Build lxde
-FROM base AS lxde
-ARG COMPILE_LXDE="yes"
+FROM base AS xcompmgr
+ARG COMPILE_XCOMPMGR="yes"
 ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/lxde
+  TARGETPATH=/usr/local/static/xcompmgr
 RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-lxde/build.sh cache; \
+  # sh /src/xcompmgr/build.sh cache; \
   \
-  test "yes" != "$COMPILE_LXDE" && exit 0 || echo doMake; \
-  sh /src/v-lxde/build.sh lxappearance; \
-  sh /src/v-lxde/build.sh lxtask; \
+  test "yes" != "$COMPILE_XCOMPMGR" && exit 0 || echo doMake; \
+  sh /src/xcompmgr/build.sh Xdamage; \
+  sh /src/xcompmgr/build.sh xcompmgr; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build tint2
+FROM base AS tint2
+ARG COMPILE_TINT2="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/tint2
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-tint2/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_TINT2" && exit 0 || echo doMake; \
+  sh /src/v-tint2/build.sh b_deps; \
+  sh /src/v-tint2/build.sh tint2; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -203,20 +216,6 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
-# Build tint2
-FROM base AS tint2
-ARG COMPILE_TINT2="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/tint2
-RUN mkdir -p $TARGETPATH; \
-  sh /src/v-tint2/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_TINT2" && exit 0 || echo doMake; \
-  sh /src/v-tint2/build.sh b_deps; \
-  sh /src/v-tint2/build.sh tint2; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
 # Build feh
 FROM base AS feh
 ARG COMPILE_FEH="yes"
@@ -231,19 +230,6 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
-FROM base AS xcompmgr
-ARG COMPILE_XCOMPMGR="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/xcompmgr
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/xcompmgr/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_XCOMPMGR" && exit 0 || echo doMake; \
-  sh /src/xcompmgr/build.sh Xdamage; \
-  sh /src/xcompmgr/build.sh xcompmgr; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
 FROM base AS pcmanfm
 ARG COMPILE_PCMANFM="yes"
 ENV CONSOLE_LOG=no \
@@ -254,6 +240,20 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_PCMANFM" && exit 0 || echo doMake; \
   bash /src/v-pcmanfm/build.sh b_deps; \
   bash /src/v-pcmanfm/build.sh pcmanfm; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build lxde
+FROM base AS lxde
+ARG COMPILE_LXDE="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/lxde
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-lxde/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_LXDE" && exit 0 || echo doMake; \
+  sh /src/v-lxde/build.sh lxappearance; \
+  sh /src/v-lxde/build.sh lxtask; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -271,10 +271,27 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
+# Build misc:su-exec,lrzsz,n2n,tinc
+FROM base AS misc
+ARG COMPILE_MISC="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/misc
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-misc/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_MISC" && exit 0 || echo doMake; \
+  sh /src/u-misc/build.sh su_exec; \
+  sh /src/u-misc/build.sh lrzsz; \
+  sh /src/u-misc/build.sh n2n; \
+  sh /src/u-misc/build.sh tinc; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
 # FROM compile
 # FROM ${BASEIMAGE} #导致img嵌套，层次达max;
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS ff
-FROM infrastlabs/x11-base:${COMPILE_IMG} AS ff
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS ff
 FROM alpine:3.15
 COPY --from=ff /rootfs /rootfs
 RUN export domain="mirrors.ustc.edu.cn"; \
@@ -305,7 +322,11 @@ WORKDIR ${STATIC}
 
 # view01
 # find |while read one; do md5sum..; echo "$md5|$one" > list-$rq-f.txt; done
-RUN find /rootfs${STATIC} -type f |sort |wc
+RUN \
+  # clear old
+  # rm -rf /rootfs${STATIC}/misc; \
+  \
+  find /rootfs${STATIC} -type f |sort |wc
 
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tigervnc
@@ -322,11 +343,14 @@ COPY --from=suckless ${STATIC} /rootfs${STATIC}
 # 
 COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
 COPY --from=xlunch ${STATIC} /rootfs${STATIC}
+# CARE!! dirty clear;
+# RUN rm -rf /rootfs${STATIC}/tint2
 COPY --from=tint2 ${STATIC} /rootfs${STATIC}
 COPY --from=feh ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
 COPY --from=lxde ${STATIC} /rootfs${STATIC}
 COPY --from=perp ${STATIC} /rootfs${STATIC}
+COPY --from=misc ${STATIC} /rootfs${STATIC}
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
 RUN rm -rf  /rootfs/bin /rootfs/sbin;
@@ -342,3 +366,11 @@ RUN find /rootfs${STATIC} -type f |sort |wc
 RUN find /rootfs${STATIC} -type f |sort
 # RUN rm -rf ${STATIC}; ln -s /rootfs${STATIC} ${STATIC}
 
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

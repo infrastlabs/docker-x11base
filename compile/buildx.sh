@@ -31,8 +31,11 @@ ubt-builder)
     img="x11-base:ubt-builder"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
-    cimg="x11-base-cache:ubt-builder"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64"
@@ -44,8 +47,11 @@ deb12-builder)
     img="x11-base:deb12-builder"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
-    cimg="x11-base-cache:deb12-builder"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm" #
@@ -59,8 +65,11 @@ builder)
     img="x11-base:alpine-builder"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
-    cimg="x11-base-cache:builder"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm"
@@ -72,8 +81,11 @@ gtk224)
     img="x11-base:alpine-builder-gtk224"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
-    cimg="x11-base-cache:builder-gtk224"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #dbg
@@ -98,8 +110,11 @@ gtk224)
     img="x11-base:alpine-compile"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
-    cimg="x11-base-cache:compile"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #dbg
@@ -111,11 +126,12 @@ gtk224)
     # full yes x9: 5h,9min,44s
     args="""
     --provenance=false 
+    --build-arg REPO=$repo/
     --build-arg COMPILE_IMG=$compile
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
-    --build-arg COMPILE_SSH=no
-    --build-arg COMPILE_PULSE=yes
+    --build-arg COMPILE_SSH=yes
+    --build-arg COMPILE_PULSE=no
     --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=no
     --build-arg COMPILE_TINT2=no
@@ -125,11 +141,16 @@ gtk224)
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
+    --build-arg COMPILE_MISC=no
+    --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && img="${img}-dbg"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && cimg="${cimg}-dbg"
-    cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f src/Dockerfile . 
     # err=$?
     # test "0" == "$err" && build_rootfs || exit $err

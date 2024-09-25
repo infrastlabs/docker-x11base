@@ -3,7 +3,7 @@ set -e
 source /src/common.sh
 
 # 
-LIBCROCO_URL=https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
+# LIBCROCO_URL=https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
 
 # libcroco
 # https://github.com/OpenMandrivaAssociation/libcroco0.6/blob/master/libcroco0.6.spec #ref url @gnome
@@ -14,10 +14,11 @@ function libcroco(){
 
   mkdir -p /tmp/libcroco
   log "Downloading libcroco..."
-  # repo=
   # rm -rf /tmp/libcroco; git clone --depth=1 $branch $repo /tmp/libcroco
   # cd /tmp/libcroco
-  down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C /tmp/libcroco
+  # down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C /tmp/libcroco
+  branch="--branch=0.6.13"
+  rm -rf /tmp/libcroco; git clone --depth=1 $branch https://gitee.com/g-system/fk-libcroco /tmp/libcroco
   cd /tmp/libcroco
   # cd libcroco-0.6.13
   ./autogen.sh 
@@ -57,15 +58,16 @@ function libcroco(){
 # https://github.com/loic/librsvg/tree/LIBRSVG_2_31_0 #1149commits
 # Package 'libcroco-0.6', required by 'virtual:world', not found
 # 
+# https://gitlab.gnome.org/Archive/libcroco
+# 
 function librsvg(){
   # attempted static link of dynamic object `/usr/local/lib/libcroco-0.6.so'
   export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
   log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
-  repo=$GITHUB/GNOME/librsvg
   branch="--branch=2.40.21"
-  rm -rf /tmp/librsvg; git clone --depth=1 $branch $repo /tmp/librsvg
+  rm -rf /tmp/librsvg; git clone --depth=1 $branch https://gitee.com/g-system/fk-librsvg /tmp/librsvg
   cd /tmp/librsvg
   ./autogen.sh 
   ./configure --enable-static
@@ -81,8 +83,7 @@ function librsvg(){
 # [xcb-util]
 function xcbutil(){
   log "Downloading xcb_util..."
-  repo=$GITHUB/freedesktop-unofficial-mirror/xcb__util
-  rm -rf /tmp/xcb-util; git clone --depth=1 $branch $repo /tmp/xcb-util
+  rm -rf /tmp/xcb-util; git clone --depth=1 $branch https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util
   cd /tmp/xcb-util
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
@@ -105,10 +106,9 @@ function xcbutil(){
 
 # https://github.com/aleax/libxi
 function libxi(){
-  # git clone https://hub.yzuu.cf/aleax/libxi
+  # git clone $GITHUB/aleax/libxi
   log "Downloading libxi..."
-  repo=$GITHUB/aleax/libxi
-  rm -rf /tmp/libxi; git clone --depth=1 $branch $repo /tmp/libxi
+  rm -rf /tmp/libxi; git clone --depth=1 $branch https://gitee.com/g-system/fk-libxi /tmp/libxi
   cd /tmp/libxi
   ./autogen.sh 
   ./configure  --enable-static --disable-shared #disable dyn;
@@ -195,23 +195,24 @@ function tint2(){
   rm -rf /tmp/tint2; # mkdir -p /tmp/tint2
   # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C /tmp/tint2
   branch="--branch=16.1"
-  repo=$GITHUB/o9000/tint2
-  rm -rf /tmp/tint2; git clone --depth=1 $branch $repo /tmp/tint2 #;
+  # repo=$GITHUB/o9000/tint2
+  rm -rf /tmp/tint2; git clone --depth=1 $branch https://gitee.com/g-system/fk-tint2 /tmp/tint2 #;
   log "Configuring TINT2..."
   cd /tmp/tint2 #&& ./bootstrap;
     # sed -i "s^bash extra/genentries^#bash extra/genentries^g" Makefile
     
     mkdir -p build; cd build
       # message( FATAL_ERROR "Imlib is not (跳过错误: Imlib not with X11)
+      #   96:  #message( FATAL_ERROR "Imlib is not built with X support" )
       test -s ../CMakeLists.txt-bk0 || cat ../CMakeLists.txt > ../CMakeLists.txt-bk0
       sed -i 's/^  message( FATAL_ERROR "Imlib is not/  #message( FATAL_ERROR "Imlib is not/g' ../CMakeLists.txt
       
 
       ###CMAKE alter###################
-      # https://www.codenong.com/40618443/
+      # https://www.codenong.com/40618443/ #关于linux：使用CMAKE编译静态可执行文件
       # SET(CMAKE_FIND_LIBRARY_SUFFIXES".a")
       # SET(BUILD_SHARED_LIBRARIES OFF)
-      # SET(CMAKE_EXE_LINKER_FLAGS"-static")
+      # SET(CMAKE_EXE_LINKER_FLAGS "-static")
       # # 
       # 将其添加到find命令上方的CMakeLists.txt中：
       # set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -224,21 +225,23 @@ function tint2(){
       # set_target_properties( tint2 PROPERTIES LINK_FLAGS "-static -pthread -fno-strict-aliasing ${ASAN_L_FLAGS} ${BACKTRACE_L_FLAGS}  ${TRACING_L_FLAGS}" )
       # set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
       # set(BUILD_SHARED_LIBRARIES OFF)
-      # desc sort;
-      sed -i '2a set(BUILD_SHARED_LIBRARIES OFF)' ../CMakeLists.txt
-      sed -i '2a set(CMAKE_FIND_LIBRARY_SUFFIXES .a)' ../CMakeLists.txt
-      # Configure will be re-run and you may have to reset some variables. ##re-run loop..
-        # 注释如下两行，免cmake ..一直loop检查;  （手动编译: 不影响编译生成static的tint2）
-        # sed -i '2a set(CMAKE_CXX_COMPILER "/usr/bin/xx-clang++")' ../CMakeLists.txt
-        # sed -i '2a set(CMAKE_C_COMPILER "/usr/bin/xx-clang")' ../CMakeLists.txt
-      # 
-      # set_target_properties( tint2 PROPERTIES LINK_FLAGS "-static -pthread -fno-strict-aliasing ${ASAN_L_FLAGS} ${BACKTRACE_L_FLAGS}  ${TRACING_L_FLAGS}" )
-      # LINK_FLAGS \"-pthread
-      sed -i "s/LINK_FLAGS \"-pthread/LINK_FLAGS \"-static -pthread/g" ../CMakeLists.txt
+      
+      # # desc sort;
+      # sed -i '2a SET(CMAKE_EXE_LINKER_FLAGS "-static")' ../CMakeLists.txt
+      # sed -i '2a set(BUILD_SHARED_LIBRARIES OFF)' ../CMakeLists.txt
+      # sed -i '2a set(CMAKE_FIND_LIBRARY_SUFFIXES .a)' ../CMakeLists.txt
+      # # Configure will be re-run and you may have to reset some variables. ##re-run loop..
+      #   # 注释如下两行，免cmake ..一直loop检查;  （手动编译: 不影响编译生成static的tint2）
+      #   # sed -i '2a set(CMAKE_CXX_COMPILER "/usr/bin/xx-clang++")' ../CMakeLists.txt
+      #   # sed -i '2a set(CMAKE_C_COMPILER "/usr/bin/xx-clang")' ../CMakeLists.txt
+      # # 
+      # # set_target_properties( tint2 PROPERTIES LINK_FLAGS "-static -pthread -fno-strict-aliasing ${ASAN_L_FLAGS} ${BACKTRACE_L_FLAGS}  ${TRACING_L_FLAGS}" )
+      # # LINK_FLAGS \"-pthread
+      # sed -i "s/LINK_FLAGS \"-pthread/LINK_FLAGS \"-static -pthread/g" ../CMakeLists.txt
 
-      # bash-5.1# cat ../CMakeLists.txt |grep rdynamic -n
-      # 清理如上6个 -rdynamic: 还是依旧(attempted static link of dynamic object);
-      sed -i "s/-rdynamic//g" ../CMakeLists.txt
+      # # bash-5.1# cat ../CMakeLists.txt |grep rdynamic -n
+      # # 清理如上6个 -rdynamic: 还是依旧(attempted static link of dynamic object);
+      # sed -i "s/-rdynamic//g" ../CMakeLists.txt
 
       # 改CMakeLists.txt (share> static)
       deps="Xinerama Xfixes Xrandr gdk-x11-2.0 gtk-x11-2.0 atk-1.0 gdk_pixbuf-2.0 pangocairo-1.0 pangoft2-1.0 pango-1.0 fontconfig X11 xcb Xdmcp Xau Xext Xft freetype png Xrender expat xml2 z bz2 lzma brotlidec brotlicommon intl fribidi harfbuzz gio-2.0 gobject-2.0 glib-2.0 pcre graphite2 ffi gmodule-2.0 gobject-2.0 gpg-error graphite2 pixman-1 jpeg uuid mount pcre blkid Xcomposite fontconfig gio-2.0 cairo Xdamage X11-xcb xcb-shm xcb-render xcb-util md croco-0.6 Imlib2 Xcursor Xi"
@@ -254,15 +257,34 @@ function tint2(){
     cmake .. --install-prefix=$TARGETPATH
 
     # make
+      # b1d491eb5ac5:/tmp/tint2/build# cat Makefile  |wc
+      #   1450      4108     48291
       # 重名方法改名 strnappend02;
       sed -i "s/strnappend/strnappend02/g" ../src/battery/battery.c 
       cat ../src/battery/battery.c |grep strnappend
       
       log "Compiling TINT2..."
       # 清动态库
-      make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
+      # make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
+      cat /src/v-tint2/ldd.txt |egrep -v "^#|^$" |while read one; do echo =$one; test -s $one && \cp -a $one ${one}-ex; test -s ${one}-ex && rm -f $one; done
+      find /usr/lib /usr/local/lib |grep "so-ex$" |while read one; do n2=$(echo $one |sed "s/so-ex/so/g"); test -s $n2 && echo "still exist:$n2"; done #confirm
+#       ############### 改用ldd手动检查>> 改xx-ex
+#       # ldd tint2 |sort  |grep -v ld-linux |awk '{print $1}' |sed "s/\.so.*/\.so/g" |tr "\n" "|"
+#       match1="libX11-xcb.so|libX11.so|libXau.so|libXdmcp.so|libXext.so|libXrender.so|libbsd.so|libcroco-0.6.so|libfr
+# eetype.so|libglib-2.0.so|libintl.so|libmd.so|libpcre.so|libpixman-1.so|libpng16.so|libxcb-shm.so|libxcb.so|libz.so"
+#       # find /usr/lib /usr/local/lib -type f |egrep "$match1"
+#       find /usr/lib /usr/local/lib -type f |egrep "$match1" |while read one; do echo $one; mv $one ${one}-ex; done
+#       # ex-revert: libbrotlicommon.so|libbrotlidec.so|liblzma.so|libbz2.so|libxml2.so
+#       find /usr/lib /usr/local/lib -type f |egrep "\-ex$" |egrep "libbrotlicommon.so|libbrotlidec.so|liblzma.so|libbz2.so|libxml2.so" |while read one; do echo $one; dst=$(echo $one |sed "s/\-ex//g"); mv $one $dst; done
+
+      # tint2-arm64-hk1box-staticOK:
+      sed -i "s/\-rdynamic//g" CMakeFiles/tint2.dir/link.txt
+      sed -i "s/dynamic/static/g" CMakeFiles/tint2.dir/link.txt
+
       # make
       make
+      # find /usr/lib /usr/local/lib -type f |egrep "\-ex$"
+
       log "Install TINT2..."
       make install; # >> TODO prefix
       # 改回
@@ -279,7 +301,7 @@ function tint2(){
 
 case "$1" in
 cache)
-    down_catfile ${LIBCROCO_URL} > /dev/null
+    # down_catfile ${LIBCROCO_URL} > /dev/null
     ;;
 full)
     # imlib2
@@ -299,6 +321,7 @@ b_deps)
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort 
+    find /usr/local/lib |egrep "librsvg|libXi|libcroco|xcb|imlib" |grep "\.a$" |sort
     ;;
 *) #compile
     oneBuild $1
