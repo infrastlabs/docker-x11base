@@ -122,30 +122,30 @@ XKB_REF_PATH=$TARGETPATH
 # it ourself.
 #
 function gnutls(){
-mkdir -p /tmp/gnutls
-log "Downloading GNU TLS..."
-down_catfile ${GNUTLS_URL} | tar -xJ --strip 1 -C /tmp/gnutls
-log "Configuring GNU TLS..."
-(
-    cd /tmp/gnutls && ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
-        --disable-openssl-compatibility \
-        --disable-rpath \
-        --disable-guile \
-        --disable-valgrind-tests \
-        --disable-cxx \
-        --without-p11-kit \
-        --disable-tools \
-        --disable-doc \
-        --enable-static \
-        --disable-shared \
-)
-log "Compiling GNU TLS..."
-make -C /tmp/gnutls -j$(nproc)
-log "Installing GNU TLS..."
-make DESTDIR=$(xx-info sysroot) -C /tmp/gnutls install
+  mkdir -p /tmp/gnutls
+  log "Downloading GNU TLS..."
+  down_catfile ${GNUTLS_URL} | tar -xJ --strip 1 -C /tmp/gnutls
+  log "Configuring GNU TLS..."
+  (
+      cd /tmp/gnutls && ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=/usr \
+          --disable-openssl-compatibility \
+          --disable-rpath \
+          --disable-guile \
+          --disable-valgrind-tests \
+          --disable-cxx \
+          --without-p11-kit \
+          --disable-tools \
+          --disable-doc \
+          --enable-static \
+          --disable-shared \
+  )
+  log "Compiling GNU TLS..."
+  make -C /tmp/gnutls -j$(nproc)
+  log "Installing GNU TLS..."
+  make DESTDIR=$(xx-info sysroot) -C /tmp/gnutls install
 }
 
 #
@@ -154,26 +154,26 @@ make DESTDIR=$(xx-info sysroot) -C /tmp/gnutls install
 # it ourself.
 #
 function libxfont2(){
-mkdir -p /tmp/libxfont2
-log "Downloading libXfont2..."
-down_catfile ${LIBXFONT2_URL} | tar -xz --strip 1 -C /tmp/libxfont2
-log "Configuring libXfont2..."
-(
-    cd /tmp/libxfont2 && ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
-        --without-fop \
-        --without-xmlto \
-        --disable-devel-docs \
-        --enable-static \
-        --disable-shared \
-)
-log "Compiling libXfont2..."
-sed 's/^noinst_PROGRAMS = /#noinst_PROGRAMS = /' -i /tmp/libxfont2/Makefile.in
-make -C /tmp/libxfont2 -j$(nproc)
-log "Installing libXfont2..."
-make DESTDIR=$(xx-info sysroot) -C /tmp/libxfont2 install
+  mkdir -p /tmp/libxfont2
+  log "Downloading libXfont2..."
+  down_catfile ${LIBXFONT2_URL} | tar -xz --strip 1 -C /tmp/libxfont2
+  log "Configuring libXfont2..."
+  (
+      cd /tmp/libxfont2 && ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=/usr \
+          --without-fop \
+          --without-xmlto \
+          --disable-devel-docs \
+          --enable-static \
+          --disable-shared \
+  )
+  log "Compiling libXfont2..."
+  sed 's/^noinst_PROGRAMS = /#noinst_PROGRAMS = /' -i /tmp/libxfont2/Makefile.in
+  make -C /tmp/libxfont2 -j$(nproc)
+  log "Installing libXfont2..."
+  make DESTDIR=$(xx-info sysroot) -C /tmp/libxfont2 install
 }
 
 #
@@ -182,23 +182,23 @@ make DESTDIR=$(xx-info sysroot) -C /tmp/libxfont2 install
 # it ourself.
 #
 function libfontenc(){
-mkdir -p /tmp/libfontenc
-log "Downloading libfontenc..."
-down_catfile ${LIBFONTENC_URL} | tar -xz --strip 1 -C /tmp/libfontenc
-log "Configuring libfontenc..."
-(
-    cd /tmp/libfontenc && ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
-        --with-encodingsdir=/usr/share/fonts/encodings \
-        --enable-static \
-        --disable-shared \
-)
-log "Compiling libfontenc..."
-make -C /tmp/libfontenc -j$(nproc)
-log "Installing libfontenc..."
-make DESTDIR=$(xx-info sysroot) -C /tmp/libfontenc install
+  mkdir -p /tmp/libfontenc
+  log "Downloading libfontenc..."
+  down_catfile ${LIBFONTENC_URL} | tar -xz --strip 1 -C /tmp/libfontenc
+  log "Configuring libfontenc..."
+  (
+      cd /tmp/libfontenc && ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=/usr \
+          --with-encodingsdir=/usr/share/fonts/encodings \
+          --enable-static \
+          --disable-shared \
+  )
+  log "Compiling libfontenc..."
+  make -C /tmp/libfontenc -j$(nproc)
+  log "Installing libfontenc..."
+  make DESTDIR=$(xx-info sysroot) -C /tmp/libfontenc install
 }
 
 #
@@ -207,22 +207,22 @@ make DESTDIR=$(xx-info sysroot) -C /tmp/libfontenc install
 # it ourself.
 #
 function libtasn1(){
-mkdir -p /tmp/libtasn1
-log "Downloading libtasn1..."
-down_catfile ${LIBTASN1_URL} | tar -xz --strip 1 -C /tmp/libtasn1
-log "Configuring libtasn1..."
-(
-    cd /tmp/libtasn1 && CFLAGS="$CFLAGS -Wno-error=inline" ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
-        --enable-static \
-        --disable-shared \
-)
-log "Compiling libtasn1..."
-make -C /tmp/libtasn1 -j$(nproc)
-log "Installing libtasn1..."
-make DESTDIR=$(xx-info sysroot) -C /tmp/libtasn1 install
+  mkdir -p /tmp/libtasn1
+  log "Downloading libtasn1..."
+  down_catfile ${LIBTASN1_URL} | tar -xz --strip 1 -C /tmp/libtasn1
+  log "Configuring libtasn1..."
+  (
+      cd /tmp/libtasn1 && CFLAGS="$CFLAGS -Wno-error=inline" ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=/usr \
+          --enable-static \
+          --disable-shared \
+  )
+  log "Compiling libtasn1..."
+  make -C /tmp/libtasn1 -j$(nproc)
+  log "Installing libtasn1..."
+  make DESTDIR=$(xx-info sysroot) -C /tmp/libtasn1 install
 }
 
 #
@@ -231,230 +231,230 @@ make DESTDIR=$(xx-info sysroot) -C /tmp/libtasn1 install
 # it ourself.
 #
 function libxshmfence(){
-mkdir -p /tmp/libxshmfence
-log "Downloading libxshmfence..."
-down_catfile ${LIBXSHMFENCE_URL} | tar -xz --strip 1 -C /tmp/libxshmfence
-log "Configuring libxshmfence..."
-(
-    cd /tmp/libxshmfence && ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=/usr \
-        --enable-static \
-        --disable-shared \
-        --enable-futex \
-)
-log "Compiling libxshmfence..."
-make -C /tmp/libxshmfence -j$(nproc)
-log "Installing libxshmfence..."
-make DESTDIR=$(xx-info sysroot) -C /tmp/libxshmfence install
+  mkdir -p /tmp/libxshmfence
+  log "Downloading libxshmfence..."
+  down_catfile ${LIBXSHMFENCE_URL} | tar -xz --strip 1 -C /tmp/libxshmfence
+  log "Configuring libxshmfence..."
+  (
+      cd /tmp/libxshmfence && ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=/usr \
+          --enable-static \
+          --disable-shared \
+          --enable-futex \
+  )
+  log "Compiling libxshmfence..."
+  make -C /tmp/libxshmfence -j$(nproc)
+  log "Installing libxshmfence..."
+  make DESTDIR=$(xx-info sysroot) -C /tmp/libxshmfence install
 }
 
 #
 # Build TigerVNC
 #
 function tigervnc(){
-mkdir -p /tmp/tigervnc
-log "Downloading TigerVNC..."
-down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C /tmp/tigervnc
-log "Downloading Xorg server..."
-down_catfile ${XSERVER_URL} | tar -xz --strip 1 -C /tmp/tigervnc/unix/xserver
+  mkdir -p /tmp/tigervnc
+  log "Downloading TigerVNC..."
+  down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C /tmp/tigervnc
+  log "Downloading Xorg server..."
+  down_catfile ${XSERVER_URL} | tar -xz --strip 1 -C /tmp/tigervnc/unix/xserver
 
-log "Patching TigerVNC..."
-# Apply the TigerVNC patch against the X server.
-patch -p1 -d /tmp/tigervnc/unix/xserver < /tmp/tigervnc/unix/xserver120.patch
+  log "Patching TigerVNC..."
+  # Apply the TigerVNC patch against the X server.
+  patch -p1 -d /tmp/tigervnc/unix/xserver < /tmp/tigervnc/unix/xserver120.patch
 
-# Build a static binary of vncpasswd.
-patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/vncpasswd-static.patch
-# Disable PAM support.
-patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/disable-pam.patch
-# Fix static build.
-patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/static-build.patch
-# patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/tigervnc-1.12.0-configuration_fixes-1.patch
+  # Build a static binary of vncpasswd.
+  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/vncpasswd-static.patch
+  # Disable PAM support.
+  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/disable-pam.patch
+  # Fix static build.
+  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/static-build.patch
+  # patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/tigervnc-1.12.0-configuration_fixes-1.patch
 
-log "Configuring TigerVNC..."
-(
-    # https://github.com/TigerVNC/tigervnc/issues/998
-    # -DENABLE_GNUTLS=ON \
-    cd /tmp/tigervnc && cmake -G "Unix Makefiles" \
-        $(xx-clang --print-cmake-defines) \
-        -DCMAKE_FIND_ROOT_PATH=$(xx-info sysroot) \
-        -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
-        -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-        -DCMAKE_INSTALL_PREFIX=$INS_PREFIX \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DINSTALL_SYSTEMD_UNITS=OFF \
-        -DENABLE_NLS=OFF \
-        -DENABLE_GNUTLS=OFF \
-        -DENABLE_NETTLE=ON \
-        -DBUILD_VIEWER=OFF \
-)
+  log "Configuring TigerVNC..."
+  (
+      # https://github.com/TigerVNC/tigervnc/issues/998
+      # -DENABLE_GNUTLS=ON \
+      cd /tmp/tigervnc && cmake -G "Unix Makefiles" \
+          $(xx-clang --print-cmake-defines) \
+          -DCMAKE_FIND_ROOT_PATH=$(xx-info sysroot) \
+          -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+          -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+          -DCMAKE_INSTALL_PREFIX=$INS_PREFIX \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DINSTALL_SYSTEMD_UNITS=OFF \
+          -DENABLE_NLS=OFF \
+          -DENABLE_GNUTLS=OFF \
+          -DENABLE_NETTLE=ON \
+          -DBUILD_VIEWER=OFF \
+  )
 
-log "Compiling TigerVNC common libraries and tools..."
-make -C /tmp/tigervnc/common -j$(nproc)
-make -C /tmp/tigervnc/unix/common -j$(nproc)
-make -C /tmp/tigervnc/unix/vncpasswd -j$(nproc)
+  log "Compiling TigerVNC common libraries and tools..."
+  make -C /tmp/tigervnc/common -j$(nproc)
+  make -C /tmp/tigervnc/unix/common -j$(nproc)
+  make -C /tmp/tigervnc/unix/vncpasswd -j$(nproc)
 
-log "Configuring TigerVNC server..."
-autoreconf -fiv /tmp/tigervnc/unix/xserver
-(
-    cd /tmp/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=$INS_PREFIX \
-        --sysconfdir=/etc/X11 \
-        --localstatedir=/var \
-        --with-xkb-path=${XKB_REF_PATH}/share/X11/xkb \
-        --with-xkb-output=/var/lib/xkb \
-        --with-xkb-bin-directory=${XKB_REF_PATH}/bin \
-        --with-default-font-path=/usr/share/fonts/misc,/usr/share/fonts/100dpi:unscaled,/usr/share/fonts/75dpi:unscaled,/usr/share/fonts/TTF,/usr/share/fonts/Type1 \
-        --disable-docs \
-        --disable-unit-tests \
-        --without-dtrace \
-        \
-        --with-pic \
-        --disable-static \
-        --disable-shared \
-        \
-        --disable-listen-tcp \
-        --enable-listen-unix \
-        --disable-listen-local \
-        \
-        --disable-dpms \
-        \
-        --disable-systemd-logind \
-        --disable-config-hal \
-        --disable-config-udev \
-        --disable-xorg \
-        --disable-dmx \
-        --disable-libdrm \
-        --disable-dri \
-        --disable-dri2 \
-        --disable-dri3 \
-        --disable-present \
-        --disable-xvfb \
-        --disable-glx \
-        --disable-xinerama \
-        --disable-record \
-        --disable-xf86vidmode \
-        --disable-xnest \
-        --disable-xquartz \
-        --disable-xwayland \
-        --disable-xwayland-eglstream \
-        --disable-standalone-xpbproxy \
-        --disable-xwin \
-        --disable-glamor \
-        --disable-kdrive \
-        --disable-xephyr \
-)
+  log "Configuring TigerVNC server..."
+  autoreconf -fiv /tmp/tigervnc/unix/xserver
+  (
+      cd /tmp/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=$INS_PREFIX \
+          --sysconfdir=/etc/X11 \
+          --localstatedir=/var \
+          --with-xkb-path=${XKB_REF_PATH}/share/X11/xkb \
+          --with-xkb-output=/var/lib/xkb \
+          --with-xkb-bin-directory=${XKB_REF_PATH}/bin \
+          --with-default-font-path=/usr/share/fonts/misc,/usr/share/fonts/100dpi:unscaled,/usr/share/fonts/75dpi:unscaled,/usr/share/fonts/TTF,/usr/share/fonts/Type1 \
+          --disable-docs \
+          --disable-unit-tests \
+          --without-dtrace \
+          \
+          --with-pic \
+          --disable-static \
+          --disable-shared \
+          \
+          --disable-listen-tcp \
+          --enable-listen-unix \
+          --disable-listen-local \
+          \
+          --disable-dpms \
+          \
+          --disable-systemd-logind \
+          --disable-config-hal \
+          --disable-config-udev \
+          --disable-xorg \
+          --disable-dmx \
+          --disable-libdrm \
+          --disable-dri \
+          --disable-dri2 \
+          --disable-dri3 \
+          --disable-present \
+          --disable-xvfb \
+          --disable-glx \
+          --disable-xinerama \
+          --disable-record \
+          --disable-xf86vidmode \
+          --disable-xnest \
+          --disable-xquartz \
+          --disable-xwayland \
+          --disable-xwayland-eglstream \
+          --disable-standalone-xpbproxy \
+          --disable-xwin \
+          --disable-glamor \
+          --disable-kdrive \
+          --disable-xephyr \
+  )
 
-# Remove all automatic dependencies on libraries and manually define them to
-# have the correct order.
-find /tmp/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
-# sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
-# 
-# #  -lbrotlidec -lbrotlicommon
-# sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
-# 
-# -lgnutls 
-sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # Remove all automatic dependencies on libraries and manually define them to
+  # have the correct order.
+  find /tmp/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
+  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # 
+  # #  -lbrotlidec -lbrotlicommon
+  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # 
+  # -lgnutls 
+  sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
 
-log "Compiling TigerVNC server..."
-make -C /tmp/tigervnc/unix/xserver -j$(nproc)
+  log "Compiling TigerVNC server..."
+  make -C /tmp/tigervnc/unix/xserver -j$(nproc)
 
-log "Installing TigerVNC server..."
-make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
+  log "Installing TigerVNC server..."
+  make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
 
-log "Installing TigerVNC vncpasswd tool..."
-make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
+  log "Installing TigerVNC vncpasswd tool..."
+  make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
 }
 
 #
 # Build XKeyboardConfig.
 #
 function xkb(){
-mkdir -p /tmp/xkb
-log "Downloading XKeyboardConfig..."
-down_catfile ${XKEYBOARDCONFIG_URL} | tar -xj --strip 1 -C /tmp/xkb
-log "Configuring XKeyboardConfig..."
-(
-    # cd /tmp/xkb && abuild-meson . build
-    cd /tmp/xkb && meson . build
-)
-log "Compiling XKeyboardConfig..."
-meson compile -C /tmp/xkb/build
-log "Installing XKeyboardConfig..."
-DESTDIR="$XKB_DEST_DIR" meson install --no-rebuild -C /tmp/xkb/build
+  mkdir -p /tmp/xkb
+  log "Downloading XKeyboardConfig..."
+  down_catfile ${XKEYBOARDCONFIG_URL} | tar -xj --strip 1 -C /tmp/xkb
+  log "Configuring XKeyboardConfig..."
+  (
+      # cd /tmp/xkb && abuild-meson . build
+      cd /tmp/xkb && meson . build
+  )
+  log "Compiling XKeyboardConfig..."
+  meson compile -C /tmp/xkb/build
+  log "Installing XKeyboardConfig..."
+  DESTDIR="$XKB_DEST_DIR" meson install --no-rebuild -C /tmp/xkb/build
 
-log "Stripping XKeyboardConfig..."
-# We keep only the files needed by Xvnc.
-TO_KEEP="
-    geometry/pc
-    symbols/pc
-    symbols/us
-    symbols/srvr_ctrl
-    symbols/keypad
-    symbols/altwin
-    symbols/inet
-    compat/accessx
-    compat/basic
-    compat/caps
-    compat/complete
-    compat/iso9995
-    compat/ledcaps
-    compat/lednum
-    compat/ledscroll
-    compat/level5
-    compat/misc
-    compat/mousekeys
-    compat/xfree86
-    keycodes/evdev
-    keycodes/aliases
-    types/basic
-    types/complete
-    types/extra
-    types/iso9995
-    types/level5
-    types/mousekeys
-    types/numpad
-    types/pc
-    rules/evdev
-"
+  log "Stripping XKeyboardConfig..."
+  # We keep only the files needed by Xvnc.
+  TO_KEEP="
+      geometry/pc
+      symbols/pc
+      symbols/us
+      symbols/srvr_ctrl
+      symbols/keypad
+      symbols/altwin
+      symbols/inet
+      compat/accessx
+      compat/basic
+      compat/caps
+      compat/complete
+      compat/iso9995
+      compat/ledcaps
+      compat/lednum
+      compat/ledscroll
+      compat/level5
+      compat/misc
+      compat/mousekeys
+      compat/xfree86
+      keycodes/evdev
+      keycodes/aliases
+      types/basic
+      types/complete
+      types/extra
+      types/iso9995
+      types/level5
+      types/mousekeys
+      types/numpad
+      types/pc
+      rules/evdev
+  "
 
-# alpine: Installing /tmp/xkb/types/README to /tmp/xkb-install/usr/local/share/X11/xkb/types
-xkbDir=/usr/local/share/X11/xkb
-find $XKB_DEST_DIR$xkbDir -mindepth 2 -maxdepth 2 -type d -print -exec rm -r {} ';'
-find $XKB_DEST_DIR$xkbDir -mindepth 1 ! -type d $(printf "! -wholename $XKB_DEST_DIR$xkbDir/%s " $(echo "$TO_KEEP")) -print -delete
-# +
-mkdir -p ${XKB_REF_PATH}/share/X11;
-\cp -a $XKB_DEST_DIR$xkbDir ${XKB_REF_PATH}/share/X11/xkb
+  # alpine: Installing /tmp/xkb/types/README to /tmp/xkb-install/usr/local/share/X11/xkb/types
+  xkbDir=/usr/local/share/X11/xkb
+  find $XKB_DEST_DIR$xkbDir -mindepth 2 -maxdepth 2 -type d -print -exec rm -r {} ';'
+  find $XKB_DEST_DIR$xkbDir -mindepth 1 ! -type d $(printf "! -wholename $XKB_DEST_DIR$xkbDir/%s " $(echo "$TO_KEEP")) -print -delete
+  # +
+  mkdir -p ${XKB_REF_PATH}/share/X11;
+  \cp -a $XKB_DEST_DIR$xkbDir ${XKB_REF_PATH}/share/X11/xkb
 }
 
 #
 # Build xkbcomp.
 #
 function xkbcomp(){
-mkdir -p /tmp/xkbcomp
-log "Downloading xkbcomp..."
-down_catfile ${XKBCOMP_URL} | tar -xj --strip 1 -C /tmp/xkbcomp
+  mkdir -p /tmp/xkbcomp
+  log "Downloading xkbcomp..."
+  down_catfile ${XKBCOMP_URL} | tar -xj --strip 1 -C /tmp/xkbcomp
 
-log "Configuring xkbcomp..."
-(
-    LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" && \
-    cd /tmp/xkbcomp && \
-    LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
-        --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-        --host=$(xx-clang --print-target-triple) \
-        --prefix=$INS_PREFIX \
-)
+  log "Configuring xkbcomp..."
+  (
+      LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" && \
+      cd /tmp/xkbcomp && \
+      LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
+          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+          --host=$(xx-clang --print-target-triple) \
+          --prefix=$INS_PREFIX \
+  )
 
-log "Compiling xkbcomp..."
-make -C /tmp/xkbcomp -j$(nproc)
+  log "Compiling xkbcomp..."
+  make -C /tmp/xkbcomp -j$(nproc)
 
-log "Installing xkbcomp..."
-make DESTDIR=$ROOT_DEST_DIR -C /tmp/xkbcomp install
+  log "Installing xkbcomp..."
+  make DESTDIR=$ROOT_DEST_DIR -C /tmp/xkbcomp install
 }
 
 

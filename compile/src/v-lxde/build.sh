@@ -83,7 +83,7 @@ cache)
     # down_catfile ${XRDP_URL} > /dev/null
     ;;
 full)
-    lxde
+    # lxde
     ;;
 *) #compile
     oneBuild $1
