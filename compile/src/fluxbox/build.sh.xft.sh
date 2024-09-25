@@ -6,88 +6,88 @@ source /src/common.sh
 # Build fluxbox
 #
 function fluxbox(){
-apk add libxml2-dev expat-static 
+  apk add libxml2-dev expat-static 
 
-log "Downloading FLUXBOX..."
-rm -rf /tmp/fluxbox; # mkdir -p /tmp/fluxbox
-# down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C /tmp/fluxbox
-# https://dl.suckless.org/fluxbox/fluxbox-0.8.4.tar.gz
-# branch="--branch=$FLUXBOX_VER"
-git clone --depth=1 $branch https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox #;
-log "Configuring FLUXBOX..."
-cd /tmp/fluxbox #&& ./bootstrap;
+  log "Downloading FLUXBOX..."
+  rm -rf /tmp/fluxbox; # mkdir -p /tmp/fluxbox
+  # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C /tmp/fluxbox
+  # https://dl.suckless.org/fluxbox/fluxbox-0.8.4.tar.gz
+  # branch="--branch=$FLUXBOX_VER"
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox #;
+  log "Configuring FLUXBOX..."
+  cd /tmp/fluxbox #&& ./bootstrap;
 
-# ref: suckless/build.sh
-# OB_LIBS=""
-# flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-imlib="-lImlib2 -L/usr/local/lib -lX11-xcb -lxcb-shm -luuid "
-EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr" # -lrt
+  # ref: suckless/build.sh
+  # OB_LIBS=""
+  # flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
+  flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
+  imlib="-lImlib2 -L/usr/local/lib -lX11-xcb -lxcb-shm -luuid "
+  EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr" # -lrt
 
-# CONFIGURE去EX_LIBS>> OK;  disable_x4> enable_x4
-# --disable-docs #https://github.com/BtbN/FFmpeg-Builds/blob/7b6432add41f4f8a47592f1e1de73ca182e4cc5c/scripts.d/35-fontconfig.sh#L3
-autoreconf -fi
+  # CONFIGURE去EX_LIBS>> OK;  disable_x4> enable_x4
+  # --disable-docs #https://github.com/BtbN/FFmpeg-Builds/blob/7b6432add41f4f8a47592f1e1de73ca182e4cc5c/scripts.d/35-fontconfig.sh#L3
+  autoreconf -fi
 
-# --disable-remember \
-# Xinerama扩展的多屏显示
-# configure: WARNING: unrecognized options: --disable-docs, --enable-static, --disable-shared
-# ./configure \
-#   --prefix=$TARGETPATH \
-#   --enable-xmb \
-#   --enable-slit \
-#   --enable-toolbar \
-#   --enable-fribidi \
-#   \
-#   --enable-imlib2 \
-#   --disable-nls \
-#   --enable-xft \
-#   --enable-xinerama
-#   \
-#   --disable-docs \
-#   --enable-static \
-#   --disable-shared \
-#   LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS" #$EX_LIBS
-#   #LIBS="-lxcb -lXdmcp -lXau -lpthread    -lfontconfig -lfreetype -luuid"
+  # --disable-remember \
+  # Xinerama扩展的多屏显示
+  # configure: WARNING: unrecognized options: --disable-docs, --enable-static, --disable-shared
+  # ./configure \
+  #   --prefix=$TARGETPATH \
+  #   --enable-xmb \
+  #   --enable-slit \
+  #   --enable-toolbar \
+  #   --enable-fribidi \
+  #   \
+  #   --enable-imlib2 \
+  #   --disable-nls \
+  #   --enable-xft \
+  #   --enable-xinerama
+  #   \
+  #   --disable-docs \
+  #   --enable-static \
+  #   --disable-shared \
+  #   LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS" #$EX_LIBS
+  #   #LIBS="-lxcb -lXdmcp -lXau -lpthread    -lfontconfig -lfreetype -luuid"
 
-# ref: ./configure -h
-./configure \
-  --prefix=$TARGETPATH \
-  --disable-dependency-tracking \
-  --disable-silent-rules \
-  --enable-remember=yes \
-  --enable-regexp=yes \
-  --enable-slit=yes \
-  --enable-systray=yes \
-  --enable-toolbar=yes \
-  --enable-ewmh=yes \
-  --enable-debug=no \
-  --enable-test=no \
-  --enable-nls=no \
-  --enable-timedcache=yes \
-  --enable-xmb=yes \
-  \
-  --enable-imlib2 \
-  --enable-freetype2 \
-  --enable-xrender   \
-  --enable-xft       \
-  --enable-xpm       \
-  --enable-xext      \
-  --enable-xrandr    \
-  --enable-fribidi   \
-  --enable-xinerama=no
-  
+  # ref: ./configure -h
+  ./configure \
+    --prefix=$TARGETPATH \
+    --disable-dependency-tracking \
+    --disable-silent-rules \
+    --enable-remember=yes \
+    --enable-regexp=yes \
+    --enable-slit=yes \
+    --enable-systray=yes \
+    --enable-toolbar=yes \
+    --enable-ewmh=yes \
+    --enable-debug=no \
+    --enable-test=no \
+    --enable-nls=no \
+    --enable-timedcache=yes \
+    --enable-xmb=yes \
+    \
+    --enable-imlib2 \
+    --enable-freetype2 \
+    --enable-xrender   \
+    --enable-xft       \
+    --enable-xpm       \
+    --enable-xext      \
+    --enable-xrandr    \
+    --enable-fribidi   \
+    --enable-xinerama=no
+    
 
-make clean
-# make LDFLAGS="-static"
-make LDFLAGS="-static" LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
+  make clean
+  # make LDFLAGS="-static"
+  make LDFLAGS="-static" LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
 
-log "Install FLUXBOX..."
-# make;
-make install;
+  log "Install FLUXBOX..."
+  # make;
+  make install;
 
-# view
-ls -lh /tmp/fluxbox/
-xx-verify --static /tmp/fluxbox/fluxbox
+  # view
+  ls -lh /tmp/fluxbox/
+  xx-verify --static /tmp/fluxbox/fluxbox
 }
 
 

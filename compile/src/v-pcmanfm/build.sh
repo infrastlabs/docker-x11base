@@ -92,7 +92,6 @@ function libfm(){
 # (6/7) Installing harfbuzz-static (3.0.0-r2)
 # (7/7) Installing libxml2-dev (2.9.14-r2)
 # 
-
 function menu-cache(){ ##依赖libfm-extra @libfm
   # apk update; apk add gtk-doc
   # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
@@ -195,14 +194,14 @@ function pcmanfm(){
 }
 
 function apkdeps(){
-apk update; 
-apk add gtk-doc shared-mime-info \
-  gobject-introspection-dev \
-  \
-  gtk-doc intltool vala \
-    menu-cache-dev gtk+2.0-dev menu-cache-dev \
-  \
-  fontconfig-static libxcomposite-dev #pcmanfm
+  apk update; 
+  apk add gtk-doc shared-mime-info \
+    gobject-introspection-dev \
+    \
+    gtk-doc intltool vala \
+      menu-cache-dev gtk+2.0-dev menu-cache-dev \
+    \
+    fontconfig-static libxcomposite-dev #pcmanfm
 }
 
 case "$1" in

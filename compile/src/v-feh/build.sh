@@ -9,8 +9,8 @@ FEH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}
 # Build feh
 # export TARGETPATH=/usr/local/static/feh
 function feh(){
-# ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
-apk add libxt-dev
+  # ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
+  apk add libxt-dev
 
   log "Downloading FEH..."
   rm -rf /tmp/fk-feh; # mkdir -p /tmp/fk-feh ##feh> fk-feh

@@ -2,7 +2,6 @@
 set -e
 source /src/common.sh
 
-
 function atk(){ ##@meson
   # apk update; apk add gobject-introspection-dev
 
@@ -165,15 +164,15 @@ function gtk(){
 
 
 function apkdeps(){
-apk update; 
-    # menu-cache-dev \
-apk add gtk-doc shared-mime-info \
-  gobject-introspection-dev \
-  \
-  gtk-doc intltool vala \
-    gtk+2.0-dev \
-  \
-  fontconfig-static libxcomposite-dev #pcmanfm
+  apk update; 
+      # menu-cache-dev \
+  apk add gtk-doc shared-mime-info \
+    gobject-introspection-dev \
+    \
+    gtk-doc intltool vala \
+      gtk+2.0-dev \
+    \
+    fontconfig-static libxcomposite-dev #pcmanfm
 }
 
 case "$1" in
