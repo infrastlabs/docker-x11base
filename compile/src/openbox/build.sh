@@ -1,12 +1,7 @@
 #!/bin/sh
-#
-# Helper script that builds Openbox as a static binary.
-#
 # NOTE: This script is expected to be run under Alpine Linux.
-#
-
-set -e # Exit immediately if a command exits with a non-zero status.
-# set -u # Treat unset variables as an error.
+set -e
+source /src/common.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -24,47 +19,16 @@ FONTCONFIG_VERSION=2.14.0
 # Define software download URLs.
 FONTCONFIG_URL=https://www.freedesktop.org/software/fontconfig/release/fontconfig-${FONTCONFIG_VERSION}.tar.gz
 
-
-# Set same default compilation flags as abuild.
-export CFLAGS="-Os -fomit-frame-pointer"
-export CXXFLAGS="$CFLAGS"
-export CPPFLAGS="$CFLAGS"
-# configure: error: C compiler cannot create executables
-export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
-
+####################################
 # export CC=xx-clang
 # export CXX=xx-clang++
 export CC=xx-clang-wrapper
-export CXX=xx-clang++
 
-# set -u; err if not exist
-test -z "$TARGETPATH" && export TARGETPATH=/opt/base
-test -z "$CONSOLE_LOG" && export CONSOLE_LOG=yes
 ROOT_DEST_DIR="/" #/tmp/xx-install> /
 INS_PREFIX=$TARGETPATH
 #final: /tmp/fontconfig-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
 FONTCONFIG_DEST_DIR="/tmp/fontconfig-install"
 FONTCONFIG_INS_PREFIX=$TARGETPATH
-# rm -rf $LOGS; #avoid deleted @batch-mode
-CACHE=$TARGETPATH/../.cache; LOGS=$TARGETPATH/../.logs; mkdir -p $CACHE $LOGS
-function down_catfile(){
-  url=$1
-  file=${url##*/}
-  #curl -# -L -f 
-  test -f $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
-  cat $CACHE/$file
-}
-function print_time_cost(){
-    local begin_time=$1
-	gawk 'BEGIN{
-		print "本操作从" strftime("%Y年%m月%d日%H:%M:%S",'$begin_time'),"开始 ,",
-		strftime("到%Y年%m月%d日%H:%M:%S",systime()) ,"结束,",
-		" 共历时" systime()-'$begin_time' "秒";
-	}' 2>&1 | tee -a $logfile
-}
-function log {
-    echo -e "\n\n>>> $*"
-}
 
 #
 # Install required packages.
@@ -326,7 +290,6 @@ log "Configuring Openbox..."
 
         OB_LIBS="$OB_LIBS -luuid"
         # LDFLAGS=
-        # LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
         LDFLAGS="$LDFLAGS -Wl,--start-group $OB_LIBS -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
         --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
         --host=$(xx-clang --print-target-triple) \
@@ -432,17 +395,7 @@ b_deps)
     find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
     ;;
 *) #compile
-    # $1 |tee $LOGS/$1.log
-    # env |sort #view
-    set +e
-    echo -e "\n$1, start building.."
-    begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/fluxbox-$1.log
-    test "yes" == "$CONSOLE_LOG" && echo yes || echo no
-    # test "yes" == "$CONSOLE_LOG" && $1 |tee $logfile || $1 > $logfile 2>&1;
-    $1 > $logfile 2>&1;
-
-    test "0" !=  "$?" && tail -200 $logfile || echo "err 0, pass"
-    print_time_cost $begin_time; echo "$1, finished."
+    oneBuild $1
     ;;          
 esac
 exit 0
