@@ -1,6 +1,21 @@
 
 # tint2
 
+- try1, err `Imlib is not built with X support`
+- try2 **dyn ok; static** `dynOK:apk add imlib2-dev; static: cmake_static编译URL`
+- try3 @23.12.21
+  - try3.1 deps; librsvg-2.40.21, ibcroco-0.6.13.tar.xz
+  - try3.2 **target_link_libraries** `target_link_libraries( tint2 ${X11_LIBRARIES} ##手动追加`
+  - try3.3 ldd-tint2 `更新deps后,只余xcb-util; 源码补装后> err:static link of dynamic object`
+  - try3.4 **cmake-static-deps** (`CMAKE_EXE_LINKER_FLAGS> 清理'-rdynamic'>> imlib2 err again`)
+- try4 `rm -rf ./build/*`后，imlib2错（tmux19新容器构建）
+  - try41.a: 找到新缺deps `动态库依赖(apk add xx-dev)>> cmake过>> make:ld未过(isvg改用1.40.xx:缺-lcroco-0.6; tint2:缺-lxcb-util -lcroco-0.6 -lrsvg-2)`
+  - try41.b: 补deps `补充static-deps后:static link of dynamic object; > 清理../build/*; >> imlib2 -x11检测失败(三次复现); > 细看imlib2的配置||try:改xx-clang>> 待测(未设置?)`
+  - 
+  - try42a: **手动注释imlib2-x检查** `清./build后二次安装imlib2-dev(cmake过了)>>装xxx-dev|静编:xxx>> cmake还复现,手动注释imlib2-x的检查` 
+  - try42b: **link of dynamic obj问题** `v-xlunch/build.sh imlib2>> gtk:@b_deps>> >>依旧static link of dynamic obj(试着移走so)`
+  - try42c: **strnappend改方法名**, tint2过了: `重名方法改名:multiple definition of 'strnappend'; >> tint2过了`; tint2conf err(转下份文档)
+
 ## try1, err `Imlib is not built with X support`
 
 ```bash
@@ -158,7 +173,7 @@ bash-5.1# find /usr/lib |grep imlib
 
 ```
 
-## try2 **dyn ok; static**
+## try2 **dyn ok; static** `dynOK:apk add imlib2-dev; static: cmake_static编译URL`
 
 ```bash
 # 23.12.14
@@ -253,8 +268,8 @@ RT_LIBRARY:FILEPATH=/usr/lib/librt.a
 
 
 # TODO 改CMakeLists.txt (share> static)
-# https://blog.csdn.net/weixin_45004203/article/details/125256367
-# https://blog.csdn.net/whatday/article/details/118071243
+# https://blog.csdn.net/weixin_45004203/article/details/125256367 #CMake 常用总结二：CMake 生成静态库与动态库
+# https://blog.csdn.net/whatday/article/details/118071243 #cmake 静态编译 简介
 #   set(CMAKE_EXE_LINKER_FLAGS "-static")
 
 # bash-5.1# cat ../CMakeLists.txt |grep LINK
@@ -440,6 +455,7 @@ bash-5.1# find |grep librsvg-
 
 # [o9000/tint2] v16.1
 # https://gitlab.com/o9000/tint2/-/wikis/Install #v0.12.2
+# https://gitlab.com/o9000/tint2/-/wikis/Install#dependencies
 sudo apt-get install libcairo2-dev libpango1.0-dev 
 # libglib2.0-dev libimlib2-dev libgtk-3-dev libxinerama-dev libx11-dev 
 libxdamage-dev libxcomposite-dev libxrender-dev libxrandr-dev librsvg2-dev libstartup-notification0-dev
@@ -493,7 +509,7 @@ bash-5.1# make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&
 # -lxcb-shm 
 ```
 
-- try3.2 **target_link_libraries**
+- try3.2 **target_link_libraries** `target_link_libraries( tint2 ${X11_LIBRARIES} ##手动追加`
 
 ```bash
 # 
@@ -578,7 +594,7 @@ bash-5.1#
 /usr/lib/libxml2.a
 
 
-# https://blog.csdn.net/weixin_43376501/article/details/129792853
+# https://blog.csdn.net/weixin_43376501/article/details/129792853 #使用find_library，find_path如何设置只寻找静态库而不是动态库
 set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
 cmake ..
 make #一样
@@ -588,7 +604,7 @@ make #还是之前static with 动态库提示
 
 ```
 
-- try3.3 **ldd tint2**
+- try3.3 ldd-tint2 `更新deps后,只余xcb-util; 源码补装后> err:static link of dynamic object`
 
 ```bash
 # root@tenvm2:/mnt/_misc2-2/tint2/build# cat ldd-links.txt 
@@ -710,7 +726,7 @@ make[1]: *** [CMakeFiles/Makefile2:150: CMakeFiles/tint2.dir/all] Error 2
 make: *** [Makefile:136: all] Error 2
 ```
 
-- try3.4 **cmake-static-deps** (imlib2 err again)
+- try3.4 **cmake-static-deps** (`CMAKE_EXE_LINKER_FLAGS> 清理'-rdynamic'>> imlib2 err again`)
 
 ```bash
 # bash-5.1# env |grep FLAGS
@@ -733,10 +749,10 @@ bash-5.1# pwd
 ./themes/Makefile
 
 
-# https://www.codenong.com/40618443/
+# https://www.codenong.com/40618443/ #关于linux：使用CMAKE编译静态可执行文件
 SET(CMAKE_FIND_LIBRARY_SUFFIXES".a")
 SET(BUILD_SHARED_LIBRARIES OFF)
-SET(CMAKE_EXE_LINKER_FLAGS"-static")
+SET(CMAKE_EXE_LINKER_FLAGS "-static")
 
 将其添加到find命令上方的CMakeLists.txt中：
 set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -894,10 +910,10 @@ bash-5.1#
 
 ## try4 `rm -rf ./build/*`后，imlib2错（tmux19新容器构建）
 
-- try41
+- try41.a: 找到新缺deps `动态库依赖(apk add xx-dev)>> cmake过>> make:ld未过(isvg改用1.40.xx:缺-lcroco-0.6; tint2:缺-lxcb-util -lcroco-0.6 -lrsvg-2)`
 
 ```bash
-# try41: 动态库依赖>> cmake过>> static构建ld未过
+# try41: 动态库依赖(apk add xx-dev)>> cmake过>> static构建ld未过
       ln -s /mnt2/docker-x11base/compile/src /src
       apk add git gawk
 
@@ -944,11 +960,12 @@ collect2: error: ld returned 1 exit status
 make[2]: *** [CMakeFiles/tint2.dir/build.make:739: tint2] Error 1
 make[1]: *** [CMakeFiles/Makefile2:150: CMakeFiles/tint2.dir/all] Error 2
 make: *** [Makefile:136: all] Error 2
+```
 
+- try41.b: 补deps `补充static-deps后:static link of dynamic object; > 清理../build/*; >> imlib2 -x11检测失败(三次复现); > 细看imlib2的配置||try:改xx-clang>> 待测(未设置?)`
 
-
-
-# 补充statid-deps后>>  dynLink ERR;
+```bash
+# 补充static-deps后>>  dynLink ERR;
 #  错误依旧 static link of dynamic object
 bash-5.1# pwd
 /mnt2/_misc2-2/tint2/build
@@ -962,7 +979,7 @@ make: *** [Makefile:136: all] Error 2
 
 
 
-# 清理../build/*; >> imlib2 -x11检测失败; 
+# 清理../build/*; >> imlib2 -x11检测失败(三次复现); 
 
 # [19] 0:docker*
 bash-5.1# pwd
@@ -986,7 +1003,7 @@ See also "/mnt2/_misc2-2/tint2/build/CMakeFiles/CMakeError.log".
 bash-5.1# 
 
 
-
+####################################################
 # 本地下载源码>> 细看imlib2的配置
 # [imlib_context_set_display]
 # bash /src/xcompmgr/build.sh Xdamage
@@ -1029,8 +1046,8 @@ xserver-xorg-dev @ubt
 apk add xorg-server-dev;
 
 
-
-# 改xx-clang>> 待测
+####################################################
+# try:改xx-clang>> 待测(未设置?)
 # https://blog.csdn.net/SHH_1064994894/article/details/129164636 ##CMake基础(9)使用Clang编译
 set(CMAKE_C_COMPILER "clang")
 set(CMAKE_CXX_COMPILER "clang++")
@@ -1042,7 +1059,7 @@ set(CMAKE_CXX_COMPILER "/usr/bin/xx-clang++")
 ```
 
 
-- try42
+- try42a: **手动注释imlib2-x检查** `清./build后二次安装imlib2-dev(cmake过了)>>装xxx-dev|静编:xxx>> cmake还复现,手动注释imlib2-x的检查` 
 
 ```bash
 bash-5.1# cd build/
@@ -1055,7 +1072,7 @@ bash-5.1# pwd
 /mnt2/_misc2-2/tint2/build
 
 
-# 
+##装imlib2-dev>> cmake过了############################################
 ln -s /mnt2/docker-x11base/compile/src /src
 apk add git gawk
 
@@ -1064,9 +1081,9 @@ apk add git gawk
       bash /src/xcompmgr/build.sh xcompmgr;
 bash-5.1# apk add pango-dev
 # --   Package 'imlib2', required by 'virtual:world', not found
-bash-5.1# apk add imlib2-dev  ##清./build后二次安装: try1的错误过了;
+bash-5.1# apk add imlib2-dev  ##清./build后二次安装: try41的错误过了;
 
-# 检测过: imlib_context_set_display in Imlib2 - found
+# 检测过了: imlib_context_set_display in Imlib2 - found
       # bash-5.1# pwd
       /mnt2/_misc2-2/tint2/build
       # bash-5.1# rm -rf ../build/*; cmake ..
@@ -1081,7 +1098,7 @@ bash-5.1# apk add imlib2-dev  ##清./build后二次安装: try1的错误过了;
       CMake Error at CMakeLists.txt:199 (message):
         SVG support enabled yet dependency not fulfilled: librsvg-2.0
 
-# 
+##装xxx-dev############################################
 apk add startup-notification-dev #startup-notification
 # apk add librsvg-dev #改用静态 libcroco-0.6.13 >> librsvg
 # apk add gtk+2.0-dev
@@ -1121,6 +1138,8 @@ OK: 798 MiB in 275 packages
 (32/33) Installing gtk+2.0 (2.24.33-r0)
 Executing gtk+2.0-2.24.33-r0.post-install
 
+
+##静编:libcroco,gdk-pixbuf,xcb_util############################################
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 # 
 export CFLAGS="-Os -fomit-frame-pointer"
@@ -1152,6 +1171,8 @@ bash-5.1# apk add libxml2-dev
    34  cd xcb__util/
    37  make install
 
+
+##cmake还复现,手动注释imlib2-x的检查##################################
 # [19] 0:docker*
 # bash-5.1# rm -rf ../build/*; cmake ..
 -- Performing Test HAS_GENERIC - Success
@@ -1169,13 +1190,17 @@ CMake Error at CMakeLists.txt:101 (message): ############line 101
 check_library_exists( "${IMLIB2_LIBRARIES}" "imlib_context_set_display" "${IMLIB2_LIBRARY_DIRS}" IMLIB_BUILD_WITH_X )
 #if( NOT IMLIB_BUILD_WITH_X )
 #endif( NOT IMLIB_BUILD_WITH_X )
+```
 
+- try42b: **link of dynamic obj问题** `v-xlunch/build.sh imlib2>> gtk:@b_deps>> >>依旧static link of dynamic obj(试着移走so)`
 
-
+```bash
 # [imlib_context_set_display]
 # bash /src/xcompmgr/build.sh Xdamage ##[  @xcompmgr]
 bash /src/v-xlunch/build.sh imlib2
 
+
+##gtk:@b_deps######################################
 # deps: gtk+-x11-2.0
 #   #gdk-pixbuf #'gi-docgen'... @where? no-.gitsubmodule
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
@@ -1193,9 +1218,6 @@ https://github.com/GNOME/gtk/graphs/contributors
 # 2.24.33 21855 @2020.12.21
 # 2.24.32 21775 @2018.1.9
 
-# err mark1:
-# /usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libmount.a(libcommon_la-strutils.o): in function 'strnappend':
-# strutils.c:(.text+0x1542): multiple definition of 'strnappend'; CMakeFiles/tint2.dir/src/battery/battery.c.o:battery.c:(.text+0x1d0): first defined here
 
 # bash-5.1# bash /src/v-tint2/build.sh b_deps
 本操作从2023年12月22日15:34:30 开始 , 到2023年12月22日15:45:41 结束,  共历时671秒
@@ -1212,7 +1234,7 @@ gtk, finished.
 /usr/lib/libpangoxft-1.0.a
 
 
-
+##tint2:make>>依旧static link of dynamic object>>移走so######################################
 # err link: 老样子
 bash-5.1# pwd
 /mnt2/_misc2-2/tint2/build
@@ -1226,6 +1248,7 @@ make[2]: *** [CMakeFiles/tint2.dir/build.make:739: tint2] Error 1
 make[1]: *** [CMakeFiles/Makefile2:150: CMakeFiles/tint2.dir/all] Error 2
 make: *** [Makefile:136: all] Error 2
 
+# 找出依赖的so文件列表;
 bash-5.1# make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g"
 /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libXcomposite.so
 ..
@@ -1238,8 +1261,15 @@ bash-5.1# make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g
    66  mv /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libmd.so /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libmd.so-ex
    67  mv /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libc.so /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libc.so-ex
 # bash-5.1# make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
+```
 
+- try42c: **strnappend改方法名**, tint2过了: `重名方法改名:multiple definition of 'strnappend'; >> tint2过了`; tint2conf err(转下份文档)
 
+```bash
+##tint2:make代码错误######################################
+# err mark1:
+# /usr/bin/x86_64-alpine-linux-musl-ld: /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../libmount.a(libcommon_la-strutils.o): in function 'strnappend':
+# strutils.c:(.text+0x1542): multiple definition of 'strnappend'; CMakeFiles/tint2.dir/src/battery/battery.c.o:battery.c:(.text+0x1d0): first defined here
 
 # make>>  multiple definition of 'strnappend'
 bash-5.1# make 2>&1 #|grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
@@ -1289,7 +1319,7 @@ char *strnappend02(char *dest, const char *addendum, size_t limit)
             strnappend02(dest, buf, BATTERY_BUF_SIZE);
 
 
-# 重名方法改名>> tint2过了tint2conf err:
+# 重名方法改名>> tint2过了, tint2conf err(转下份文档):
 /usr/bin/x86_64-alpine-linux-musl-ld: /mnt2/_deps/_tint/librsvg/rsvg-styles.c:1111: undefined reference to 'cr_term_to_string'
 ...
 XrrMonitor.c:(.text+0x4a7): undefined reference to 'XMissingExtension'
