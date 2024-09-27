@@ -203,15 +203,16 @@ function tint2(){
     
     mkdir -p build; cd build
       # message( FATAL_ERROR "Imlib is not (跳过错误: Imlib not with X11)
+      #   96:  #message( FATAL_ERROR "Imlib is not built with X support" )
       test -s ../CMakeLists.txt-bk0 || cat ../CMakeLists.txt > ../CMakeLists.txt-bk0
       sed -i 's/^  message( FATAL_ERROR "Imlib is not/  #message( FATAL_ERROR "Imlib is not/g' ../CMakeLists.txt
       
 
       ###CMAKE alter###################
-      # https://www.codenong.com/40618443/
+      # https://www.codenong.com/40618443/ #关于linux：使用CMAKE编译静态可执行文件
       # SET(CMAKE_FIND_LIBRARY_SUFFIXES".a")
       # SET(BUILD_SHARED_LIBRARIES OFF)
-      # SET(CMAKE_EXE_LINKER_FLAGS"-static")
+      # SET(CMAKE_EXE_LINKER_FLAGS "-static")
       # # 
       # 将其添加到find命令上方的CMakeLists.txt中：
       # set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -225,6 +226,7 @@ function tint2(){
       # set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
       # set(BUILD_SHARED_LIBRARIES OFF)
       # desc sort;
+      sed -i '2a SET(CMAKE_EXE_LINKER_FLAGS "-static")' ../CMakeLists.txt
       sed -i '2a set(BUILD_SHARED_LIBRARIES OFF)' ../CMakeLists.txt
       sed -i '2a set(CMAKE_FIND_LIBRARY_SUFFIXES .a)' ../CMakeLists.txt
       # Configure will be re-run and you may have to reset some variables. ##re-run loop..
@@ -254,15 +256,28 @@ function tint2(){
     cmake .. --install-prefix=$TARGETPATH
 
     # make
+      # b1d491eb5ac5:/tmp/tint2/build# cat Makefile  |wc
+      #   1450      4108     48291
       # 重名方法改名 strnappend02;
       sed -i "s/strnappend/strnappend02/g" ../src/battery/battery.c 
       cat ../src/battery/battery.c |grep strnappend
       
       log "Compiling TINT2..."
       # 清动态库
-      make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
+      # make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
+#       ############### 改用ldd手动检查>> 改xx-ex
+#       # ldd tint2 |sort  |grep -v ld-linux |awk '{print $1}' |sed "s/\.so.*/\.so/g" |tr "\n" "|"
+#       match1="libX11-xcb.so|libX11.so|libXau.so|libXdmcp.so|libXext.so|libXrender.so|libbsd.so|libcroco-0.6.so|libfr
+# eetype.so|libglib-2.0.so|libintl.so|libmd.so|libpcre.so|libpixman-1.so|libpng16.so|libxcb-shm.so|libxcb.so|libz.so"
+#       # find /usr/lib /usr/local/lib -type f |egrep "$match1"
+#       find /usr/lib /usr/local/lib -type f |egrep "$match1" |while read one; do echo $one; mv $one ${one}-ex; done
+#       # ex-revert: libbrotlicommon.so|libbrotlidec.so|liblzma.so|libbz2.so|libxml2.so
+#       find /usr/lib /usr/local/lib -type f |egrep "\-ex$" |egrep "libbrotlicommon.so|libbrotlidec.so|liblzma.so|libbz2.so|libxml2.so" |while read one; do echo $one; dst=$(echo $one |sed "s/\-ex//g"); mv $one $dst; done
+
       # make
       make
+      # find /usr/lib /usr/local/lib -type f |egrep "\-ex$"
+
       log "Install TINT2..."
       make install; # >> TODO prefix
       # 改回
@@ -299,6 +314,7 @@ b_deps)
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort 
+    find /usr/local/lib |egrep "librsvg|libXi|libcroco" |grep "\.a$" |sort
     ;;
 *) #compile
     oneBuild $1
