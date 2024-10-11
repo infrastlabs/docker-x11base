@@ -124,16 +124,17 @@ FROM alpine:3.13.12 AS files2
     dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
     mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/;
   
-  RUN echo a.121; \
-    dst=/rootfs/usr/local/static/.dotfiles; \
-    mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
-    exit 0; 
-  # 
   COPY src/*.sh /rootfs/
   # ADD src/dot /rootfs/etc/skel
   # ADD src/bin /rootfs/usr/bin
   ADD src/etc /rootfs/etc
   RUN chmod +x /rootfs/*.sh;
+  # DO: build-arg NOCACHE=$rand.time
+  ARG NOCACHE
+  RUN echo "NOCACHE=${NOCACHE}"; \
+    dst=/rootfs/usr/local/static/.dotfiles; \
+    mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
+    exit 0; 
 
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
