@@ -4,7 +4,8 @@ ARG VER=3.19
 FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 
 # 20.04> 24.04: betterThemeView
-FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
+# TODO: FROM --platform=linux/amd64
+FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
 FROM scratch AS res
   COPY --from=ubt /usr/share/themes/Greybird /usr/share/themes/Greybird
   COPY --from=ubt /usr/share/themes/Greybird-compact /usr/share/themes/Greybird-compact
@@ -49,13 +50,16 @@ RUN domain="mirrors.tuna.tsinghua.edu.cn"; \
 # dig: bind-tools; netstat:net-tools; 
 # alpine.gzip: by tinylog
 # xterm :/usr/share/applications/{xterm,uxterm}
+# 3.8_none: iputils-ping iproute2-ss 
 RUN apk add --no-cache \
   ca-certificates tzdata curl wget gzip \
   sed grep gawk findutils sudo tree unzip procps htop \
   expect shadow bash bash-completion coreutils busybox-extras \
   \
-  lftp jq sysstat lame iputils-ping iproute2-ss net-tools; \
-  chmod u+s /bin/ping;
+  lftp jq sysstat lame net-tools; \
+  test "3.8" != "${VER}" && apk add --no-cache iputils-ping iproute2-ss; \
+  test "3.8" != "${VER}" && chmod u+s /bin/ping; \
+  exit 0;
   # \
   # dropbear openssh-sftp-server openssh-client \
   # libevent ncurses openssl bind-tools
@@ -63,18 +67,23 @@ RUN apk add --no-cache \
 ##APP################################################
 # font-wqy-zenhei@edge
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apk add --no-cache firefox 
+  test "3.8" != "${VER}" && apk add --no-cache firefox; \
+  exit 0;
 
 # locales dconf-cli gtk2-engines-pixbuf x11-xkb-utils
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+# xrdb: font; apk add --no-cache xrdb  	musl-locales; 
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall; \
   apk add --no-cache \
-  tzdata  binutils  dbus-x11 at-spi2-core    xdg-utils
+  tzdata  binutils  dbus-x11 at-spi2-core    xdg-utils xrdb; \
+  test "3.8" != "${VER}" && apk add --no-cache musl-locales; \
+  exit 0;
 
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apk add --no-cache \
   git \
-  pavucontrol \
-  thunar geany ristretto gnome-system-monitor
+  thunar geany ristretto ;\
+  test "3.8" != "${VER}" && apk add --no-cache pavucontrol gnome-system-monitor; \
+  exit 0;
 
 # # flameshot-lib-err; engrampa-mate-deskDeps; ibus-tray-err;
 # # pnmixer/clipit-segfault-err; lxapperance-func-err; 
@@ -91,22 +100,28 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # lxtask: none
 # sakura #@3.19
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apk add --no-cache \
-  sakura rofi clipit pnmixer lxappearance
+  test "3.8" != "${VER}" && apk add --no-cache sakura rofi clipit pnmixer lxappearance; \
+  exit 0;
 
 # XFCE4
   # plank #none
   # rofi clipit pnmixer lxappearance \ #@3.19
   # thunar tint2
   # xfdesktop4 > xfdesktop @alpine3.19
+  # v3.8: xfwm4 (4.12.4-r1)
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apk add --no-cache \
   # 2536 kB #18.9 MB > 14.3 MB
+  apk add --no-cache \
   xfwm4 xfdesktop \
   xfce4-notifyd xfce4-settings xfce4-session
 
-# xrdb font;
-RUN apk add --no-cache xrdb  	musl-locales; 
+# lxde
+# v3.8: pcmanfm (1.2.5-r2)
+# 3.8_none: lxappearance lxtask
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  # 2536 kB #18.9 MB > 14.3 MB
+  apk add --no-cache \
+  pcmanfm leafpad mousepad
 
 # HEADLESS
 COPY --from=rootfs /rootfs/files1 /

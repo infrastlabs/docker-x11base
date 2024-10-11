@@ -27,6 +27,7 @@ RUN echo "Acquire {\n\
 }" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   case ${VER} in \
+    "18.04")  V2=bionic  ;; \
     "20.04")  V2=focal   ;; \
     "22.04")  V2=jammy   ;; \
     "24.04")  V2=noble   ;; \
@@ -188,12 +189,13 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   
 # gparted
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh thunar dunst clipit pnmixer plank lxappearance \
+  apt.sh thunar dunst clipit pnmixer plank \
+  pcmanfm lxappearance \
   # misc2
   sakura geany ristretto engrampa gnome-system-monitor; \
   \
   # link: sakura, thunar
-  ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
+  # ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
   mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st;
 
   # # wps: libxss1
@@ -222,7 +224,7 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 
 # xrdb
 RUN \
-  apt.sh x11-xserver-utils
+  apt.sh x11-xserver-utils leafpad mousepad
 
 # 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
