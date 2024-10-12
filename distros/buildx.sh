@@ -34,7 +34,12 @@ function doBuildx(){
     test "$plat" != "$PLAT0" && img="${img}-dbg"
     test "$plat" != "$PLAT0" && cimg="${cimg}-dbg"
     test "fedora" == "$dist" && plat="--platform linux/amd64,linux/arm64" # alma/fedora:无armv7
-    echo "plat=$plat"
+    test "opensuse|15.0" == "$dist|$dver" && plat="--platform linux/amd64,linux/arm64" #opensuse_15.0 none_armv7
+    # 3.0> 3.1: none_3.0_img@dockerhub
+    test "alpine|3.1" == "$dist|$dver" && plat="--platform linux/amd64" #none: arm64,armv7
+    test "alpine|3.2" == "$dist|$dver" && plat="--platform linux/amd64" #none: arm64,armv7
+    test "alpine|3.5" == "$dist|$dver" && plat="--platform linux/amd64" #alpine_3.5: x64,arm64 ##,linux/arm64 (apk.REPO有arm64,hub.img无arm64的)
+    echo "[$dist|$dver] >>> plat=$plat"
 
     # 提前pull,转换tag格式
     # https://github.com/openwrt/docker/pkgs/container/rootfs/versions?filters%5Bversion_type%5D=tagged
