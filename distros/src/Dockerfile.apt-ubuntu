@@ -27,6 +27,8 @@ RUN echo "Acquire {\n\
 }" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   case ${VER} in \
+    "14.04")  V2=trusty  ;; \
+    "16.04")  V2=xenial  ;; \
     "18.04")  V2=bionic  ;; \
     "20.04")  V2=focal   ;; \
     "22.04")  V2=jammy   ;; \
@@ -35,6 +37,7 @@ RUN export DOMAIN="mirrors.ustc.edu.cn"; \
   test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
   echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
   && echo "deb http://${DOMAIN}/$target ${V2}-updates main restricted universe multiverse">> /etc/apt/sources.list; \
+  rm -f /etc/apt/sources.list.d/*; \
     \
   # default:echo -e;
   echo "path-exclude /usr/share/doc/*\n\
@@ -48,7 +51,8 @@ path-exclude /usr/share/lintian/*\n\
   cat /etc/dpkg/dpkg.cfg.d/excludes; \
   rm -rf /usr/share/locale/* ; \
   \
-  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
+  # ubt14.04: err apt clean; E: Invalid operation clean
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean; rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
     && chmod +x /usr/local/bin/apt.sh; 
 
 # MISC 15.1 MB
@@ -65,38 +69,20 @@ RUN \
   openssh-sftp-server lftp jq \
   lame
 
+  
+# xrdb; +leafpad mousepad@app
+RUN \
+  apt.sh x11-xserver-utils leafpad ; \
+  exit 0
+
 
 ##APP################################################
 # img: 362MB> 444MB (none-font); after mv-top: 610MB> 546MB
-# FONT, THEME, ICON
-# font-ttf: @win:msyh.zip> fonts-wqy-microhei
-# papirus-icon-theme
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh \
-  fonts-wqy-microhei language-pack-gnome-zh-hans \
-  \
-  papirus-icon-theme greybird-gtk-theme; \
-  rm -f /usr/share/backgrounds/greybird.svg; \
-  \
-  # 清理ubt自带图标, keep项: hicolor 
-  # locolor gnome bloom
-  cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
-  \
-  wget https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
-  dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
-  cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
-  \
-  # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
-  cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
-  ls -lh /usr/share/icons/Papirus; \
-  \
-  dpkg -l |grep bunsen && exit 0 || exit 1;
-
 # MESA-LLVM img: 362MB> 398MB
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\  
   # VIDEO: 30.5 MB
   # libllvm12 已包含 # libgl1-mesa-glx >libgl1-mesa-dri ##ex:  mesa-utils 
-  apt.sh libgl1-mesa-glx libglu1-mesa \
+  apt.sh libgl1-mesa-glx libglu1-mesa; \
   \
   # LLVM(定制版这里删调它,除gnome,cinna其它de无影响); clear big lib: 88M (qt: flameshot,sogoupinyin) > img: -27M
   rm -f /usr/lib/x86_64-linux-gnu/libLLVM-12.so.1; \
@@ -119,7 +105,9 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   libfreetype6 libcups2 libglib2.0-0 libglu1-mesa libsm6 libxrender1 libfontconfig1 libxext6 libxcb1 \
 # vscode 1.88.1 ##libgtk-3-0: 16M; img: 362MB> 398MB > 475MB
 # RUN apt.sh \
-  libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1; \
+  # err: ubt1604
+  exit 0
 
 # img: 362MB> 398MB > 433MB
 # LOC 87.4 MB
@@ -130,7 +118,8 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apt.sh tzdata locales binutils dconf-cli \
   dbus-x11 at-spi2-core gtk2-engines-pixbuf \
   # 343 kB
-  apt-utils x11-xkb-utils xdg-utils 
+  apt-utils x11-xkb-utils xdg-utils; \
+  exit 0
 
   # AUD img: 546MB[239M]> 560MB
   # INPUT img: 546MB[239M]> 658MB[252M]
@@ -140,7 +129,8 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
     pavucontrol \
     \
     # \12.3 MB (默认不含输入法: IBus/Fcitx)
-    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi
+    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi; \
+    exit 0
 
   # # 2868 kB #fcitx ##img:78.095 MB
   # # 15.3 kB #输入法依赖 https://shurufa.sogou.com/linux/guide
@@ -153,8 +143,11 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   #   libqt5qml5 libqt5quick5 libqt5quickwidgets5 qml-module-qtquick2 libgsettings-qt1
 
 
-  # MISC2 arandr 
+  # MISC2 arandr
+  # flameshot: none@1604,1404 
   RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    test "14.04" == "${VER}" && exit 0; \
+    test "16.04" == "${VER}" && exit 0; \
     apt.sh \
     # tumbler gnupg \
     # # \20.5 MB
@@ -171,7 +164,8 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
     apt.sh \
     # 2536 kB #18.9 MB > 14.3 MB
     xfwm4 xfdesktop4 \
-    xfce4-notifyd xfce4-settings xfce4-session
+    xfce4-notifyd xfce4-settings xfce4-session; \
+    exit 0
 
 
     
@@ -188,15 +182,19 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   #   xinit xterm systemd systemd-sysv;
   
 # gparted
+# ubt14.04_none: pnmixer plank engrampa
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh thunar dunst clipit pnmixer plank \
+  apt.sh thunar dunst clipit \
   pcmanfm lxappearance \
+  sakura geany ristretto gnome-system-monitor; \
   # misc2
-  sakura geany ristretto engrampa gnome-system-monitor; \
   \
   # link: sakura, thunar
   # ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
-  mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st;
+  mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st; \
+  test "14.04" == "${VER}" && exit 0; \
+  apt.sh pnmixer plank engrampa; \
+  exit 0
 
   # # wps: libxss1
   # # Xvnc-compile: libunwind8 libxfont2
@@ -219,12 +217,43 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # git ohmybash # \12.6 MB
 # firefox: ubt2204+>> @snap: snap install firefox
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh git;
+  apt.sh git mousepad; \
+  exit 0
 
 
-# xrdb
-RUN \
-  apt.sh x11-xserver-utils leafpad mousepad
+# FONT, THEME, ICON
+# font-ttf: @win:msyh.zip> fonts-wqy-microhei
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  apt.sh \
+  greybird-gtk-theme \
+  fonts-wqy-microhei language-pack-gnome-zh-hans; \
+  \
+  rm -f /usr/share/backgrounds/greybird.svg;
+
+# split papirus-icon-theme: none@1604,1404
+# bunsen-papirus-icon-theme> papirus-icon-theme; ERR: 14.04 16.04 1804?
+RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  test "14.04" == "${VER}" && exit 0; \
+  test "16.04" == "${VER}" && exit 0; \
+  test "18.04" == "${VER}" && exit 0; \
+  echo a.123; \
+  apt.sh \
+  papirus-icon-theme; \
+  \
+  # 清理ubt自带图标, keep项: hicolor 
+  # locolor gnome bloom
+  cd /usr/share/icons && rm -rf Humanity* ubuntu-mono* LoginIcons Tango; \
+  \
+  wget https://gitee.com/infrastlabs/docker-headless/raw/dev/_doc/assets/bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  dpkg -i bunsen-papirus-icon-theme_10.3-2_all.deb; rm -f bunsen-papirus-icon-theme_10.3-2_all.deb; \
+  cd /usr/share/icons && rm -rf Papirus-Bunsen-Dark-bluegrey Papirus-Bunsen-Dark-grey Papirus-Dark Papirus-Light ePapirus; \
+  \
+  # Papirus left: 16x(clipit:21M) 64x(desktop:21M)
+  cd /usr/share/icons/Papirus && rm -rf 18x* 22x* 24x* 32x*  48x* 64x* ; \
+  ls -lh /usr/share/icons/Papirus; \
+  \
+  dpkg -l |grep bunsen && exit 0 || exit 1;
+
 
 # 拆分包体与配置项两块，免频繁变动基础包
 # HEADLESS
