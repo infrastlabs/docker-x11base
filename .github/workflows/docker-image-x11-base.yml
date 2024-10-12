@@ -79,13 +79,20 @@ jobs:
           # 
           echo distros; cd ../distros;
             # bash buildx.sh type dist ver [latest]
+            # bash buildx.sh core alpine 3.1 & ##
+            # bash buildx.sh core alpine 3.2 & ##
+            bash buildx.sh core alpine 3.5 & ##
             # bash buildx.sh core alpine 3.8 & ##
+            bash buildx.sh core alpine 3.10 & ##
+            # bash buildx.sh core alpine 3.13 & ##
             # bash buildx.sh core alpine 3.19 latest &
-            # bash buildx.sh core ubuntu 18.04 & ##
-            # bash buildx.sh core ubuntu 20.04 &
-            # bash buildx.sh core ubuntu 22.04 &
-            # bash buildx.sh core ubuntu 24.04 latest &
-            bash buildx.sh core opensuse 15.0 &
+            bash buildx.sh core ubuntu 14.04 & ##
+            bash buildx.sh core ubuntu 16.04 & ##
+            bash buildx.sh core ubuntu 18.04 & ##
+            bash buildx.sh core ubuntu 20.04 &
+            bash buildx.sh core ubuntu 22.04 &
+            bash buildx.sh core ubuntu 24.04 latest &
+            # bash buildx.sh core opensuse 15.0 & ##
             # bash buildx.sh core opensuse 15.5 latest &
             # # oth
             # bash buildx.sh core busybox 1.36.1 latest &
@@ -94,13 +101,20 @@ jobs:
             # bash buildx.sh core fedora 39 latest &
             wait
             # app
+            # bash buildx.sh app alpine 3.1 & ##
+            # bash buildx.sh app alpine 3.2 & ##
+            bash buildx.sh app alpine 3.5 & ##
             # bash buildx.sh app alpine 3.8 & ##
+            bash buildx.sh app alpine 3.10 & ##
+            # bash buildx.sh app alpine 3.13 & ##
             # bash buildx.sh app alpine 3.19 latest &
-            # bash buildx.sh app ubuntu 18.04 & ##
-            # bash buildx.sh app ubuntu 20.04 &
-            # bash buildx.sh app ubuntu 22.04 &
+            bash buildx.sh app ubuntu 14.04 & ##
+            bash buildx.sh app ubuntu 16.04 & ##
+            bash buildx.sh app ubuntu 18.04 & ##
+            bash buildx.sh app ubuntu 20.04 &
+            bash buildx.sh app ubuntu 22.04 &
             # bash buildx.sh app ubuntu 24.04 latest &
-            bash buildx.sh app opensuse 15.0 &
+            # bash buildx.sh app opensuse 15.0 & ##
             # bash buildx.sh app opensuse 15.5 latest &
             wait
             # 
@@ -109,7 +123,7 @@ jobs:
           # 同步到ali仓
           #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
           unset REPO_ALI REPO_TEN REPO_QING #skipSync; QINGCLOUD.REPO net failed
-          echo syncer; doSync=true
+          echo syncer; doSync=false
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # view timecost
