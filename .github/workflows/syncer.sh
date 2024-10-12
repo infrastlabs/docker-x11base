@@ -61,9 +61,14 @@ $src/infrastlabs/x11-base:core-busybox: $dst/infrastlabs/x11-base:core-busybox #
 $src/infrastlabs/x11-base:core-openwrt: $dst/infrastlabs/x11-base:core-openwrt
 $src/infrastlabs/x11-base:core-debian: $dst/infrastlabs/x11-base:core-debian
 $src/infrastlabs/x11-base:core-fedora: $dst/infrastlabs/x11-base:core-fedora
-# 
+#
+$src/infrastlabs/x11-base:core-alpine-3.1: $dst/infrastlabs/x11-base:core-alpine-3.1
+$src/infrastlabs/x11-base:core-alpine-3.2: $dst/infrastlabs/x11-base:core-alpine-3.2 
 $src/infrastlabs/x11-base:core-alpine-3.8: $dst/infrastlabs/x11-base:core-alpine-3.8
+$src/infrastlabs/x11-base:core-alpine-3.13: $dst/infrastlabs/x11-base:core-alpine-3.13
 $src/infrastlabs/x11-base:core-alpine-3.19: $dst/infrastlabs/x11-base:core-alpine-3.19
+$src/infrastlabs/x11-base:core-ubuntu-14.04: $dst/infrastlabs/x11-base:core-ubuntu-14.04
+$src/infrastlabs/x11-base:core-ubuntu-16.04: $dst/infrastlabs/x11-base:core-ubuntu-16.04
 $src/infrastlabs/x11-base:core-ubuntu-18.04: $dst/infrastlabs/x11-base:core-ubuntu-18.04
 $src/infrastlabs/x11-base:core-ubuntu-20.04: $dst/infrastlabs/x11-base:core-ubuntu-20.04
 $src/infrastlabs/x11-base:core-ubuntu-22.04: $dst/infrastlabs/x11-base:core-ubuntu-22.04
@@ -74,8 +79,13 @@ $src/infrastlabs/x11-base:core-opensuse-15.5: $dst/infrastlabs/x11-base:core-ope
 $src/infrastlabs/x11-base:app-alpine: $dst/infrastlabs/x11-base:app-alpine
 $src/infrastlabs/x11-base:app-ubuntu: $dst/infrastlabs/x11-base:app-ubuntu
 $src/infrastlabs/x11-base:app-opensuse: $dst/infrastlabs/x11-base:app-opensuse
+$src/infrastlabs/x11-base:app-alpine-3.1: $dst/infrastlabs/x11-base:app-alpine-3.1
+$src/infrastlabs/x11-base:app-alpine-3.2: $dst/infrastlabs/x11-base:app-alpine-3.2
 $src/infrastlabs/x11-base:app-alpine-3.8: $dst/infrastlabs/x11-base:app-alpine-3.8
+$src/infrastlabs/x11-base:app-alpine-3.13: $dst/infrastlabs/x11-base:app-alpine-3.13
 $src/infrastlabs/x11-base:app-alpine-3.19: $dst/infrastlabs/x11-base:app-alpine-3.19
+$src/infrastlabs/x11-base:app-ubuntu-14.04: $dst/infrastlabs/x11-base:app-ubuntu-14.04
+$src/infrastlabs/x11-base:app-ubuntu-16.04: $dst/infrastlabs/x11-base:app-ubuntu-16.04
 $src/infrastlabs/x11-base:app-ubuntu-18.04: $dst/infrastlabs/x11-base:app-ubuntu-18.04
 $src/infrastlabs/x11-base:app-ubuntu-20.04: $dst/infrastlabs/x11-base:app-ubuntu-20.04
 $src/infrastlabs/x11-base:app-ubuntu-22.04: $dst/infrastlabs/x11-base:app-ubuntu-22.04
