@@ -7,13 +7,18 @@ alpine-compile
 
 Tag | origin |core |app |Star 
 ---  | ---  | --- | --- | --- 
-core-alpine-3.8 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.8) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.8)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.8)|★★★★★
+core-alpine-3.1 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.1) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.1)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.1)|★★★★☆(-armv7)
+core-alpine-3.2 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.2) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.2)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.2)|★★★★☆(-armv7)
+core-alpine-3.8 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.8) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.8)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.8)|★★★★☆(-firefox)
+core-alpine-3.13 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.13) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.13)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.13)|★★★★★
 core-alpine-3.19 | ![pic](https://img.shields.io/docker/image-size/library/alpine/3.19) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-alpine-3.19)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-alpine-3.19)|★★★★★
+core-ubuntu-14.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/14.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-14.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-14.04)|★★★★★
+core-ubuntu-16.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/16.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-16.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-16.04)|★★★★★
 core-ubuntu-18.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/18.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-18.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-18.04)|★★★★★
 core-ubuntu-20.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/20.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-20.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-20.04)|★★★★★
-core-ubuntu-22.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/22.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-22.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-22.04)|★★★★☆
-core-ubuntu-24.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/24.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-24.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-24.04)|★★★★☆
-core-opensuse-15.0 | ![pic](https://img.shields.io/docker/image-size/opensuse/leap/15.0) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-opensuse-15.0)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-opensuse-15.0)|★★★★★
+core-ubuntu-22.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/22.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-22.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-22.04)|★★★★★
+core-ubuntu-24.04 | ![pic](https://img.shields.io/docker/image-size/library/ubuntu/24.04) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-ubuntu-24.04)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-ubuntu-24.04)|★★★★★
+core-opensuse-15.0 | ![pic](https://img.shields.io/docker/image-size/opensuse/leap/15.0) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-opensuse-15.0)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-opensuse-15.0)|★★★★☆(-armv7)
 core-opensuse-15.5 | ![pic](https://img.shields.io/docker/image-size/opensuse/leap/15.5) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-opensuse-15.5)| ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/app-opensuse-15.5)|★★★★★
 ---  | ---  | --- | --- | --- 
 core-busybox `1.36.1` | ![pic](https://img.shields.io/docker/image-size/library/busybox/1.36.1) | ![pic](https://img.shields.io/docker/image-size/infrastlabs/x11-base/core-busybox)|-| ★★★★☆
@@ -23,9 +28,9 @@ core-fedora `39` | ![pic](https://img.shields.io/docker/image-size/library/fedor
 
 ## 1) Alpine
 
-- https://distrowatch.com/table.php?distribution=alpine `4.12.4@alpine_3.8`
-- https://distrowatch.com/table.php?distribution=xubuntu `4.12.3@xbt_18.04`
-- https://distrowatch.com/table.php?distribution=opensuse `4.12.4@opsuse_15.0`
+- https://distrowatch.com/table.php?distribution=alpine `4.12.4@alpine_3.8` https://www.alpinelinux.org/releases/
+- https://distrowatch.com/table.php?distribution=xubuntu `4.12.3@xbt_18.04` https://ubuntu.com/about/release-cycle 
+- https://distrowatch.com/table.php?distribution=opensuse `4.12.4@opsuse_15.0` https://en.opensuse.org/Lifetime
 
 `Compile> bins> conf`
 
@@ -117,7 +122,7 @@ desktop: mate, gnome, plasma #DE, Server/Experience
 ```bash
 box:  fluxbox/openbox, suckless/chadwm/bspwm, .dots
 apps: vscode, wps, firefox/chrome, asbru (pavucontrol, xf-display-settings)
-misc: st, xlunch, tint2, jgmenu, rofi, geany (sakura, plank, engrammpa)
+misc: st, xlunch, tint2, jgmenu, rofi, geany (sakura, plank, engrampa)
 lxde: pcmanfm, lxtask, lxappearance, gpicview (dbus, err)
 xfce: thunar, xfwm4, xfdesktop, xfce4-settings, ristretto, mousepad (4.12-gtk224)
 # server/device
@@ -192,6 +197,7 @@ SAKURA_2_3_7 315 @2010.3.4
 - ~~tinc~~ https://github.com/gsliepen/tinc/graphs/contributors `2000年3月26日+`
 - ~~lrzsz~~ https://github.com/UweOhse/lrzsz/graphs/contributors `2020年3月1日+; jnavila/lrzsz:2013年2月17日+`
 - ~~su-exec~~ https://github.com/ncopa/su-exec/graphs/contributors `2015年12月6日+`
+- aria2c https://github.com/aria2/aria2/graphs/contributors `2006年2月12日+; cpp`
 - [**x11**]
 - ~~dropbear~~ https://github.com/mkj/dropbear/graphs/contributors `1,914 commits; May 30, 2004+`
 - ~~xrdp~~ https://github.com/neutrinolabs/xrdp/graphs/contributors `4,522 commits; Oct 2, 2010+ ff:Jul 4, 2004+`
@@ -208,10 +214,20 @@ SAKURA_2_3_7 315 @2010.3.4
 - ~~perp~~ http://b0llix.net/perp/ https://github.com/infrastlabs/fk-perp/graphs/contributors `2010年1月10日+; perp-2.04> perp-2.07.tar.gz@2013.01.11`
 - tmux https://github.com/tmux/tmux/graphs/contributors `2007年7月8日+`
 - ~~fontconfig~~ https://github.com/behdad/fontconfig/graphs/contributors `Feb 10, 2002 – Nov 13, 2018`; just `fontconfig-dev(with static); +hand:/usr/share/fonts/xx`
+- xbindkeys https://github.com/IonicaBizau/xbindkeys/graphs/contributors `2009年5月17日+; c`
+- xrandr https://github.com/raboof/xrandr/graphs/contributors `2003年11月9日; c |ARandR:py`;
 - ~~xcompmgr~~, picom, compton https://github.com/invisikey/xcompmgr `Nov 9, 2003 – May 16, 2015` `github:rnz/xcompmgr`
   - git://anongit.freedesktop.org/git/xorg/app/xcompmgr
   - https://github.com/yshui/picom/graphs/contributors `Nov 9, 2003 – Nov 6, 2023`
   - https://github.com/chjj/compton/graphs/contributors `Nov 9, 2003 – Jun 5, 2017`
+- ibus
+  - https://github.com/rime/ibus-rime/graphs/contributors `2011年10月2日+; c`
+  - https://github.com/phuang/ibus/graphs/contributors `2008年5月11日; c/py`
+  - https://github.com/phuang/ibus-pinyin/graphs/contributors `2008年6月29日+; c/cpp/py`
+- fcitx
+  - https://github.com/fcitx/fcitx5/graphs/contributors `2015年12月20日+; cpp`
+  - https://github.com/fcitx/fcitx/graphs/contributors `2004年1月25日+; c`
+  - https://github.com/fcitx/fcitx-rime/graphs/contributors `2012年4月22日+' c`
 - [**lxde**]
 - ~~lxtask~~ https://github.com/lxde/lxtask/graphs/contributors `Apr 20, 2008`
 - ~~lxappearance~~ https://github.com/lxde/lxappearance/graphs/contributors `Mar 23, 2008+`
@@ -231,6 +247,17 @@ SAKURA_2_3_7 315 @2010.3.4
 - ~rofi~ https://github.com/davatorium/rofi/graphs/contributors `Jun 24, 2012+` `xcb-ewmh/icccm/cursor`
 - ~~xlunch~~ https://github.com/Tomas-M/xlunch/graphs/contributors `Dec 4, 2016`
 - gimp https://github.com/GNOME/gimp/graphs/contributors `50969commits, Jan 18, 1998+`
+- parcellite https://github.com/rickyrockrat/parcellite/graphs/contributors `2008年8月10日+; c,perl`
+- deadbeef https://github.com/DeaDBeeF-Player/deadbeef/graphs/contributors `2009年6月28日+; c/cpp`
+- playerctl https://github.com/altdesktop/playerctl/graphs/contributors `2014年4月13日+; c`
+- conky https://github.com/brndnmtthws/conky/graphs/contributors `2005年7月17日+; cpp`
+  - theme https://github.com/zagortenay333/conky_themes/tree/master/conky_harmattan
+  - https://github.com/addy-dclxvi/conky-theme-collections
+- engrampa https://github.com/mate-desktop/engrampa/graphs/contributors `2011年5月22日+; c`
+  - xarchiver https://github.com/ib/xarchiver/graphs/contributors `2006年3月26日+; c`
+- flameshot https://github.com/flameshot-org/flameshot/graphs/contributors `2017年5月7日+; cpp`
+- scrot https://github.com/resurrecting-open-source-projects/scrot/graphs/contributors `2019年2月10日+; c`
+  - https://github.com/dreamer/scrot/graphs/contributors `2004年8月29日+; c`
 - geany https://github.com/geany/geany/graphs/contributors `Nov 20, 2005+`
   - mousepad https://github.com/xfce-mirror/mousepad/graphs/contributors `2005年3月6日+; 3.6k; c`
   - leafpad https://github.com/stevenhoneyman/l3afpad/graphs/contributors `2011年12月11日+; x78; c`
