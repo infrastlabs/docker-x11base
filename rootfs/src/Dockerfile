@@ -2,7 +2,7 @@ ARG REPO=
 ARG COMPILE_IMG=alpine-compile
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS bin2
 FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
-FROM alpine:3.13.12 AS files1
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/library-alpine:3.13.12 AS files1
   # files1: 三方文件, files2: src编译
   # xz-utils > xz
   ARG TARGETPLATFORM
@@ -82,7 +82,7 @@ FROM alpine:3.13.12 AS files1
   
 
 
-FROM alpine:3.13.12 AS files2
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/library-alpine:3.13.12 AS files2
   ARG TARGETPLATFORM
   RUN sed -i "s^dl-cdn.alpinelinux.org^mirrors.tuna.tsinghua.edu.cn^g" /etc/apk/repositories; \
     apk add bash curl wget git
@@ -138,7 +138,8 @@ FROM alpine:3.13.12 AS files2
 
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
-FROM alpine:3.13.12
+# FROM alpine:3.13.12
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/library-alpine:3.13.12
 # Set multiple labels at once, author,builtdate
 LABEL \
   github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
