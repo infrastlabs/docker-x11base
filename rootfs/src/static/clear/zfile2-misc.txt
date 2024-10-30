@@ -1,0 +1,37 @@
+# host-21-60:~ # docker run -it --rm registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:alpine-compile sh
+# /rootfs # find usr/local/static/misc -type f |sort
+/usr/local/static/misc/bin/lrb
+/usr/local/static/misc/bin/lrx
+# /usr/local/static/misc/bin/lrz
+/usr/local/static/misc/bin/lsb
+/usr/local/static/misc/bin/lsx
+# /usr/local/static/misc/bin/lsz
+# /usr/local/static/misc/bin/su-exec
+# /usr/local/static/misc/sbin/edge
+/usr/local/static/misc/sbin/n2n-benchmark
+# /usr/local/static/misc/sbin/supernode
+# /usr/local/static/misc/sbin/tincd
+/usr/local/static/misc/share/info/dir
+/usr/local/static/misc/share/info/tinc.info
+/usr/local/static/misc/share/locale/de/LC_MESSAGES/lrzsz.mo
+/usr/local/static/misc/share/man/man1/lrz.1
+/usr/local/static/misc/share/man/man1/lsz.1
+/usr/local/static/misc/share/man/man1/supernode.1.gz
+/usr/local/static/misc/share/man/man5/tinc.conf.5
+/usr/local/static/misc/share/man/man8/tincd.8
+
+
+# /rootfs # find usr/local/static/misc/ -type d |sort
+# usr/local/static/misc/
+# usr/local/static/misc/bin
+# usr/local/static/misc/sbin
+# usr/local/static/misc/share
+# usr/local/static/misc/share/info
+# usr/local/static/misc/share/locale
+# usr/local/static/misc/share/locale/de
+# usr/local/static/misc/share/locale/de/LC_MESSAGES
+# usr/local/static/misc/share/man
+# usr/local/static/misc/share/man/man1
+# usr/local/static/misc/share/man/man5
+# usr/local/static/misc/share/man/man8
+# usr/local/static/misc/share/man/{man1,man7,man8}
