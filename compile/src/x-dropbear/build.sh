@@ -9,8 +9,12 @@ function dropbear(){
   log "Downloading DROPBEAR..."
   rm -rf /tmp/dropbear; # mkdir -p /tmp/dropbear
   # down_catfile ${DROPBEAR_URL} | tar -zx --strip 1 -C /tmp/dropbear
-  # branch="--branch=$DROPBEAR_VER"
-  git clone --depth=1 $branch https://github.com/mkj/dropbear /tmp/dropbear #;
+  branch="--branch=DROPBEAR_2024.86"
+  # https://github.com/mkj/dropbear
+  #  master 2037
+  #  DROPBEAR_2024.86 2031
+  #  DROPBEAR_2022.83 1863
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-dropbear /tmp/dropbear #;
   log "Configuring DROPBEAR..."
   cd /tmp/dropbear #&& ./bootstrap;
   ./configure  --enable-static --prefix=$TARGETPATH
