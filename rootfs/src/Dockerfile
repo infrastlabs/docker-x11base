@@ -1,14 +1,13 @@
+ARG REPO=
+ARG COMPILE_IMG=alpine-compile
+
 # 20.04> 24.04: betterThemeView #TODO: FROM --platform=linux/amd64
 # 20.04[alpine_font_毛刺]  22.04[alpine_font_毛刺]  24.04 
 # FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
 FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---24.04 as ubt
-# ARG TARGETPLATFORM
-# ARG TYPE=app
-# ARG VER=24.04
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
-  # LOCALE_INCLUDE="en"
 RUN echo "Acquire {\n\
   APT::Get::Allow-Unauthenticated \"true\";\n\
   GPG::Ignore \"true\";\n\
@@ -16,16 +15,7 @@ RUN echo "Acquire {\n\
   AllowDowngradeToInsecureRepositories \"true\";\n\
 }" > /etc/apt/apt.conf.d/skip-gpg-check-ig;
 RUN export DOMAIN="mirrors.ustc.edu.cn"; \
-  # case ${VER} in \
-  #   "14.04")  V2=trusty  ;; \
-  #   "16.04")  V2=xenial  ;; \
-  #   "18.04")  V2=bionic  ;; \
-  #   "20.04")  V2=focal   ;; \
-  #   "22.04")  V2=jammy   ;; \
-  #   "24.04")  V2=noble   ;; \
-  # esac; \
   V2=noble; \
-  # test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
   target=ubuntu; \
   echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
   && echo "deb http://${DOMAIN}/$target ${V2}-updates main restricted universe multiverse">> /etc/apt/sources.list; \
@@ -49,7 +39,6 @@ path-exclude /usr/share/lintian/*\n\
 # FONT, THEME, ICON
 # font-ttf: @win:msyh.zip> fonts-wqy-microhei
 #  fonts-dejavu: fonts-dejavu-core fonts-dejavu-extra fonts-dejavu-mono
-# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 RUN apt.sh \
   curl wget tzdata locales \
   greybird-gtk-theme \
@@ -60,10 +49,6 @@ RUN apt.sh \
 
 # split papirus-icon-theme: none@1604,1404
 # bunsen-papirus-icon-theme> papirus-icon-theme; ERR: 14.04 16.04 1804?
-# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-#   test "14.04" == "${VER}" && exit 0; \
-#   test "16.04" == "${VER}" && exit 0; \
-#   test "18.04" == "${VER}" && exit 0; \
 RUN echo a.123; \
   apt.sh \
   papirus-icon-theme; \
@@ -95,7 +80,7 @@ FROM scratch AS res
   COPY --from=ubt /etc/fonts /etc/fonts
   # locale_ubt: /usr/sbin/locale-gen,update-locale; /etc/default/locale
   COPY --from=ubt /usr/share/locale /usr/share/locale
-  # COPY --from=ubt /usr/share/i18n /usr/share/i18n
+  COPY --from=ubt /usr/share/i18n /usr/share/i18n
   COPY --from=ubt /usr/sbin/locale-gen /usr/sbin/locale-gen
   COPY --from=ubt /usr/sbin/update-locale /usr/sbin/update-locale
   COPY --from=ubt /etc/locale.gen /etc/locale.gen
@@ -103,8 +88,9 @@ FROM scratch AS res
   #COPY --from=ubt /usr/share/
 
 
-ARG REPO=
-ARG COMPILE_IMG=alpine-compile
+##FROM.ARG: must @top
+# ARG REPO=
+# ARG COMPILE_IMG=alpine-compile
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS bin2
 FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12 AS files1
