@@ -174,8 +174,9 @@ fi
 # test -z "$START_SESSION" || sed -i "s/startfluxbox/$START_SESSION/g" /etc/perp/x$VNC_OFFSET-de/rc.main
 test -z "$START_SESSION" && export START_SESSION=startfluxbox
 
- #| grep -Ev '^(.*PASS.*|PWD|OLDPWD|HOME|USER|SHELL|TERM|([^=]*(PASSWORD|SECRET)[^=]*))=' \
-env \
+#| grep -Ev '^(.*PASS.*|PWD|OLDPWD|HOME|USER|SHELL|TERM|([^=]*(PASSWORD|SECRET)[^=]*))=' \
+ #   =/usr/local/static/3rd/bin/bash >> causeErr@ubt20: sudo: policy plugin failed session initialization
+env |sed 's/^[[:blank:]]*//' |grep -Ev "^=" \
  |grep -Ev '_PASS.*|^SHLVL|^HOSTNAME|^PWD|^OLDPWD|^HOME|^USER|^SHELL|^TERM' \
  |grep -Ev "LOC_|DEBIAN_FRONTEND|LOCALE_INCLUDE" | sort |$sudo tee /etc/environment > /dev/null 2>&1
 # source /.env
