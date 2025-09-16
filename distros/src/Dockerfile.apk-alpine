@@ -65,6 +65,13 @@ RUN apk add --no-cache \
   # dropbear openssh-sftp-server openssh-client \
   # libevent ncurses openssl bind-tools
 
+# librsvg: for icons, thunar for dbg
+RUN apk add --no-cache \
+  tzdata librsvg thunar; \
+  test "3.13" == "${VER}" && apk add --no-cache musl-locales; \
+  test "3.19" == "${VER}" && apk add --no-cache musl-locales; \
+  exit 0;
+
 ##APP################################################
 # font-wqy-zenhei@edge
 # v3.1: firefox (31.2.0-r1)
@@ -191,6 +198,41 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # RUN \
 #   apk add --no-cache gtk-murrine-engine; \
 #   exit 0;
+
+
+# sgerrand/alpine-pkg-glibc
+# https://github.com/ii6uu99/docker-alpine-with-locales/blob/master/Dockerfile
+RUN \
+  # apk --no-cache add ca-certificates wget; \
+  # export v=2.29-r0; \
+  export v=2.35-r1; \
+  export gh=https://ghfast.top/https://github.com; mkdir -p /etc/apk/keys; \
+  # retErr:1; /usr/glibc-compat/bin/localedef -i en_US -f UTF-8 en_US.UTF-8 #可用:ret0
+  wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub; \
+  wget $gh/sgerrand/alpine-pkg-glibc/releases/download/$v/glibc-$v.apk; \
+  wget $gh/sgerrand/alpine-pkg-glibc/releases/download/$v/glibc-bin-$v.apk; \
+  wget $gh/sgerrand/alpine-pkg-glibc/releases/download/$v/glibc-i18n-$v.apk; \
+  apk add --update --allow-untrusted glibc-bin-$v.apk glibc-i18n-$v.apk glibc-$v.apk; \
+  rm -f *.apk; \
+  # 
+  # ref fk-edgecore-indocker\imgs\env-ansible\Dockerfile.ansible-mitogen
+  #  @21.5.18 Alpine 3.12.4 with glibc 2.31-r0>>  glibc-2.31-r0-x86_64.apk  glibc-bin-2.31-r0-x86_64.apk  glibc-i18n-2.31-r0-x86_64.apk
+  #   /usr/glibc-compat/sbin/ldconfig: /usr/glibc-compat/lib/ld-linux-x86-64.so.2 is not a symbolic link
+  #   2 errors; 132 MiB in 161 packages
+  # arch=x86_64; test ! -z "$(uname -a |grep aarch64)" && arch=aarch64; \
+  # file=glibc-2.31-r0-$arch.apk; \
+  # curl -O -k -fSL $gh/SatoshiPortal/alpine-pkg-glibc/releases/download/2.31-r0/$file; \
+  # apk add $file --allow-untrusted; \
+  # rm -f $file;
+  exit 0;
+
+# RUN /usr/glibc-compat/bin/localedef -i en_US -f UTF-8 en_US.UTF-8 && \
+#     /usr/glibc-compat/bin/localedef -i pt_BR -f UTF-8 pt_BR.UTF-8
+# ENV LANG=pt_BR.UTF-8 \
+#     LANGUAGE=pt_BR.UTF-8 \
+#     LC_CTYPE=pt_BR.UTF-8 \
+#     LC_NUMERIC=pt_BR.UTF-8
+
 
 # HEADLESS
 COPY --from=rootfs /rootfs/res_ubt_share /

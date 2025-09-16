@@ -1,0 +1,70 @@
+ARG REPO=
+# ARG VER=39
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+# FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:void-linux--void-glibc-busybox---latest
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:void-linux--void-glibc-full---latest
+RUN \
+  # https://mirrors.tuna.tsinghua.edu.cn/help/voidlinux/
+  mkdir -p /etc/xbps.d; \
+  cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/; \
+  sed -i 's|https://repo-default.voidlinux.org|https://mirrors.tuna.tsinghua.edu.cn/voidlinux|g' /etc/xbps.d/*-repository-*.conf; \
+  # link yum
+  echo -e '#!/bin/sh\n\nxbps-install -Syu $@ && echo yum clean all; ' > /usr/local/bin/xbp.sh \
+    && chmod +x /usr/local/bin/xbp.sh; \
+  \
+  # missing: iproute openssl procps 
+  xbp.sh net-tools \
+  sudo psmisc sysstat tree tmux lrzsz which wget \
+  zip unzip \
+  jq \
+  lame; \
+  xbps-query -l |wc; 
+
+# missing: thunar> Thunar
+# https://voidlinux.org/packages/?arch=x86_64&q=thunar
+# installed: glibc-locales librsvg
+RUN xbp.sh \
+  glibc-locales librsvg \
+  Thunar dunst \
+  sakura geany ristretto \
+  plank engrampa scrot; \
+  xbps-query -l |wc; 
+
+# bash-5.3# ls /usr/ -lh
+#   drwxr-xr-x    1 root     root        4.0K Sep 16 08:27 bin
+#   lrwxrwxrwx    1 root     root           3 Feb 25  2025 sbin -> bin
+# bash-5.3# ls -lh / |grep "\->"
+#   lrwxrwxrwx    1 root     root           7 Feb 25  2025 bin -> usr/bin
+#   lrwxrwxrwx    1 root     root           7 Feb 25  2025 lib -> usr/lib
+#   lrwxrwxrwx    1 root     root           9 Feb 25  2025 lib32 -> usr/lib32
+#   lrwxrwxrwx    1 root     root           7 Feb 25  2025 lib64 -> usr/lib
+#   lrwxrwxrwx    1 root     root           7 Feb 25  2025 sbin -> usr/bin
+RUN rm -f /usr/sbin; mkdir -p /usr/sbin
+
+
+# 拆分包体与配置项两块，免频繁变动基础包
+# HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN \
+  bash /xconf.sh core; bash /xconf.sh app; \
+  exit 0;
+
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash
+  # 默认约定
+  # L="zh_CN" \
+  # TZ="Asia/Shanghai"
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

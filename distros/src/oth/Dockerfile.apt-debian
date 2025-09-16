@@ -4,11 +4,13 @@ FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
 # ref headless//br-deb12 #29.15M @23.10.14
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--debian---${VER}-slim
 ENV \
+  SHELL=/bin/bash \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
 # mirrors.tuna.tsinghua.edu.cn  mirrors.ustc.edu.cn
 # mirrors.163.com  mirrors.aliyun.com  mirrors.tencentyun.com
 ARG TARGETPLATFORM
+ARG VER=12
 RUN echo "Acquire {\n\
   APT::Get::Allow-Unauthenticated \"true\";\n\
   GPG::Ignore \"true\";\n\
@@ -26,10 +28,27 @@ RUN \
   # \
   # https://mirrors.ustc.edu.cn/help/debian.html #deb12: invalid signature
   # rm -f /etc/apt/sources.list.d/debian.sources; \
+  # deb12/13 DEB822
   sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
   # apt 2.1.9 及以后的版本中，apt 的 HTTP Pipelining 特性与 Nginx 服务器疑似存在一定的不兼容问题
   echo "Acquire::http::Pipeline-Depth \"0\";" > /etc/apt/apt.conf.d/99nopipelining; \
   # 使用 HTTPS 可以有效避免国内运营商的缓存劫持，但需要事先安装 apt-transport-https (Debian Buster 及以上版本不需要)
+  \
+  # deb11/10 sources.list
+  sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list; \
+  # deb9/8/7 sources.list, archived
+  case ${VER} in \
+    "7")   V2=wheezy    ;; \  
+    "8")   V2=jessie    ;; \  
+    "9")   V2=stretch   ;; \
+    "10")  V2=buster    ;; \
+    "11")  V2=bullseye  ;; \
+    "12")  V2=bookworm  ;; \
+    "13")  V2=trixie  ;; \
+  esac; \
+  match1=$(echo $VER |grep -E "^7$|^8$|^9$"); \
+  test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian ${V2} main contrib non-free" > /etc/apt/sources.list; \
+  test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian-security ${V2}/updates main contrib non-free" >> /etc/apt/sources.list; \
   \
   # default:echo -e;
   echo "path-exclude /usr/share/doc/*\n\
@@ -43,8 +62,14 @@ path-exclude /usr/share/lintian/*\n\
   cat /etc/dpkg/dpkg.cfg.d/excludes; \
   rm -rf /usr/share/locale/* ; \
   \
-  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh \
-    && chmod +x /usr/local/bin/apt.sh; 
+  # deb8: --force-yes --allow-unauthenticated: WARNING: The following packages cannot be authenticated!>>  E: There are problems and -y was used without --force-yes
+  # deb8: && apt clean (drop, none)
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  match1=$(echo $VER |grep -E "^7$|^8$"); \
+  test ! -z "$match1" && echo 'apt update -qq && apt install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  chmod +x /usr/local/bin/apt.sh; \
+  # for test "xx" == "yy"
+  rm -f /bin/sh; ln -s /bin/bash /bin/sh;
 
 # MISC 15.1 MB
 # deb12.out: netcat 
@@ -59,6 +84,21 @@ RUN \
   # \2476 kB
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
 
+# pac-deb8-deps
+RUN test "8" != "$VER" && exit 0 || echo pac-deb8-deps;\
+  apt.sh perl gtk2-engines-pixbuf libvte9 libcairo-perl libgtk2-perl libglib-perl libpango-perl libgnome2-gconf-perl libsocket6-perl libexpect-perl libnet-proxy-perl libyaml-perl libcrypt-cbc-perl libcrypt-blowfish-perl libgtk2-perl libgtk2-gladexml-perl libgtk2-ex-simple-list-perl libnet-arp-perl libossp-uuid-perl openssh-client telnet ftp libcrypt-rijndael-perl libxml-parser-perl libgtk2-unique-perl
+
+# thunar,locale-tz,icon
+RUN apt.sh \
+  tzdata \
+  locales \
+  librsvg2-common \
+  x11-xserver-utils ; \
+  \
+  # for dbg
+  apt.sh thunar leafpad; \
+  exit 0
+
 # HEADLESS
 COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
@@ -70,7 +110,10 @@ RUN \
 CMD ["bash", "-c", "exec /entry.sh"]
 ENV \
   TERM=xterm \
-  SHELL=/bin/bash
+  SHELL=/bin/bash \
+  L="zh_CN" \
+  TZ="Asia/Shanghai" \
+  START_SESSION="openbox-session"
 
 # Set multiple labels at once, author,builtdate
 ARG BUILDDATE

@@ -52,11 +52,18 @@ RUN \
   sudo psmisc sysstat tree tmux lrzsz which openssl \
   iputils wget zip unzip \
   procps jq \
+  tar gzip vim \
   lame; \
   # test "15.0" != "${VER}" && zyp.sh wget zip unzip ; \
   # 01: chmod u+s /bin/ping #02: sudo setcap cap_net_raw+p /bin/ping #setcap 无指令
   chmod u+s /bin/ping; \
   exit 0
+
+# ibrsvg for icons
+#  zyp-ex: tzdata dbus-x11
+#  locales: glibc-locale
+RUN \
+  zyp.sh thunar librsvg-2-2
 
 ##APP################################################
 # 0.07 Mbs	hicolor-icon-theme-0.17-noarch

@@ -1,0 +1,58 @@
+ARG REPO=
+ARG VER=22.03-lts-sp4
+FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+# ref http://172.25.23.205:82/sam/quickstart-dockerfile/src/branch/master/env-system/Dockerfile.openeuler22
+#  VERSION=22.03-lts-sp2; \
+#  ARCH=x86_64;
+#  wget https://repo.openeuler.org/openEuler-$URL_VERSION/docker_img/$ARCH/openEuler-docker.$ARCH.tar.xz;
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:openeuler--openeuler---${VER}
+RUN \
+  sed -i "s/TMOUT=300/TMOUT=0/g" /etc/bashrc; \
+  echo -e '#!/bin/bash\n\nyum -yy install  $@ && yum clean all; ' > /usr/local/bin/yum.sh \
+    && chmod +x /usr/local/bin/yum.sh; 
+# ref opSUSE15
+# netcat: non-exist @openEuler24.03
+RUN yum.sh \
+  iproute net-tools \
+  sudo psmisc sysstat tree tmux lrzsz which wget openssl \
+  zip unzip \
+  procps jq iputils util-linux \
+  \
+  tar gzip lame \
+  telnet iptables
+
+# down195M
+# missing: dunst sakura geany plank scrot
+# glibc-locales>> glibc-locale-archive/glibc-locale-source?; locale -a:existed
+RUN yum.sh \
+  thunar \
+  ristretto \
+  engrampa ;
+
+
+# 拆分包体与配置项两块，免频繁变动基础包
+# HEADLESS
+COPY --from=rootfs /rootfs/res_ubt_share /
+COPY --from=rootfs /rootfs/files1 /
+COPY --from=rootfs /rootfs/files2 /
+RUN \
+  bash /xconf.sh core; bash /xconf.sh app; \
+  exit 0;
+
+# EXPOSE 10089/tcp 10081/tcp 10022/tcp
+CMD ["bash", "-c", "exec /entry.sh"]
+ENV \
+  TERM=xterm \
+  SHELL=/bin/bash
+  # 默认约定
+  # L="zh_CN" \
+  # TZ="Asia/Shanghai"
+
+# Set multiple labels at once, author,builtdate
+ARG BUILDDATE
+LABEL \
+  github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
+  github.com.infrastlabs.docker-x11base.release="production" \
+  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
+  github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"

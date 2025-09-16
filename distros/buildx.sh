@@ -36,12 +36,16 @@ function doBuildx(){
     test "fedora" == "$dist" && plat="--platform linux/amd64,linux/arm64" # alma/fedora:无armv7
     test "opensuse|15.0" == "$dist|$dver" && plat="--platform linux/amd64,linux/arm64" #opensuse_15.0 none_armv7
     test "opensuse|15.6" == "$dist|$dver" && plat="--platform linux/amd64,linux/arm64" #opensuse_15.6 none_armv7
+    test "openeuler" == "$dist" && plat="--platform linux/amd64,linux/arm64" #oe: x64/arm64 only
+    test "debian|8" == "$dist|$dver" && plat="--platform linux/amd64" #dbg:pac-deb8-deps
+    
     # 3.0> 3.1: none_3.0_img@dockerhub
     # test "alpine|3.1" == "$dist|$dver" && plat="--platform linux/amd64" #none: arm64,armv7
     # test "alpine|3.2" == "$dist|$dver" && plat="--platform linux/amd64" #none: arm64,armv7
     # test "alpine|3.5" == "$dist|$dver" && plat="--platform linux/amd64" #alpine_3.5: x64,arm64 ##,linux/arm64 (apk.REPO有arm64,hub.img无arm64的)
     match1=$(echo "${dver}" |grep -E "3.1$|3.2$|3.3$|3.4$|3.5$");
     test ! -z "$match1" && plat="--platform linux/amd64"
+    # plat="--platform linux/amd64" #void,oe dbg
     echo "[$dist|$dver] >>> plat=$plat"
 
     # 提前pull,转换tag格式
@@ -121,6 +125,8 @@ exit 0
 bash buildx.sh core alpine 3.19 latest
 bash buildx.sh core ubuntu 20.04 
 bash buildx.sh core ubuntu 22.04 latest
+bash buildx.sh core voidlinux v2509 latest
+bash buildx.sh core openeuler 22.03-lts-sp4
 # oth
 bash buildx.sh core debian 12 latest
 bash buildx.sh core fedora 39 latest
