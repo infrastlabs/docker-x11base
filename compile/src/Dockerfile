@@ -1,5 +1,6 @@
 ARG COMPILE_IMG=alpine-compile
-FROM infrastlabs/x11-base:alpine-builder-gtk224 AS base
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
@@ -79,6 +80,20 @@ RUN mkdir -p $TARGETPATH; \
   # upx ${TARGETPATH}/sbin/xrdp-chansrv
 # xrdp-mods-cut
 # RUN mkdir -p $TARGETPATH/etc/xrdp;
+
+FROM base AS x11vnc
+ARG COMPILE_X11VNC="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/x11vnc
+## build.sh: split multi steps, to speed up
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/x-x11vnc/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_X11VNC" && exit 0 || echo doMake; \
+  sh /src/x-x11vnc/build.sh b_deps; \
+  sh /src/x-x11vnc/build.sh x11vnc; \
+  \
+  find ${TARGETPATH} -type f |sort;
 
 FROM base AS dropbear
 ARG COMPILE_SSH="yes"
@@ -292,7 +307,9 @@ RUN mkdir -p $TARGETPATH; \
 # FROM registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:${COMPILE_IMG} AS ff
 ARG REPO=
 FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS ff
-FROM alpine:3.15
+# FROM alpine:3.15
+# FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.15 #not-exist
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
 COPY --from=ff /rootfs /rootfs
 RUN export domain="mirrors.ustc.edu.cn"; \
   echo "http://$domain/alpine/v3.15/main" > /etc/apk/repositories; \
@@ -335,6 +352,7 @@ RUN \
 # stages: 未用到的stage,会跳过构建
 COPY --from=tiger ${STATIC} /rootfs${STATIC}
 COPY --from=xrdp ${STATIC} /rootfs${STATIC}
+COPY --from=x11vnc ${STATIC} /rootfs${STATIC}
 COPY --from=dropbear ${STATIC} /rootfs${STATIC}
 COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
 COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
