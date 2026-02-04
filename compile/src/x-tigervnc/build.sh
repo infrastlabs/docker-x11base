@@ -483,7 +483,7 @@ full)
     xkbcomp
     ;;
 b_deps)
-    # /src/tigervnc/build.sh gnutls &
+    # /src/x-tigervnc/build.sh gnutls &
     bash /src/x-tigervnc/build.sh libxfont2 &
     bash /src/x-tigervnc/build.sh libfontenc &
     bash /src/x-tigervnc/build.sh libtasn1 &
