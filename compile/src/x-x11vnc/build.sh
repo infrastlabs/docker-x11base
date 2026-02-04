@@ -19,12 +19,15 @@ function libvncserver(){
   # mkdir -p /tmp/libvncserver
   log "Downloading LIBVNCSERVER..."
   # down_catfile ${LIBVNCSERVER_URL} | tar -zx --strip 1 -C /tmp/libvncserver #| tar -xJ
-  git clone --depth=1 --branch=LibVNCServer-0.9.13 https://gitee.com/g-system/fk-libvnc-libvncserver libvncserver
+  rm -rf /tmp/libvncserver
+  git clone --depth=1 --branch=LibVNCServer-0.9.13 https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver
   log "Configuring LIBVNCSERVER..."
   cd /tmp/libvncserver
   # https://metaso.cn/search-v2/8706590420608032769
   mkdir build && cd build
-  cmake .. \
+  # #common.sh预设static,导致example依赖的libz.so过不了(无libz.a)
+  # cmake .. \
+  LDFLAGS=" " cmake .. \
     -DBUILD_SHARED_LIBS=OFF \
     -DWITH_GNUTLS=OFF \
     -DWITH_OPENSSL=ON \
@@ -33,9 +36,12 @@ function libvncserver(){
     -DWITH_LZ4=ON \
     -DWITH_THREADS=ON
   log "Compiling LIBVNCSERVER..."
-  make -j$(nproc)
+  make -j$(nproc) #LDFLAGS=" " ##加到这无效, 改在cmake前:OK
   log "Installing LIBVNCSERVER..."
   make install
+  # view
+  find /tmp/libvncserver |egrep "\.a$"
+  find /usr |egrep "libvnc.*\.a$"
 }
 
 
@@ -45,14 +51,18 @@ function libvncserver(){
 function libxtst(){
   # mkdir -p /tmp/libxtst
   log "Downloading LIBXTST..."
+  rm -rf /tmp/libxtst
   # down_catfile ${LIBXTST_URL} | tar -zx --strip 1 -C /tmp/libxtst #| tar -xJ
-  git clone --depth=1 --branch=libXtst-1.2.3 https://gitee.com/g-system/fk-xorg-libxtst libxtst
+  git clone --depth=1 --branch=libXtst-1.2.3 https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst
   log "Configuring LIBXTST..."
   cd /tmp/libxtst && autoreconf -fiv && ./configure --enable-static
   log "Compiling LIBXTST..."
   make
   log "Installing LIBXTST..."
   make install
+  # view
+  find /tmp/libxtst |egrep "\.a$"
+  find /usr |egrep "libXtst\.a$"
 }
 
 #
@@ -65,11 +75,11 @@ function x11vnc(){
   log "Downloading X11VNC..."
   rm -rf /tmp/x11vnc; mkdir -p /tmp/x11vnc
   # down_catfile ${X11VNC_URL} | tar -zx --strip 1 -C /tmp/x11vnc
-  git clone -b sam-custom --depth=1 https://gitee.com/g-system/fk-x11vnc /tmp/x11vnc
+  git clone --depth=1 --branch=fix-152 https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc
 
   log "Configuring X11VNC..."
-  cd /tmp/x11vnc && ./bootstrap;
-
+  cd /tmp/x11vnc;
+    autoreconf -fiv
 
     flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
     EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
@@ -109,9 +119,9 @@ function x11vnc(){
   log "install X11VNC..."
   make install;
 
-  # # libvnc.so
-  # cd $TARGETPATH/lib/x11vnc
-  # gcc -shared -o libvnc.so libvnc.a 
+  # view
+  ls -lh /tmp/x11vnc/src/x11vnc
+  xx-verify --static /tmp/x11vnc/src/x11vnc
 }
 
 
