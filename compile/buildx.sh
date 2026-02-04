@@ -130,7 +130,8 @@ gtk224)
     --build-arg COMPILE_IMG=$compile
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
-    --build-arg COMPILE_SSH=yes
+    --build-arg COMPILE_X11VNC=yes
+    --build-arg COMPILE_SSH=no
     --build-arg COMPILE_PULSE=no
     --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=no
