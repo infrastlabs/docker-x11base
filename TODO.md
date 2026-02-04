@@ -94,3 +94,9 @@ https://blog.51cto.com/u_16099164/6693747 #go.tidb; glibc提供的ptmalloc2,谷�
 2. ~~内置xfce桌面 @app~~ @24.6.20 
 3. 
 ```
+
+**26.2.4**
+
+- x11vnc
+- x0vncserver@tigervnc TODO
+
