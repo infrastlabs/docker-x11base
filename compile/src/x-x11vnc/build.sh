@@ -71,12 +71,41 @@ function x11vnc(){
   cd /tmp/x11vnc && ./bootstrap;
 
 
+    flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
+    EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
+    # LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2   ..."
+    # -lgnutls -lnettle -lfontconfig -lfreetype -lexpat -lxml2 -lbz2 -lbrotlidec -lbrotlicommon 
+    LIBS2="-ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread -lXft -lX11 -lXrender -lz -lXinerama    -lX11 -lXext -lXrandr"
 
-
-  ./configure 
-
+    # --enable-static --disable-shared \
+    # --disable-libdrm \
+  # echo>> -lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon  -lXinerama    -lX11 -lfontconfig -lfreetype -lXext -lXrandr
+  # LDFLAGS="-static" LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread $EX_LIBS" ./configure \
+  LDFLAGS="-static" LIBS="$LIBS2" ./configure \
+    --prefix=$TARGETPATH \
+    --with-x \
+    --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
+    --with-xkeyboard \
+    --with-xinerama  \
+    --with-xrandr    \
+    --with-xfixes    \
+    --with-xdamage   \
+    --with-xcomposite \
+    --with-xtrap      \
+    --with-xrecord    \
+    --with-fbpm       \
+    --with-dpms       \
+    --with-v4l        \
+    --with-fbdev      \
+    --with-uinput     \
+    --with-macosx-native \
+    --with-colormultipointer \
+    --with-avahi
+  
   log "make X11VNC..."
-  make;
+  # make clean
+  # make LDFLAGS="-static" LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
+  make; #直接make即可; 带static,带LIBS
   log "install X11VNC..."
   make install;
 
