@@ -69,6 +69,7 @@ function libxtst(){
 # Build x11vnc
 #
 function x11vnc(){
+  apk add lzo-dev #libvncserver-dev带入: lzo-dev openssl-dev
   apk add openssl-dev openssl-libs-static
   apk add xorg-server-dev
 
@@ -85,16 +86,17 @@ function x11vnc(){
     EX_LIBS="$flags $OB_LIBS -lXinerama $imlib   -lX11 -lfontconfig -lfreetype -lXext -lXrandr"
     # LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2   ..."
     # -lgnutls -lnettle -lfontconfig -lfreetype -lexpat -lxml2 -lbz2 -lbrotlidec -lbrotlicommon 
-    LIBS2="-ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread -lXft -lX11 -lXrender -lz -lXinerama    -lX11 -lXext -lXrandr"
+    # +: -llzo2 -lz 
+    LIBS2=" -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread -lXft -lX11 -lXrender -lz -lXinerama    -lXext -lXrandr"
 
     # --enable-static --disable-shared \
     # --disable-libdrm \
   # echo>> -lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon  -lXinerama    -lX11 -lfontconfig -lfreetype -lXext -lXrandr
+    # --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
   # LDFLAGS="-static" LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread $EX_LIBS" ./configure \
   LDFLAGS="-static" LIBS="$LIBS2" ./configure \
     --prefix=$TARGETPATH \
     --with-x \
-    --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
     --with-xkeyboard \
     --with-xinerama  \
     --with-xrandr    \
@@ -137,6 +139,7 @@ full)
 b_deps)
     bash /src/x-x11vnc/build.sh libvncserver &
     bash /src/x-x11vnc/build.sh libxtst &
+    bash /src/v-tint2/build.sh libxi &
     wait
     ;;
 *) #compile
