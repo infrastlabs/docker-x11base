@@ -42,13 +42,19 @@ XKBCOMP_VERSION=1.4.5
 
 # Define software download URLs.
 # https://ghproxy.com/ @23.10.21
-TIGERVNC_URL=https://ghfast.top/https://github.com/TigerVNC/tigervnc/archive/v${TIGERVNC_VERSION}.tar.gz
-XSERVER_URL=https://www.x.org/releases/individual/xserver/xorg-server-${XSERVER_VERSION}.tar.gz
+# https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1
+# TIGERVNC_URL=https://ghfast.top/https://github.com/TigerVNC/tigervnc/archive/v${TIGERVNC_VERSION}.tar.gz
+# XSERVER_URL=https://www.x.org/releases/individual/xserver/xorg-server-${XSERVER_VERSION}.tar.gz
+TIGERVNC_URL=https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1/tigervnc-${TIGERVNC_VERSION}.tar.gz #tigervnc-1.13.1.tar.gz 
+XSERVER_URL=https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1/xorg-server-${XSERVER_VERSION}.tar.gz
 
+# https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1
 GNUTLS_URL=https://www.gnupg.org/ftp/gcrypt/gnutls/v${GNUTLS_VERSION%.*}/gnutls-${GNUTLS_VERSION}.tar.xz
-LIBTASN1_URL=https://ftp.gnu.org/gnu/libtasn1/libtasn1-${LIBTASN1_VERSION}.tar.gz
+# LIBTASN1_URL=https://ftp.gnu.org/gnu/libtasn1/libtasn1-${LIBTASN1_VERSION}.tar.gz
+LIBTASN1_URL=https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1/libtasn1-${LIBTASN1_VERSION}.tar.gz
 LIBXFONT2_URL=https://www.x.org/pub/individual/lib/libXfont2-${LIBXFONT2_VERSION}.tar.gz
-LIBFONTENC_URL=https://www.x.org/releases/individual/lib/libfontenc-${LIBFONTENC_VERSION}.tar.gz
+# LIBFONTENC_URL=https://www.x.org/releases/individual/lib/libfontenc-${LIBFONTENC_VERSION}.tar.gz
+LIBFONTENC_URL=https://gitee.com/g-system/fk-tigervnc/releases/download/v1.13.1/libfontenc-${LIBFONTENC_VERSION}.tar.gz
 LIBXSHMFENCE_URL=https://www.x.org/releases/individual/lib/libxshmfence-${LIBXSHMFENCE_VERSION}.tar.gz
 
 XKEYBOARDCONFIG_URL=https://www.x.org/archive/individual/data/xkeyboard-config/xkeyboard-config-${XKEYBOARDCONFIG_VERSION}.tar.bz2
@@ -254,7 +260,7 @@ function libxshmfence(){
 # Build TigerVNC
 #
 function tigervnc(){
-  mkdir -p /tmp/tigervnc
+  rm -rf /tmp/tigervnc; mkdir -p /tmp/tigervnc
   log "Downloading TigerVNC..."
   down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C /tmp/tigervnc
   log "Downloading Xorg server..."
