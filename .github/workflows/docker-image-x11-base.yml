@@ -69,12 +69,12 @@ jobs:
           # #############################
           cd .github; 
           echo compile; cd ../compile;
-            # bash buildx.sh ubt-builder
-            # bash buildx.sh deb12-builder
-            # 
-            # bash buildx.sh builder
-            # bash buildx.sh gtk224 #builder-gtk224
-            bash buildx.sh #compile
+            # # bash buildx.sh ubt-builder
+            # # bash buildx.sh deb12-builder
+            # # 
+            # # bash buildx.sh builder
+            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh #compile
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
             # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
@@ -164,7 +164,7 @@ jobs:
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
-          echo undockPkg; doPkg=false
+          echo undockPkg; doPkg=true
           cd ../../.github/workflows; test "true" == "$doPkg" && bash undock.sh;
           # 
           # view timecost
