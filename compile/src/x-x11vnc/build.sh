@@ -69,9 +69,11 @@ function libxtst(){
 # Build x11vnc
 #
 function x11vnc(){
-  apk add lzo-dev #libvncserver-dev带入: lzo-dev openssl-dev
+  apk add lzo-dev #libvncserver-dev带入: lzo-dev openssl-dev ##缺依赖项时, LIBS="xx" ./configure报gcc错误 
   apk add openssl-dev openssl-libs-static
   apk add xorg-server-dev
+  # configure: error: Package requirements (libvncserver >= 0.9.8) were not met:
+  apk add libvncserver-dev
 
   log "Downloading X11VNC..."
   rm -rf /tmp/x11vnc; mkdir -p /tmp/x11vnc
