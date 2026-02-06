@@ -42,7 +42,7 @@ XKBCOMP_VERSION=1.4.5
 
 # Define software download URLs.
 # https://ghproxy.com/ @23.10.21
-TIGERVNC_URL=https://github.com/TigerVNC/tigervnc/archive/v${TIGERVNC_VERSION}.tar.gz
+TIGERVNC_URL=https://ghfast.top/https://github.com/TigerVNC/tigervnc/archive/v${TIGERVNC_VERSION}.tar.gz
 XSERVER_URL=https://www.x.org/releases/individual/xserver/xorg-server-${XSERVER_VERSION}.tar.gz
 
 GNUTLS_URL=https://www.gnupg.org/ftp/gcrypt/gnutls/v${GNUTLS_VERSION%.*}/gnutls-${GNUTLS_VERSION}.tar.xz
