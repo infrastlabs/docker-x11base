@@ -160,7 +160,7 @@ jobs:
           # 同步到ali仓
           #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
           unset REPO_ALI REPO_TEN REPO_QING #skipSync; QINGCLOUD.REPO net failed
-          echo syncer; doSync=true
+          echo syncer; doSync=false #true false
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
