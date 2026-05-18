@@ -27,6 +27,7 @@ RUN export DOMAIN="mirrors.ustc.edu.cn"; \
     "20.04")  V2=focal   ;; \
     "22.04")  V2=jammy   ;; \
     "24.04")  V2=noble   ;; \
+    "26.04")  V2=resolute ;; \
   esac; \
   # test -z "$(echo $TARGETPLATFORM |grep arm)" && target=ubuntu || target=ubuntu-ports; \
   # echo "deb http://${DOMAIN}/$target ${V2} main restricted universe multiverse" > /etc/apt/sources.list \
