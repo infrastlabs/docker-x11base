@@ -82,7 +82,7 @@ jobs:
             # exit 0
           # 
           # #############################
-          doDistros=false
+          doDistros=true
           if [ "true" == "$doDistros" ]; then
           echo distros; cd ../distros;
             # bash buildx.sh type dist ver [latest]
