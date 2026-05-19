@@ -96,7 +96,8 @@ RUN apt.sh \
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\  
   # VIDEO: 30.5 MB
   # libllvm12 已包含 # libgl1-mesa-glx >libgl1-mesa-dri ##ex:  mesa-utils 
-  apt.sh libgl1-mesa-glx libglu1-mesa; \
+  apt.sh libglu1-mesa; \
+  test "26.04" != "${VER}" && apt.sh libgl1-mesa-glx; \
   \
   # LLVM(定制版这里删调它,除gnome,cinna其它de无影响); clear big lib: 88M (qt: flameshot,sogoupinyin) > img: -27M
   rm -f /usr/lib/x86_64-linux-gnu/libLLVM-12.so.1; \
