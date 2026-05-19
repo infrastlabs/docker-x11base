@@ -140,7 +140,7 @@ jobs:
             # bash buildx.sh app alpine 3.12 & ##
             # bash buildx.sh app alpine 3.13 & ##
             # bash buildx.sh app alpine 3.14 & ##
-            # bash buildx.sh app alpine 3.19 latest &
+            # bash buildx.sh app alpine 3.19 latest & #>3.23
             # bash buildx.sh app ubuntu 14.04 & ##
             # bash buildx.sh app ubuntu 16.04 & ##
             # bash buildx.sh app ubuntu 18.04 & ##
@@ -154,7 +154,7 @@ jobs:
             # bash buildx.sh app opensuse 15.3 &
             # bash buildx.sh app opensuse 15.4 &
             # bash buildx.sh app opensuse 15.5 &
-            # bash buildx.sh app opensuse 15.6 latest &
+            # bash buildx.sh app opensuse 15.6 latest & #16.1
             wait
             # 
           fi
