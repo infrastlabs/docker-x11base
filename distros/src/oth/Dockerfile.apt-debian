@@ -30,14 +30,24 @@ RUN \
   # rm -f /etc/apt/sources.list.d/debian.sources; \
   # deb12/13 DEB822
   sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
-  # apt 2.1.9 及以后的版本中，apt 的 HTTP Pipelining 特性与 Nginx 服务器疑似存在一定的不兼容问题
+  # apt2.1.9及以后的版本中，HTTP Pipelining特性与Nginx服务器疑似存在一定的不兼容问题
   echo "Acquire::http::Pipeline-Depth \"0\";" > /etc/apt/apt.conf.d/99nopipelining; \
   # 使用 HTTPS 可以有效避免国内运营商的缓存劫持，但需要事先安装 apt-transport-https (Debian Buster 及以上版本不需要)
   \
   # deb11/10 sources.list
   sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list; \
-  # deb9/8/7 sources.list, archived
+  # deb9/8/7 sources.list, archived #http://mirrors.aliyun.com/debian-archive/debian/dists/
+  #  1.1-buzz,1.2-rex,1.3-bo; 2.0-hamm,2.1-slink,2.2-potato; 3.0-woody,3.1-sarge
+  #  - ubt26-2.43|ubt24-2.39|ubt22-2.35|ubt20-2.31|ubt18-2.27|ubt16-2.23|ubt14-2.19|`ubt12-2.15|ubt10-2.11@2010|ubt8-2.7|ubt6-2.3@2006`
+  #  - deb13-2.41|deb12-2.36|deb11-2.31|deb10-2.28|deb9-2.24|deb8-2.19@2015|deb7-2.13@2013`|deb6-2.11@2011|deb5-2.7@2009|deb4-2.3@2007|deb3-2.2@2002|deb2-2.0@1998`
   case ${VER} in \
+    "1")   V2=buzz      ;; \  
+    "2")   V2=hamm      ;; \  
+    "3")   V2=woody     ;; \  
+    "4")   V2=etch      ;; \  
+    "5")   V2=lenny     ;; \  
+    "6")   V2=squeeze   ;; \  
+    \
     "7")   V2=wheezy    ;; \  
     "8")   V2=jessie    ;; \  
     "9")   V2=stretch   ;; \
@@ -46,7 +56,8 @@ RUN \
     "12")  V2=bookworm  ;; \
     "13")  V2=trixie  ;; \
   esac; \
-  match1=$(echo $VER |grep -E "^7$|^8$|^9$"); \
+  # 26.5.20: debian10 archived
+  match1=$(echo $VER |grep -E "^7$|^8$|^9$|^10$"); \
   test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian ${V2} main contrib non-free" > /etc/apt/sources.list; \
   test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian-security ${V2}/updates main contrib non-free" >> /etc/apt/sources.list; \
   \
@@ -66,7 +77,8 @@ path-exclude /usr/share/lintian/*\n\
   # deb8: && apt clean (drop, none)
   echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   match1=$(echo $VER |grep -E "^7$|^8$"); \
-  test ! -z "$match1" && echo 'apt update -qq && apt install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  # deb7-err>> apt: command not found
+  test ! -z "$match1" && echo 'apt-get update -qq && apt-get install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   chmod +x /usr/local/bin/apt.sh; \
   # for test "xx" == "yy"
   rm -f /bin/sh; ln -s /bin/bash /bin/sh;
@@ -80,9 +92,11 @@ RUN \
   curl lame sox libsox-fmt-mp3 \
   # \4610 kB
   htop rsync tree tmux lrzsz psmisc fuse net-tools iputils-ping \
-  procps sudo iproute2 iptables zip unzip xz-utils vim-tiny 
+  procps sudo  iptables zip unzip xz-utils vim-tiny; \
   # \2476 kB
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
+  match1=$(echo $VER |grep -E "^7$"); \
+  test -z "$match1" && apt.sh iproute2 || echo "deb7, skip: iproute2"; 
 
 # pac-deb8-deps
 RUN test "8" != "$VER" && exit 0 || echo pac-deb8-deps;\
@@ -97,6 +111,8 @@ RUN apt.sh \
   \
   # for dbg
   apt.sh thunar leafpad; \
+  # match1=$(echo $VER |grep -E "^7$"); \
+  # test -z "$match1" && apt.sh leafpad; \
   exit 0
 
 # HEADLESS
