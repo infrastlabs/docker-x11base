@@ -46,7 +46,8 @@ RUN \
     "12")  V2=bookworm  ;; \
     "13")  V2=trixie  ;; \
   esac; \
-  match1=$(echo $VER |grep -E "^7$|^8$|^9$"); \
+  # 26.5.20: debian10 archived
+  match1=$(echo $VER |grep -E "^7$|^8$|^9$|^10$"); \
   test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian ${V2} main contrib non-free" > /etc/apt/sources.list; \
   test ! -z "$match1" && echo "deb http://mirrors.aliyun.com/debian-archive/debian-security ${V2}/updates main contrib non-free" >> /etc/apt/sources.list; \
   \
@@ -64,7 +65,8 @@ path-exclude /usr/share/lintian/*\n\
   \
   # deb8: --force-yes --allow-unauthenticated: WARNING: The following packages cannot be authenticated!>>  E: There are problems and -y was used without --force-yes
   # deb8: && apt clean (drop, none)
-  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  # deb7-err>> apt: command not found
+  echo 'apt-get update -qq && apt-get install -yq --no-install-recommends $@ && apt-get clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   match1=$(echo $VER |grep -E "^7$|^8$"); \
   test ! -z "$match1" && echo 'apt update -qq && apt install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   chmod +x /usr/local/bin/apt.sh; \
