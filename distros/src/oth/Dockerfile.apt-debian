@@ -30,7 +30,7 @@ RUN \
   # rm -f /etc/apt/sources.list.d/debian.sources; \
   # deb12/13 DEB822
   sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
-  # apt 2.1.9 及以后的版本中，apt 的 HTTP Pipelining 特性与 Nginx 服务器疑似存在一定的不兼容问题
+  # apt2.1.9及以后的版本中，HTTP Pipelining特性与Nginx服务器疑似存在一定的不兼容问题
   echo "Acquire::http::Pipeline-Depth \"0\";" > /etc/apt/apt.conf.d/99nopipelining; \
   # 使用 HTTPS 可以有效避免国内运营商的缓存劫持，但需要事先安装 apt-transport-https (Debian Buster 及以上版本不需要)
   \
@@ -65,10 +65,10 @@ path-exclude /usr/share/lintian/*\n\
   \
   # deb8: --force-yes --allow-unauthenticated: WARNING: The following packages cannot be authenticated!>>  E: There are problems and -y was used without --force-yes
   # deb8: && apt clean (drop, none)
-  # deb7-err>> apt: command not found
-  echo 'apt-get update -qq && apt-get install -yq --no-install-recommends $@ && apt-get clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  echo 'apt update -qq && apt install -yq --no-install-recommends $@ && apt clean && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   match1=$(echo $VER |grep -E "^7$|^8$"); \
-  test ! -z "$match1" && echo 'apt update -qq && apt install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
+  # deb7-err>> apt: command not found
+  test ! -z "$match1" && echo 'apt-get update -qq && apt-get install -yq --force-yes --allow-unauthenticated   --no-install-recommends $@ && rm -rf /var/lib/apt/lists/*; ' > /usr/local/bin/apt.sh; \
   chmod +x /usr/local/bin/apt.sh; \
   # for test "xx" == "yy"
   rm -f /bin/sh; ln -s /bin/bash /bin/sh;
@@ -98,7 +98,9 @@ RUN apt.sh \
   x11-xserver-utils ; \
   \
   # for dbg
-  apt.sh thunar leafpad; \
+  apt.sh thunar; \
+  match1=$(echo $VER |grep -E "^7$"); \
+  test ! -z "$match1" && apt.sh leafpad; \
   exit 0
 
 # HEADLESS
