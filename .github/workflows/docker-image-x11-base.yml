@@ -119,7 +119,7 @@ jobs:
             bash buildx.sh core debian 7 &
             # bash buildx.sh core debian 8 &
             # bash buildx.sh core debian 9 &
-            bash buildx.sh core debian 10 &
+            # bash buildx.sh core debian 10 &
             # bash buildx.sh core debian 11 &
             # bash buildx.sh core debian 12 &
             # bash buildx.sh core debian 13 latest &
