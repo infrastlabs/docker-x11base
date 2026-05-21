@@ -36,8 +36,18 @@ RUN \
   \
   # deb11/10 sources.list
   sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list; \
-  # deb9/8/7 sources.list, archived
+  # deb9/8/7 sources.list, archived #http://mirrors.aliyun.com/debian-archive/debian/dists/
+  #  1.1-buzz,1.2-rex,1.3-bo; 2.0-hamm,2.1-slink,2.2-potato; 3.0-woody,3.1-sarge
+  #  - ubt26-2.43|ubt24-2.39|ubt22-2.35|ubt20-2.31|ubt18-2.27|ubt16-2.23|ubt14-2.19|`ubt12-2.15|ubt10-2.11@2010|ubt8-2.7|ubt6-2.3@2006`
+  #  - deb13-2.41|deb12-2.36|deb11-2.31|deb10-2.28|deb9-2.24|deb8-2.19@2015|deb7-2.13@2013`|deb6-2.11@2011|deb5-2.7@2009|deb4-2.3@2007|deb3-2.2@2002|deb2-2.0@1998`
   case ${VER} in \
+    "1")   V2=buzz      ;; \  
+    "2")   V2=hamm      ;; \  
+    "3")   V2=woody     ;; \  
+    "4")   V2=etch      ;; \  
+    "5")   V2=lenny     ;; \  
+    "6")   V2=squeeze   ;; \  
+    \
     "7")   V2=wheezy    ;; \  
     "8")   V2=jessie    ;; \  
     "9")   V2=stretch   ;; \
