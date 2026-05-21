@@ -163,11 +163,11 @@ jobs:
           # 同步到ali仓
           #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
           unset REPO_ALI REPO_TEN REPO_QING #skipSync; QINGCLOUD.REPO net failed
-          echo syncer; doSync=false #true false
+          echo syncer; doSync=true #true false
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
-          echo undockPkg; doPkg=true
+          echo undockPkg; doPkg=false
           cd ../../.github/workflows; test "true" == "$doPkg" && bash undock.sh;
           # 
           # view timecost
