@@ -86,7 +86,7 @@ RUN \
   # \2476 kB
   # dropbear-bin dropbear-run openssh-sftp-server lftp jq;
   match1=$(echo $VER |grep -E "^7$"); \
-  test ! -z "$match1" && apt.sh iproute2; 
+  test -z "$match1" && apt.sh iproute2; 
 
 # pac-deb8-deps
 RUN test "8" != "$VER" && exit 0 || echo pac-deb8-deps;\
@@ -102,7 +102,7 @@ RUN apt.sh \
   # for dbg
   apt.sh thunar leafpad; \
   # match1=$(echo $VER |grep -E "^7$"); \
-  # test ! -z "$match1" && apt.sh leafpad; \
+  # test -z "$match1" && apt.sh leafpad; \
   exit 0
 
 # HEADLESS
