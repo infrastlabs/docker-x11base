@@ -102,9 +102,9 @@ jobs:
             # bash buildx.sh core ubuntu 14.04 & ##
             # bash buildx.sh core ubuntu 16.04 & ##
             # bash buildx.sh core ubuntu 18.04 & ##
-            # bash buildx.sh core ubuntu 20.04 &
-            # bash buildx.sh core ubuntu 22.04 &
-            # bash buildx.sh core ubuntu 24.04 &
+            bash buildx.sh core ubuntu 20.04 &
+            bash buildx.sh core ubuntu 22.04 &
+            bash buildx.sh core ubuntu 24.04 &
             # bash buildx.sh core ubuntu 26.04 latest &
             # bash buildx.sh core opensuse 15.0 & ##
             # bash buildx.sh core opensuse 15.1 & ##
@@ -116,7 +116,7 @@ jobs:
             # oth
             # bash buildx.sh core busybox 1.36.1 latest &
             # bash buildx.sh core openwrt 23.05 latest &
-            bash buildx.sh core debian 7 &
+            # bash buildx.sh core debian 7 &
             # bash buildx.sh core debian 8 &
             # bash buildx.sh core debian 9 &
             # bash buildx.sh core debian 10 &
@@ -144,9 +144,9 @@ jobs:
             # bash buildx.sh app ubuntu 14.04 & ##
             # bash buildx.sh app ubuntu 16.04 & ##
             # bash buildx.sh app ubuntu 18.04 & ##
-            # bash buildx.sh app ubuntu 20.04 &
-            # bash buildx.sh app ubuntu 22.04 &
-            # bash buildx.sh app ubuntu 24.04 &
+            bash buildx.sh app ubuntu 20.04 &
+            bash buildx.sh app ubuntu 22.04 &
+            bash buildx.sh app ubuntu 24.04 &
             # bash buildx.sh app ubuntu 26.04 latest &
             # bash buildx.sh app opensuse 15.0 & ##
             # bash buildx.sh app opensuse 15.1 & ##
@@ -155,7 +155,7 @@ jobs:
             # bash buildx.sh app opensuse 15.4 &
             # bash buildx.sh app opensuse 15.5 &
             # bash buildx.sh app opensuse 15.6 latest & #16.1
-            # wait
+            wait
             # 
           fi
           # 
