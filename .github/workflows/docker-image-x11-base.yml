@@ -96,9 +96,9 @@ jobs:
             # bash buildx.sh core alpine 3.10 & ##
             # bash buildx.sh core alpine 3.11 & ##
             # bash buildx.sh core alpine 3.12 & ##
-            # bash buildx.sh core alpine 3.13 & ##
-            # bash buildx.sh core alpine 3.14 & ##
-            # bash buildx.sh core alpine 3.19 latest &
+            bash buildx.sh core alpine 3.13 & ##
+            bash buildx.sh core alpine 3.14 & ##
+            bash buildx.sh core alpine 3.19 latest &
             # bash buildx.sh core ubuntu 14.04 & ##
             # bash buildx.sh core ubuntu 16.04 & ##
             # bash buildx.sh core ubuntu 18.04 & ##
@@ -111,18 +111,18 @@ jobs:
             # bash buildx.sh core opensuse 15.2 &
             # bash buildx.sh core opensuse 15.3 &
             # bash buildx.sh core opensuse 15.4 &
-            # bash buildx.sh core opensuse 15.5 &
-            # bash buildx.sh core opensuse 15.6 latest &
+            bash buildx.sh core opensuse 15.5 &
+            bash buildx.sh core opensuse 15.6 latest &
             # oth
             # bash buildx.sh core busybox 1.36.1 latest &
             # bash buildx.sh core openwrt 23.05 latest &
             # bash buildx.sh core debian 7 &
             # bash buildx.sh core debian 8 &
-            # bash buildx.sh core debian 9 &
-            # bash buildx.sh core debian 10 &
-            # bash buildx.sh core debian 11 &
-            # bash buildx.sh core debian 12 &
-            # bash buildx.sh core debian 13 latest &
+            bash buildx.sh core debian 9 &
+            bash buildx.sh core debian 10 &
+            bash buildx.sh core debian 11 &
+            bash buildx.sh core debian 12 &
+            bash buildx.sh core debian 13 latest &
             # bash buildx.sh core fedora 39 latest &
             # bash buildx.sh core voidlinux v2509 latest &
             # bash buildx.sh core openeuler 22.03-lts-sp4 &
@@ -138,9 +138,9 @@ jobs:
             # bash buildx.sh app alpine 3.10 & ##
             # bash buildx.sh app alpine 3.11 & ##
             # bash buildx.sh app alpine 3.12 & ##
-            # bash buildx.sh app alpine 3.13 & ##
-            # bash buildx.sh app alpine 3.14 & ##
-            # bash buildx.sh app alpine 3.19 latest & #>3.23
+            bash buildx.sh app alpine 3.13 & ##
+            bash buildx.sh app alpine 3.14 & ##
+            bash buildx.sh app alpine 3.19 latest & #>3.23
             # bash buildx.sh app ubuntu 14.04 & ##
             # bash buildx.sh app ubuntu 16.04 & ##
             # bash buildx.sh app ubuntu 18.04 & ##
@@ -153,8 +153,8 @@ jobs:
             # bash buildx.sh app opensuse 15.2 &
             # bash buildx.sh app opensuse 15.3 &
             # bash buildx.sh app opensuse 15.4 &
-            # bash buildx.sh app opensuse 15.5 &
-            # bash buildx.sh app opensuse 15.6 latest & #16.1
+            bash buildx.sh app opensuse 15.5 &
+            bash buildx.sh app opensuse 15.6 latest & #16.1
             wait
             # 
           fi
