@@ -98,7 +98,10 @@ jobs:
             # bash buildx.sh core alpine 3.12 & ##
             bash buildx.sh core alpine 3.13 & ##
             bash buildx.sh core alpine 3.14 & ##
-            bash buildx.sh core alpine 3.19 latest &
+            bash buildx.sh core alpine 3.16 &
+            bash buildx.sh core alpine 3.19 &
+            bash buildx.sh core alpine 3.21 &
+            bash buildx.sh core alpine 3.23 latest & #2606
             # bash buildx.sh core ubuntu 14.04 & ##
             # bash buildx.sh core ubuntu 16.04 & ##
             bash buildx.sh core ubuntu 18.04 & ##
@@ -140,7 +143,10 @@ jobs:
             # bash buildx.sh app alpine 3.12 & ##
             bash buildx.sh app alpine 3.13 & ##
             bash buildx.sh app alpine 3.14 & ##
-            bash buildx.sh app alpine 3.19 latest & #>3.23
+            bash buildx.sh app alpine 3.16 &
+            bash buildx.sh app alpine 3.19 & #>3.23
+            bash buildx.sh app alpine 3.21 &
+            bash buildx.sh app alpine 3.23 latest & 
             # bash buildx.sh app ubuntu 14.04 & ##
             # bash buildx.sh app ubuntu 16.04 & ##
             bash buildx.sh app ubuntu 18.04 & ##
