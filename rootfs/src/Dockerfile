@@ -4,7 +4,8 @@ ARG COMPILE_IMG=alpine-compile
 # 20.04> 24.04: betterThemeView #TODO: FROM --platform=linux/amd64
 # 20.04[alpine_font_毛刺]  22.04[alpine_font_毛刺]  24.04 
 # FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:app-ubuntu-24.04 AS ubt
-FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---24.04 as ubt
+# 260604: 24.04> 22.04
+FROM --platform=linux/amd64 registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---22.04 as ubt
 ENV \
   DEBIAN_FRONTEND=noninteractive \
   LOCALE_INCLUDE="zh_CN zh_HK zh_TW en en_AU fr fr_CA pt pt_BR es ar cs de it ru nl tr is sv uk ja ko th vi"
