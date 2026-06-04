@@ -108,7 +108,7 @@ jobs:
             bash buildx.sh core ubuntu 20.04 &
             bash buildx.sh core ubuntu 22.04 &
             bash buildx.sh core ubuntu 24.04 &
-            # bash buildx.sh core ubuntu 26.04 latest &
+            bash buildx.sh core ubuntu 26.04 latest &
             # bash buildx.sh core opensuse 15.0 & ##
             # bash buildx.sh core opensuse 15.1 & ##
             # bash buildx.sh core opensuse 15.2 &
@@ -153,7 +153,7 @@ jobs:
             bash buildx.sh app ubuntu 20.04 &
             bash buildx.sh app ubuntu 22.04 &
             bash buildx.sh app ubuntu 24.04 &
-            # bash buildx.sh app ubuntu 26.04 latest &
+            bash buildx.sh app ubuntu 26.04 latest &
             # bash buildx.sh app opensuse 15.0 & ##
             # bash buildx.sh app opensuse 15.1 & ##
             # bash buildx.sh app opensuse 15.2 &
