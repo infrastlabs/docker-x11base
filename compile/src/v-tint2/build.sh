@@ -9,8 +9,10 @@ source /src/common.sh
 # https://github.com/OpenMandrivaAssociation/libcroco0.6/blob/master/libcroco0.6.spec #ref url @gnome
 # https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
 function libcroco(){
-  # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
-  export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+  # openbox 等纯静态消费方传 STATIC=yes：--disable-shared 只出 .a
+  # （默认连 .so 一起装，pc 里 -lcroco-0.6 会优先链 .so，静态二进制直接带动态依赖）
+  test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+  test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
 
   mkdir -p /tmp/libcroco
   log "Downloading libcroco..."
@@ -22,12 +24,14 @@ function libcroco(){
   cd /tmp/libcroco
   # cd libcroco-0.6.13
   ./autogen.sh 
-  ./configure --enable-static
+  ./configure --enable-static $DISABLE_SHARED
 
   log "Compiling libcroco..."
   make
   log "Installing libcroco..."
   make install
+  # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs）
+  test "yes" = "$STATIC" && rm -f /usr/local/lib/libcroco-0.6.so*
   # find |grep croco; cp ./src/.libs/libcroco-0.6.a /usr/lib/
   find /usr/local/lib |grep libcroco |grep "\.a$"
   # /usr/local/lib/libcroco-0.6.a
@@ -62,7 +66,11 @@ function libcroco(){
 # 
 function librsvg(){
   # attempted static link of dynamic object `/usr/local/lib/libcroco-0.6.so'
-  export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+  # openbox 等纯静态消费方传 STATIC=yes：--disable-shared 只出 .a
+  # （默认连 .so 一起装，pc 里 -lrsvg-2 会优先链 .so，openbox 静态链接直接报 attempted static link）
+  test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+  test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
+
   log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
@@ -70,11 +78,13 @@ function librsvg(){
   rm -rf /tmp/librsvg; git clone --depth=1 $branch https://gitee.com/g-system/fk-librsvg /tmp/librsvg
   cd /tmp/librsvg
   ./autogen.sh 
-  ./configure --enable-static
+  ./configure --enable-static $DISABLE_SHARED
   log "Compiling librsvg..."
   make 
   log "Installing librsvg..."
   make install
+  # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs：pangocairo/cairo/gio…）
+  test "yes" = "$STATIC" && rm -f /usr/local/lib/librsvg-2.so*
   # find |grep librsvg-
   # ./.libs/librsvg-2.a
   find /usr/local/lib |grep librsvg |grep "\.a$"
