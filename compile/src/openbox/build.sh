@@ -283,7 +283,14 @@ function openbox(){
           grep1=$(echo $OB_LIBS |sed "s^ -l^|lib^g" |sed "s^-lX11^libX11^g"); echo "grep1: $grep1"
           find /usr/lib |egrep "$grep1" |grep "\.a$" |sort
 
-          OB_LIBS="$OB_LIBS -luuid"
+          # librsvg/imlib2/xcursor 的传递依赖：PKG_CHECK_MODULES 只取非 static 的 Libs:
+          # （imlib2.pc 干脆没有 Requires，librsvg-2.0.pc 的 Requires 里没有 pangocairo），
+          # .a 镜像里都有，只能手工补进 group。
+          # 按 undefined reference 逐轮暴露的顺序：rsvg_handle_* → g_module_* →
+          # mnt_find_mount_point → pixman_region32_* → pango_cairo_*
+          OB_LIBS="$OB_LIBS -luuid -lXfixes -lX11-xcb -lxcb-shm \
+            -ljpeg -lturbojpeg -ltiff -lwebp -lwebpdecoder -lwebpdemux -lwebpmux -lXdamage \
+            -lrsvg-2 -lcroco-0.6 -lgmodule-2.0 -lmount -lblkid -lpixman-1 -lpangocairo-1.0"
           # LDFLAGS=
           LDFLAGS="$LDFLAGS -Wl,--start-group $OB_LIBS -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
@@ -293,12 +300,8 @@ function openbox(){
           --disable-shared \
           --enable-static \
           --disable-nls \
-          --disable-xcursor \
-          --disable-librsvg \
-          --disable-startup-notification \
           --disable-session-management \
-          --disable-xkb \
-          --disable-xinerama
+          --disable-startup-notification
   )
 
   log "Compiling Openbox..."
@@ -332,7 +335,8 @@ function apkdeps(){ #avoid mutli-build apk lock
     meson \
     pkgconfig \
     patch \
-    glib-dev
+    glib-dev \
+    intltool   #libcroco 的 autogen.sh 需要 intltoolize
   xx-apk --no-cache --no-scripts add \
     g++ \
     glib-dev \
@@ -361,9 +365,15 @@ function apkdeps(){ #avoid mutli-build apk lock
     graphite2-static \
     libffi-dev \
     xz-dev \
-    brotli-static
+    brotli-static \
+    libxfixes-dev \
+    libxcursor-dev \
+    imlib2-dev \
+    tiff-dev \
+    libwebp-static
 
   apk add expat-static #fontconfig
+  apk add util-linux-dev #librsvg: libmount.a/libblkid.a（-lmount -lblkid）
 }
 
 case "$1" in
@@ -385,9 +395,13 @@ b_deps)
     # bash /src/openbox/build.sh fontconfig &
     bash /src/openbox/build.sh libxrandr &
     bash /src/openbox/build.sh pango &
+    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
+    wait
+    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     wait
     # view libs
     find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
+    find /usr/local/lib |egrep "librsvg|libcroco" |grep "\.a$" |sort
     ;;
 *) #compile
     oneBuild $1
