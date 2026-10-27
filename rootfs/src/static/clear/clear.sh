@@ -29,21 +29,11 @@ find /rootfs/usr/local/static -type f |grep -E "/sbin/|/bin/" |grep -v "/3rd/bin
 done
 
 # link-bin,sbin ###########################################
-  rm -rf  /rootfs/usr/bin /rootfs/usr/sbin; mkdir -p /rootfs/usr/bin /rootfs/usr/sbin; #/rootfs/bin
-  # ERROR: failed to solve: cannot copy to non-directory: /var/lib/buildkit/runc-overlayfs/cachemounts/buildkit2366480739/bin
-  # ln -s /usr/local/static/3rd/bin/bash /rootfs/bin/; # #!/bin/bash @busybox
-
-  # clear-xrdp;
-  # needed: lib/xrdp/libvnc.so;
-  # find /rootfs/usr/local/static -type d |grep -E "/share/man$|xrdp/lib$" | \
-  #   while read one; do du -sh $one; rm -rf $one; done; \
-  echo -e "\n[link] /rootfs/usr/sbin/"
-  find /rootfs/usr/local/static -type f |grep "/sbin/" |sort | \
-    while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/sbin/; done; \
-
-  echo -e "\n[link] /rootfs/usr/bin/"
-  find /rootfs/usr/local/static -type f |grep "/bin/" |sort | \
-    while read one; do ls -lh $one; one2=$(echo $one|sed "s^/rootfs^^g"); ln -s $one2 /rootfs/usr/bin/; done;
+  rm -rf  /rootfs/usr/bin /rootfs/usr/sbin
+  rfs=/rootfs/; mkdir -p ${rfs}usr/bin ${rfs}usr/sbin
+  cd ${rfs}; echo -e "\n[link] ${rfs}usr/sbin/ ${rfs}usr/bin/"
+  find usr/local/static -type f |grep -Ev "/\.dotfiles/" |grep -E "/bin/|/sbin/" |sort | \
+    while read one; do du -sh $one; t=${one%/*}; ln -s /$one usr/${t##*/}/; done
 
 # link-openbox-theme ###########################################
 find  /rootfs/usr/local/static/openbox/share/ -type d |grep openbox-3 |while read one; do
