@@ -239,6 +239,12 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
     cd /tmp; curl -Ok -fSL https://github.com/infrastlabs/fk-awm/releases/download/v2610/$file; \
     tar -zxf $file -C /rootfs/; rm -f $file; \
     du -sh /rootfs/usr/local/static/*; \
+    \
+    # link bin,sbin
+    rfs=/rootfs/; mkdir -p ${rfs}usr/bin ${rfs}usr/sbin; \
+    cd ${rfs}; echo -e "\n[link] ${rfs}usr/sbin/ ${rfs}usr/bin/"; \
+    find usr/local/static -type f |grep -Ev "/\.dotfiles/" |grep -E "/bin/|/sbin/" |sort | \
+      while read one; do du -sh $one; t=${one%/*}; ln -s /$one usr/${t##*/}/; done; \
     exit 0;
   
   COPY src/*.sh /rootfs/
