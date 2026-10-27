@@ -79,7 +79,7 @@ jobs:
             # 25.9.14: 不识别ARG参? @28.0.4
             # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
             bash buildx.sh rootfs
-            exit 0
+            # exit 0
           # 
           # #############################
           doDistros=true
