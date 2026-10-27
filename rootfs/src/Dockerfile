@@ -225,7 +225,11 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
     # fonts: DejaVuSansMono
     git clone https://gitee.com/g-system/fk-fonts /tmp/powerline-fonts; \
     dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
-    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/;
+    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/; \
+    # 261027: +awm
+    file=awm-static-musl-261027-010604-v4.3-1846-2482db9-$arch.tar.gz; \
+    cd /tmp; wget --no-check-certificate https://github.com/infrastlabs/fk-awm/releases/download/v2610/$file; \
+    tar -zxf $file -C /rootfs/; rm -f $file;
   
   COPY src/*.sh /rootfs/
   # ADD src/dot /rootfs/etc/skel
