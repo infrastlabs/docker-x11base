@@ -301,6 +301,8 @@ ENV \
 #   TZ="Asia/Shanghai"
 
 RUN \
+  # avoid awm's err
+  mkdir -p /usr/share/X11/xkb; \
   echo -e "\n\
 cp -a /rootfs/files1/* /; \n\
 cp -a /rootfs/files2/* /; \n\
