@@ -1,10 +1,7 @@
 #!/bin/bash
 
 # link-bin,sbin
-  echo -e "\n[link] /usr/sbin/"
-  find /usr/local/static -type f |grep "/sbin/" |sort | \
-    while read one; do ls -lh $one; ln -s $one /usr/sbin/; done; \
-
-  echo -e "\n[link] /usr/bin/"
-  find /usr/local/static -type f |grep "/bin/" |sort | \
-    while read one; do ls -lh $one; ln -s $one /usr/bin/; done;
+rfs=/; mkdir -p ${rfs}usr/bin ${rfs}usr/sbin #rfs=/rootfs/
+cd ${rfs}; echo -e "\n[link] ${rfs}usr/sbin/ ${rfs}usr/bin/"
+find usr/local/static -type f |grep -Ev "/\.dotfiles/" |grep -E "/bin/|/sbin/" |sort | \
+  while read one; do du -sh $one; t=${one%/*}; echo ln -s /$one usr/${t##*/}/; done
