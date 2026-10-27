@@ -205,7 +205,7 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
       "linux/arm/v6") arch=NONE_ARMv6   ;; \
       "linux/386")    arch=NONE_i386 ;; \
     esac; \
-    file=webhookd$arch.tar.gz; \
+    file=webhookd${arch}.tar.gz; \
     cd /tmp; wget --no-check-certificate https://gitee.com/infrastlabs/fk-webhookd/releases/download/v22.08.18/$file; \
     hookd=/rootfs/usr/local/webhookd; mkdir -p $hookd; tar -zxvf $file -C $hookd; rm -f $file; \
     # webhookd if not amd64: -arm64, armv7
@@ -225,7 +225,27 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
     # fonts: DejaVuSansMono
     git clone https://gitee.com/g-system/fk-fonts /tmp/powerline-fonts; \
     dst=/rootfs/usr/share/fonts/DejaVuSansMono; \
-    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/;
+    mkdir -p $dst; \cp -a /tmp/powerline-fonts/DejaVuSansMono/*.ttf $dst/; \
+    \
+    # 261027: +awm
+    case ${TARGETPLATFORM} in \
+      "linux/amd64")  arch=amd64    ;; \
+      "linux/arm64")  arch=arm64    ;; \
+      "linux/arm/v7") arch=armv7    ;; \
+      "linux/arm/v6") arch=NONE_ARMv6  ;; \
+      "linux/386")    arch=NONE_i386   ;; \
+    esac; \
+    file=awm-static-musl-261027-010604-v4.3-1846-2482db9-${arch}.tar.gz; \
+    cd /tmp; curl -Ok -fSL https://github.com/infrastlabs/fk-awm/releases/download/v2610/$file; \
+    tar -zxf $file -C /rootfs/; rm -f $file; \
+    du -sh /rootfs/usr/local/static/*; \
+    \
+    # link bin,sbin
+    rfs=/rootfs/; mkdir -p ${rfs}usr/bin ${rfs}usr/sbin; \
+    cd ${rfs}; echo -e "\n[link] ${rfs}usr/sbin/ ${rfs}usr/bin/"; \
+    find usr/local/static -type f |grep -Ev "/\.dotfiles/" |grep -E "/bin/|/sbin/" |sort | \
+      while read one; do du -sh $one; t=${one%/*}; ln -s /$one usr/${t##*/}/; done; \
+    exit 0;
   
   COPY src/*.sh /rootfs/
   # ADD src/dot /rootfs/etc/skel
@@ -237,6 +257,10 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
   RUN echo "NOCACHE=${NOCACHE}"; \
     dst=/rootfs/usr/local/static/.dotfiles; \
     mkdir -p $dst; git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git $dst; \
+    \
+    # 261027: +awm
+    cfg=$dst/.artwork-main/.config; mkdir -p $cfg/; rm -rf $cfg/awesome; \
+    git clone https://gitee.com/g-system/fk-awm-theme $cfg/awesome; \
     exit 0; 
 
 # FROM busybox:1.36.1
@@ -277,6 +301,8 @@ ENV \
 #   TZ="Asia/Shanghai"
 
 RUN \
+  # avoid awm's err
+  mkdir -p /usr/share/X11/xkb; \
   echo -e "\n\
 cp -a /rootfs/files1/* /; \n\
 cp -a /rootfs/files2/* /; \n\
