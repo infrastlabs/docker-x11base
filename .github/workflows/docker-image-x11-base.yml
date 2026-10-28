@@ -97,8 +97,8 @@ jobs:
             # bash buildx.sh core alpine 3.11 & ##
             # bash buildx.sh core alpine 3.12 & ##
             bash buildx.sh core alpine 3.13 & ##
-            bash buildx.sh core alpine 3.14 & ##
-            bash buildx.sh core alpine 3.16 &
+            # bash buildx.sh core alpine 3.14 & ##
+            # bash buildx.sh core alpine 3.16 &
             bash buildx.sh core alpine 3.19 &
             bash buildx.sh core alpine 3.21 &
             bash buildx.sh core alpine 3.23 latest & #2606
@@ -114,7 +114,7 @@ jobs:
             # bash buildx.sh core opensuse 15.2 &
             # bash buildx.sh core opensuse 15.3 &
             # bash buildx.sh core opensuse 15.4 &
-            bash buildx.sh core opensuse 15.5 &
+            # bash buildx.sh core opensuse 15.5 &
             bash buildx.sh core opensuse 15.6 latest &
             # oth
             bash buildx.sh core debian 7 &
@@ -126,8 +126,8 @@ jobs:
             bash buildx.sh core debian 13 latest &
             bash buildx.sh core busybox 1.36.1 latest &
             bash buildx.sh core openwrt 23.05 latest &
+            bash buildx.sh core voidlinux v2509 latest &
             # bash buildx.sh core fedora 39 latest &
-            # bash buildx.sh core voidlinux v2509 latest &
             # bash buildx.sh core openeuler 22.03-lts-sp4 &
             wait
             # app
@@ -142,8 +142,8 @@ jobs:
             # bash buildx.sh app alpine 3.11 & ##
             # bash buildx.sh app alpine 3.12 & ##
             bash buildx.sh app alpine 3.13 & ##
-            bash buildx.sh app alpine 3.14 & ##
-            bash buildx.sh app alpine 3.16 &
+            # bash buildx.sh app alpine 3.14 & ##
+            # bash buildx.sh app alpine 3.16 &
             bash buildx.sh app alpine 3.19 & #>3.23
             bash buildx.sh app alpine 3.21 &
             bash buildx.sh app alpine 3.23 latest & 
@@ -159,7 +159,7 @@ jobs:
             # bash buildx.sh app opensuse 15.2 &
             # bash buildx.sh app opensuse 15.3 &
             # bash buildx.sh app opensuse 15.4 &
-            bash buildx.sh app opensuse 15.5 &
+            # bash buildx.sh app opensuse 15.5 &
             bash buildx.sh app opensuse 15.6 latest & #16.1
             wait
             # 
@@ -169,7 +169,7 @@ jobs:
           # 同步到ali仓
           #REPO_ALI>> REPO_HUB REPO_TEN REPO_QING 
           unset REPO_ALI REPO_QING #skipSync REPO_TEN #QINGCLOUD.REPO net failed
-          echo syncer; doSync=true #true false
+          echo syncer; doSync=false #true false
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
