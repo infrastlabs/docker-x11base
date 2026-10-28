@@ -85,11 +85,12 @@ jobs:
           doDistros=true
           if [ "true" == "$doDistros" ]; then
           echo distros; cd ../distros;
-            # dbg
-            bash buildx.sh core alpine 3.6 & 
+            # # dbg
+            # bash buildx.sh core alpine 3.6 & 
             # bash buildx.sh core busybox 1.36.1 latest &
-            bash buildx.sh core openwrt 23.05 latest &
-            bash buildx.sh core voidlinux v2509 latest &
+            # bash buildx.sh core openwrt 23.05 latest &
+            # bash buildx.sh core voidlinux v2509 latest &
+            bash buildx.sh app alpine 3.6 &
             wait; exit 0
 
             # bash buildx.sh type dist ver [latest]
