@@ -266,6 +266,9 @@ chmod +x $file;
 # \s-\v\$
 export PS1='[\u@\h \W]\$ '
 
+# 261028 avoid awm's err
+mkdir -p /usr/share/X11/xkb
+
 export PERP_BASE=/etc/perp; dst=/var/log/tinylog/_perp; mkdir -p $dst
 # exec perpd |tinylog -k2 -s1000 -z $dst
 # exec perpd > >(exec tinylog -k2 -s1000 -z $dst) 2>&1
