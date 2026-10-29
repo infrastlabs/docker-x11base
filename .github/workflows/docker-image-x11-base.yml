@@ -90,8 +90,8 @@ jobs:
             # bash buildx.sh core busybox 1.36.1 latest &
             # bash buildx.sh core openwrt 23.05 latest &
             # bash buildx.sh core voidlinux v2509 latest &
-            bash buildx.sh app alpine 3.6 &
-            wait; exit 0
+            # bash buildx.sh app alpine 3.6 &
+            # wait; exit 0
 
             # bash buildx.sh type dist ver [latest]
             # bash buildx.sh core alpine 3.1 & ##
@@ -102,11 +102,11 @@ jobs:
             bash buildx.sh core alpine 3.6 & ##start-with-armv8,v7
             bash buildx.sh core alpine 3.8 & ##
             bash buildx.sh core alpine 3.10 & ##
-            # bash buildx.sh core alpine 3.11 & ##
-            # bash buildx.sh core alpine 3.12 & ##
+            bash buildx.sh core alpine 3.11 & ##
+            bash buildx.sh core alpine 3.12 & ##
             bash buildx.sh core alpine 3.13 & ##
-            # bash buildx.sh core alpine 3.14 & ##
-            # bash buildx.sh core alpine 3.16 &
+            bash buildx.sh core alpine 3.14 & ##
+            bash buildx.sh core alpine 3.16 &
             bash buildx.sh core alpine 3.19 &
             bash buildx.sh core alpine 3.21 &
             bash buildx.sh core alpine 3.23 latest & #2606
@@ -145,8 +145,8 @@ jobs:
             # bash buildx.sh app alpine 3.4 & ##
             # bash buildx.sh app alpine 3.5 & ##
             bash buildx.sh app alpine 3.6 & ##start-with-armv8,v7
-            bash buildx.sh app alpine 3.8 & ##
-            bash buildx.sh app alpine 3.10 & ##
+            # bash buildx.sh app alpine 3.8 & ##
+            # bash buildx.sh app alpine 3.10 & ##
             # bash buildx.sh app alpine 3.11 & ##
             # bash buildx.sh app alpine 3.12 & ##
             bash buildx.sh app alpine 3.13 & ##
