@@ -6,10 +6,10 @@ on:
     branches: [ "dev" ]
 jobs:
   build:
-    runs-on: ubuntu latest
-    # runs-on: ubuntu 20.04
-    # runs-on: ubuntu 22.04
-    # runs-on: ubuntu 24.04
+    runs-on: ubuntu-latest
+    # runs-on: ubuntu-20.04
+    # runs-on: ubuntu-22.04
+    # runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       
@@ -247,7 +247,7 @@ jobs:
   # post-build:
   #   name: Post-build
   #   needs: [ build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   steps:
   #     - name: Prepare
   #       id: prep
@@ -257,5 +257,5 @@ jobs:
   # notification:
   #   name: Notification
   #   needs: [ build, post-build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   if: ${{ always() }}
