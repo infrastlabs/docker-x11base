@@ -1,14 +1,15 @@
 name: docker-image-x11-base
 on:
   push:
-    branches: [ "dev", "sam-custom" ]
+    branches: [ "dev", "sam-custom", "feat/*" ]
   pull_request:
     branches: [ "dev" ]
 jobs:
   build:
-    # runs-on: ubuntu latest
-    # runs-on: ubuntu 20.04
-    runs-on: ubuntu 22.04
+    # runs-on: ubuntu-latest
+    # runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    # runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       
@@ -59,22 +60,30 @@ jobs:
 
           
           # JUST LOGIN HERE
-          # echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN
+          # echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN #some time login err
           echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN_HK
           # echo "${DOCKER_REGISTRY_QCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_QCLOUD_USER} --password-stdin $REPO_QING
 
           # BUILD
           :> /tmp/.timecost
+          # 方案一：管道传递给 cat（推荐，可保留错误输出）
+          # { docker pull ubuntu:latest || :; } | cat
+          # docker buildx build --progress=plain -t my-image .
+          export BUILDKIT_PROGRESS=plain
 
+          export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+          # args="--provenance=false --sbom=false"
           # #############################
           cd .github; 
           echo compile; cd ../compile;
-            # # bash buildx.sh ubt-builder
-            # # bash buildx.sh deb12-builder
-            # # 
-            # # bash buildx.sh builder
-            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh ubt-builder
+            # bash buildx.sh deb12-builder
+            # 
+            # bash buildx.sh builder #gtk224 to ali's layer not supported err, re-build origin
+            # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh gtkmm224
             # bash buildx.sh #compile
+            # exit 0
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
             # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
@@ -90,91 +99,107 @@ jobs:
             # bash buildx.sh core openwrt 23.05 latest &
             # bash buildx.sh core voidlinux v2509 latest &
             # bash buildx.sh app alpine 3.6 &
+            # alpine-3.12
+            # bash buildx.sh app alpine 3.12 &  ##
+            # bash buildx.sh core alpine 3.12 &
+            # 
             # fail-261031
-            bash buildx.sh core alpine 3.6 & 
-            bash buildx.sh core alpine 3.11 &
-            bash buildx.sh core alpine 3.13 &
-            bash buildx.sh core alpine 3.16 &
-            bash buildx.sh core alpine 3.21 &
-            bash buildx.sh core debian 7 &
-            bash buildx.sh core debian 9 &
-            bash buildx.sh core debian 12 &
-            bash buildx.sh core ubuntu 14.04 &
-            bash buildx.sh core ubuntu 18.04 &
-            bash buildx.sh core ubuntu 20.04 &
-            wait; exit 0
+            # bash buildx.sh core alpine 3.6 & 
+            # bash buildx.sh core alpine 3.11 &
+            # bash buildx.sh core alpine 3.13 &
+            # bash buildx.sh core alpine 3.16 &
+            # bash buildx.sh core alpine 3.21 &
+            # bash buildx.sh core debian 7 &
+            # bash buildx.sh core debian 9 &
+            # bash buildx.sh core debian 12 &
+            # bash buildx.sh core ubuntu 14.04 &
+            # bash buildx.sh core ubuntu 18.04 &
+            # bash buildx.sh core ubuntu 20.04 &
+            # 
+            # ubt22+ dropbear@rootfs-dbg
+            export ENV_ROOTFS=rootfs-dbg
+            export ENV_PLAT="--platform linux/amd64" #dbg
+            bash buildx.sh core busybox 1.36.1 latest &
+            bash buildx.sh core openwrt 23.05 latest &
+            bash buildx.sh core alpine 3.12 &
+            bash buildx.sh core opensuse 15.6 latest &
+            bash buildx.sh core debian 13 latest &
+            # bash buildx.sh core ubuntu 22.04 &
+            # bash buildx.sh core ubuntu 24.04 &
+            # bash buildx.sh core ubuntu 26.04 latest &
+            wait; unset ENV_ROOTFS ENV_PLAT; exit 0
 
             # bash buildx.sh type dist ver [latest]
-            # bash buildx.sh core alpine 3.1 & ##
-            # bash buildx.sh core alpine 3.2 & ##
-            # bash buildx.sh core alpine 3.3 & ##
-            # bash buildx.sh core alpine 3.4 & ##
-            # bash buildx.sh core alpine 3.5 & ##
+            # bash buildx.sh core alpine 3.1 &
+            # bash buildx.sh core alpine 3.2 &
+            # bash buildx.sh core alpine 3.3 &
+            # bash buildx.sh core alpine 3.4 &
+            # bash buildx.sh core alpine 3.5 &
             bash buildx.sh core alpine 3.6 & ##start-with-armv8,v7
-            bash buildx.sh core alpine 3.8 & ##
-            bash buildx.sh core alpine 3.10 & ##
-            bash buildx.sh core alpine 3.11 & ##
-            bash buildx.sh core alpine 3.12 & ##
-            bash buildx.sh core alpine 3.13 & ##
-            bash buildx.sh core alpine 3.14 & ##
+            bash buildx.sh core alpine 3.8 &
+            bash buildx.sh core alpine 3.10 &
+            bash buildx.sh core alpine 3.11 &
+            bash buildx.sh core alpine 3.12 &
+            bash buildx.sh core alpine 3.13 & ############## thunar-v4.16.2: iconErr
+            bash buildx.sh core alpine 3.14 &
             bash buildx.sh core alpine 3.16 &
             bash buildx.sh core alpine 3.19 &
             bash buildx.sh core alpine 3.21 &
             bash buildx.sh core alpine 3.23 latest & #2606
-            bash buildx.sh core ubuntu 14.04 & ##
-            bash buildx.sh core ubuntu 16.04 & ##
-            bash buildx.sh core ubuntu 18.04 & ##
-            bash buildx.sh core ubuntu 20.04 &
+            bash buildx.sh core ubuntu 14.04 &
+            bash buildx.sh core ubuntu 16.04 &
+            bash buildx.sh core ubuntu 18.04 &
+            bash buildx.sh core ubuntu 20.04 & ##############
             bash buildx.sh core ubuntu 22.04 &
             bash buildx.sh core ubuntu 24.04 &
             bash buildx.sh core ubuntu 26.04 latest &
-            # bash buildx.sh core opensuse 15.0 & ##
-            # bash buildx.sh core opensuse 15.1 & ##
+            # bash buildx.sh core opensuse 15.0 &
+            # bash buildx.sh core opensuse 15.1 &
             # bash buildx.sh core opensuse 15.2 &
             # bash buildx.sh core opensuse 15.3 &
             # bash buildx.sh core opensuse 15.4 &
             # bash buildx.sh core opensuse 15.5 &
             bash buildx.sh core opensuse 15.6 latest &
             # oth
-            bash buildx.sh core debian 7 &
+            bash buildx.sh core debian 7 & ##ps err; entry-err;
             bash buildx.sh core debian 8 &
             bash buildx.sh core debian 9 &
-            bash buildx.sh core debian 10 &
+            bash buildx.sh core debian 10 & ##############
             bash buildx.sh core debian 11 &
             bash buildx.sh core debian 12 &
             bash buildx.sh core debian 13 latest &
-            bash buildx.sh core busybox 1.36.1 latest &
-            bash buildx.sh core openwrt 23.05 latest &
-            bash buildx.sh core voidlinux v2509 latest &
+            bash buildx.sh core busybox 1.36.1 latest & #ap34-黑屏
+            bash buildx.sh core openwrt 23.05 latest &  #awm-mainMenu 只top两项
+            bash buildx.sh core voidlinux v2509 latest & ##############
             # bash buildx.sh core fedora 39 latest &
             # bash buildx.sh core openeuler 22.03-lts-sp4 &
             wait
             # app
-            # bash buildx.sh app alpine 3.1 & ##
-            # bash buildx.sh app alpine 3.2 & ##
-            # bash buildx.sh app alpine 3.3 & ##
-            # bash buildx.sh app alpine 3.4 & ##
-            # bash buildx.sh app alpine 3.5 & ##
+            # bash buildx.sh app alpine 3.1 &
+            # bash buildx.sh app alpine 3.2 &
+            # bash buildx.sh app alpine 3.3 &
+            # bash buildx.sh app alpine 3.4 &
+            # bash buildx.sh app alpine 3.5 &
             bash buildx.sh app alpine 3.6 & ##start-with-armv8,v7
-            # bash buildx.sh app alpine 3.8 & ##
-            # bash buildx.sh app alpine 3.10 & ##
-            # bash buildx.sh app alpine 3.11 & ##
-            # bash buildx.sh app alpine 3.12 & ##
-            bash buildx.sh app alpine 3.13 & ##
-            # bash buildx.sh app alpine 3.14 & ##
+            # bash buildx.sh app alpine 3.8 &
+            # bash buildx.sh app alpine 3.10 &
+            # bash buildx.sh app alpine 3.11 &
+            bash buildx.sh app alpine 3.12 &
+            bash buildx.sh app alpine 3.13 & ##############
+            # bash buildx.sh app alpine 3.14 &
             # bash buildx.sh app alpine 3.16 &
             bash buildx.sh app alpine 3.19 & #>3.23
             bash buildx.sh app alpine 3.21 &
             bash buildx.sh app alpine 3.23 latest & 
-            bash buildx.sh app ubuntu 14.04 & ##
-            bash buildx.sh app ubuntu 16.04 & ##
-            bash buildx.sh app ubuntu 18.04 & ##
-            bash buildx.sh app ubuntu 20.04 &
+            bash buildx.sh app ubuntu 14.04 &
+            bash buildx.sh app ubuntu 16.04 &
+            bash buildx.sh app ubuntu 18.04 &
+            bash buildx.sh app ubuntu 20.04 & ##############
             bash buildx.sh app ubuntu 22.04 &
             bash buildx.sh app ubuntu 24.04 &
             bash buildx.sh app ubuntu 26.04 latest &
-            # bash buildx.sh app opensuse 15.0 & ##
-            # bash buildx.sh app opensuse 15.1 & ##
+            # bash buildx.sh app opensuse 15.0 &
+            # bash buildx.sh app opensuse 15.1 &
             # bash buildx.sh app opensuse 15.2 &
             # bash buildx.sh app opensuse 15.3 &
             # bash buildx.sh app opensuse 15.4 &
@@ -192,7 +217,7 @@ jobs:
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
-          echo undockPkg; doPkg=false
+          echo undockPkg; doPkg=true
           cd ../../.github/workflows; test "true" == "$doPkg" && bash undock.sh;
           # 
           # view timecost
@@ -208,8 +233,8 @@ jobs:
         uses: softprops/action-gh-release@v2 #v2.0.8
         # if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: latest
-          tag_name: v24.12
+          name: v26.11
+          tag_name: v26.11
           make_latest: true
           token: ${{ github.token }} #Defaults to ${{ github.token }}
           body: |
@@ -227,26 +252,46 @@ jobs:
           files: |
             # ebook.pdf
             # LICENSE
-            .github/workflows/.ws/pkgs/dropbear-*.tar.gz
-            .github/workflows/.ws/pkgs/perp-*.tar.gz
-            .github/workflows/.ws/pkgs/tigervnc-*.tar.gz
-            .github/workflows/.ws/pkgs/pulseaudio-*.tar.gz
-            .github/workflows/.ws/pkgs/xrdp-*.tar.gz
-            .github/workflows/.ws/pkgs/x11vnc-*.tar.gz
-            .github/workflows/.ws/pkgs/3rd-*.tar.gz
-            .github/workflows/.ws/pkgs/misc-*.tar.gz
-            .github/workflows/.ws/pkgs/fluxbox-*.tar.gz
-            .github/workflows/.ws/pkgs/openbox-*.tar.gz
-            .github/workflows/.ws/pkgs/suckless-*.tar.gz
+            # .github/workflows/.ws/pkgs/tigervnc-*.tar.gz
+            # .github/workflows/.ws/pkgs/pulseaudio-*.tar.gz
+            # .github/workflows/.ws/pkgs/xrdp-*.tar.gz
+            # .github/workflows/.ws/pkgs/x11vnc-*.tar.gz
+            # .github/workflows/.ws/pkgs/fluxbox-*.tar.gz
+            # .github/workflows/.ws/pkgs/openbox-*.tar.gz
+            # .github/workflows/.ws/pkgs/suckless-*.tar.gz
+            # .github/workflows/.ws/pkgs/dropbear-*.tar.gz
+            # .github/workflows/.ws/pkgs/xcompmgr-*.tar.gz
+            # .github/workflows/.ws/pkgs/perp-*.tar.gz
+            # .github/workflows/.ws/pkgs/misc-*.tar.gz
+            # .github/workflows/.ws/pkgs/3rd-*.tar.gz
+            # 
+            .github/workflows/.ws/pkgs/hsetroot-*.tar.gz
+            .github/workflows/.ws/pkgs/scrot-*.tar.gz
             .github/workflows/.ws/pkgs/tint2-*.tar.gz
-            # .github/workflows/.ws/pkgs/xcompmgr-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/xlunch-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/feh-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/lxde-amd64.tar.gz
+            .github/workflows/.ws/pkgs/feh-*.tar.gz
+            .github/workflows/.ws/pkgs/xlunch-*.tar.gz
+            # 
+            # .github/workflows/.ws/pkgs/xbindkeys-*.tar.gz
+            # .github/workflows/.ws/pkgs/xrandr-*.tar.gz
+            # .github/workflows/.ws/pkgs/dunst-*.tar.gz
+            # .github/workflows/.ws/pkgs/rofi-*.tar.gz
+            .github/workflows/.ws/pkgs/pasystray-*.tar.gz
+            .github/workflows/.ws/pkgs/pavucontrol-*.tar.gz
+            .github/workflows/.ws/pkgs/gsm-*.tar.gz
+            # 
+            .github/workflows/.ws/pkgs/lxde-*.tar.gz
+            .github/workflows/.ws/pkgs/pcmanfm-*.tar.gz
+            .github/workflows/.ws/pkgs/xfce4-*.tar.gz
+            .github/workflows/.ws/pkgs/geany-*.tar.gz
+            .github/workflows/.ws/pkgs/engrampa-*.tar.gz
+            .github/workflows/.ws/pkgs/gpicview-*.tar.gz
+            # .github/workflows/.ws/pkgs/dbus-*.tar.gz
+            # .github/workflows/.ws/pkgs/ibus-*.tar.gz
+            
   # post-build:
   #   name: Post-build
   #   needs: [ build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   steps:
   #     - name: Prepare
   #       id: prep
@@ -256,5 +301,5 @@ jobs:
   # notification:
   #   name: Notification
   #   needs: [ build, post-build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   if: ${{ always() }}
