@@ -1,14 +1,15 @@
 name: docker-image-x11-base
 on:
   push:
-    branches: [ "dev", "sam-custom" ]
+    branches: [ "dev", "sam-custom", "feat/*" ]
   pull_request:
     branches: [ "dev" ]
 jobs:
   build:
-    # runs-on: ubuntu latest
-    # runs-on: ubuntu 20.04
-    runs-on: ubuntu 22.04
+    runs-on: ubuntu-latest
+    # runs-on: ubuntu-20.04
+    # runs-on: ubuntu-22.04
+    # runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       
@@ -69,11 +70,12 @@ jobs:
           # #############################
           cd .github; 
           echo compile; cd ../compile;
-            # # bash buildx.sh ubt-builder
-            # # bash buildx.sh deb12-builder
-            # # 
-            # # bash buildx.sh builder
-            # # bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh ubt-builder
+            # bash buildx.sh deb12-builder
+            # 
+            # bash buildx.sh builder
+            bash buildx.sh gtk224 #builder-gtk224
+            exit 0
             # bash buildx.sh #compile
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
@@ -90,91 +92,93 @@ jobs:
             # bash buildx.sh core openwrt 23.05 latest &
             # bash buildx.sh core voidlinux v2509 latest &
             # bash buildx.sh app alpine 3.6 &
+            bash buildx.sh app alpine 3.12 &
+            bash buildx.sh core alpine 3.12 &
             # fail-261031
-            bash buildx.sh core alpine 3.6 & 
-            bash buildx.sh core alpine 3.11 &
-            bash buildx.sh core alpine 3.13 &
-            bash buildx.sh core alpine 3.16 &
-            bash buildx.sh core alpine 3.21 &
-            bash buildx.sh core debian 7 &
-            bash buildx.sh core debian 9 &
-            bash buildx.sh core debian 12 &
-            bash buildx.sh core ubuntu 14.04 &
-            bash buildx.sh core ubuntu 18.04 &
-            bash buildx.sh core ubuntu 20.04 &
+            # bash buildx.sh core alpine 3.6 & 
+            # bash buildx.sh core alpine 3.11 &
+            # bash buildx.sh core alpine 3.13 &
+            # bash buildx.sh core alpine 3.16 &
+            # bash buildx.sh core alpine 3.21 &
+            # bash buildx.sh core debian 7 &
+            # bash buildx.sh core debian 9 &
+            # bash buildx.sh core debian 12 &
+            # bash buildx.sh core ubuntu 14.04 &
+            # bash buildx.sh core ubuntu 18.04 &
+            # bash buildx.sh core ubuntu 20.04 &
             wait; exit 0
 
             # bash buildx.sh type dist ver [latest]
-            # bash buildx.sh core alpine 3.1 & ##
-            # bash buildx.sh core alpine 3.2 & ##
-            # bash buildx.sh core alpine 3.3 & ##
-            # bash buildx.sh core alpine 3.4 & ##
-            # bash buildx.sh core alpine 3.5 & ##
+            # bash buildx.sh core alpine 3.1 &
+            # bash buildx.sh core alpine 3.2 &
+            # bash buildx.sh core alpine 3.3 &
+            # bash buildx.sh core alpine 3.4 &
+            # bash buildx.sh core alpine 3.5 &
             bash buildx.sh core alpine 3.6 & ##start-with-armv8,v7
-            bash buildx.sh core alpine 3.8 & ##
-            bash buildx.sh core alpine 3.10 & ##
-            bash buildx.sh core alpine 3.11 & ##
-            bash buildx.sh core alpine 3.12 & ##
-            bash buildx.sh core alpine 3.13 & ##
-            bash buildx.sh core alpine 3.14 & ##
+            bash buildx.sh core alpine 3.8 &
+            bash buildx.sh core alpine 3.10 &
+            bash buildx.sh core alpine 3.11 &
+            bash buildx.sh core alpine 3.12 &
+            bash buildx.sh core alpine 3.13 & ############## thunar-v4.16.2: iconErr
+            bash buildx.sh core alpine 3.14 &
             bash buildx.sh core alpine 3.16 &
             bash buildx.sh core alpine 3.19 &
             bash buildx.sh core alpine 3.21 &
             bash buildx.sh core alpine 3.23 latest & #2606
-            bash buildx.sh core ubuntu 14.04 & ##
-            bash buildx.sh core ubuntu 16.04 & ##
-            bash buildx.sh core ubuntu 18.04 & ##
-            bash buildx.sh core ubuntu 20.04 &
+            bash buildx.sh core ubuntu 14.04 &
+            bash buildx.sh core ubuntu 16.04 &
+            bash buildx.sh core ubuntu 18.04 &
+            bash buildx.sh core ubuntu 20.04 & ##############
             bash buildx.sh core ubuntu 22.04 &
             bash buildx.sh core ubuntu 24.04 &
             bash buildx.sh core ubuntu 26.04 latest &
-            # bash buildx.sh core opensuse 15.0 & ##
-            # bash buildx.sh core opensuse 15.1 & ##
+            # bash buildx.sh core opensuse 15.0 &
+            # bash buildx.sh core opensuse 15.1 &
             # bash buildx.sh core opensuse 15.2 &
             # bash buildx.sh core opensuse 15.3 &
             # bash buildx.sh core opensuse 15.4 &
             # bash buildx.sh core opensuse 15.5 &
             bash buildx.sh core opensuse 15.6 latest &
             # oth
-            bash buildx.sh core debian 7 &
+            bash buildx.sh core debian 7 & ##ps err; entry-err;
             bash buildx.sh core debian 8 &
             bash buildx.sh core debian 9 &
-            bash buildx.sh core debian 10 &
+            bash buildx.sh core debian 10 & ##############
             bash buildx.sh core debian 11 &
             bash buildx.sh core debian 12 &
             bash buildx.sh core debian 13 latest &
-            bash buildx.sh core busybox 1.36.1 latest &
-            bash buildx.sh core openwrt 23.05 latest &
-            bash buildx.sh core voidlinux v2509 latest &
+            bash buildx.sh core busybox 1.36.1 latest & #ap34-黑屏
+            bash buildx.sh core openwrt 23.05 latest &  #awm-mainMenu 只top两项
+            bash buildx.sh core voidlinux v2509 latest & ##############
             # bash buildx.sh core fedora 39 latest &
             # bash buildx.sh core openeuler 22.03-lts-sp4 &
             wait
             # app
-            # bash buildx.sh app alpine 3.1 & ##
-            # bash buildx.sh app alpine 3.2 & ##
-            # bash buildx.sh app alpine 3.3 & ##
-            # bash buildx.sh app alpine 3.4 & ##
-            # bash buildx.sh app alpine 3.5 & ##
+            # bash buildx.sh app alpine 3.1 &
+            # bash buildx.sh app alpine 3.2 &
+            # bash buildx.sh app alpine 3.3 &
+            # bash buildx.sh app alpine 3.4 &
+            # bash buildx.sh app alpine 3.5 &
             bash buildx.sh app alpine 3.6 & ##start-with-armv8,v7
-            # bash buildx.sh app alpine 3.8 & ##
-            # bash buildx.sh app alpine 3.10 & ##
-            # bash buildx.sh app alpine 3.11 & ##
-            # bash buildx.sh app alpine 3.12 & ##
-            bash buildx.sh app alpine 3.13 & ##
-            # bash buildx.sh app alpine 3.14 & ##
+            # bash buildx.sh app alpine 3.8 &
+            # bash buildx.sh app alpine 3.10 &
+            # bash buildx.sh app alpine 3.11 &
+            bash buildx.sh app alpine 3.12 &
+            bash buildx.sh app alpine 3.13 & ##############
+            # bash buildx.sh app alpine 3.14 &
             # bash buildx.sh app alpine 3.16 &
             bash buildx.sh app alpine 3.19 & #>3.23
             bash buildx.sh app alpine 3.21 &
             bash buildx.sh app alpine 3.23 latest & 
-            bash buildx.sh app ubuntu 14.04 & ##
-            bash buildx.sh app ubuntu 16.04 & ##
-            bash buildx.sh app ubuntu 18.04 & ##
-            bash buildx.sh app ubuntu 20.04 &
+            bash buildx.sh app ubuntu 14.04 &
+            bash buildx.sh app ubuntu 16.04 &
+            bash buildx.sh app ubuntu 18.04 &
+            bash buildx.sh app ubuntu 20.04 & ##############
             bash buildx.sh app ubuntu 22.04 &
             bash buildx.sh app ubuntu 24.04 &
             bash buildx.sh app ubuntu 26.04 latest &
-            # bash buildx.sh app opensuse 15.0 & ##
-            # bash buildx.sh app opensuse 15.1 & ##
+            # bash buildx.sh app opensuse 15.0 &
+            # bash buildx.sh app opensuse 15.1 &
             # bash buildx.sh app opensuse 15.2 &
             # bash buildx.sh app opensuse 15.3 &
             # bash buildx.sh app opensuse 15.4 &
@@ -246,7 +250,7 @@ jobs:
   # post-build:
   #   name: Post-build
   #   needs: [ build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   steps:
   #     - name: Prepare
   #       id: prep
@@ -256,5 +260,5 @@ jobs:
   # notification:
   #   name: Notification
   #   needs: [ build, post-build ]
-  #   runs-on: ubuntu 20.04
+  #   runs-on: ubuntu-20.04
   #   if: ${{ always() }}
