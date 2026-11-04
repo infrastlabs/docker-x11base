@@ -40,6 +40,8 @@ function gdk-pixbuf(){ ##@meson
   branch="--branch=2.42.8"
   rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $GITHUB/GNOME/gdk-pixbuf /tmp/gdk-pixbuf
   cd /tmp/gdk-pixbuf
+  log "Patching gdk-pixbuf (builtin svg loader)..."
+    patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
     # ./configure; 
@@ -90,6 +92,11 @@ function gtk(){
   # https://blog.csdn.net/weixin_46591962/article/details/132247425
   rm -rf /tmp/gtk; git clone --depth=1 $branch $GITHUB/GNOME/gtk /tmp/gtk
   cd /tmp/gtk
+  log "Patching gtk theme engine (builtin murrine)..."
+    patch -p1 < /src/u-gtk/gtkthemes-builtin-murrine.patch || { log "THEME PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtk2-2.24.33-lxtask-static.patch || { log "GTK PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtk2-2.24.33-printbackends-static.patch || { log "PRINTBACKEND PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtkbuilder-static-types.patch || { log "GTKBUILDER PATCH FAILED"; exit 1; }
     args="--disable-option-checking \
       --disable-FEATURE  \
       --disable-silent-rules \
@@ -119,8 +126,11 @@ function gtk(){
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
     ./autogen.sh 
     # --enable-xkb=yes \ #no>yes
+    # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
+    # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
     ./configure --enable-static \
-      $args1 #args1还是缺依赖;
+      --with-included-immodules=xim \
+      --prefix=/usr
 
   log "Compiling gtk..."
     # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
@@ -130,6 +140,25 @@ function gtk(){
     make -j$(nproc) -C gtk &
     wait
     find |egrep "g.*k-x11.*\.a$"
+    [ -f ./gtk/.libs/libgtk-x11-2.0.a ] || { log "libgtk-x11-2.0.a MISSING"; exit 1; }
+
+  log "Building murrine theme engine (static)..."
+    MURRINE_GIT="${MURRINE_GIT:-https://ghfast.top/https://github.com/jlindgren90/murrine.git}"
+    rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
+    ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
+    [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
+    ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/*.o
+    log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
+  log "Building pixmap theme engine (static)..."
+    make -C modules/engines/pixbuf || { log "PIXMAP build FAILED"; exit 1; }
+    ar r ./gtk/.libs/libgtk-x11-2.0.a modules/engines/pixbuf/*.o
+    log "Merged pixmap engine into ./gtk/.libs/libgtk-x11-2.0.a"
+  log "Print backends (file/lpr) built via Makefile.am sources..."
+    # gtk2-2.24.33-printbackends-static.patch: ①改 gtkprintbackend{file,lpr}.c 的
+    # pb_module_* → _gtk_print_backend_{file,lpr}_*（对齐 gtkprintbackend.c builtin 表）；
+    # ②把两个 .c 加进 gtk/Makefile.am 的 gtk_os_unix_c_sources → make -C gtk 自然编进
+    # libgtk-x11-2.0.a。替代旧 objcopy --redefine-sym + 手动 ar r（不正规，2026-11-05 复盘）。
+    # 此段无需任何手动编/合并，产物检查靠下方 [ -f ... ] + xx-verify。
     # ./gdk/.libs/libgdk-x11-2.0.a
     # ./gtk/.libs/libgtk-x11-2.0.a
     # ./gdk/x11/.libs/libgdk-x11.a
@@ -184,12 +213,14 @@ b_deps)
     bash /src/openbox/build.sh pango & ##needed by gtk
     bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
     bash /src/xcompmgr/build.sh Xdamage &
+    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
     wait
     # 
     apkdeps
+    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     bash /src/u-gtk/build.sh atk & #needed by gtk
-    bash /src/u-gtk/build.sh gdk-pixbuf & #needed by gtk
     wait
+    bash /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
     bash /src/u-gtk/build.sh gtk
 
     # view
