@@ -1,0 +1,43 @@
+diff --git a/src/pcmanfm.c b/src/pcmanfm.c
+index 9be80f7..e8af881 100644
+--- a/src/pcmanfm.c
++++ b/src/pcmanfm.c
+@@ -218,6 +218,29 @@ int main(int argc, char** argv)
+         return 1;
+     }
+ 
++    /* FIX: 静态链接 gc-sections 会裁剪 gtk_type_init 的 GTK 类型注册调用，
++       GtkDialog/GtkAboutDialog 等未注册 → GtkBuilder 加载对话框失败。
++       强制注册关键 GTK 类型 (2026-11-05)。 */
++    g_type_ensure(gtk_dialog_get_type());
++    g_type_ensure(gtk_about_dialog_get_type());
++    g_type_ensure(gtk_image_get_type());
++    g_type_ensure(gtk_box_get_type());
++    g_type_ensure(gtk_label_get_type());
++    /* FIX2: 同类问题（2026-11-05 深挖）——gc-sections 还裁剪了这些类型，
++       导致 pref/desktop-pref/connect/file-prop/filesearch/preferred-apps/progress/choose-icon
++       共 8 个对话框 GtkBuilder 加载失败。强制注册（符号在源码引用后链接器保留）。 */
++    g_type_ensure(gtk_combo_box_get_type());
++    g_type_ensure(gtk_table_get_type());
++    g_type_ensure(gtk_hscale_get_type());
++    g_type_ensure(gtk_color_button_get_type());
++    g_type_ensure(gtk_font_button_get_type());
++    g_type_ensure(gtk_file_chooser_button_get_type());
++    g_type_ensure(gtk_file_chooser_widget_get_type());
++    g_type_ensure(gtk_icon_view_get_type());
++    g_type_ensure(gtk_calendar_get_type());
++    g_type_ensure(gtk_progress_bar_get_type());
++    g_type_ensure(gtk_text_view_get_type());
++
+     /* ensure that there is only one instance of pcmanfm. */
+     inst.prog_name = "pcmanfm";
+     inst.cb = single_inst_cb;
+@@ -238,6 +261,8 @@ int main(int argc, char** argv)
+     if(pipe(signal_pipe) == 0)
+     {
+         GIOChannel* ch = g_io_channel_unix_new(signal_pipe[0]);
++        /* FIX: 信号pipe读端非阻塞，避免on_unix_signal死锁致SIGTERM不杀 (2026-11-05) */
++        g_io_channel_set_flags(ch, G_IO_FLAG_NONBLOCK, NULL);
+         g_io_add_watch(ch, G_IO_IN|G_IO_PRI, (GIOFunc)on_unix_signal, NULL);
+         g_io_channel_unref(ch);
+ 

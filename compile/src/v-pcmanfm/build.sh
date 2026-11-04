@@ -157,7 +157,14 @@ function pcmanfm(){
   rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $GITHUB/lxde/pcmanfm /tmp/pcmanfm #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
-    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
+    git apply /src/v-pcmanfm/pcmanfm-staticfix.patch
+    # 正式出包默认 strip；调试时 PCMANFM_DEBUG=1 跳过 strip 保留符号（便于 gdb 验证）(2026-11-05)
+    if test -n "$PCMANFM_DEBUG"; then
+      export LDFLAGS="-Wl,--as-needed"
+    else
+      export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    fi
     ./autogen.sh
     # ./configure  --enable-static --prefix=$TARGETPATH
     # make
@@ -165,11 +172,11 @@ function pcmanfm(){
     # 
     # --enable-static --prefix=$TARGETPATH
     #  --enable-static
-    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -lmenu-cache -luuid -lmount -lpcre -lblkid -lXcomposite"
     # -lXdamage注释也会用到;
     ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
     LIBS="$LIBS0" ./configure --prefix=$TARGETPATH
 
   log "Compiling PCMANFM..."
@@ -179,7 +186,17 @@ function pcmanfm(){
     # # bash-5.1# ls src/pcmanfm -lh
     # # -rwxr-xr-x    1 root     root       37.6M Dec  1 04:16 src/pcmanfm
     # 
-    make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
+    # 正式出包默认 strip；调试时 PCMANFM_DEBUG=1 跳过 strip 保留符号（便于 gdb 验证）(2026-11-05)
+    if test -n "$PCMANFM_DEBUG"; then
+      log "PCMANFM DEBUG build (keep symbols for gdb)"
+      LDFLAGS_MK="-static"
+    else
+      log "PCMANFM release build (strip)"
+      LDFLAGS_MK="-static -Wl,--strip-all"
+    fi
+    make LDFLAGS="$LDFLAGS_MK" \
+      LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
+      || { log "PCMANFM build FAILED"; exit 1; }
 
   log "Install PCMANFM..."
     # make;
@@ -187,6 +204,8 @@ function pcmanfm(){
 
   # view
   ls -lh $TARGETPATH/bin/pcmanfm
+  # FIX: 产包需含UI(问题1+2): make install已装到TARGETPATH/share/pcmanfm/ui; 打包时须整体拷贝TARGETPATH(含share)
+  ls $TARGETPATH/share/pcmanfm/ui/
   xx-verify --static $TARGETPATH/bin/pcmanfm #/tmp/pcmanfm/src/pcmanfm
 }
 
