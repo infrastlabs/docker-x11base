@@ -1,0 +1,59 @@
+diff --git a/gtk/gtkthemes.c b/gtk/gtkthemes.c
+index d6d9f79..586bdb5 100644
+--- a/gtk/gtkthemes.c
++++ b/gtk/gtkthemes.c
+@@ -57,13 +57,53 @@ struct _GtkThemeEngineClass
+ 
+ static GHashTable *engine_hash = NULL;
+ 
++typedef struct _GtkBuiltinThemeEngine GtkBuiltinThemeEngine;
++
++struct _GtkBuiltinThemeEngine
++{
++  const gchar *name;
++  void (*init) (GTypeModule *);
++  void (*exit) (void);
++  GtkRcStyle *(*create_rc_style) (void);
++};
++
++/* Theme engines compiled into the binary (no dlopen needed).  These
++ * symbols come from statically-linked theme engine libraries.
++ */
++extern void theme_init (GTypeModule *module);
++extern void theme_exit (void);
++extern GtkRcStyle *theme_create_rc_style (void);
++
++static const GtkBuiltinThemeEngine builtin_theme_engines[] = {
++  { "murrine", theme_init, theme_exit, theme_create_rc_style },
++  { NULL, NULL, NULL, NULL }
++};
++
+ static gboolean
+ gtk_theme_engine_load (GTypeModule *module)
+ {
+   GtkThemeEngine *engine = GTK_THEME_ENGINE (module);
+   
+   gchar *engine_path;
+-      
++  gint i;
++
++  /* First try a statically-linked (builtin) theme engine. */
++  for (i = 0; builtin_theme_engines[i].name; i++)
++    {
++      if (g_ascii_strcasecmp (engine->name, builtin_theme_engines[i].name) == 0)
++	{
++	  engine->init = builtin_theme_engines[i].init;
++	  engine->exit = builtin_theme_engines[i].exit;
++	  engine->create_rc_style = builtin_theme_engines[i].create_rc_style;
++
++	  /* call the theme's init (theme_init) function to let it */
++	  /* setup anything it needs to set up. */
++	  engine->init (module);
++
++	  return TRUE;
++	}
++    }
++
+   engine_path = gtk_rc_find_module_in_path (engine->name);
+   
+   if (!engine_path)

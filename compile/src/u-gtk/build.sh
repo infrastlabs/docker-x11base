@@ -90,6 +90,8 @@ function gtk(){
   # https://blog.csdn.net/weixin_46591962/article/details/132247425
   rm -rf /tmp/gtk; git clone --depth=1 $branch $GITHUB/GNOME/gtk /tmp/gtk
   cd /tmp/gtk
+  log "Patching gtk theme engine (builtin murrine)..."
+    patch -p1 < /src/u-gtk/gtkthemes-builtin-murrine.patch || { log "THEME PATCH FAILED"; exit 1; }
     args="--disable-option-checking \
       --disable-FEATURE  \
       --disable-silent-rules \
@@ -119,8 +121,10 @@ function gtk(){
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
     ./autogen.sh 
     # --enable-xkb=yes \ #no>yes
+    # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
+    # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
     ./configure --enable-static \
-      $args1 #args1还是缺依赖;
+      --with-included-immodules=xim
 
   log "Compiling gtk..."
     # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
@@ -130,6 +134,15 @@ function gtk(){
     make -j$(nproc) -C gtk &
     wait
     find |egrep "g.*k-x11.*\.a$"
+    [ -f ./gtk/.libs/libgtk-x11-2.0.a ] || { log "libgtk-x11-2.0.a MISSING"; exit 1; }
+
+  log "Building murrine theme engine (static)..."
+    MURRINE_GIT="${MURRINE_GIT:-https://ghfast.top/https://github.com/jlindgren90/murrine.git}"
+    rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
+    ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
+    [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
+    ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/.libs/*.o
+    log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
     # ./gdk/.libs/libgdk-x11-2.0.a
     # ./gtk/.libs/libgtk-x11-2.0.a
     # ./gdk/x11/.libs/libgdk-x11.a
