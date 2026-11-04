@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pcmanfm}"
 source /src/common.sh
 
 # git clone https://hub.nuaa.cf/GNOME/atk #3.29 MiB 1985> ATK_2_36_0 1943
@@ -53,8 +54,10 @@ function libfm(){
   # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/libfm
   branch="--branch=1.3.1" #1.3.2
   branch="--branch=1.3.2" # #ok with automake @alpine315 
-  rm -rf /tmp/libfm; git clone --depth=1 $branch https://gitee.com/g-system/fk-libfm /tmp/libfm
+  rm -rf /tmp/libfm; gitclone https://gitee.com/g-system/fk-libfm /tmp/libfm $branch
   cd /tmp/libfm
+    # FIX: 默认 quick_exec=TRUE（desktop/可执行文件直接执行不弹确认框，2026-11-08）
+    git apply /src/v-pcmanfm/libfm-quickexec.patch
     # attempted static link of dynamic object `/usr/lib/libmenu-cache.so'
     #ref_pcmanfm.md>> # 改动态编译：OK
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -91,14 +94,14 @@ function libfm(){
 # (6/7) Installing harfbuzz-static (3.0.0-r2)
 # (7/7) Installing libxml2-dev (2.9.14-r2)
 # 
-function menu-cache(){ ##依赖libfm-extra @libfm
+function menu_cache(){ ##依赖libfm-extra @libfm
   # apk update; apk add gtk-doc
   # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
 
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
-  rm -rf /tmp/menu-cache; git clone --depth=1 $branch https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache
+  rm -rf /tmp/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache $branch
   cd /tmp/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -154,10 +157,19 @@ function pcmanfm(){
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
   branch="--branch=1.3.1"
-  rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $GITHUB/lxde/pcmanfm /tmp/pcmanfm #;
+  rm -rf /tmp/pcmanfm; gitclone https://gitee.com/g-system/fk-pcmanfm /tmp/pcmanfm $branch #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
-    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
+    git apply /src/v-pcmanfm/pcmanfm-staticfix.patch
+    # FIX: 中文 localedir (2026-11-06): Makefile.am 硬编码 PACKAGE_LOCALE_DIR=$(prefix)/share/locale, 忽略 --localedir
+    git apply /src/v-pcmanfm/pcmanfm-localedir.patch
+    # 正式出包默认 strip；调试时 PCMANFM_DEBUG=1 跳过 strip 保留符号（便于 gdb 验证）(2026-11-05)
+    if test -n "$PCMANFM_DEBUG"; then
+      export LDFLAGS="-Wl,--as-needed"
+    else
+      export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    fi
     ./autogen.sh
     # ./configure  --enable-static --prefix=$TARGETPATH
     # make
@@ -165,12 +177,12 @@ function pcmanfm(){
     # 
     # --enable-static --prefix=$TARGETPATH
     #  --enable-static
-    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -lmenu-cache -luuid -lmount -lpcre -lblkid -lXcomposite"
     # -lXdamage注释也会用到;
     ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
-    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH --localedir=/usr/share/locale
 
   log "Compiling PCMANFM..."
     # # x86_64-alpine-linux-musl/bin/ld: cannot find -lXdamage
@@ -179,7 +191,17 @@ function pcmanfm(){
     # # bash-5.1# ls src/pcmanfm -lh
     # # -rwxr-xr-x    1 root     root       37.6M Dec  1 04:16 src/pcmanfm
     # 
-    make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
+    # 正式出包默认 strip；调试时 PCMANFM_DEBUG=1 跳过 strip 保留符号（便于 gdb 验证）(2026-11-05)
+    if test -n "$PCMANFM_DEBUG"; then
+      log "PCMANFM DEBUG build (keep symbols for gdb)"
+      LDFLAGS_MK="-static"
+    else
+      log "PCMANFM release build (strip)"
+      LDFLAGS_MK="-static -Wl,--strip-all"
+    fi
+    make LDFLAGS="$LDFLAGS_MK" \
+      LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
+      || { log "PCMANFM build FAILED"; exit 1; }
 
   log "Install PCMANFM..."
     # make;
@@ -187,6 +209,8 @@ function pcmanfm(){
 
   # view
   ls -lh $TARGETPATH/bin/pcmanfm
+  # FIX: 产包需含UI(问题1+2): make install已装到TARGETPATH/share/pcmanfm/ui; 打包时须整体拷贝TARGETPATH(含share)
+  ls $TARGETPATH/share/pcmanfm/ui/
   xx-verify --static $TARGETPATH/bin/pcmanfm #/tmp/pcmanfm/src/pcmanfm
 }
 
@@ -207,12 +231,12 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    atk
-    gdk-pixbuf
-    gtk ##long-cost: 共历时766秒 (比首次手动长??)
-    libfm
-    menu-cache
-    pcmanfm
+    doExec atk || exit 1
+    doExec gdk-pixbuf || exit 1
+    doExec gtk || exit 1 ##long-cost: 共历时766秒 (比首次手动长??)
+    doExec libfm || exit 1
+    doExec menu_cache || exit 1
+    doExec pcmanfm || exit 1
     ;;
 b_deps)
     # bash /src/openbox/build.sh apkdeps
@@ -226,8 +250,8 @@ b_deps)
     # bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
     # wait
     # bash /src/v-pcmanfm/build.sh gtk
-    bash /src/v-pcmanfm/build.sh libfm
-    bash /src/v-pcmanfm/build.sh menu-cache #在libfm之后
+    doExec bash /src/v-pcmanfm/build.sh libfm || exit 1
+    doExec bash /src/v-pcmanfm/build.sh menu_cache || exit 1 #在libfm之后
 
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
@@ -249,24 +273,22 @@ b_deps)
     oneBuild $1
     ;;          
 esac
-exit 0
 
 # dbg:
-# root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
-apk add gawk git
-cd /mnt2/docker-x11base/compile/
-ln -s $(pwd)/src /src
-export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
-git pull; bash src/v-pcmanfm/build.sh b_deps
-export TARGETPATH=/usr/local/static/pcmanfm
-bash src/v-pcmanfm/build.sh pcmanfm
+# # root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
+# apk add gawk git
+# cd /mnt2/docker-x11base/compile/
+# ln -s $(pwd)/src /src
+# export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
+# git pull; bash src/v-pcmanfm/build.sh b_deps
+# export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
+# bash src/v-pcmanfm/build.sh pcmanfm
 
-# #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
->>> Install PCMANFM...
--rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
+# # #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
+# # >>> Install PCMANFM...
+# -rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
 
-
-# 单独再重试，pcmanfm又出现依赖错: 
-# gdkscreen-x11.c:(.text+0xd69): undefined reference to `XineramaQueryScreens'
-# libgdk-x11-2.0.a(gdkscreen-x11.o): in function `_gdk_x11_screen_size_changed'
+# # 单独再重试，pcmanfm又出现依赖错: 
+# # gdkscreen-x11.c:(.text+0xd69): undefined reference to `XineramaQueryScreens'
+# # libgdk-x11-2.0.a(gdkscreen-x11.o): in function `_gdk_x11_screen_size_changed'
 
