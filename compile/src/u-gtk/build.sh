@@ -40,6 +40,8 @@ function gdk-pixbuf(){ ##@meson
   branch="--branch=2.42.8"
   rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $GITHUB/GNOME/gdk-pixbuf /tmp/gdk-pixbuf
   cd /tmp/gdk-pixbuf
+  log "Patching gdk-pixbuf (builtin svg loader)..."
+    patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
     # ./configure; 
@@ -92,6 +94,7 @@ function gtk(){
   cd /tmp/gtk
   log "Patching gtk theme engine (builtin murrine)..."
     patch -p1 < /src/u-gtk/gtkthemes-builtin-murrine.patch || { log "THEME PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtk2-2.24.33-lxtask-static.patch || { log "GTK PATCH FAILED"; exit 1; }
     args="--disable-option-checking \
       --disable-FEATURE  \
       --disable-silent-rules \
@@ -141,8 +144,12 @@ function gtk(){
     rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
     ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
     [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
-    ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/.libs/*.o
+    ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/*.o
     log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
+  log "Building pixmap theme engine (static)..."
+    make -C modules/engines/pixbuf || { log "PIXMAP build FAILED"; exit 1; }
+    ar r ./gtk/.libs/libgtk-x11-2.0.a modules/engines/pixbuf/*.o
+    log "Merged pixmap engine into ./gtk/.libs/libgtk-x11-2.0.a"
     # ./gdk/.libs/libgdk-x11-2.0.a
     # ./gtk/.libs/libgtk-x11-2.0.a
     # ./gdk/x11/.libs/libgdk-x11.a
@@ -197,12 +204,14 @@ b_deps)
     bash /src/openbox/build.sh pango & ##needed by gtk
     bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
     bash /src/xcompmgr/build.sh Xdamage &
+    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
     wait
     # 
     apkdeps
+    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     bash /src/u-gtk/build.sh atk & #needed by gtk
-    bash /src/u-gtk/build.sh gdk-pixbuf & #needed by gtk
     wait
+    bash /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
     bash /src/u-gtk/build.sh gtk
 
     # view

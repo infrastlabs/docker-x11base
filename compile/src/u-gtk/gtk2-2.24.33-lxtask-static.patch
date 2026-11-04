@@ -1,0 +1,198 @@
+diff --git a/gtk/gtkmain.c b/gtk/gtkmain.c
+index 8c331a7..d9fe0d4 100644
+--- a/gtk/gtkmain.c
++++ b/gtk/gtkmain.c
+@@ -644,6 +644,9 @@ _gtk_module_has_mixed_deps (GModule *module_to_check)
+   else
+     module = module_to_check;
+ 
++  if (!module)
++    return FALSE;
++
+   if (g_module_symbol (module, "gtk_widget_device_is_shadowed", &func))
+     result = TRUE;
+   else
+diff --git a/gtk/gtkmodules.c b/gtk/gtkmodules.c
+index 50729b6..8a508a4 100644
+--- a/gtk/gtkmodules.c
++++ b/gtk/gtkmodules.c
+@@ -239,7 +239,7 @@ find_module (const gchar *name)
+ 
+   module = g_module_open (module_name, G_MODULE_BIND_LOCAL | G_MODULE_BIND_LAZY);
+ 
+-  if (_gtk_module_has_mixed_deps (module))
++  if (module && _gtk_module_has_mixed_deps (module))
+     {
+       g_warning ("GTK+ module %s cannot be loaded.\n"
+                  "GTK+ 2.x symbols detected. Using GTK+ 2.x and GTK+ 3 in the same process is not supported.", module_name);
+diff --git a/gtk/gtkprintbackend.c b/gtk/gtkprintbackend.c
+index e212a42..5fb548e 100644
+--- a/gtk/gtkprintbackend.c
++++ b/gtk/gtkprintbackend.c
+@@ -107,6 +107,30 @@ struct _GtkPrintBackendModuleClass
+   GTypeModuleClass parent_class;
+ };
+ 
++/* Static builtin print backends (lxtask static link, no dlopen).
++ * Symbols provided by libstatic-printbackend-file.a / -lpr.a (renamed to avoid
++ * pb_module_init/exit/create clash among backends). Mirrors gtkimmodule.c
++ * builtin-module pattern. */
++typedef struct {
++  const gchar *name;
++  void (*init) (GTypeModule *module);
++  void (*exit) (void);
++  GtkPrintBackend *(*create) (void);
++} GtkPrintBackendBuiltin;
++
++extern void _gtk_print_backend_file_init (GTypeModule *module);
++extern void _gtk_print_backend_file_exit (void);
++extern GtkPrintBackend *_gtk_print_backend_file_create (void);
++extern void _gtk_print_backend_lpr_init (GTypeModule *module);
++extern void _gtk_print_backend_lpr_exit (void);
++extern GtkPrintBackend *_gtk_print_backend_lpr_create (void);
++
++static const GtkPrintBackendBuiltin print_backend_builtins[] = {
++  { "file", _gtk_print_backend_file_init, _gtk_print_backend_file_exit, _gtk_print_backend_file_create },
++  { "lpr",  _gtk_print_backend_lpr_init,  _gtk_print_backend_lpr_exit,  _gtk_print_backend_lpr_create },
++  { NULL, NULL, NULL, NULL }
++};
++
+ G_DEFINE_TYPE (GtkPrintBackendModule, _gtk_print_backend_module, G_TYPE_TYPE_MODULE)
+ #define GTK_TYPE_PRINT_BACKEND_MODULE      (_gtk_print_backend_module_get_type ())
+ #define GTK_PRINT_BACKEND_MODULE(module)   (G_TYPE_CHECK_INSTANCE_CAST ((module), GTK_TYPE_PRINT_BACKEND_MODULE, GtkPrintBackendModule))
+@@ -119,6 +143,25 @@ gtk_print_backend_module_load (GTypeModule *module)
+   GtkPrintBackendModule *pb_module = GTK_PRINT_BACKEND_MODULE (module); 
+   gpointer initp, exitp, createp;
+  
++  if (pb_module->path == NULL)   /* builtin backend: no dlopen */
++    {
++      const GtkPrintBackendBuiltin *b = print_backend_builtins;
++      while (b->name)
++        {
++          if (strcmp (G_TYPE_MODULE (module)->name, b->name) == 0)
++            {
++              pb_module->init = b->init;
++              pb_module->exit = b->exit;
++              pb_module->create = b->create;
++              pb_module->init (module);
++              return TRUE;
++            }
++          b++;
++        }
++      g_warning ("Unknown builtin print backend %s", G_TYPE_MODULE (module)->name);
++      return FALSE;
++    }
++
+   pb_module->library = g_module_open (pb_module->path, G_MODULE_BIND_LAZY | G_MODULE_BIND_LOCAL);
+   if (!pb_module->library)
+     {
+@@ -158,7 +201,8 @@ gtk_print_backend_module_unload (GTypeModule *module)
+   
+   pb_module->exit();
+ 
+-  g_module_close (pb_module->library);
++  if (pb_module->library)
++    g_module_close (pb_module->library);
+   pb_module->library = NULL;
+ 
+   pb_module->init = NULL;
+@@ -272,6 +316,26 @@ _gtk_print_backend_create (const gchar *backend_name)
+     }
+ 
+   pb = NULL;
++
++  /* builtin backends first (static link, no dlopen) */
++  {
++    const GtkPrintBackendBuiltin *b = print_backend_builtins;
++    while (b->name)
++      {
++        if (strcmp (b->name, backend_name) == 0)
++          {
++            pb_module = g_object_new (GTK_TYPE_PRINT_BACKEND_MODULE, NULL);
++            g_type_module_set_name (G_TYPE_MODULE (pb_module), backend_name);
++            pb_module->path = NULL;   /* builtin marker */
++            loaded_backends = g_slist_prepend (loaded_backends, pb_module);
++            g_type_module_use (G_TYPE_MODULE (pb_module));   /* keep loaded (builtin never unloads) */
++            pb = _gtk_print_backend_module_create (pb_module);
++            return pb;
++          }
++        b++;
++      }
++  }
++
+   if (g_module_supported ())
+     {
+       full_name = g_strconcat ("printbackend-", backend_name, NULL);
+@@ -332,12 +396,16 @@ gtk_print_backend_load_modules (void)
+     {
+       g_strchug (backends[i]);
+       g_strchomp (backends[i]);
++      fprintf (stderr, "[lm] i=%d name=%s before create result=%p\n", i, backends[i], result);
+       backend = _gtk_print_backend_create (backends[i]);
++      fprintf (stderr, "[lm] i=%d after create backend=%p\n", i, backend);
+       
+       if (backend)
+         result = g_list_append (result, backend);
++      fprintf (stderr, "[lm] i=%d after append result=%p\n", i, result);
+     }
+ 
++  fprintf (stderr, "[lm] before return result=%p\n", result);
+   g_strfreev (backends);
+   g_free (setting);
+ 
+diff --git a/modules/engines/pixbuf/pixbuf-main.c b/modules/engines/pixbuf/pixbuf-main.c
+index 0b02459..cec678d 100644
+--- a/modules/engines/pixbuf/pixbuf-main.c
++++ b/modules/engines/pixbuf/pixbuf-main.c
+@@ -26,32 +26,20 @@
+ #include <gmodule.h>
+ 
+ G_MODULE_EXPORT void
+-theme_init (GTypeModule *module)
++pixmap_theme_init (GTypeModule *module)
+ {
+   pixbuf_rc_style_register_type (module);
+   pixbuf_style_register_type (module);
+ }
+ 
+ G_MODULE_EXPORT void
+-theme_exit (void)
++pixmap_theme_exit (void)
+ {
+ }
+ 
+ G_MODULE_EXPORT GtkRcStyle *
+-theme_create_rc_style (void)
++pixmap_theme_create_rc_style (void)
+ {
+   return g_object_new (PIXBUF_TYPE_RC_STYLE, NULL);
+ }
+ 
+-/* The following function will be called by GTK+ when the module
+- * is loaded and checks to see if we are compatible with the
+- * version of GTK+ that loads us.
+- */
+-G_MODULE_EXPORT const gchar* g_module_check_init (GModule *module);
+-const gchar*
+-g_module_check_init (GModule *module)
+-{
+-  return gtk_check_version (GTK_MAJOR_VERSION,
+-			    GTK_MINOR_VERSION,
+-			    GTK_MICRO_VERSION - GTK_INTERFACE_AGE);
+-}
+--- a/gtk/gtkthemes.c
++++ b/gtk/gtkthemes.c
+@@ -73,9 +73,13 @@
+ extern void theme_init (GTypeModule *module);
+ extern void theme_exit (void);
+ extern GtkRcStyle *theme_create_rc_style (void);
++extern void pixmap_theme_init (GTypeModule *module);
++extern void pixmap_theme_exit (void);
++extern GtkRcStyle *pixmap_theme_create_rc_style (void);
+ 
+ static const GtkBuiltinThemeEngine builtin_theme_engines[] = {
+   { "murrine", theme_init, theme_exit, theme_create_rc_style },
++  { "pixmap", pixmap_theme_init, pixmap_theme_exit, pixmap_theme_create_rc_style },
+   { NULL, NULL, NULL, NULL }
+ };
+ 
