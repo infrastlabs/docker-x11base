@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-lxde}"
 source /src/common.sh
 
 #
@@ -13,7 +14,7 @@ function lxappearance(){
   rm -rf /tmp/lxappearance; # mkdir -p /tmp/lxappearance
   # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxappearance
   # branch="--branch=$LXAPPEARANCE_VER"
-  git clone --depth=1 $branch $GITHUB/lxde/lxappearance /tmp/lxappearance #;
+  gitclone https://gitee.com/g-system/fk-lxappearance /tmp/lxappearance $branch #;
   log "Configuring LXAPPEARANCE..."
   cd /tmp/lxappearance #&& ./bootstrap;
   ./autogen.sh
@@ -30,14 +31,17 @@ function lxappearance(){
   # >> 手动拷贝>> 运行 GModule-Critical错误依旧(assertion 'module'!='NULL')2条
 
   # ref pcmanfm
-    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
     # -lXdamage注释也会用到;
     #  -lfm -lfm-gtk -lmenu-cache 
     ex1="-lfontconfig -lgio-2.0 -lcairo   -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    # 2026-11-14: lxappearance 补 -lrsvg-2 -lcroco-0.6（图标预览走 gdk_pixbuf 内置 svg loader，缺则 svg 图标解码失败；u-gtk 方案A 库层根治后无需 -u）
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
-  make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
+  make LDFLAGS="$LDFLAGS" \
+    LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
+    || { log "LXAPPEARANCE build FAILED"; exit 1; }
 
   log "Install LXAPPEARANCE..."
   # make;
@@ -52,29 +56,35 @@ function lxtask(){
   log "Downloading LXTASK..."
   rm -rf /tmp/lxtask; # mkdir -p /tmp/lxtask
   # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxtask
-  # branch="--branch=$LXAPPEARANCE_VER"
-  git clone --depth=1 $branch $GITHUB/lxde/lxtask /tmp/lxtask #;
+  LXTASK_VER=master
+  branch="--branch=$LXTASK_VER"
+  gitclone https://gitee.com/g-system/fk-lxtask /tmp/lxtask $branch #;
   log "Configuring LXTASK..."
   cd /tmp/lxtask #&& ./bootstrap;
   ./autogen.sh
-  ./configure --prefix=$TARGETPATH
+  ./configure --prefix=$TARGETPATH --localedir=/usr/share/locale
   # ref pcmanfm
-    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
     # -lXdamage注释也会用到;
     #  -lfm -lfm-gtk -lmenu-cache 
     ex1="-lfontconfig -lgio-2.0 -lcairo   -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    # 2026-11-14: 静态链接按需拉取问题——svg loader(io-svg.c.o) 编入库但注册方 gdk-pixbuf-io.c.o 未被引用就不拉入→SVG 图标"Unrecognized image file format"(打叉)。
+    #   初版用双 -u(强制拉入 _gdk_pixbuf__svg_fill_vtable + gdk_pixbuf_new_from_file) 应用层补救, 验证通过;
+    #   后 u-gtk 库层根治(方案A: 注册函数导出 + get_type 必然调用, 见 u-gtk/build.sh gdk_pixbuf 内联 python)——lxtask 恢复原 LIBS0 无需 -u, svg loader 自动注册。
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
-  make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
+  make LDFLAGS="$LDFLAGS" \
+    LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
+    || { log "LXTASK build FAILED"; exit 1; }
 
   log "Install LXTASK..."
-  # make;
-  make install; #不用install? need
+  make install || { log "LXTASK install FAILED"; exit 1; }
 
   # view
   ls -lh /tmp/lxtask/
-  xx-verify --static /tmp/lxtask/src/lxtask
+  ls -lh $TARGETPATH/bin/lxtask
+  xx-verify --static $TARGETPATH/bin/lxtask || { log "LXTASK xx-verify FAILED"; exit 1; }
 }
 
 
@@ -89,4 +99,3 @@ full)
     oneBuild $1
     ;;          
 esac
-exit 0
