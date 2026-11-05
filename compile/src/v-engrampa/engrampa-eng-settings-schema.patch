@@ -1,0 +1,255 @@
+diff --git a/src/actions.c b/src/actions.c
+index 9e85e48..936a2a3 100644
+--- a/src/actions.c
++++ b/src/actions.c
+@@ -447,7 +447,7 @@ save_file_response_cb (GtkWidget  *w,
+     encrypt_header = dlg_new_data_get_encrypt_header (data);
+     volume_size = dlg_new_data_get_volume_size (data);
+ 
+-    settings = g_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
++    settings = eng_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
+     g_settings_set_int (settings, PREF_BATCH_ADD_VOLUME_SIZE, volume_size);
+     g_object_unref (settings);
+ 
+@@ -727,7 +727,7 @@ activate_action_view_toolbar (GtkAction *action,
+ {
+     GSettings *settings;
+ 
+-    settings = g_settings_new (ENGRAMPA_SCHEMA_UI);
++    settings = eng_settings_new (ENGRAMPA_SCHEMA_UI);
+     g_settings_set_boolean (settings, PREF_UI_VIEW_TOOLBAR, gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+     g_object_unref (settings);
+ }
+@@ -739,7 +739,7 @@ activate_action_view_statusbar (GtkAction *action,
+ {
+     GSettings *settings;
+ 
+-    settings = g_settings_new (ENGRAMPA_SCHEMA_UI);
++    settings = eng_settings_new (ENGRAMPA_SCHEMA_UI);
+     g_settings_set_boolean (settings, PREF_UI_VIEW_STATUSBAR, gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+     g_object_unref (settings);
+ }
+@@ -751,7 +751,7 @@ activate_action_view_folders (GtkAction *action,
+ {
+     GSettings *settings;
+ 
+-    settings = g_settings_new (ENGRAMPA_SCHEMA_UI);
++    settings = eng_settings_new (ENGRAMPA_SCHEMA_UI);
+     g_settings_set_boolean (settings, PREF_UI_VIEW_FOLDERS, gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+     g_object_unref (settings);
+ }
+diff --git a/src/dlg-add-files.c b/src/dlg-add-files.c
+index b36b46b..da4116d 100644
+--- a/src/dlg-add-files.c
++++ b/src/dlg-add-files.c
+@@ -151,7 +151,7 @@ add_files_cb (GtkWidget *widget,
+ 
+ 	data = g_new0 (DialogData, 1);
+ 	data->window = callback_data;
+-	data->settings = g_settings_new (ENGRAMPA_SCHEMA_ADD);
++	data->settings = eng_settings_new (ENGRAMPA_SCHEMA_ADD);
+ 	data->dialog = file_sel =
+ 		gtk_file_chooser_dialog_new (_("Add Files"),
+ 					     GTK_WINDOW (data->window),
+diff --git a/src/dlg-add-folder.c b/src/dlg-add-folder.c
+index ebd0668..1f7419b 100644
+--- a/src/dlg-add-folder.c
++++ b/src/dlg-add-folder.c
+@@ -222,7 +222,7 @@ add_folder_cb (GtkWidget *widget,
+ 	GtkWidget   *align;
+ 
+ 	data = g_new0 (DialogData, 1);
+-	data->settings = g_settings_new (ENGRAMPA_SCHEMA_ADD);
++	data->settings = eng_settings_new (ENGRAMPA_SCHEMA_ADD);
+ 	data->window = callback_data;
+ 
+ 	data->dialog = file_sel =
+diff --git a/src/dlg-batch-add.c b/src/dlg-batch-add.c
+index e192ca1..9fb42c6 100644
+--- a/src/dlg-batch-add.c
++++ b/src/dlg-batch-add.c
+@@ -472,8 +472,8 @@ dlg_batch_add_files (FrWindow *window,
+ 		return;
+ 
+ 	data = g_new0 (DialogData, 1);
+-	data->settings = g_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
+-	data->settings_general = g_settings_new (ENGRAMPA_SCHEMA_GENERAL);
++	data->settings = eng_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
++	data->settings_general = eng_settings_new (ENGRAMPA_SCHEMA_GENERAL);
+ 
+ 	data->builder = _gtk_builder_new_from_file ("batch-add-files.ui");
+ 	if (data->builder == NULL) {
+diff --git a/src/dlg-extract.c b/src/dlg-extract.c
+index b69d211..b71ec27 100644
+--- a/src/dlg-extract.c
++++ b/src/dlg-extract.c
+@@ -426,7 +426,7 @@ dlg_extract__common (FrWindow *window,
+ 	GtkWidget  *file_sel;
+ 
+ 	data = g_new0 (DialogData, 1);
+-	data->settings = g_settings_new (ENGRAMPA_SCHEMA_EXTRACT);
++	data->settings = eng_settings_new (ENGRAMPA_SCHEMA_EXTRACT);
+ 	data->window = window;
+ 	data->selected_files = selected_files;
+ 	data->base_dir_for_selection = base_dir_for_selection;
+diff --git a/src/dlg-new.c b/src/dlg-new.c
+index 9a5c79f..4b38ddf 100644
+--- a/src/dlg-new.c
++++ b/src/dlg-new.c
+@@ -313,11 +313,11 @@ dlg_new_archive (FrWindow  *window,
+ 	gtk_button_set_use_stock (GTK_BUTTON (n_new_button), TRUE);
+ 	gtk_button_set_label (GTK_BUTTON (n_new_button), FR_STOCK_CREATE_ARCHIVE);
+ 	gtk_expander_set_expanded (GTK_EXPANDER (data->n_other_options_expander), FALSE);
+-	settings = g_settings_new (ENGRAMPA_SCHEMA_GENERAL);
++	settings = eng_settings_new (ENGRAMPA_SCHEMA_GENERAL);
+         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (data->n_encrypt_header_checkbutton), g_settings_get_boolean (settings, PREF_GENERAL_ENCRYPT_HEADER));
+         g_object_unref (settings);
+ 
+-        settings = g_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
++        settings = eng_settings_new (ENGRAMPA_SCHEMA_BATCH_ADD);
+         gtk_spin_button_set_value (GTK_SPIN_BUTTON (data->n_volume_spinbutton), (double) g_settings_get_int (settings, PREF_BATCH_ADD_VOLUME_SIZE) / MEGABYTE);
+         g_object_unref (settings);
+ 
+diff --git a/src/dlg-open-with.c b/src/dlg-open-with.c
+index 3e90eb4..b8f3905 100644
+--- a/src/dlg-open-with.c
++++ b/src/dlg-open-with.c
+@@ -308,7 +308,7 @@ dlg_open_with (FrWindow *window,
+ 		return;
+ 
+ 	data = g_new0 (DialogData, 1);
+-	data->settings = g_settings_new (ENGRAMPA_SCHEMA_GENERAL);
++	data->settings = eng_settings_new (ENGRAMPA_SCHEMA_GENERAL);
+ 	data->builder = _gtk_builder_new_from_file ("open-with.ui");
+ 	if (data->builder == NULL) {
+ 		g_free (data);
+diff --git a/src/dlg-password.c b/src/dlg-password.c
+index 73e8ad8..4c002fa 100644
+--- a/src/dlg-password.c
++++ b/src/dlg-password.c
+@@ -66,7 +66,7 @@ response_cb (GtkWidget  *dialog,
+ 		{
+ 			GSettings *settings;
+ 
+-			settings = g_settings_new (ENGRAMPA_SCHEMA_GENERAL);
++			settings = eng_settings_new (ENGRAMPA_SCHEMA_GENERAL);
+ 			g_settings_set_boolean (settings, PREF_GENERAL_ENCRYPT_HEADER, encrypt_header);
+ 			g_object_unref (settings);
+ 		}
+diff --git a/src/fr-init.c b/src/fr-init.c
+index acc8b44..5890c17 100644
+--- a/src/fr-init.c
++++ b/src/fr-init.c
+@@ -665,3 +665,44 @@ release_data (void)
+ 		command_done (cdata);
+ 	}
+ }
++
++/* engrampa-static: GSettings schema 目录编译期编入（产物可迁移、运行时免 XDG_DATA_DIRS） */
++#include <gio/gio.h>
++#ifndef ENG_SCHEMA_DIR
++# define ENG_SCHEMA_DIR "/usr/share/glib-2.0/schemas"
++#endif
++
++static GSettingsSchemaSource *eng_schema_source (void)
++{
++	static GSettingsSchemaSource *source = NULL;
++	if (source) {
++		g_settings_schema_source_ref (source);
++		return source;
++	}
++	source = g_settings_schema_source_new_from_directory (ENG_SCHEMA_DIR, NULL, TRUE, NULL);
++	if (source)
++		g_settings_schema_source_ref (source);
++	return source;
++}
++
++GSettings *
++eng_settings_new (const char *schema)
++{
++	GSettingsSchemaSource *source;
++	GSettingsSchema       *g_schema;
++	GSettings            *settings;
++
++	if (!schema)
++		return NULL;
++	source = eng_schema_source ();
++	if (source) {
++		g_schema = g_settings_schema_source_lookup (source, schema, TRUE);
++		if (g_schema) {
++			settings = g_settings_new_full (g_schema, NULL, NULL);
++			g_settings_schema_unref (g_schema);
++			if (settings)
++				return settings;
++		}
++	}
++	return g_settings_new (schema);
++}
+diff --git a/src/fr-init.h b/src/fr-init.h
+index b89e9c8..d86b2bc 100644
+--- a/src/fr-init.h
++++ b/src/fr-init.h
+@@ -22,6 +22,7 @@
+ #ifndef FR_INIT_H
+ #define FR_INIT_H
+ 
++#include <gio/gio.h>
+ #include "preferences.h"
+ #include "fr-process.h"
+ #include "fr-window.h"
+@@ -58,6 +59,8 @@ extern int                    save_type[];             /* File types that can be
+ extern int                    open_type[];             /* File types that can be opened. */
+ extern int                    create_type[];           /* File types that can be created. */
+ 
++GSettings    *eng_settings_new                        (const char    *schema);
++
+ GType        get_command_type_from_mime_type         (const char    *mime_type,
+ 						      FrCommandCaps  requested_capabilities);
+ GType        get_preferred_command_for_mime_type     (const char    *mime_type,
+diff --git a/src/fr-window.c b/src/fr-window.c
+index 1adf401..947a8d7 100644
+--- a/src/fr-window.c
++++ b/src/fr-window.c
+@@ -5458,15 +5458,15 @@ fr_window_construct (FrWindow *window)
+ 
+         /* Create the settings objects */
+ 
+-	window->priv->settings_listing = g_settings_new (ENGRAMPA_SCHEMA_LISTING);
+-	window->priv->settings_ui = g_settings_new (ENGRAMPA_SCHEMA_UI);
+-	window->priv->settings_general = g_settings_new (ENGRAMPA_SCHEMA_GENERAL);
+-	window->priv->settings_dialogs = g_settings_new (ENGRAMPA_SCHEMA_DIALOGS);
++	window->priv->settings_listing = eng_settings_new (ENGRAMPA_SCHEMA_LISTING);
++	window->priv->settings_ui = eng_settings_new (ENGRAMPA_SCHEMA_UI);
++	window->priv->settings_general = eng_settings_new (ENGRAMPA_SCHEMA_GENERAL);
++	window->priv->settings_dialogs = eng_settings_new (ENGRAMPA_SCHEMA_DIALOGS);
+ 
+ 	schema_source = g_settings_schema_source_get_default ();
+ 	caja_schema = g_settings_schema_source_lookup (schema_source, CAJA_SCHEMA, FALSE);
+ 	if (caja_schema) {
+-		window->priv->settings_caja = g_settings_new (CAJA_SCHEMA);
++		window->priv->settings_caja = eng_settings_new (CAJA_SCHEMA);
+ 		g_settings_schema_unref (caja_schema);
+ 	}
+ 
+diff --git a/src/preferences.c b/src/preferences.c
+index b3c7de3..0016d02 100644
+--- a/src/preferences.c
++++ b/src/preferences.c
+@@ -38,7 +38,7 @@ pref_util_save_window_geometry (GtkWindow  *window,
+ 	int height;
+ 
+ 	schema = g_strconcat (ENGRAMPA_SCHEMA_DIALOGS, ".", dialog_id, NULL);
+-	settings = g_settings_new (schema);
++	settings = eng_settings_new (schema);
+ 
+ 	gtk_window_get_size (window, &width, &height);
+ 	g_settings_set_int (settings, "width", width);
+@@ -58,7 +58,7 @@ pref_util_restore_window_geometry (GtkWindow  *window,
+ 	int height;
+ 
+ 	schema = g_strconcat (ENGRAMPA_SCHEMA_DIALOGS, ".", dialog_id, NULL);
+-	settings = g_settings_new (schema);
++	settings = eng_settings_new (schema);
+ 
+ 	width = g_settings_get_int (settings, "width");
+ 	height = g_settings_get_int (settings, "height");

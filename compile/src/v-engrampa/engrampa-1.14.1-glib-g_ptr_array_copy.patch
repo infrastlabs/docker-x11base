@@ -1,0 +1,37 @@
+diff --git a/src/glib-utils.c b/src/glib-utils.c
+index 27d4548..1aeac2f 100644
+--- a/src/glib-utils.c
++++ b/src/glib-utils.c
+@@ -568,20 +568,6 @@ get_time_string (time_t time)
+ }
+ 
+ 
+-GPtrArray *
+-g_ptr_array_copy (GPtrArray *array)
+-{
+-	GPtrArray *new_array;
+-	
+-	if (array == NULL)
+-		return NULL;
+-		
+-	new_array = g_ptr_array_sized_new (array->len);
+-	memcpy (new_array->pdata, array->pdata, array->len * sizeof (gpointer)); 
+-	new_array->len = array->len;
+-	
+-	return new_array;
+-}
+ 
+ 
+ void
+diff --git a/src/glib-utils.h b/src/glib-utils.h
+index 0c8f88b..d9a2f79 100644
+--- a/src/glib-utils.h
++++ b/src/glib-utils.h
+@@ -66,7 +66,6 @@ const char *        get_last_field               (const char  *line,
+ 						  int          last_field);
+ int                 n_fields                     (char       **str_array);
+ char *              get_time_string              (time_t       time);
+-GPtrArray *         g_ptr_array_copy             (GPtrArray   *array);
+ void                g_ptr_array_free_full        (GPtrArray   *array,
+                        				  GFunc        func,
+                        				  gpointer     user_data);
