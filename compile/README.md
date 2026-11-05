@@ -19,31 +19,8 @@
 
 **Dockerfile** `Line:374`
 
-- tiger
-  - libxfont2 &
-  - libfontenc &
-  - libtasn1 &
-  - libxshmfence &
-  - `--`
-  - tigervnc &
-  - xkb &
-  - xkbcomp &
-  - +xdpyprobe
-- pulseaudio
-    - libogg &
-    - `--`
-    - libopus &
-    - libflac &
-    - libvorbis &
-    - `--`
-    - libsndfile
-    - pulseaudio
-- xrdp
-  - libxrandr `===`
-  - fdkaac
-  - xrdp
-- dropbear
-  - dropbear
+> part1: core + wm
+
 - fluxbox
   - x-xrdp/build.sh libxrandr
   - _ex/fontconfig/build.sh
@@ -59,10 +36,61 @@
   - st
   - dwm
   - dmenu
+- x-tigervnc
+  - libxfont2 &
+  - libfontenc &
+  - libtasn1 &
+  - libxshmfence &
+  - `--`
+  - tigervnc &
+  - xkb &
+  - xkbcomp &
+  - +xdpyprobe
+- x-pulseaudio
+    - libogg &
+    - `--`
+    - libopus &
+    - libflac &
+    - libvorbis &
+    - `--`
+    - libsndfile
+    - pulseaudio
+- x-xrdp
+  - libxrandr `===`
+  - fdkaac
+  - xrdp
+- x-dropbear
+  - dropbear
 - xcompmgr
   - Xdamage `===`
   - xcompmgr
-- tint2 `cmake`
+- xperp
+  - perp
+
+
+> part2: imlib2 gtk2
+
+- u-gtk
+  - deps
+    - pango libxrandr Xdamage
+    - `-lrsvg-2 -lcroco-0.6` @v-tint2
+  - atk
+  - gdk-pixbuf
+  - gtk
+- u-misc
+  - su_exec
+  - lrzsz
+  - n2n
+  - tinc
+- v-xlunch
+  - imlib2 `===`
+  - xlunch
+- v-feh
+  - v-xlunch/build.sh imlib2
+  - v-tint2/build.sh xcbutil & ##need?
+  - v-tint2/build.sh libxi &
+  - feh
+- v-tint2 `cmake`
   - `apk add xorg-server-dev;`
   - v-xlunch/build.sh imlib2
   - libcroco #`libcroco >deps: imlib2`
@@ -70,29 +98,16 @@
   - xcbutil &
   - libxi &
   - tint2
-- xlunch
-  - imlib2 `===`
-  - xlunch
-- feh
-  - v-tint2/build.sh xcbutil & ##need?
-  - v-tint2/build.sh libxi &
-  - feh
-- pcmanfm
+- v-lxde `gtk224`
+  - lxappearance
+  - lxtask
+- v-pcmanfm `gtk224`
   - `apkdeps`
   - libfm
   - menu-cache
   - pcmanfm
-- lxde `gtk224`
-  - lxappearance
-  - lxtask
-- perp
-  - perp
-- cmisc
-  - su_exec
-  - lrzsz
-  - n2n
-  - tinc
-
+- v-geany `gtk224`
+  - copy.tpl
 
 
 ```bash
