@@ -1,0 +1,20 @@
+--- a/src/pavucontrol.glade
++++ b/src/pavucontrol.glade
+@@ -259,7 +259,7 @@
+                             <property name="ellipsize">end</property>
+                           </object>
+                           <packing>
+-                            <property name="expand">False</property>
++                            <property name="expand">True</property>
+                             <property name="fill">True</property>
+                             <property name="position">1</property>
+                           </packing>
+@@ -1389,7 +1389,7 @@
+                             <property name="ellipsize">end</property>
+                           </object>
+                           <packing>
+-                            <property name="expand">False</property>
++                            <property name="expand">True</property>
+                             <property name="fill">True</property>
+                             <property name="position">1</property>
+                           </packing>

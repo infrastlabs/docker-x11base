@@ -1,0 +1,143 @@
+#!/bin/sh
+set -e
+source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pavucontrol}"
+
+#
+# Build pavucontrol 3.0 (GTK2/gtkmm-2.4) 静态
+#
+# 组装容器 = builder-awe（主题/图标库 murrine/pixmap/rsvg/svg 在此；gtkmm 栈 + pulse 栈已拷入）。
+# canberra patch：pavucontrol 用 libcanberra-gtk 做音量反馈音；静态链无 libcanberra，
+#   且 configure 硬查 libcanberra-gtk 会失败 → 打补丁去掉（4 处，见 pavucontrol-canberra.patch）。
+# glade expand patch：device/stream 的 nameLabel 在 glade 里 expand=False + ellipsize=end →
+#   静态构建布局宽度不足即截断设备名（Dummy Output）/流名（Silence）；改 expand=True 让标签
+#   随容器扩展（2 处，见 pavucontrol-glade-expand.patch）。
+# 版本 3.0 = 最后 GTK2 版（--disable-gtk3 走 gtkmm-2.4 分支）。
+#
+# 网络坑（2026-11-05）：容器外网不可达（ghfast.top 失效），host 走 gh-proxy.com 下 tarball
+#   docker cp 到 /tmp/pavucontrol-3.0.tar.gz 并解包 /tmp/pavucontrol（离线复用）。
+#   正常网络环境走 $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz（down_catfile）。
+
+function pavucontrol(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  log "Downloading PAVUCONTROL (v3.0 tarball)..."
+    if [ ! -f /tmp/pavucontrol/configure.ac ]; then
+      if [ -f /tmp/pavucontrol-3.0.tar.gz ]; then
+        rm -rf /tmp/pavucontrol; mkdir -p /tmp/pavucontrol
+        tar xzf /tmp/pavucontrol-3.0.tar.gz -C /tmp
+        rm -rf /tmp/pavucontrol; mv /tmp/pavucontrol-3.0 /tmp/pavucontrol
+      else
+        rm -rf /tmp/pavucontrol; mkdir -p /tmp/pavucontrol
+        down_catfile $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz \
+          | tar -xz --strip 1 -C /tmp/pavucontrol
+      fi
+    fi
+    cd /tmp/pavucontrol
+
+  log "Applying canberra patch (drop libcanberra-gtk, 4 places)..."
+    git apply /src/v-pavucontrol/pavucontrol-canberra.patch 2>/dev/null \
+      || patch -p1 < /src/v-pavucontrol/pavucontrol-canberra.patch 2>/dev/null \
+      || true
+
+  log "Applying glade expand patch (device/stream nameLabel expand False->True; 否则 ellipsize=end 截断设备/流名)..."
+    git apply /src/v-pavucontrol/pavucontrol-glade-expand.patch 2>/dev/null \
+      || patch -p1 < /src/v-pavucontrol/pavucontrol-glade-expand.patch 2>/dev/null \
+      || true
+
+  log "Autogen (tarball has no generated configure)..."
+    ./autogen.sh
+
+  log "Configuring PAVUCONTROL (GTK2, static only)..."
+    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
+    ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
+    ex1="-lfontconfig -lgio-2.0 -lcairo -lXdamage"
+    LIBS0="-lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    LIBS="$LIBS0" PKG_CONFIG_PATH="/usr/local/static/pulseaudio/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+      ./configure --disable-gtk3 --enable-static --disable-shared \
+      --prefix=$TARGETPATH
+
+  log "Compiling PAVUCONTROL (12 objects) + 直链链接..."
+    # 2026-11-16: 源头修(同 engrampa/pasystray, 见 11120827-ci-builder-gtk-app-rootfs.md 6.1)——make 链接
+    #   走 automake $(pavucontrol_LINK)(libtool)，PULSE_LIBS 相对路径($(top_srcdir)/../pulseaudio/src/.libs
+    #   动态 .so) + GUILIBS_LIBS 缺 pulsecommon → 必然失败(旧靠 || log 容错+下方手链=屏蔽)；
+    #   覆盖 pavucontrol_LINK 去 LIBTOOL 直链 + PULSE_LIBS/GUILIBS_LIBS 清空 + LIBS 全量
+    #   (pulse/gtkmm/gtk/X 全链 group, 与旧手链同源), make 期即出二进制, undefined 清零。
+    # 静态 libgcc：-lgcc_s 只有 .so，-static 下需 libgcc.a；补一个 libgcc_s.a（copy libgcc.a）兜底。
+    if [ ! -f /usr/lib/libgcc_s.a ]; then
+      GCCDIR=$(dirname $(find /usr/lib/gcc -name libgcc.a | head -1))
+      cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
+    fi
+    # pulsecommon 版本动态获取（源码内部 PA_MAJOR.PA_MINOR=13.13，非分支名 13.99；用已装 .a glob 取）
+    PULSECOMMON=$(basename $(ls /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>/dev/null | head -1) | sed 's/libpulsecommon-//;s/\.a//')
+    test -n "$PULSECOMMON" || { log "PULSECOMMON not found"; exit 1; }
+    log "PULSECOMMON=$PULSECOMMON"
+    # GTK2 print 后端（file/lpr）由静态 libgtk 提供（-DGTK_PRINT_BACKENDS="file,lpr"，-u 强制 6 符号
+    #   从 libgtk.a 拉入真实后端，替代早期 no-op 存根，2026-11-08 gtk 重建后验证可链）。
+    # 完整静态链（pulse + gtkmm + gtk + X + glib，start-group 循环；与旧手链同源）。
+    PC_LIBS="-Wl,-u,_gtk_print_backend_file_init -Wl,-u,_gtk_print_backend_file_exit -Wl,-u,_gtk_print_backend_file_create \
+      -Wl,-u,_gtk_print_backend_lpr_init -Wl,-u,_gtk_print_backend_lpr_exit -Wl,-u,_gtk_print_backend_lpr_create \
+      -Wl,--start-group \
+      -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
+      -L/usr/local/lib \
+      -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
+      -lpulse-mainloop-glib -lpulse -lpulsecommon-$PULSECOMMON \
+      -lXinerama -lXrandr -lXfixes -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 \
+      $LIBS0 \
+      -Wl,--end-group \
+      -lintl"
+    cd /tmp/pavucontrol/src
+    make -j$(nproc) pavucontrol_LINK="xx-clang++ -static -no-pie -Wl,--strip-all -Wall -O2 -Os -o \$@" \
+      PULSE_LIBS="" GUILIBS_LIBS="" LIBS="$PC_LIBS" 2>&1 || { log "PAVUCONTROL make LINK FAILED"; exit 1; }
+    mkdir -p $TARGETPATH/bin
+    BIN=$(find /tmp/pavucontrol -name pavucontrol -type f -perm -u+x 2>/dev/null | head -1)
+    test -n "$BIN" || { log "PAVUCONTROL binary MISSING"; exit 1; }
+    cp -f "$BIN" $TARGETPATH/bin/pavucontrol
+
+  log "Install PAVUCONTROL data (glade + desktop; make install 会重链失败，手装)..."
+    mkdir -p $TARGETPATH/share/pavucontrol $TARGETPATH/share/applications
+    cp /tmp/pavucontrol/src/pavucontrol.glade $TARGETPATH/share/pavucontrol/
+    cp /tmp/pavucontrol/src/pavucontrol.desktop $TARGETPATH/share/applications/
+
+  log "Install PAVUCONTROL locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/pavucontrol/po ]; then
+      for p in /tmp/pavucontrol/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/pavucontrol.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/pavucontrol/po/*.po | wc -l) langs"
+    fi
+
+  log "Verify PAVUCONTROL..."
+    file $TARGETPATH/bin/pavucontrol
+    xx-verify --static $TARGETPATH/bin/pavucontrol || { log "PAVUCONTROL xx-verify FAILED"; exit 1; }
+    strings $TARGETPATH/bin/pavucontrol | grep -q "GTK_ICON_THEME" && echo "strings: GTK_ICON_THEME OK"
+    strings $TARGETPATH/bin/pavucontrol | grep -q "MurrineRcStyle" && echo "strings: murrine OK"
+    strings $TARGETPATH/bin/pavucontrol | grep -q "rsvg" && echo "strings: rsvg OK"
+    ls -lh $TARGETPATH/bin/pavucontrol
+}
+
+case "$1" in
+cache)
+    # down_catfile $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz > /dev/null
+    ;;
+full)
+    doExec pavucontrol || exit 1
+    ;;
+b_deps)
+    # 编译依赖库：pulse 栈（项目内 fk-pulseaudio 定制版，含 libpulse-mainloop-glib）
+    #   x-pulseaudio b_deps = dep 库（libogg/libFLAC/libvorbis/libopus/libsndfile .a → /usr/local/lib）
+    #   x-pulseaudio full   = pulse 静态库（libpulse/libpulse-simple/libpulse-mainloop-glib + pulsecommon/pulsecore → /usr/local/static/pulseaudio）
+    export CMAKE_BINARY_DIR=/usr/local/static/pulseaudio
+    doExec bash /src/x-pulseaudio/build.sh b_deps || exit 1
+    doExec bash /src/x-pulseaudio/build.sh full || exit 1
+    echo "== gtkmm stack =="; ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a 2>&1
+    echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>&1
+    ;;
+*) #compile
+    oneBuild $1
+    ;;
+esac
+exit 0
