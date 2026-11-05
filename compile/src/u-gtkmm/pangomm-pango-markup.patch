@@ -1,0 +1,12 @@
+diff --git a/pango/pangomm/attrlist.cc b/pango/pangomm/attrlist.cc
+index 0000000..1111111 100644
+--- a/pango/pangomm/attrlist.cc
++++ b/pango/pangomm/attrlist.cc
+@@ -2,6 +2,7 @@
+ 
+ 
+ #include <glibmm.h>
++#include <pango/pango-markup.h>
+ 
+ #include <pangomm/attrlist.h>
+ #include <pangomm/private/attrlist_p.h>
