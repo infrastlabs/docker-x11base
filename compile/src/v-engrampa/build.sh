@@ -29,13 +29,23 @@ function engrampa(){
     log "glib-g_ptr_array_copy patch already applied"
   fi
 
+  # apply localedir patch: configure.ac 硬编码 LOCALEDIR=${prefix}/share/locale, 忽略 --localedir
+  # 改 ${localedir} 使 --localedir=/usr/share/locale 生效 (静态版中文/多语言路径)
+  if grep -q 'AC_DEFINE_UNQUOTED(LOCALEDIR, "${ac_default_prefix}/' /tmp/engrampa/configure.ac; then
+    log "Apply localedir patch..."
+    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-1.14.1-localedir.patch" || { log "LOCALEDIR PATCH FAILED"; exit 1; }
+  else
+    log "localedir patch already applied"
+  fi
+
   log "Configuring ENGRAMPA..."
   cd /tmp/engrampa
   ./autogen.sh
   ./configure --prefix=$TARGETPATH \
     --enable-static --disable-shared \
     --disable-caja-actions \
-    --disable-packagekit
+    --disable-packagekit \
+    --localedir=/usr/share/locale
 
   # ref pcmanfm/lxtask 式 GTK2 静态链
   OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
