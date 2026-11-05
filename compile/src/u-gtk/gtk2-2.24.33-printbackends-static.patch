@@ -1,0 +1,67 @@
+diff --git a/gtk/Makefile.am b/gtk/Makefile.am
+index 5b337da..9266bba 100644
+--- a/gtk/Makefile.am
++++ b/gtk/Makefile.am
+@@ -704,6 +704,8 @@ gtk_os_unix_c_sources = \
+ 	gtkprintoperation-unix.c	\
+ 	gtkprintunixdialog.c		\
+         gtkprintbackend.c		\
++	$(top_srcdir)/modules/printbackends/file/gtkprintbackendfile.c	\
++	$(top_srcdir)/modules/printbackends/lpr/gtkprintbackendlpr.c	\
+ 	gtksearchenginebeagle.c		\
+ 	gtksearchenginetracker.c
+ gtk_all_c_sources += $(gtk_os_unix_c_sources)
+diff --git a/modules/printbackends/file/gtkprintbackendfile.c b/modules/printbackends/file/gtkprintbackendfile.c
+index 20d157d..db7c883 100644
+--- a/modules/printbackends/file/gtkprintbackendfile.c
++++ b/modules/printbackends/file/gtkprintbackendfile.c
+@@ -129,19 +129,19 @@ gtk_print_backend_file_register_type (GTypeModule *module)
+ }
+ 
+ G_MODULE_EXPORT void 
+-pb_module_init (GTypeModule *module)
++_gtk_print_backend_file_init (GTypeModule *module)
+ {
+   gtk_print_backend_file_register_type (module);
+ }
+ 
+ G_MODULE_EXPORT void 
+-pb_module_exit (void)
++_gtk_print_backend_file_exit (void)
+ {
+ 
+ }
+   
+ G_MODULE_EXPORT GtkPrintBackend * 
+-pb_module_create (void)
++_gtk_print_backend_file_create (void)
+ {
+   return gtk_print_backend_file_new ();
+ }
+diff --git a/modules/printbackends/lpr/gtkprintbackendlpr.c b/modules/printbackends/lpr/gtkprintbackendlpr.c
+index 0ee856c..601b998 100644
+--- a/modules/printbackends/lpr/gtkprintbackendlpr.c
++++ b/modules/printbackends/lpr/gtkprintbackendlpr.c
+@@ -108,19 +108,19 @@ gtk_print_backend_lpr_register_type (GTypeModule *module)
+ }
+ 
+ G_MODULE_EXPORT void 
+-pb_module_init (GTypeModule *module)
++_gtk_print_backend_lpr_init (GTypeModule *module)
+ {
+   gtk_print_backend_lpr_register_type (module);
+ }
+ 
+ G_MODULE_EXPORT void 
+-pb_module_exit (void)
++_gtk_print_backend_lpr_exit (void)
+ {
+ 
+ }
+   
+ G_MODULE_EXPORT GtkPrintBackend * 
+-pb_module_create (void)
++_gtk_print_backend_lpr_create (void)
+ {
+   return gtk_print_backend_lpr_new ();
+ }
