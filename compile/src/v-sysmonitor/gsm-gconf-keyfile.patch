@@ -1,0 +1,673 @@
+diff -ruN a/configure b/configure
+--- a/configure	2026-11-06 01:22:31.190347741 +0800
++++ b/configure	2026-11-06 01:22:31.210347843 +0800
+@@ -16811,12 +16811,12 @@
+     pkg_cv_PROCMAN_CFLAGS="$PROCMAN_CFLAGS"
+  elif test -n "$PKG_CONFIG"; then
+     if test -n "$PKG_CONFIG" && \
+-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= \$GLIB_REQUIRED gconf-2.0 >= \$GCONF_REQUIRED libgtop-2.0 >= \$LIBGTOP_REQUIRED libwnck-1.0 >= \$LIBWNCK_REQUIRED gtk+-2.0 >= \$GTK_REQUIRED gnome-icon-theme >= \$GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= \$GTKMM_REQUIRED libxml-2.0 >= \$LIBXML_REQUIRED librsvg-2.0 >= \$RSVG_REQUIRED glibmm-2.4 >= \$GLIBMM_REQUIRED giomm-2.4 >= \$GIOMM_REQUIRED dbus-glib-1 >= \$DBUS_REQUIRED\""; } >&5
+-  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED") 2>&5
++    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= \$GLIB_REQUIRED libgtop-2.0 >= \$LIBGTOP_REQUIRED libwnck-1.0 >= \$LIBWNCK_REQUIRED gtk+-2.0 >= \$GTK_REQUIRED gnome-icon-theme >= \$GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= \$GTKMM_REQUIRED libxml-2.0 >= \$LIBXML_REQUIRED librsvg-2.0 >= \$RSVG_REQUIRED glibmm-2.4 >= \$GLIBMM_REQUIRED giomm-2.4 >= \$GIOMM_REQUIRED \""; } >&5
++  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED ") 2>&5
+   ac_status=$?
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+   test $ac_status = 0; }; then
+-  pkg_cv_PROCMAN_CFLAGS=`$PKG_CONFIG --cflags "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED" 2>/dev/null`
++  pkg_cv_PROCMAN_CFLAGS=`$PKG_CONFIG --cflags "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED " 2>/dev/null`
+ else
+   pkg_failed=yes
+ fi
+@@ -16827,12 +16827,12 @@
+     pkg_cv_PROCMAN_LIBS="$PROCMAN_LIBS"
+  elif test -n "$PKG_CONFIG"; then
+     if test -n "$PKG_CONFIG" && \
+-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= \$GLIB_REQUIRED gconf-2.0 >= \$GCONF_REQUIRED libgtop-2.0 >= \$LIBGTOP_REQUIRED libwnck-1.0 >= \$LIBWNCK_REQUIRED gtk+-2.0 >= \$GTK_REQUIRED gnome-icon-theme >= \$GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= \$GTKMM_REQUIRED libxml-2.0 >= \$LIBXML_REQUIRED librsvg-2.0 >= \$RSVG_REQUIRED glibmm-2.4 >= \$GLIBMM_REQUIRED giomm-2.4 >= \$GIOMM_REQUIRED dbus-glib-1 >= \$DBUS_REQUIRED\""; } >&5
+-  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED") 2>&5
++    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0 >= \$GLIB_REQUIRED libgtop-2.0 >= \$LIBGTOP_REQUIRED libwnck-1.0 >= \$LIBWNCK_REQUIRED gtk+-2.0 >= \$GTK_REQUIRED gnome-icon-theme >= \$GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= \$GTKMM_REQUIRED libxml-2.0 >= \$LIBXML_REQUIRED librsvg-2.0 >= \$RSVG_REQUIRED glibmm-2.4 >= \$GLIBMM_REQUIRED giomm-2.4 >= \$GIOMM_REQUIRED \""; } >&5
++  ($PKG_CONFIG --exists --print-errors "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED ") 2>&5
+   ac_status=$?
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+   test $ac_status = 0; }; then
+-  pkg_cv_PROCMAN_LIBS=`$PKG_CONFIG --libs "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED" 2>/dev/null`
++  pkg_cv_PROCMAN_LIBS=`$PKG_CONFIG --libs "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED " 2>/dev/null`
+ else
+   pkg_failed=yes
+ fi
+@@ -16852,14 +16852,14 @@
+         _pkg_short_errors_supported=no
+ fi
+         if test $_pkg_short_errors_supported = yes; then
+-	        PROCMAN_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED" 2>&1`
++	        PROCMAN_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED " 2>&1`
+         else
+-	        PROCMAN_PKG_ERRORS=`$PKG_CONFIG --print-errors "glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED" 2>&1`
++	        PROCMAN_PKG_ERRORS=`$PKG_CONFIG --print-errors "glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED " 2>&1`
+         fi
+ 	# Put the nasty error message in config.log where it belongs
+ 	echo "$PROCMAN_PKG_ERRORS" >&5
+ 
+-	as_fn_error $? "Package requirements (glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED) were not met:
++	as_fn_error $? "Package requirements (glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED ) were not met:
+ 
+ $PROCMAN_PKG_ERRORS
+ 
+diff -ruN a/configure.in b/configure.in
+--- a/configure.in	2026-11-06 01:22:31.190347741 +0800
++++ b/configure.in	2026-11-06 01:22:31.210347843 +0800
+@@ -37,7 +37,7 @@
+ RSVG_REQUIRED=2.12
+ DBUS_REQUIRED=0.7
+ 
+-PKG_CHECK_MODULES(PROCMAN, glib-2.0 >= $GLIB_REQUIRED gconf-2.0 >= $GCONF_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED dbus-glib-1 >= $DBUS_REQUIRED)
++PKG_CHECK_MODULES(PROCMAN, glib-2.0 >= $GLIB_REQUIRED libgtop-2.0 >= $LIBGTOP_REQUIRED libwnck-1.0 >= $LIBWNCK_REQUIRED gtk+-2.0 >= $GTK_REQUIRED gnome-icon-theme >= $GNOME_ICON_THEME_REQUIRED gtkmm-2.4 >= $GTKMM_REQUIRED libxml-2.0 >= $LIBXML_REQUIRED librsvg-2.0 >= $RSVG_REQUIRED glibmm-2.4 >= $GLIBMM_REQUIRED giomm-2.4 >= $GIOMM_REQUIRED)
+ 
+ 
+ AC_ARG_ENABLE(more-warnings,
+@@ -64,9 +64,6 @@
+ dnl CXXFLAGS="-fvisibility=hidden -fvisibility-inlines-hidden $CXXFLAGS"
+ dnl CXXFLAGS="-fvisibility-inlines-hidden $CXXFLAGS"
+ 
+-AM_GCONF_SOURCE_2
+-
+-
+ GETTEXT_PACKAGE=gnome-system-monitor
+ AC_SUBST(GETTEXT_PACKAGE)
+ AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE",
+diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
+--- a/src/gconf-shim.h	1970-01-01 08:00:00.000000000 +0800
++++ b/src/gconf-shim.h	2026-11-06 01:22:31.222347904 +0800
+@@ -0,0 +1,525 @@
++/* gconf-shim.h
++ *
++ * Minimal GConf-compatible shim backed by GKeyFile, replacing libgconf
++ * for statically-linked gnome-system-monitor. Preferences are stored in
++ * ~/.config/gnome-system-monitor/procman.ini.
++ *
++ * GConf keys look like "/apps/procman/width"; here they map to a GKeyFile
++ * group "procman" with key "apps/procman/width". Values are persisted with a
++ * type prefix ("i:" int, "b:" bool, "s:" string, "l:" int list) so the type
++ * is unambiguous on reload.
++ *
++ * API surface matches the subset of libgconf-2.0 used by gnome-system-monitor
++ * 2.28.2 (src/*.cpp): getters/setters, dir_exists, notify_add, entry/value
++ * accessors, and the GCONF_VALUE_INT / GCONF_CLIENT_PRELOAD_NONE constants.
++ * Notification callbacks registered with gconf_client_notify_add() are invoked
++ * synchronously after any matching set, preserving the original live-update
++ * behaviour without a D-Bus/CORBA daemon.
++ */
++#ifndef _PROCMAN_GCONF_SHIM_H_
++#define _PROCMAN_GCONF_SHIM_H_
++
++#include <glib.h>
++#include <string.h>
++#include <stdio.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* ---- types ---- */
++
++typedef enum {
++  GCONF_VALUE_INT = 0,
++  GCONF_VALUE_BOOL,
++  GCONF_VALUE_STRING,
++  GCONF_VALUE_LIST
++} GConfValueType;
++
++#define GCONF_CLIENT_PRELOAD_NONE 0
++
++struct GConfValue {
++  int type;
++  gboolean bval;
++  gint ival;
++  gchar *sval;
++  GSList *list; /* GSList of gint* for GCONF_VALUE_LIST */
++};
++
++struct GConfEntry {
++  gchar *key;
++  GConfValue *value;
++};
++
++struct GConfClient;
++
++typedef void (*GConfClientNotifyFunc)(GConfClient *client, guint cnxn_id,
++                                      GConfEntry *entry, gpointer user_data);
++
++typedef struct _GConfNotify {
++  GConfClientNotifyFunc cb;
++  gpointer user_data;
++  guint id;
++} GConfNotify;
++
++struct GConfClient {
++  GKeyFile *kf;
++  gchar *file;
++  GHashTable *values; /* gchar* key -> GConfValue* */
++  GHashTable *notify; /* gchar* key -> GSList* of GConfNotify* */
++  guint next_id;
++};
++
++/* ---- internal helpers ---- */
++
++static GConfValue *
++gconf_shim_make_value (int type)
++{
++  GConfValue *v = (GConfValue*)g_new0 (GConfValue, 1);
++  v->type = type;
++  return v;
++}
++
++static void
++gconf_shim_free_value (GConfValue *v)
++{
++  if (!v)
++    return;
++  g_free (v->sval);
++  if (v->list) {
++    GSList *it;
++    for (it = v->list; it; it = it->next)
++      g_free (it->data);
++    g_slist_free (v->list);
++  }
++  g_free (v);
++}
++
++/* GConfValue* stored in the values hash are owned by the hash (value_destroy
++ * frees them); copies returned to callers via gconf_client_get() must be
++ * freed by the caller (gconf_value_free). */
++static GConfValue *
++gconf_shim_clone_value (const GConfValue *src)
++{
++  if (!src)
++    return NULL;
++  GConfValue *v = gconf_shim_make_value (src->type);
++  v->bval = src->bval;
++  v->ival = src->ival;
++  v->sval = src->sval ? g_strdup (src->sval) : NULL;
++  if (src->list) {
++    GSList *it;
++    for (it = src->list; it; it = it->next)
++      v->list = g_slist_append (v->list, g_memdup (it->data, sizeof (gint)));
++  }
++  return v;
++}
++
++static const gchar *
++gconf_shim_value_key (const gchar *gconf_key)
++{
++  /* "/apps/procman/width" -> "apps/procman/width" */
++  while (*gconf_key == '/')
++    gconf_key++;
++  return gconf_key;
++}
++
++static void
++gconf_shim_load (GConfClient *c)
++{
++  if (!g_file_test (c->file, G_FILE_TEST_EXISTS))
++    return;
++  gsize len = 0;
++  GError *err = NULL;
++  gchar **groups = g_key_file_get_groups (c->kf, &len);
++  if (!groups)
++    return;
++  for (gsize g = 0; groups[g]; g++) {
++    gsize nkeys = 0;
++    gchar **keys = g_key_file_get_keys (c->kf, groups[g], &nkeys, &err);
++    if (!keys)
++      continue;
++    for (gsize k = 0; keys[k]; k++) {
++      gchar *raw = g_key_file_get_value (c->kf, groups[g], keys[k], NULL);
++      if (!raw)
++        continue;
++      /* keys[k] is the gconf path sans leading '/' -> rebuild with '/' */
++      gchar *full = g_strdup_printf ("/%s", keys[k]);
++      GConfValue *v = NULL;
++      if (g_str_has_prefix (raw, "i:")) {
++        v = gconf_shim_make_value (GCONF_VALUE_INT);
++        v->ival = (gint)strtol (raw + 2, NULL, 10);
++      } else if (g_str_has_prefix (raw, "b:")) {
++        v = gconf_shim_make_value (GCONF_VALUE_BOOL);
++        v->bval = g_str_equal (raw + 2, "true");
++      } else if (g_str_has_prefix (raw, "s:")) {
++        v = gconf_shim_make_value (GCONF_VALUE_STRING);
++        v->sval = g_strdup (raw + 2);
++      } else if (g_str_has_prefix (raw, "l:")) {
++        v = gconf_shim_make_value (GCONF_VALUE_LIST);
++        gchar **parts = g_strsplit (raw + 2, ",", -1);
++        for (int i = 0; parts[i]; i++) {
++          if (*parts[i]) {
++            gint *ip = g_new (gint, 1);
++            *ip = (gint)strtol (parts[i], NULL, 10);
++            v->list = g_slist_append (v->list, ip);
++          }
++        }
++        g_strfreev (parts);
++      }
++      g_free (raw);
++      if (v) {
++        GConfValue *old = (GConfValue*)g_hash_table_lookup (c->values, full);
++        if (old)
++          g_hash_table_remove (c->values, full); /* frees old via value_destroy */
++        g_hash_table_insert (c->values, full, v); /* takes ownership of full */
++      } else {
++        g_free (full);
++      }
++    }
++    g_strfreev (keys);
++  }
++  g_strfreev (groups);
++}
++
++static void
++gconf_shim_persist (GConfClient *c)
++{
++  g_key_file_remove_group (c->kf, "procman", NULL);
++  GHashTableIter iter;
++  gpointer key, val;
++  g_hash_table_iter_init (&iter, c->values);
++  while (g_hash_table_iter_next (&iter, &key, &val)) {
++    const gchar *gkey = (const gchar*)key;
++    GConfValue *v = (GConfValue*)val;
++    gchar *raw = NULL;
++    if (v->type == GCONF_VALUE_INT) {
++      raw = g_strdup_printf ("i:%d", v->ival);
++    } else if (v->type == GCONF_VALUE_BOOL) {
++      raw = g_strdup_printf ("b:%s", v->bval ? "true" : "false");
++    } else if (v->type == GCONF_VALUE_STRING) {
++      raw = g_strdup_printf ("s:%s", v->sval ? v->sval : "");
++    } else if (v->type == GCONF_VALUE_LIST) {
++      GString *gs = g_string_new ("l:");
++      GSList *it;
++      gboolean first = TRUE;
++      for (it = v->list; it; it = it->next) {
++        if (!first) g_string_append_c (gs, ',');
++        g_string_append_printf (gs, "%d", *(gint*)it->data);
++        first = FALSE;
++      }
++      raw = g_string_free (gs, FALSE);
++    }
++    if (raw) {
++      g_key_file_set_value (c->kf, "procman", gconf_shim_value_key (gkey), raw);
++      g_free (raw);
++    }
++  }
++  gchar *dir = g_path_get_dirname (c->file);
++  g_mkdir_with_parents (dir, 0755);
++  g_free (dir);
++  g_key_file_save_to_file (c->kf, c->file, NULL);
++}
++
++static void
++gconf_shim_fire (GConfClient *c, const gchar *key)
++{
++  GSList *list = (GSList*)g_hash_table_lookup (c->notify, (gpointer)key);
++  if (!list)
++    return;
++  GConfValue *stored = (GConfValue*)g_hash_table_lookup (c->values, (gpointer)key);
++  GConfEntry entry;
++  entry.key = (gchar*)key;
++  entry.value = gconf_shim_clone_value (stored);
++  for (GSList *it = list; it; it = it->next) {
++    GConfNotify *n = (GConfNotify*)it->data;
++    n->cb (c, n->id, &entry, n->user_data);
++  }
++  gconf_shim_free_value (entry.value);
++}
++
++/* ---- public API ---- */
++
++inline GConfClient *
++gconf_client_get_default (void)
++{
++  static GConfClient *instance = NULL;
++  if (!instance) {
++    instance = (GConfClient*)g_new0 (GConfClient, 1);
++    instance->kf = g_key_file_new ();
++    instance->file = g_build_filename (g_get_user_config_dir (),
++                                       "gnome-system-monitor",
++                                       "procman.ini", NULL);
++    instance->values = g_hash_table_new_full (g_str_hash, g_str_equal,
++                                              g_free, (GDestroyNotify)gconf_shim_free_value);
++    instance->notify = g_hash_table_new_full (g_str_hash, g_str_equal,
++                                              g_free, (GDestroyNotify)g_slist_free);
++    instance->next_id = 1;
++    gconf_shim_load (instance);
++  }
++  return instance;
++}
++
++inline void
++gconf_init (int *argc, char ***argv, GError **err)
++{
++  /* no daemon / no global init needed */
++  (void)argc; (void)argv; (void)err;
++}
++
++inline void
++gconf_client_add_dir (GConfClient *client, const gchar *dir, gint flags, GError **err)
++{
++  (void)client; (void)dir; (void)flags; (void)err;
++}
++
++inline void
++gconf_client_suggest_sync (GConfClient *client, GError **err)
++{
++  (void)err;
++  if (client)
++    gconf_shim_persist (client);
++}
++
++inline gboolean
++gconf_client_dir_exists (GConfClient *client, const gchar *dir, GError **err)
++{
++  (void)err;
++  if (!client || !dir)
++    return FALSE;
++  gsize prefix_len = strlen (dir);
++  GHashTableIter iter;
++  gpointer key, val;
++  g_hash_table_iter_init (&iter, client->values);
++  while (g_hash_table_iter_next (&iter, &key, &val)) {
++    if (strncmp ((const gchar*)key, dir, prefix_len) == 0)
++      return TRUE;
++  }
++  return FALSE;
++}
++
++inline gint
++gconf_client_get_int (GConfClient *client, const gchar *key, GError **err)
++{
++  (void)err;
++  if (!client || !key) return 0;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (v && v->type == GCONF_VALUE_INT) return v->ival;
++  return 0;
++}
++
++inline gboolean
++gconf_client_get_bool (GConfClient *client, const gchar *key, GError **err)
++{
++  (void)err;
++  if (!client || !key) return FALSE;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (v && v->type == GCONF_VALUE_BOOL) return v->bval;
++  return FALSE;
++}
++
++inline gchar *
++gconf_client_get_string (GConfClient *client, const gchar *key, GError **err)
++{
++  (void)err;
++  if (!client || !key) return NULL;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (v && v->type == GCONF_VALUE_STRING && v->sval) return g_strdup (v->sval);
++  return NULL;
++}
++
++inline GConfValue *
++gconf_client_get (GConfClient *client, const gchar *key, GError **err)
++{
++  (void)err;
++  if (!client || !key) return NULL;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  return gconf_shim_clone_value (v);
++}
++
++inline GSList *
++gconf_client_get_list (GConfClient *client, const gchar *key, GConfValueType type, GError **err)
++{
++  (void)err;
++  (void)type;
++  if (!client || !key) return NULL;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (!v || v->type != GCONF_VALUE_LIST) return NULL;
++  GSList *out = NULL;
++  for (GSList *it = v->list; it; it = it->next)
++    out = g_slist_append (out, GINT_TO_POINTER (*(gint*)it->data));
++  return out;
++}
++
++inline gboolean
++gconf_client_set_int (GConfClient *client, const gchar *key, gint val, GError **err)
++{
++  (void)err;
++  if (!client || !key) return FALSE;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (!v) {
++    v = gconf_shim_make_value (GCONF_VALUE_INT);
++    g_hash_table_insert (client->values, g_strdup (key), v);
++  }
++  v->type = GCONF_VALUE_INT;
++  v->ival = val;
++  gconf_shim_persist (client);
++  gconf_shim_fire (client, key);
++  return TRUE;
++}
++
++inline gboolean
++gconf_client_set_bool (GConfClient *client, const gchar *key, gboolean val, GError **err)
++{
++  (void)err;
++  if (!client || !key) return FALSE;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (!v) {
++    v = gconf_shim_make_value (GCONF_VALUE_BOOL);
++    g_hash_table_insert (client->values, g_strdup (key), v);
++  }
++  v->type = GCONF_VALUE_BOOL;
++  v->bval = val;
++  gconf_shim_persist (client);
++  gconf_shim_fire (client, key);
++  return TRUE;
++}
++
++inline gboolean
++gconf_client_set_string (GConfClient *client, const gchar *key, const gchar *val, GError **err)
++{
++  (void)err;
++  if (!client || !key) return FALSE;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (!v) {
++    v = gconf_shim_make_value (GCONF_VALUE_STRING);
++    g_hash_table_insert (client->values, g_strdup (key), v);
++  }
++  v->type = GCONF_VALUE_STRING;
++  g_free (v->sval);
++  v->sval = g_strdup (val ? val : "");
++  gconf_shim_persist (client);
++  gconf_shim_fire (client, key);
++  return TRUE;
++}
++
++inline gboolean
++gconf_client_set_list (GConfClient *client, const gchar *key, GConfValueType type,
++                       GSList *list, GError **err)
++{
++  (void)err;
++  (void)type;
++  if (!client || !key) return FALSE;
++  GConfValue *v = (GConfValue*)g_hash_table_lookup (client->values, (gpointer)key);
++  if (!v) {
++    v = gconf_shim_make_value (GCONF_VALUE_LIST);
++    g_hash_table_insert (client->values, g_strdup (key), v);
++  }
++  v->type = GCONF_VALUE_LIST;
++  if (v->list) {
++    GSList *it;
++    for (it = v->list; it; it = it->next) g_free (it->data);
++    g_slist_free (v->list);
++    v->list = NULL;
++  }
++  for (GSList *it = list; it; it = it->next) {
++    gint *ip = g_new (gint, 1);
++    *ip = GPOINTER_TO_INT (it->data);
++    v->list = g_slist_append (v->list, ip);
++  }
++  gconf_shim_persist (client);
++  gconf_shim_fire (client, key);
++  return TRUE;
++}
++
++inline guint
++gconf_client_notify_add (GConfClient *client, const gchar *key,
++                         GConfClientNotifyFunc cb, gpointer user_data,
++                         GDestroyNotify destroy, GError **err)
++{
++  (void)destroy; (void)err;
++  if (!client || !key || !cb) return 0;
++  GConfNotify *n = g_new0 (GConfNotify, 1);
++  n->cb = cb;
++  n->user_data = user_data;
++  n->id = client->next_id++;
++  GSList *list = (GSList*)g_hash_table_lookup (client->notify, (gpointer)key);
++  list = g_slist_append (list, n);
++  g_hash_table_insert (client->notify, g_strdup (key), list);
++  return n->id;
++}
++
++inline void
++gconf_client_notify_remove (GConfClient *client, guint cnxn_id)
++{
++  if (!client || !cnxn_id)
++    return;
++  GHashTableIter iter;
++  gpointer key, val;
++  g_hash_table_iter_init (&iter, client->notify);
++  while (g_hash_table_iter_next (&iter, &key, &val)) {
++    GSList *list = (GSList*)val;
++    GSList *prev = NULL;
++    for (GSList *it = list; it; it = it->next) {
++      GConfNotify *n = (GConfNotify*)it->data;
++      if (n && n->id == cnxn_id) {
++        if (prev)
++          prev->next = it->next;
++        else
++          list = it->next;
++        g_free (n);
++        g_free (it);
++        if (list)
++          g_hash_table_replace (client->notify, g_strdup ((gchar*)key), list);
++        else
++          g_hash_table_remove (client->notify, (gpointer)key);
++        return;
++      }
++      prev = it;
++    }
++  }
++}
++
++/* ---- entry / value accessors ---- */
++
++inline const gchar *
++gconf_entry_get_key (GConfEntry *entry)
++{
++  return entry ? entry->key : NULL;
++}
++
++inline GConfValue *
++gconf_entry_get_value (GConfEntry *entry)
++{
++  return entry ? entry->value : NULL;
++}
++
++inline gboolean
++gconf_value_get_bool (GConfValue *value)
++{
++  return value ? value->bval : FALSE;
++}
++
++inline gint
++gconf_value_get_int (GConfValue *value)
++{
++  return value ? value->ival : 0;
++}
++
++inline const gchar *
++gconf_value_get_string (GConfValue *value)
++{
++  return (value && value->sval) ? value->sval : NULL;
++}
++
++inline void
++gconf_value_free (GConfValue *value)
++{
++  gconf_shim_free_value (value);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* _PROCMAN_GCONF_SHIM_H_ */
+diff -ruN a/src/openfiles.cpp b/src/openfiles.cpp
+--- a/src/openfiles.cpp	2026-11-06 01:22:31.206347823 +0800
++++ b/src/openfiles.cpp	2026-11-06 01:22:31.222347904 +0800
+@@ -67,7 +67,7 @@
+ 		goto failsafe;
+ 
+ 	if (getnameinfo(res->ai_addr, res->ai_addrlen, hostname,
+-			sizeof hostname, service, sizeof service, NI_IDN))
++			sizeof hostname, service, sizeof service, 0))
+ 		goto failsafe;
+ 
+ 	if (res) freeaddrinfo(res);
+diff -ruN a/src/procman.cpp b/src/procman.cpp
+--- a/src/procman.cpp	2026-11-06 01:22:31.206347823 +0800
++++ b/src/procman.cpp	2026-11-06 01:22:31.222347904 +0800
+@@ -31,7 +31,7 @@
+ #include <gtk/gtk.h>
+ #include <gdk/gdkx.h>
+ #include <bacon-message-connection.h>
+-#include <gconf/gconf-client.h>
++#include "gconf-shim.h"
+ #include <glibtop.h>
+ #include <glibtop/close.h>
+ #include <glibtop/loadavg.h>
+@@ -723,8 +723,6 @@
+ 	gtk_window_set_default_icon_name ("utilities-system-monitor");
+ 	g_set_application_name(_("System Monitor"));
+ 		    
+-	gconf_init (argc, argv, NULL);
+-			    
+ 	client = gconf_client_get_default ();
+ 	gconf_client_add_dir(client, "/apps/procman", GCONF_CLIENT_PRELOAD_NONE, NULL);
+ 
+diff -ruN a/src/procman.h b/src/procman.h
+--- a/src/procman.h	2026-11-06 01:22:31.206347823 +0800
++++ b/src/procman.h	2026-11-06 01:22:31.222347904 +0800
+@@ -24,7 +24,7 @@
+ #include <gdk-pixbuf/gdk-pixbuf.h>
+ #include <glib.h>
+ #include <gtk/gtk.h>
+-#include <gconf/gconf-client.h>
++#include "gconf-shim.h"
+ #include <glibtop/cpu.h>
+ 
+ #include <time.h>
+diff -ruN a/src/smooth_refresh.cpp b/src/smooth_refresh.cpp
+--- a/src/smooth_refresh.cpp	2026-11-06 01:22:31.206347823 +0800
++++ b/src/smooth_refresh.cpp	2026-11-06 01:22:31.222347904 +0800
+@@ -4,7 +4,7 @@
+ #include <unistd.h>
+ 
+ #include <glib.h>
+-#include <gconf/gconf-client.h>
++#include "gconf-shim.h"
+ #include <glibtop.h>
+ #include <glibtop/proctime.h>
+ #include <glibtop/cpu.h>
+diff -ruN a/src/smooth_refresh.h b/src/smooth_refresh.h
+--- a/src/smooth_refresh.h	2026-11-06 01:22:31.206347823 +0800
++++ b/src/smooth_refresh.h	2026-11-06 01:22:31.222347904 +0800
+@@ -2,7 +2,7 @@
+ #define _PROCMAN_SMOOTH_REFRESH
+ 
+ #include <glib.h>
+-#include <gconf/gconf-client.h>
++#include "gconf-shim.h"
+ 
+ #include <string>
+ 
