@@ -1,6 +1,6 @@
 ARG COMPILE_IMG=alpine-compile
 ARG REPO=
-FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224 AS base
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
@@ -209,11 +209,11 @@ ARG COMPILE_TINT2="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/tint2
 RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-tint2/build.sh cache; \
+  # sh /src/w-tint2/build.sh cache; \
   \
   test "yes" != "$COMPILE_TINT2" && exit 0 || echo doMake; \
-  sh /src/v-tint2/build.sh b_deps; \
-  sh /src/v-tint2/build.sh tint2; \
+  sh /src/w-tint2/build.sh b_deps; \
+  sh /src/w-tint2/build.sh tint2; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -223,11 +223,11 @@ ARG COMPILE_XLUNCH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xlunch
 RUN mkdir -p $TARGETPATH; \
-  sh /src/v-xlunch/build.sh cache; \
+  sh /src/w-xlunch/build.sh cache; \
   \
   test "yes" != "$COMPILE_XLUNCH" && exit 0 || echo doMake; \
-  sh /src/v-xlunch/build.sh imlib2; \
-  sh /src/v-xlunch/build.sh xlunch; \
+  sh /src/w-xlunch/build.sh imlib2; \
+  sh /src/w-xlunch/build.sh xlunch; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -237,11 +237,37 @@ ARG COMPILE_FEH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/feh
 RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-feh/build.sh cache; \
+  # sh /src/w-feh/build.sh cache; \
   \
   test "yes" != "$COMPILE_FEH" && exit 0 || echo doMake; \
-  sh /src/v-feh/build.sh b_deps; \
-  sh /src/v-feh/build.sh feh; \
+  sh /src/w-feh/build.sh b_deps; \
+  sh /src/w-feh/build.sh feh; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build xbindkeys
+FROM base AS xbindkeys
+ARG COMPILE_XBINDKEYS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xbindkeys
+RUN mkdir -p $TARGETPATH; \
+  # 源码: 落仓 tarball(容器内 nongnu 截断, 不可在线) -> cp 到 /tmp 供 build.sh
+  cp /src/x-xbindkeys/xbindkeys-1.8.7.tar.gz /tmp/; \
+  \
+  test "yes" != "$COMPILE_XBINDKEYS" && exit 0 || echo doMake; \
+  sh /src/x-xbindkeys/build.sh xbindkeys; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build xrandr
+FROM base AS xrandr
+ARG COMPILE_XRANDR="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xrandr
+RUN mkdir -p $TARGETPATH; \
+  \
+  test "yes" != "$COMPILE_XRANDR" && exit 0 || echo doMake; \
+  sh /src/x-xrandr/build.sh xrandr; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -272,7 +298,175 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
+# Build geany
+FROM base AS geany
+ARG COMPILE_GEANY="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/geany
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-geany/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_GEANY" && exit 0 || echo doMake; \
+  sh /src/v-geany/build.sh b_deps; \
+  sh /src/v-geany/build.sh geany; \
+  \
+  find ${TARGETPATH} -type f |sort;
 
+# Build xfce4 (xfce4settings/thunar/ristretto; GTK2, 共享 xfce 库栈)
+# b_deps: ensure_gtk_libs(最新 gtk2) + dbus/dbus-glib + xfce 库栈(util/conf/ui/exo/garcon) + libexif
+FROM base AS xfce4
+ARG COMPILE_XFCE4="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xfce4
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-xfce4/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_XFCE4" && exit 0 || echo doMake; \
+  sh /src/v-xfce4/build.sh b_deps; \
+  sh /src/v-xfce4/build.sh xfce4settings; \
+  sh /src/v-xfce4/build.sh thunar; \
+  sh /src/v-xfce4/build.sh ristretto; \
+  \
+  find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |sort;
+
+# Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
+FROM base AS dbus
+ARG COMPILE_DBUS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/dbus
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_DBUS" && exit 0 || echo doMake; \
+  sh /src/x-dbus/build.sh dbus; \
+  TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib; \
+  find /usr/local/static/dbus /usr/local/static/dbus-glib -type f 2>/dev/null |sort;
+
+# Build ibus (GTK2 输入法: librime/ibus/panel/x11/ibus-rime/setup; 需 dbus+gtk2)
+# 注意: v-ibus/build.sh 是 bash-only (busybox sh 解析失败 line297), 故用 bash 调用
+FROM dbus AS ibus
+ARG COMPILE_IBUS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/ibus
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_IBUS" && exit 0 || echo doMake; \
+  bash /src/v-ibus/build.sh b_deps; \
+  bash /src/v-ibus/build.sh full; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build engrampa (GTK2 归档管理器; engrampa() 自足, 无独立 b_deps)
+FROM base AS engrampa
+ARG COMPILE_ENGRAMPA="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/engrampa
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_ENGRAMPA" && exit 0 || echo doMake; \
+  sh /src/v-engrampa/build.sh engrampa; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build gpicview (GTK2 图片查看器)
+FROM base AS gpicview
+ARG COMPILE_GPICVIEW="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/gpicview
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_GPICVIEW" && exit 0 || echo doMake; \
+  sh /src/v-gpicview/build.sh b_deps; \
+  sh /src/v-gpicview/build.sh gpicview; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build hsetroot (imlib 应用, 壁纸设置)
+FROM base AS hsetroot
+ARG COMPILE_HSETROOT="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/hsetroot
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_HSETROOT" && exit 0 || echo doMake; \
+  sh /src/w-hsetroot/build.sh b_deps; \
+  sh /src/w-hsetroot/build.sh hsetroot; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build scrot (imlib 截图)
+FROM base AS scrot
+ARG COMPILE_SCROT="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/scrot
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_SCROT" && exit 0 || echo doMake; \
+  sh /src/w-scrot/build.sh b_deps; \
+  sh /src/w-scrot/build.sh scrot; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build dunst (xcb 通知守护)
+FROM base AS dunst
+ARG COMPILE_DUNST="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/dunst
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_DUNST" && exit 0 || echo doMake; \
+  sh /src/x-dunst/build.sh b_deps; \
+  sh /src/x-dunst/build.sh dunst; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build rofi (基础应用; 需 xcb-util -> b_deps 复用 w-tint2 xcbutil)
+FROM base AS rofi
+ARG COMPILE_ROFI="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/rofi
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_ROFI" && exit 0 || echo doMake; \
+  sh /src/x-rofi/build.sh b_deps; \
+  sh /src/x-rofi/build.sh rofi; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build gtkmm 栈 (7 libs, 供 pavucontrol/gnome-system-monitor)
+# pavucontrol 需 pulse 静态库 -> gtkmm 建在 pulseaudio stage 上 (继承 pulse), pavucontrol 再 FROM gtkmm
+FROM pulseaudio AS gtkmm
+ARG COMPILE_GTKMM="yes"
+ENV CONSOLE_LOG=no
+RUN mkdir -p /usr/local/static; \
+  test "yes" != "$COMPILE_GTKMM" && exit 0 || echo doMake; \
+  sh /src/u-gtkmm/build.sh b_deps; \
+  sh /src/u-gtkmm/build.sh gtkmm; \
+  \
+  ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a;
+
+# Build pavucontrol (GTK2/gtkmm, 需 pulse+gtkmm 栈)
+FROM gtkmm AS pavucontrol
+ARG COMPILE_PAVUCONTROL="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pavucontrol
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-pavucontrol/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PAVUCONTROL" && exit 0 || echo doMake; \
+  sh /src/v-pavucontrol/build.sh b_deps; \
+  sh /src/v-pavucontrol/build.sh pavucontrol; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build pasystray (GTK2 托盘, 需 pulse 栈 -> FROM pulseaudio 继承)
+FROM pulseaudio AS pasystray
+ARG COMPILE_PASYSTRAY="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pasystray
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_PASYSTRAY" && exit 0 || echo doMake; \
+  sh /src/v-pasystray/build.sh b_deps; \
+  sh /src/v-pasystray/build.sh pasystray; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build sysmonitor (gtkmm 栈; 需 pulse+gtkmm -> FROM gtkmm 继承)
+# full = build_gtop + build_wnck + gnome_system_monitor (gtop/wnck 非父级提供, 故直接 full,
+# 不调 b_deps -- 其 ls gtop/wnck 在 set -e 下会因未建而中止)
+# 静态链需 xcb-util (libwnck→startup-notification→xcb-util), 由 w-tint2 xcbutil 补建
+FROM gtkmm AS sysmonitor
+ARG COMPILE_SYSMONITOR="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/gsm
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_SYSMONITOR" && exit 0 || echo doMake; \
+  bash /src/w-tint2/build.sh xcbutil; \
+  sh /src/v-sysmonitor/build.sh full; \
+  find ${TARGETPATH} -type f |sort;
 
 FROM base AS perp
 ARG COMPILE_PERP="yes"
@@ -365,8 +559,23 @@ COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 # RUN rm -rf /rootfs${STATIC}/tint2
 COPY --from=tint2 ${STATIC} /rootfs${STATIC}
 COPY --from=feh ${STATIC} /rootfs${STATIC}
+COPY --from=xbindkeys ${STATIC} /rootfs${STATIC}
+COPY --from=xrandr ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
 COPY --from=lxde ${STATIC} /rootfs${STATIC}
+COPY --from=geany ${STATIC} /rootfs${STATIC}
+COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
+COPY --from=pavucontrol ${STATIC} /rootfs${STATIC}
+COPY --from=dbus ${STATIC} /rootfs${STATIC}
+COPY --from=ibus ${STATIC} /rootfs${STATIC}
+COPY --from=engrampa ${STATIC} /rootfs${STATIC}
+COPY --from=gpicview ${STATIC} /rootfs${STATIC}
+COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
+COPY --from=scrot ${STATIC} /rootfs${STATIC}
+COPY --from=dunst ${STATIC} /rootfs${STATIC}
+COPY --from=rofi ${STATIC} /rootfs${STATIC}
+COPY --from=pasystray ${STATIC} /rootfs${STATIC}
+COPY --from=sysmonitor ${STATIC} /rootfs${STATIC}
 COPY --from=perp ${STATIC} /rootfs${STATIC}
 COPY --from=misc ${STATIC} /rootfs${STATIC}
 
