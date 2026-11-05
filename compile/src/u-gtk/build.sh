@@ -95,6 +95,8 @@ function gtk(){
   log "Patching gtk theme engine (builtin murrine)..."
     patch -p1 < /src/u-gtk/gtkthemes-builtin-murrine.patch || { log "THEME PATCH FAILED"; exit 1; }
     patch -p1 < /src/u-gtk/gtk2-2.24.33-lxtask-static.patch || { log "GTK PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtk2-2.24.33-printbackends-static.patch || { log "PRINTBACKEND PATCH FAILED"; exit 1; }
+    patch -p1 < /src/u-gtk/gtkbuilder-static-types.patch || { log "GTKBUILDER PATCH FAILED"; exit 1; }
     args="--disable-option-checking \
       --disable-FEATURE  \
       --disable-silent-rules \
@@ -127,7 +129,8 @@ function gtk(){
     # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
     # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
     ./configure --enable-static \
-      --with-included-immodules=xim
+      --with-included-immodules=xim \
+      --prefix=/usr
 
   log "Compiling gtk..."
     # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
@@ -150,6 +153,12 @@ function gtk(){
     make -C modules/engines/pixbuf || { log "PIXMAP build FAILED"; exit 1; }
     ar r ./gtk/.libs/libgtk-x11-2.0.a modules/engines/pixbuf/*.o
     log "Merged pixmap engine into ./gtk/.libs/libgtk-x11-2.0.a"
+  log "Print backends (file/lpr) built via Makefile.am sources..."
+    # gtk2-2.24.33-printbackends-static.patch: ①改 gtkprintbackend{file,lpr}.c 的
+    # pb_module_* → _gtk_print_backend_{file,lpr}_*（对齐 gtkprintbackend.c builtin 表）；
+    # ②把两个 .c 加进 gtk/Makefile.am 的 gtk_os_unix_c_sources → make -C gtk 自然编进
+    # libgtk-x11-2.0.a。替代旧 objcopy --redefine-sym + 手动 ar r（不正规，2026-11-05 复盘）。
+    # 此段无需任何手动编/合并，产物检查靠下方 [ -f ... ] + xx-verify。
     # ./gdk/.libs/libgdk-x11-2.0.a
     # ./gtk/.libs/libgtk-x11-2.0.a
     # ./gdk/x11/.libs/libgdk-x11.a
