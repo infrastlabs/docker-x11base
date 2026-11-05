@@ -2,7 +2,7 @@ diff --git a/gtk/gtkthemes.c b/gtk/gtkthemes.c
 index d6d9f79..586bdb5 100644
 --- a/gtk/gtkthemes.c
 +++ b/gtk/gtkthemes.c
-@@ -57,13 +57,53 @@ struct _GtkThemeEngineClass
+@@ -57,13 +57,57 @@ struct _GtkThemeEngineClass
  
  static GHashTable *engine_hash = NULL;
  
@@ -22,9 +22,13 @@ index d6d9f79..586bdb5 100644
 +extern void theme_init (GTypeModule *module);
 +extern void theme_exit (void);
 +extern GtkRcStyle *theme_create_rc_style (void);
++extern void pixmap_theme_init (GTypeModule *module);
++extern void pixmap_theme_exit (void);
++extern GtkRcStyle *pixmap_theme_create_rc_style (void);
 +
 +static const GtkBuiltinThemeEngine builtin_theme_engines[] = {
 +  { "murrine", theme_init, theme_exit, theme_create_rc_style },
++  { "pixmap", pixmap_theme_init, pixmap_theme_exit, pixmap_theme_create_rc_style },
 +  { NULL, NULL, NULL, NULL }
 +};
 +
