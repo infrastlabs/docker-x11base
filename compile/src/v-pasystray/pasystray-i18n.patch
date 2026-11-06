@@ -1,0 +1,169 @@
+--- a/src/pasystray.c
++++ b/src/pasystray.c
+@@ -19,6 +19,12 @@
+   USA.
+ ***/
+ 
++#define ENABLE_NLS 1
++#include <locale.h>
++#include <glib/gi18n.h>
++#ifndef LOCALEDIR
++#define LOCALEDIR "/usr/local/static/pasystray/share/locale"
++#endif
+ #include <glib.h>
+ #include <gtk/gtk.h>
+ 
+@@ -40,6 +46,11 @@
+ {
+     GOptionEntry* options = get_options();
+     GError *error = NULL;
++
++    setlocale(LC_ALL, "");
++    bindtextdomain("pasystray", LOCALEDIR);
++    textdomain("pasystray");
++
+     gtk_init_with_args(&argc, &argv, NULL, options, NULL, &error);
+     if(error)
+     {
+--- a/src/systray.c
++++ b/src/systray.c
+@@ -19,6 +19,7 @@
+   USA.
+ ***/
+ 
++#define ENABLE_NLS 1
+ #include <glib/gi18n.h>
+ #include "systray.h"
+ 
+@@ -45,20 +46,20 @@
+ {
+     mis->menu = GTK_MENU_SHELL(gtk_menu_new());
+ 
+-    systray_rootmenu_add_submenu(mis, MENU_SERVER, "Default _Server", "network-server");
+-    systray_rootmenu_add_submenu(mis, MENU_SINK, "Default S_ink", "audio-card");
+-    systray_rootmenu_add_submenu(mis, MENU_SOURCE, "Default S_ource", "audio-input-microphone");
+-    systray_rootmenu_add_submenu(mis, MENU_INPUT, "Playback S_treams", "media-playback-start");
+-    systray_rootmenu_add_submenu(mis, MENU_OUTPUT, "Recording Stre_ams", "media-record");
+-    systray_rootmenu_add_submenu(mis, MENU_MODULE, "_Modules", "list-add");
++    systray_rootmenu_add_submenu(mis, MENU_SERVER, _("Default _Server"), "network-server");
++    systray_rootmenu_add_submenu(mis, MENU_SINK, _("Default S_ink"), "audio-card");
++    systray_rootmenu_add_submenu(mis, MENU_SOURCE, _("Default S_ource"), "audio-input-microphone");
++    systray_rootmenu_add_submenu(mis, MENU_INPUT, _("Playback S_treams"), "media-playback-start");
++    systray_rootmenu_add_submenu(mis, MENU_OUTPUT, _("Recording Stre_ams"), "media-record");
++    systray_rootmenu_add_submenu(mis, MENU_MODULE, _("_Modules"), "list-add");
+     systray_menu_add_separator(mis->menu);
+ 
+-    systray_menu_add_application(mis->menu, "_Manager...", NULL, COMMAND_PAMAN);
+-    systray_menu_add_application(mis->menu, "_Equalizer...", NULL, COMMAND_PAEQUALIZER);
+-    systray_menu_add_application(mis->menu, "Volume _Control...", NULL, COMMAND_PAVUCONTROL);
+-    systray_menu_add_application(mis->menu, "Volume Meter (_Playback)...", NULL, COMMAND_PAVUMETER);
+-    systray_menu_add_application(mis->menu, "Volume Meter (_Recording)...", NULL, COMMAND_PAVUMETER_REC);
+-    systray_menu_add_application(mis->menu, "Con_figure Local Sound Server...", NULL, COMMAND_PAPREFS);
++    systray_menu_add_application(mis->menu, _("_Manager..."), NULL, COMMAND_PAMAN);
++    systray_menu_add_application(mis->menu, _("_Equalizer..."), NULL, COMMAND_PAEQUALIZER);
++    systray_menu_add_application(mis->menu, _("Volume _Control..."), NULL, COMMAND_PAVUCONTROL);
++    systray_menu_add_application(mis->menu, _("Volume Meter (_Playback)..."), NULL, COMMAND_PAVUMETER);
++    systray_menu_add_application(mis->menu, _("Volume Meter (_Recording)..."), NULL, COMMAND_PAVUMETER_REC);
++    systray_menu_add_application(mis->menu, _("Con_figure Local Sound Server..."), NULL, COMMAND_PAPREFS);
+ 
+     /* TODO: settings
+     systray_menu_add_separator(mis->menu);
+@@ -69,13 +70,13 @@
+     systray_menu_add_separator(mis->menu);
+ 
+     GtkMenuShell* submenu = GTK_MENU_SHELL(gtk_menu_new());
+-    GtkWidget* item = systray_add_item(mis->menu, "More...", NULL, NULL);
++    GtkWidget* item = systray_add_item(mis->menu, _("More..."), NULL, NULL);
+     gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), GTK_WIDGET(submenu));
+-    systray_menu_add_action(submenu, "Terminate server", "process-stop",
++    systray_menu_add_action(submenu, _("Terminate server"), "process-stop",
+         G_CALLBACK(pulseaudio_terminate));
+ 
+-    systray_menu_add_action(mis->menu, "About", "help-about", G_CALLBACK(systray_about_dialog));
+-    systray_menu_add_action(mis->menu, "Quit", "application-exit", G_CALLBACK(quit));
++    systray_menu_add_action(mis->menu, _("About"), "help-about", G_CALLBACK(systray_about_dialog));
++    systray_menu_add_action(mis->menu, _("Quit"), "application-exit", G_CALLBACK(quit));
+ }
+ 
+ void systray_rootmenu_add_submenu(menu_infos_t* mis, menu_type_t type, const char* name, const char* icon)
+@@ -84,7 +85,7 @@
+     menu_info_t* mi = &mis->menu_info[type];
+ 
+     systray_menu_add_submenu(menu, mi, name, NULL, icon);
+-    systray_menu_add_item(mi->menu, "none", NULL, FALSE);
++    systray_menu_add_item(mi->menu, _("none"), NULL, FALSE);
+ }
+ 
+ void systray_menu_add_separator(GtkMenuShell* menu)
+--- a/src/menu_info.c
++++ b/src/menu_info.c
+@@ -20,7 +20,9 @@
+ ***/
+ 
+ #include <string.h>
++#define ENABLE_NLS 1
+ #include <glib.h>
++#include <glib/gi18n.h>
+ 
+ #include "menu_info.h"
+ #include "systray.h"
+@@ -209,7 +211,7 @@
+     gchar* label = g_strdup_printf("%s %s%s",
+         desc,
+         pa_volume_snprint(vol_buf, sizeof(vol_buf), mii->volume->values[0]),
+-        mii->mute ? " [muted]" : "");
++        mii->mute ? _(" [muted]") : "");
+ 
+     return label;
+ }
+@@ -403,7 +405,7 @@
+         case MENU_SOURCE:
+         {
+             menu_type_t type = (mii->menu_info->type == MENU_SINK) ? MENU_INPUT : MENU_OUTPUT;
+-            gchar* label = g_strdup_printf("Move all %ss here",
++            gchar* label = g_strdup_printf(_("Move all %ss here"),
+                     menu_info_type_name(type));
+             item = gtk_menu_item_new_with_label(label);
+             g_free(label);
+@@ -411,14 +413,14 @@
+                     G_CALLBACK(menu_info_item_move_all_cb), mii);
+             gtk_menu_shell_append(menu, item);
+ 
+-            item = gtk_menu_item_new_with_label("Rename");
++            item = gtk_menu_item_new_with_label(_("Rename"));
+             g_signal_connect(item, "button-press-event",
+                     G_CALLBACK(menu_info_item_rename_cb), mii);
+             gtk_menu_shell_append(menu, item);
+             break;
+         }
+         case MENU_MODULE:
+-            item = gtk_menu_item_new_with_label("Unload");
++            item = gtk_menu_item_new_with_label(_("Unload"));
+             g_signal_connect(item, "button-press-event",
+                     G_CALLBACK(menu_info_module_unload_cb), mii);
+             gtk_menu_shell_append(menu, item);
+@@ -673,9 +675,9 @@
+ {
+     gtk_menu_popdown(GTK_MENU(mii->menu_info->menu_infos->menu));
+ 
+-    char* title = g_strdup_printf("Rename %s %s",
++    char* title = g_strdup_printf(_("Rename %s %s"),
+             menu_info_type_name(mii->menu_info->type), mii->name);
+-    char* text = g_strdup_printf("%s to:", title);
++    char* text = g_strdup_printf(_("%s to:"), title);
+ 
+     GtkDialog* dialog = ui_renamedialog();
+     gtk_window_set_title(GTK_WINDOW(dialog), title);
+@@ -703,10 +705,10 @@
+ 
+ void menu_info_item_rename_error(menu_info_item_t* mii)
+ {
+-    gchar* title = g_strdup_printf("Failed to rename %s",
++    gchar* title = g_strdup_printf(_("Failed to rename %s"),
+             menu_info_type_name(mii->menu_info->type));
+     GtkDialog* dialog = ui_errordialog(title,
+-            "Is the module-device-manager loaded?");
++            _("Is the module-device-manager loaded?"));
+     g_free(title);
+ 
+     gtk_dialog_run(dialog);

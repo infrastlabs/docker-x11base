@@ -1,0 +1,108 @@
+# pasystray zh_CN translations (2026-11-06, hand-written for static build)
+msgid ""
+msgstr ""
+"Project-Id-Version: pasystray 0.8.2\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-06 00:00+0000\n"
+"PO-Revision-Date: 2026-11-06 00:00+0000\n"
+"Last-Translator: docker-x11base\n"
+"Language-Team: \n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# systray.c root menu
+msgid "Default _Server"
+msgstr "默认服务器"
+
+msgid "Default S_ink"
+msgstr "默认输出设备"
+
+msgid "Default S_ource"
+msgstr "默认输入设备"
+
+msgid "Playback S_treams"
+msgstr "播放流"
+
+msgid "Recording Stre_ams"
+msgstr "录制流"
+
+msgid "_Modules"
+msgstr "模块"
+
+msgid "_Manager..."
+msgstr "管理器..."
+
+msgid "_Equalizer..."
+msgstr "均衡器..."
+
+msgid "Volume _Control..."
+msgstr "音量控制..."
+
+msgid "Volume Meter (_Playback)..."
+msgstr "音量表(播放)..."
+
+msgid "Volume Meter (_Recording)..."
+msgstr "音量表(录制)..."
+
+msgid "Con_figure Local Sound Server..."
+msgstr "配置本地声音服务器..."
+
+msgid "More..."
+msgstr "更多..."
+
+msgid "Terminate server"
+msgstr "终止服务器"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "none"
+msgstr "无"
+
+# About dialog (systray.c)
+msgid "PulseAudio system tray"
+msgstr "PulseAudio 系统托盘"
+
+# menu_info.c
+msgid " [muted]"
+msgstr " [静音]"
+
+msgid "Move all %ss here"
+msgstr "将全部%s移动到这里"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Unload"
+msgstr "卸载"
+
+msgid "Rename %s %s"
+msgstr "重命名 %s %s"
+
+msgid "%s to:"
+msgstr "%s 为:"
+
+msgid "Failed to rename %s"
+msgstr "重命名 %s 失败"
+
+msgid "Is the module-device-manager loaded?"
+msgstr "是否已加载 module-device-manager 模块？"
+
+# ui.c glade defaults (运行时通常被 C 代码覆盖，仍收录以防闪现)
+msgid "Error"
+msgstr "错误"
+
+msgid "An error occurred"
+msgstr "发生错误"
+
+msgid "Rename <device> <name>"
+msgstr "重命名 <设备> <名称>"
+
+msgid "Rename <device> <old name> to:"
+msgstr "将 <设备> <旧名称> 重命名为:"
