@@ -83,6 +83,46 @@ function gdk-pixbuf(){ ##@meson
 # 
 # xcompmgr>> # ref: opbox>> deps: 已全装
 # 试着改回: meson的两个; （一样错：libX11 not found）
+function gtk_ibus_a2(){
+  # 方案A2(2026-11-07 定案+实测通过): 把 ibus im 模块静态注册进 libgtk-x11-2.0.a。
+  # 前置: IBUS_BUILD 指向已构建的 ibus 源码树(client/gtk2/.libs 三对象 + src/.libs/libibus-1.0.a),
+  # 默认 /tmp/ibus; 产物缺失则跳过(基座 gtk 仍可用)。最终合并进 ./gtk/.libs/libgtk-x11-2.0.a。
+  # 说明: gtkimmodule.o 用 make -n 捕获编译命令+追加 -DINCLUDE_IM_ibus 重编; ibusim.o 用守卫
+  # 补丁+ -DINCLUDE_IM_ibus 重编(排除 g_module_check_init, 避免与 murrine_theme_main.o 冲突);
+  # 其余 ibus 对象/libibus.a 直接取自 IBUS_BUILD 构建产物, ar r 按名合并。
+  local IBUS="${IBUS_BUILD:-/tmp/ibus}"
+  local OBJ=/tmp/ibus-a2-merge
+  [ -f "$IBUS/client/gtk2/.libs/im_ibus_la-ibusim.o" ] || { log "A2 SKIP: ibus module objects NOT found ($IBUS)"; return 0; }
+  [ -f "$IBUS/src/.libs/libibus-1.0.a" ] || { log "A2 SKIP: libibus-1.0.a NOT found ($IBUS)"; return 0; }
+  log "A2: merge ibus im module -> ./gtk/.libs/libgtk-x11-2.0.a (IBUS=$IBUS)"
+  rm -rf "$OBJ"; mkdir -p "$OBJ"; cd /tmp/gtk
+  # 1) gtkimmodule.c: 加 INCLUDE_IM_ibus do_builtin(ibus)
+  grep -q "do_builtin (ibus)" gtk/gtkimmodule.c || patch -p1 < /src/u-gtk/gtk-ibus-builtin.patch || { log "A2 gtk patch FAILED"; exit 1; }
+  # 2) 重编 gtkimmodule.o (继承配置宏 + INCLUDE_IM_ibus)
+  local CMD; CMD=$(make -n -C gtk gtkimmodule.lo 2>/dev/null | grep -m1 "mode=compile")
+  CMD=$(printf '%s' "$CMD" | sed -n 's#^.* gcc #gcc #p')
+  CMD=$(printf '%s' "$CMD" | sed "s#-o gtkimmodule\.lo#-o $OBJ/gtkimmodule.o#; s#-DINCLUDE_IM_xim#-DINCLUDE_IM_xim -DINCLUDE_IM_ibus#")
+  [ -n "$CMD" ] || { log "A2 FAIL: gtkimmodule compile cmd NOT captured"; exit 1; }
+  ( cd /tmp/gtk/gtk && eval "$CMD" ) || { log "A2 FAIL: gtkimmodule.o compile"; exit 1; }
+  # 3) glue: im_module_* -> _gtk_immodule_ibus_*
+  xx-clang $(pkg-config --cflags gtk+-2.0) -c /src/u-gtk/ibus-builtin-glue.c -o "$OBJ/ibus-builtin.o" || { log "A2 FAIL: glue compile"; exit 1; }
+  # 4) ibusim.o: 守卫补丁 + -DINCLUDE_IM_ibus 重编
+  grep -q "#ifndef INCLUDE_IM_ibus" "$IBUS/client/gtk2/ibusim.c" || patch -d "$IBUS" -p1 < /src/u-gtk/ibus-ibusim-gmodule-check-init.patch || { log "A2 ibusim patch FAILED"; exit 1; }
+  local IBCMD; IBCMD=$(make -n -C "$IBUS/client/gtk2" im_ibus_la-ibusim.lo 2>/dev/null | grep -m1 "mode=compile")
+  IBCMD=$(printf '%s' "$IBCMD" | sed -n 's#^.* xx-clang #xx-clang #p')
+  IBCMD=$(printf '%s' "$IBCMD" | sed "s#-o im_ibus_la-ibusim\.lo#-o $OBJ/ibusim.o#; s#-DHAVE_CONFIG_H#-DHAVE_CONFIG_H -DINCLUDE_IM_ibus#")
+  [ -n "$IBCMD" ] || { log "A2 FAIL: ibusim compile cmd NOT captured"; exit 1; }
+  ( cd "$IBUS/client/gtk2" && eval "$IBCMD" ) || { log "A2 FAIL: ibusim.o compile"; exit 1; }
+  cp "$IBUS/client/gtk2/.libs/im_ibus_la-ibusimcontext.o" "$OBJ/ibusimcontext.o"
+  cp "$IBUS/client/gtk2/.libs/im_ibus_la-iconwidget.o" "$OBJ/iconwidget.o"
+  # 5) 解出 libibus-1.0.a 全部 .o
+  ( cd "$OBJ" && ar x "$IBUS/src/.libs/libibus-1.0.a" )
+  [ -n "$(ls "$OBJ"/libibus_1_0_la-*.o 2>/dev/null)" ] || { log "A2 FAIL: no libibus .o extracted"; exit 1; }
+  # 6) ar r 按名替换/加入 (gtkimmodule.o 替换原版; 其余新增)
+  ar r ./gtk/.libs/libgtk-x11-2.0.a "$OBJ/gtkimmodule.o" "$OBJ/ibus-builtin.o" "$OBJ/ibusim.o" "$OBJ/ibusimcontext.o" "$OBJ/iconwidget.o" "$OBJ"/libibus_1_0_la-*.o || { log "A2 FAIL: ar r"; exit 1; }
+  log "A2 merged; _gtk_immodule_ibus_init count: $(nm ./gtk/.libs/libgtk-x11-2.0.a 2>/dev/null | grep -c ' T _gtk_immodule_ibus_init')"
+}
+
 function gtk(){
   # apk update; apk add gtk-doc shared-mime-info
 
@@ -153,6 +193,7 @@ function gtk(){
     make -C modules/engines/pixbuf || { log "PIXMAP build FAILED"; exit 1; }
     ar r ./gtk/.libs/libgtk-x11-2.0.a modules/engines/pixbuf/*.o
     log "Merged pixmap engine into ./gtk/.libs/libgtk-x11-2.0.a"
+  gtk_ibus_a2
   log "Print backends (file/lpr) built via Makefile.am sources..."
     # gtk2-2.24.33-printbackends-static.patch: ①改 gtkprintbackend{file,lpr}.c 的
     # pb_module_* → _gtk_print_backend_{file,lpr}_*（对齐 gtkprintbackend.c builtin 表）；
@@ -213,11 +254,11 @@ b_deps)
     bash /src/openbox/build.sh pango & ##needed by gtk
     bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
     bash /src/xcompmgr/build.sh Xdamage &
-    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
+    STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
     # 
     apkdeps
-    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     bash /src/u-gtk/build.sh atk & #needed by gtk
     wait
     bash /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)

@@ -1,0 +1,17 @@
+diff --git a/client/gtk2/ibusim.c b/client/gtk2/ibusim.c
+--- a/client/gtk2/ibusim.c
++++ b/client/gtk2/ibusim.c
+@@ -45,6 +45,13 @@
+     &ibus_im_info
+ };
+ 
++#ifndef INCLUDE_IM_ibus
++G_MODULE_EXPORT const gchar*
++g_module_check_init (GModule *module)
++{
++    return NULL;
++}
++#endif
+ 
+ G_MODULE_EXPORT void
+ im_module_init (GTypeModule *type_module)
