@@ -159,6 +159,8 @@ function pcmanfm(){
   cd /tmp/pcmanfm #&& ./bootstrap;
     # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
     git apply /src/v-pcmanfm/pcmanfm-staticfix.patch
+    # FIX: 中文 localedir (2026-11-06): Makefile.am 硬编码 PACKAGE_LOCALE_DIR=$(prefix)/share/locale, 忽略 --localedir
+    git apply /src/v-pcmanfm/pcmanfm-localedir.patch
     # 正式出包默认 strip；调试时 PCMANFM_DEBUG=1 跳过 strip 保留符号（便于 gdb 验证）(2026-11-05)
     if test -n "$PCMANFM_DEBUG"; then
       export LDFLAGS="-Wl,--as-needed"
@@ -177,7 +179,7 @@ function pcmanfm(){
     # -lXdamage注释也会用到;
     ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
     LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
-    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH
+    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH --localedir=/usr/share/locale
 
   log "Compiling PCMANFM..."
     # # x86_64-alpine-linux-musl/bin/ld: cannot find -lXdamage

@@ -1,0 +1,13 @@
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 68e2eb9..e73cc71 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -4,7 +4,7 @@ AM_CPPFLAGS = \
+ 	-DPACKAGE_DATA_DIR=\""$(datadir)/pcmanfm"\" \
+ 	-DPACKAGE_UI_DIR=\""$(datadir)/pcmanfm/ui"\" \
+ 	-DPACKAGE_MODULES_DIR=\""$(libdir)/pcmanfm"\" \
+-	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\"
++	-DPACKAGE_LOCALE_DIR=\""$(localedir)"\"
+ 
+ bin_PROGRAMS = pcmanfm
+ 
