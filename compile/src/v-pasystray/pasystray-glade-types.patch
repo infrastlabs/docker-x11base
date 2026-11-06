@@ -1,0 +1,39 @@
+--- a/src/ui.c
++++ b/src/ui.c
+@@ -54,11 +54,36 @@
+ 
+ static GtkBuilder* builder;
+ 
++/* Static GTK2: GtkBuilder resolves glade object classes via g_type_from_name(),
++   which only finds types ALREADY registered at runtime. In a static link the
++   widget .o files are pulled in by code references, but their get_type() is
++   never called before the glade is parsed, so load aborts with
++   "Invalid object type `GtkMessageDialog'". Call every get_type() referenced
++   by pasystray.gtk2.glade up-front so GtkBuilder can instantiate them. */
++static void ui_register_glade_types(void)
++{
++    /* gtk_*_get_type() are marked pure/const; a bare-call statement is folded
++       away by the compiler, so the widget .o files would never be linked and
++       GtkBuilder would still fail. Store each result in a volatile to force
++       the call (registers the type) and keep the object file in the link. */
++    volatile GType t;
++    t = gtk_button_get_type();
++    t = gtk_dialog_get_type();
++    t = gtk_entry_get_type();
++    t = gtk_hbutton_box_get_type();
++    t = gtk_label_get_type();
++    t = gtk_message_dialog_get_type();
++    t = gtk_vbox_get_type();
++    (void) t;
++}
++
+ static void ui_load_icons(settings_t* settings);
+ 
+ void ui_load(settings_t* settings)
+ {
+     builder = gtk_builder_new();
++
++    ui_register_glade_types();
+ 
+     GError* error = NULL;
+ 
