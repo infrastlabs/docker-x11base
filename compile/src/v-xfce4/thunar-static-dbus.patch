@@ -1,0 +1,68 @@
+--- a/thunar/thunar-dbus-service.c	2013-05-06 00:37:23.000000000 +0800
++++ b/thunar/thunar-dbus-service.c	2026-11-08 21:24:36.000000000 +0800
+@@ -271,13 +271,13 @@
+ 
+       /* request the org.xfce.Thunar name for Thunar */
+       dbus_connection = dbus_g_connection_get_connection (dbus_service->connection);
+-      result = dbus_bus_request_name (dbus_connection, "org.xfce.Thunar",
++      result = dbus_bus_request_name (dbus_connection, "org.xfce.Thunar.static",
+                                       DBUS_NAME_FLAG_ALLOW_REPLACEMENT | DBUS_NAME_FLAG_DO_NOT_QUEUE, NULL);
+ 
+       /* check if we successfully acquired the name */
+       if (result != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
+         {
+-          g_printerr ("Thunar: D-BUS name org.xfce.Thunar already registered.\n");
++          g_printerr ("Thunar: D-BUS name org.xfce.Thunar.static already registered.\n");
+ 
+           /* unset connection */
+           dbus_g_connection_unref (dbus_service->connection);
+@@ -287,7 +287,7 @@
+         }
+ 
+       /* request the org.xfce.FileManager name for Thunar */
+-      dbus_bus_request_name (dbus_connection, "org.xfce.FileManager", DBUS_NAME_FLAG_REPLACE_EXISTING, NULL);
++      dbus_bus_request_name (dbus_connection, "org.xfce.FileManager.static", DBUS_NAME_FLAG_REPLACE_EXISTING, NULL);
+ 
+       /* once we registered, unset dbus variables (bug #8800) */
+       g_unsetenv ("DBUS_STARTER_ADDRESS");
+@@ -314,8 +314,8 @@
+     {
+       /* release the names */
+       dbus_connection = dbus_g_connection_get_connection (dbus_service->connection);
+-      dbus_bus_release_name (dbus_connection, "org.xfce.Thunar", NULL);
+-      dbus_bus_release_name (dbus_connection, "org.xfce.FileManager", NULL);
++      dbus_bus_release_name (dbus_connection, "org.xfce.Thunar.static", NULL);
++      dbus_bus_release_name (dbus_connection, "org.xfce.FileManager.static", NULL);
+ 
+       dbus_g_connection_unref (dbus_service->connection);
+     }
+--- a/thunar/thunar-dbus-client.c
+--- a/thunar/thunar-dbus-client.c	2013-05-06 00:37:23.000000000 +0800
++++ b/thunar/thunar-dbus-client.c	2026-11-08 21:24:36.000000000 +0800
+@@ -93,7 +93,7 @@
+     startup_id = "";
+ 
+   /* generate the BulkRename() method (disable activation!) */
+-  message = dbus_message_new_method_call ("org.xfce.Thunar", "/org/xfce/FileManager", "org.xfce.Thunar", "BulkRename");
++  message = dbus_message_new_method_call ("org.xfce.Thunar.static", "/org/xfce/FileManager", "org.xfce.Thunar", "BulkRename");
+   dbus_message_set_auto_start (message, FALSE);
+   dbus_message_append_args (message,
+                             DBUS_TYPE_STRING, &working_directory,
+@@ -198,7 +198,7 @@
+     startup_id = "";
+ 
+   /* generate the LaunchFiles() method (disable activation!) */
+-  message = dbus_message_new_method_call ("org.xfce.Thunar", "/org/xfce/FileManager", "org.xfce.FileManager", "LaunchFiles");
++  message = dbus_message_new_method_call ("org.xfce.Thunar.static", "/org/xfce/FileManager", "org.xfce.FileManager", "LaunchFiles");
+   dbus_message_set_auto_start (message, FALSE);
+   dbus_message_append_args (message,
+                             DBUS_TYPE_STRING, &working_directory,
+@@ -273,7 +273,7 @@
+     }
+ 
+   /* generate the LaunchFiles() method (disable activation!) */
+-  message = dbus_message_new_method_call ("org.xfce.Thunar", "/org/xfce/FileManager", "org.xfce.Thunar", "Terminate");
++  message = dbus_message_new_method_call ("org.xfce.Thunar.static", "/org/xfce/FileManager", "org.xfce.Thunar", "Terminate");
+   dbus_message_set_auto_start (message, FALSE);
+ 
+   /* send the message and release our references on connection and message */

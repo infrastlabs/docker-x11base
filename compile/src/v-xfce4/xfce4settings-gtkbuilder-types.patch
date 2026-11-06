@@ -1,0 +1,45 @@
+--- a/dialogs/accessibility-settings/main.c
++++ b/dialogs/accessibility-settings/main.c
+@@ -238,6 +238,11 @@
+         return EXIT_FAILURE;
+ 
+     /* load the Gtk user-interface file */
++    /* force-register types used by glade UI (static link + gtk_builder reflection) */
++    { GType _t = gtk_hscale_get_type (); (void)_t; }
++    { GType _t = gtk_image_get_type (); (void)_t; }
++    { GType _t = gtk_combo_box_get_type (); (void)_t; }
++    { GType _t = gtk_spin_button_get_type (); (void)_t; }
+     builder = gtk_builder_new ();
+     if (gtk_builder_add_from_string (builder, accessibility_dialog_ui,
+                                      accessibility_dialog_ui_length, &error) != 0)
+--- a/dialogs/mouse-settings/main.c
++++ b/dialogs/mouse-settings/main.c
+@@ -1933,6 +1933,12 @@
+     if (G_LIKELY (pointers_channel && xsettings_channel))
+     {
+         /* load the Gtk+ user-interface file */
++        /* force-register types used by glade UI (static link + gtk_builder reflection) */
++        { GType _t = gtk_hscale_get_type (); (void)_t; }
++        { GType _t = gtk_image_get_type (); (void)_t; }
++        { GType _t = gtk_combo_box_get_type (); (void)_t; }
++        { GType _t = gtk_radio_button_get_type (); (void)_t; }
++        { GType _t = gtk_spin_button_get_type (); (void)_t; }
+         builder = gtk_builder_new ();
+         if (gtk_builder_add_from_string (builder, mouse_dialog_ui,
+                                          mouse_dialog_ui_length, &error) != 0)
+--- a/dialogs/keyboard-settings/xfce-keyboard-settings.c
++++ b/dialogs/keyboard-settings/xfce-keyboard-settings.c
+@@ -263,6 +263,13 @@
+   g_signal_connect (settings->priv->provider, "shortcut-removed",
+                     G_CALLBACK (xfce_keyboard_settings_shortcut_removed), settings);
+ 
++  /* force-register types used by glade UI (static link + gtk_builder reflection) */
++  { GType _t = gtk_hscale_get_type (); (void)_t; }
++  { GType _t = gtk_image_get_type (); (void)_t; }
++  { GType _t = gtk_combo_box_get_type (); (void)_t; }
++  { GType _t = gtk_entry_get_type (); (void)_t; }
++  { GType _t = gtk_size_group_get_type (); (void)_t; }
++  { GType _t = xfce_titled_dialog_get_type (); (void)_t; }
+   if (gtk_builder_add_from_string (GTK_BUILDER (settings), keyboard_dialog_ui,
+                                    keyboard_dialog_ui_length, &error) == 0)
+     {

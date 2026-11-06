@@ -1,0 +1,206 @@
+--- a/dialogs/display-settings/xfce-randr.c
++++ b/dialogs/display-settings/xfce-randr.c
+@@ -34,9 +34,12 @@
+ #include "xfce-randr.h"
+ #include "edid.h"
+ 
++/* FIXME(xfconf-free): xfconf daemon 可用标志（main.c 定义；无 daemon 时降级不崩溃） */
++extern gboolean xfconf_ok;
+ 
+ 
+ 
++
+ struct _XfceRandrPrivate
+ {
+     /* xrandr 1.3 capable */
+@@ -48,6 +51,9 @@
+     /* cache for the output/mode info */
+     XRROutputInfo      **output_info;
+     XfceRRMode         **modes;
++
++    /* FIXME(xfsettingsd-free): 直接应用用——output m 对应 resources->outputs 的索引 */
++    guint              *output_ids;
+ };
+ 
+ 
+@@ -163,7 +169,11 @@
+     guint           m, connected;
+     guint          *output_ids = NULL;
+ 
+-    XfconfChannel *display_channel = xfconf_channel_new ("displays");
++    /* FIXME(xfconf-free): 仅 xfconf daemon 可用时才建 channel；否则留 NULL，
++     * 避免 xfconf_channel_new 在 init 失败时返回坏对象导致后续 set_* 崩溃 */
++    XfconfChannel *display_channel = NULL;
++    if (xfconf_ok)
++        display_channel = xfconf_channel_new ("displays");
+ 
+     g_return_if_fail (randr != NULL);
+     g_return_if_fail (randr->priv != NULL);
+@@ -200,6 +210,8 @@
+     /* migrate the temporary cache */
+     randr->noutput = outputs->len;
+     randr->priv->output_info = (XRROutputInfo **) g_ptr_array_free (outputs, FALSE);
++    /* FIXME(xfsettingsd-free): 保存 output 索引（直接应用用） */
++    randr->priv->output_ids = g_memdup2 (output_ids, randr->noutput * sizeof (guint));
+ 
+     /* allocate final space for the settings */
+     randr->mode = g_new0 (RRMode, randr->noutput);
+@@ -248,7 +260,8 @@
+         randr->friendly_name[m] = xfce_randr_friendly_name (randr, m, output_ids[m]);
+ 
+         /* Update display info, primary display may have changed. */
+-        xfce_randr_save_output (randr, "Default", display_channel, m);
++        if (display_channel != NULL)
++            xfce_randr_save_output (randr, "Default", display_channel, m);
+         
+         /* Replace spaces with underscore in name for xfconf compatibility */
+         g_strcanon(randr->priv->output_info[m]->name, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_<>", '_');
+@@ -402,7 +415,9 @@
+     gint              degrees;
+ 
+     g_return_if_fail (randr != NULL && scheme != NULL);
+-    g_return_if_fail (XFCONF_IS_CHANNEL (channel));
++    /* FIXME(xfconf-free): 容忍 channel==NULL（无 daemon 时仅硬件应用，不落 xfconf） */
++    if (channel == NULL || !XFCONF_IS_CHANNEL (channel))
++        return;
+     g_return_if_fail (output < randr->noutput);
+ 
+     /* save the device name */
+@@ -480,16 +495,56 @@
+ 
+ 
+ 
++static void
++xfce_randr_apply_native (XfceRandr *randr)
++{
++    Display *xdisplay;
++    XRRScreenResources *resources;
++    guint m;
++
++    g_return_if_fail (randr != NULL);
++    xdisplay = GDK_DISPLAY_XDISPLAY (randr->priv->display);
++    resources = randr->priv->resources;
++    if (G_UNLIKELY (xdisplay == NULL || resources == NULL || randr->priv->output_ids == NULL))
++        return;
++
++    /* 直接应用每个开启 output 的 mode/position/rotation（免 xfsettingsd 中转） */
++    for (m = 0; m < randr->noutput; m++)
++    {
++        RROutput out_id;
++        RRCrtc crtc;
++        guint n;
++
++        if (randr->mode[m] == None)
++            continue;
++        n = randr->priv->output_ids[m];
++        if (n >= resources->noutput)
++            continue;
++        out_id = resources->outputs[n];
++        crtc = randr->priv->output_info[m]->crtc;
++        if (crtc == None)
++            continue;
++        XRRSetCrtcConfig (xdisplay, resources, crtc, CurrentTime,
++                          randr->position[m].x, randr->position[m].y,
++                          randr->mode[m], randr->rotation[m],
++                          &out_id, 1);
++    }
++    XFlush (xdisplay);
++}
++
+ void
+ xfce_randr_apply (XfceRandr     *randr,
+                   const gchar   *scheme,
+                   XfconfChannel *channel)
+ {
+     g_return_if_fail (randr != NULL && scheme != NULL);
+-    g_return_if_fail (XFCONF_IS_CHANNEL (channel));
+ 
+-    /* tell the helper to apply this theme */
+-    xfconf_channel_set_string (channel, "/Schemes/Apply", scheme);
++    /* FIXME(xfsettingsd-free): 直接应用 RandR（免 xfsettingsd 中转）；channel 可 NULL */
++    xfce_randr_apply_native (randr);
++
++    /* 若 xfconf daemon 在则写配置（兼容），否则仅直接应用 */
++    if (channel != NULL && XFCONF_IS_CHANNEL (channel))
++        xfconf_channel_set_string (channel, "/Schemes/Apply", scheme);
+ }
+ 
+ 
+--- a/dialogs/display-settings/main.c
++++ b/dialogs/display-settings/main.c
+@@ -125,6 +125,9 @@
+ 
+ /* Global xfconf channel */
+ static XfconfChannel *display_channel;
++/* FIXME(xfconf-free): xfconf daemon 可用标志（无 daemon 时降级，不退出）
++ * 非 static：xfce-randr.c 的 xfce_randr_populate 需据此决定是否建 channel */
++gboolean xfconf_ok = FALSE;
+ 
+ /* output currently selected in the combobox */
+ static guint active_output;
+@@ -1387,8 +1390,9 @@
+     g_signal_connect (G_OBJECT (combobox), "changed", G_CALLBACK (display_setting_rotations_changed), builder);
+ 
+     check = gtk_builder_get_object (builder, "minimal-autoshow");
+-    xfconf_g_property_bind (display_channel, "/Notify", G_TYPE_BOOLEAN, check,
+-                            "active");
++    if (display_channel != NULL)
++        xfconf_g_property_bind (display_channel, "/Notify", G_TYPE_BOOLEAN, check,
++                                "active");
+ 
+     apply_button = GTK_WIDGET(gtk_builder_get_object (builder, "apply"));
+     g_signal_connect (G_OBJECT (apply_button), "clicked", G_CALLBACK (display_setting_apply), builder);
+@@ -3140,19 +3144,20 @@
+         return EXIT_FAILURE;
+     }
+ 
+-    /* Initialize xfconf */
+-    if (!xfconf_init (&error))
++    /* FIXME(xfconf-free): xfconf 初始化容错——无 daemon 时降级（display_channel=NULL），不退出 */
++    if (xfconf_init (&error))
+     {
+-        /* Print error and exit */
+-        g_error ("Failed to connect to xfconf daemon: %s.", error->message);
+-        g_error_free (error);
+-
+-        return EXIT_FAILURE;
++        xfconf_ok = TRUE;
++        /* Open the xsettings channel */
++        display_channel = xfconf_channel_new ("displays");
+     }
++    else
++    {
++        g_warning ("xfconf daemon not available (%s); running without config storage", error->message);
++        g_clear_error (&error);
++    }
+ 
+-    /* Open the xsettings channel */
+-    display_channel = xfconf_channel_new ("displays");
+-    if (G_LIKELY (display_channel))
++    /* FIXME(xfconf-free): display_channel 可 NULL——仍创建 xfce_randr + 显示窗口 */
+     {
+         /* Create a new xfce randr (>= 1.2) for this display
+          * this will only work if there is 1 screen on this display */
+@@ -3203,16 +3208,18 @@
+             display_settings_show_minimal_dialog (display);
+ 
+ cleanup:
+-        /* Release the channel */
+-        g_object_unref (G_OBJECT (display_channel));
++        /* Release the channel（可 NULL） */
++        if (display_channel != NULL)
++            g_object_unref (G_OBJECT (display_channel));
+     }
+ 
+     /* Free the randr 1.2 backend */
+     if (xfce_randr)
+         xfce_randr_free (xfce_randr);
+ 
+-    /* Shutdown xfconf */
+-    xfconf_shutdown ();
++    /* Shutdown xfconf（仅 init 成功时） */
++    if (xfconf_ok)
++        xfconf_shutdown ();
+ 
+     return (succeeded ? EXIT_SUCCESS : EXIT_FAILURE);
+ }
