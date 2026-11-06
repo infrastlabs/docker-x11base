@@ -1,0 +1,14 @@
+diff --git a/gtk/gtkimmodule.c b/gtk/gtkimmodule.c
+index 1fcb17a..3012afb 100644
+--- a/gtk/gtkimmodule.c
++++ b/gtk/gtkimmodule.c
+@@ -377,6 +377,9 @@ gtk_im_module_initialize (void)
+ #ifdef INCLUDE_IM_xim
+   do_builtin (xim);
+ #endif
++#ifdef INCLUDE_IM_ibus
++  do_builtin (ibus);
++#endif
+ 
+ #undef do_builtin
+ 
