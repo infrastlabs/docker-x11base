@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-tint2}"
+
+# libcroco/librsvg 装 /usr/local，.pc 在 /usr/local/lib/pkgconfig；Alpine pkgconf 默认不含 → 前置，供本脚本 configure 找到新装 .pc。
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 
 # 
 # LIBCROCO_URL=https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
@@ -13,6 +17,9 @@ function libcroco(){
   # （默认连 .so 一起装，pc 里 -lcroco-0.6 会优先链 .so，静态二进制直接带动态依赖）
   test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
   test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
+  # STATIC 下 libxml2.a 的传递依赖(zlib/lzma/bzip2/m)不自动链接, 导致 csslint-0.6 工具链接失败
+  # (undefined reference to deflateEnd/gzopen/lzma_code...) → make install 失败 → libcroco-0.6.pc 未装。
+  test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
   mkdir -p /tmp/libcroco
   log "Downloading libcroco..."
@@ -20,7 +27,7 @@ function libcroco(){
   # cd /tmp/libcroco
   # down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C /tmp/libcroco
   branch="--branch=0.6.13"
-  rm -rf /tmp/libcroco; git clone --depth=1 $branch https://gitee.com/g-system/fk-libcroco /tmp/libcroco
+  rm -rf /tmp/libcroco; gitclone https://gitee.com/g-system/fk-libcroco /tmp/libcroco $branch
   cd /tmp/libcroco
   # cd libcroco-0.6.13
   ./autogen.sh 
@@ -32,6 +39,9 @@ function libcroco(){
   make install
   # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs）
   test "yes" = "$STATIC" && rm -f /usr/local/lib/libcroco-0.6.so*
+  # 2026-11-15: .la 修元数据——清 .so 记录(library_names/dlname)，libtool 链接走 old_library=.a
+  #   （libtool 非-static 链接优先 shared，.la 记录 .so 时展开用 .so → 静态环境顺序错；同 librsvg）。
+  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|" /usr/local/lib/libcroco-0.6.la 2>/dev/null || true
   # find |grep croco; cp ./src/.libs/libcroco-0.6.a /usr/lib/
   find /usr/local/lib |grep libcroco |grep "\.a$"
   # /usr/local/lib/libcroco-0.6.a
@@ -70,21 +80,45 @@ function librsvg(){
   # （默认连 .so 一起装，pc 里 -lrsvg-2 会优先链 .so，openbox 静态链接直接报 attempted static link）
   test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
   test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
+  # STATIC 下链接 libcroco-0.6.a→libxml2.a 的传递依赖(zlib/lzma/bzip2/m)不自动链接, 需显式加。
+  test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
   log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
   branch="--branch=2.40.21"
-  rm -rf /tmp/librsvg; git clone --depth=1 $branch https://gitee.com/g-system/fk-librsvg /tmp/librsvg
+  rm -rf /tmp/librsvg; gitclone https://gitee.com/g-system/fk-librsvg /tmp/librsvg $branch
   cd /tmp/librsvg
   ./autogen.sh 
-  ./configure --enable-static $DISABLE_SHARED
+  # STATIC 下 librsvg-2.a 的消费方(rsvg-convert/rsvg-loader/GISCAN 等可执行)均被 -static 强制静态链接,
+  #   需 libgdk_pixbuf-2.0.a(Alpine 无 gdk-pixbuf-static 包)会失败; 故仅构建/安装 librsvg-2.a 库本体:
+  #   --enable-introspection=no 跳过 GISCAN; 清空顶层 bin_PROGRAMS(rsvg-convert 等), 剔除 SUBDIRS 中 gdk-pixbuf-loader/tests/tools/doc。
+  test "yes" = "$STATIC" && export CONFIGURE_INTRO=--enable-introspection=no
+  ./configure --enable-static $DISABLE_SHARED $CONFIGURE_INTRO
+  test "yes" = "$STATIC" && sed -i 's/^bin_PROGRAMS = rsvg-convert.*/bin_PROGRAMS =/' Makefile
+  test "yes" = "$STATIC" && sed -i 's/^SUBDIRS = \. gdk-pixbuf-loader tests tools doc build/SUBDIRS = . build/' Makefile
   log "Compiling librsvg..."
-  make 
+  # 2026-11-15: librsvg 2.40 用 libjpeg(embedded jpeg)但 configure 的 JPEG 依赖未进 .so/rsvg-convert 链接
+  #   → CI tint2 b_deps 实测 `librsvg-2.so: undefined reference to jpeg_*`(rsvg-convert 同错)。
+  #   make LIBS 补 -ljpeg(追加, 不覆盖 STATIC 路径的 -lz -llzma -lbz2 -lm)。
+  make LIBS="${LIBS:-} -ljpeg"
   log "Installing librsvg..."
-  make install
+  make install LIBS="${LIBS:-} -ljpeg"
   # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs：pangocairo/cairo/gio…）
   test "yes" = "$STATIC" && rm -f /usr/local/lib/librsvg-2.so*
+  # 2026-11-15: .la 修元数据（libtool 消费方兼容，本次 u-gtkmm generate_extra_defs 踩）——
+  #   ① 清 .so 记录(library_names/dlname)→libtool 走 old_library=.a（libtool 非-static 链接优先 shared，
+  #      .la 记录 .so 时即便文件已删也按名引用→顺序错/文件缺失）；
+  #   ② dependency_libs 去 -lgdk_pixbuf-2.0——librsvg 2.40 不依赖 gdk_pixbuf，该声明 + u-gtk ar 魔改
+  #      (io-svg 塞进 libgdk_pixbuf-2.0.a 使 gdk_pixbuf 反向依赖 rsvg) 造成 rsvg↔gdk_pixbuf 循环依赖，
+  #      libtool 无法排序→rsvg 排 gdk_pixbuf 前→rsvg_handle_* undefined。去除后单向排序。
+  #      直链消费方(xx-clang -static)不读 .la，不受影响（详见 docs/2026/11091127-ci-builder-gtk.md 三章5.2）。
+  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|; s|-lgdk_pixbuf-2.0||" /usr/local/lib/librsvg-2.la 2>/dev/null || true
+  # 2026-11-13: librsvg-2.0.pc Requires 缺 pangocairo/libxml-2.0/libcroco-0.6(实测 Only glib/gio/gdk-pixbuf/cairo, Requires.private 空)
+  # → meson dependency('librsvg-2.0') 链接 librsvg-2.a 时 undefined xml*/pango_cairo_*/cr_*(librsvg 依赖链: libxml2+pangocairo+libcroco)
+  # → gdk_pixbuf svg loader 编进 .a 时链接失败→SVG图标故障; 补全 Requires 供所有消费方(openbox/gdk_pixbuf/lxtask)解析带全依赖
+  sed -i 's/^Requires: .*/Requires: glib-2.0 gio-2.0 gdk-pixbuf-2.0 cairo pangocairo libxml-2.0 libcroco-0.6/' /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null || true
+  grep -E "^Requires" /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null
   # find |grep librsvg-
   # ./.libs/librsvg-2.a
   find /usr/local/lib |grep librsvg |grep "\.a$"
@@ -93,13 +127,21 @@ function librsvg(){
 # [xcb-util]
 function xcbutil(){
   log "Downloading xcb_util..."
-  rm -rf /tmp/xcb-util; git clone --depth=1 $branch https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util
+  rm -rf /tmp/xcb-util; gitclone https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util $branch
   cd /tmp/xcb-util
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
-  apk add util-macros #ubt: xorg-macros
-  sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^https://gitee.com/g-system/util-common-m4.git^g" .gitmodules
-  git submodule update --init
+  apk add util-macros libtool automake autoconf #ubt: xorg-macros
+  # 2026-11-13: m4 子模块改用 gitclone 预热(享受缓存链 GITCACHE>tar.gz>网络), 不再依赖 submodule update(git:// 常被禁/抖动)
+  # gitee g-system/util-common-m4 镜像与宿主缓存 tarsrc-git/util-common-m4 同名(_repo=util-common-m4) → GITCACHE 命中;
+  # CI 无 tarsrc-git 时回落 tar.gz 快照/网络 gitee 克隆, 不再 sed .gitmodules 指向不存在路径(cp can't stat 教训, 3.3.4/5.1)
+  # autogen.sh 检查 `git submodule status|grep ^-`(父仓库 gitlink 与 gitclone 的 m4 独立克隆 HEAD 不一致→报 uninitialized→exit 1)
+  # → 移除父仓库对 m4 的 submodule 跟踪(.gitmodules 删段; git rm --cached/.git/config 兜底), autogen 检查即过(实测生成 Makefile)
+  rm -rf m4; gitclone https://gitee.com/g-system/util-common-m4 m4
+  sed -i '/\[submodule "m4"\]/,/^$/d' .gitmodules 2>/dev/null || true
+  git rm --cached m4 >/dev/null 2>&1 || true
+  git config --remove-section submodule.m4 2>/dev/null || true
+  test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失败)"; }
   ./autogen.sh 
   #  
   # cd /mnt2/_deps/xcb__util/
@@ -118,7 +160,7 @@ function xcbutil(){
 function libxi(){
   # git clone $GITHUB/aleax/libxi
   log "Downloading libxi..."
-  rm -rf /tmp/libxi; git clone --depth=1 $branch https://gitee.com/g-system/fk-libxi /tmp/libxi
+  rm -rf /tmp/libxi; gitclone https://gitee.com/g-system/fk-libxi /tmp/libxi $branch
   cd /tmp/libxi
   ./autogen.sh 
   ./configure  --enable-static --disable-shared #disable dyn;
@@ -172,7 +214,7 @@ function libxi(){
 # # 本地下载源码>> 细看imlib2的配置
 # # [imlib_context_set_display]
 # # bash /src/xcompmgr/build.sh Xdamage
-# bash /src/v-xlunch/build.sh imlib2
+# bash /src/w-xlunch/build.sh imlib2
 # # find-vscode: X_DISPLAY_MISSING @./Projects/_ee/_deps/imlib2-1.7.4
 # xserver-xorg-dev @ubt
 # apk add xorg-server-dev;
@@ -182,7 +224,7 @@ function libxi(){
 
 ###DEPS >> buidler-gtk224##############
 # export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
-# bash /src/v-tint2/build.sh b_deps #pango/xrand/xdamage>> atk/gdk >> gtk 
+# bash /src/w-tint2/build.sh b_deps #pango/xrand/xdamage>> atk/gdk >> gtk 
 # # err link: 老样子: attempted static link of dynamic object `xxxx.so`
 # # 试着移走so>> 全改名;
 # 
@@ -193,6 +235,7 @@ function libxi(){
 # cat ../src/battery/battery.c |grep strnappend
 # # 重名方法改名>> tint2过了; tint2conf err:
 function tint2(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   # xcomposite-dev gtk+2.0-dev
   apk add pango-dev librsvg-dev
   apk add startup-notification-dev
@@ -206,7 +249,7 @@ function tint2(){
   # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C /tmp/tint2
   branch="--branch=16.1"
   # repo=$GITHUB/o9000/tint2
-  rm -rf /tmp/tint2; git clone --depth=1 $branch https://gitee.com/g-system/fk-tint2 /tmp/tint2 #;
+  rm -rf /tmp/tint2; gitclone https://gitee.com/g-system/fk-tint2 /tmp/tint2 $branch #;
   log "Configuring TINT2..."
   cd /tmp/tint2 #&& ./bootstrap;
     # sed -i "s^bash extra/genentries^#bash extra/genentries^g" Makefile
@@ -275,8 +318,9 @@ function tint2(){
       
       log "Compiling TINT2..."
       # 清动态库
+      # 2026-11-16: 去 echo =$one——ldd.txt 黑名单改名(防动态链优先)静默执行; 原 echo 每行打印 =lib*.so 50 行调试残留, 日志脏
       # make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
-      cat /src/v-tint2/ldd.txt |egrep -v "^#|^$" |while read one; do echo =$one; test -s $one && \cp -a $one ${one}-ex; test -s ${one}-ex && rm -f $one; done
+      cat /src/w-tint2/ldd.txt |egrep -v "^#|^$" |while read one; do test -s $one && \cp -a $one ${one}-ex; test -s ${one}-ex && rm -f $one; done
       find /usr/lib /usr/local/lib |grep "so-ex$" |while read one; do n2=$(echo $one |sed "s/so-ex/so/g"); test -s $n2 && echo "still exist:$n2"; done #confirm
 #       ############### 改用ldd手动检查>> 改xx-ex
 #       # ldd tint2 |sort  |grep -v ld-linux |awk '{print $1}' |sed "s/\.so.*/\.so/g" |tr "\n" "|"
@@ -314,19 +358,19 @@ cache)
     # down_catfile ${LIBCROCO_URL} > /dev/null
     ;;
 full)
-    # imlib2
-    tint2
+    doExec tint2 || exit 1
     ;;
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
     apk add xorg-server-dev;
-    bash /src/v-xlunch/build.sh imlib2
-    # 
-    bash /src/v-tint2/build.sh libcroco # libcroco >deps: imlib2
-    bash /src/v-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
-    bash /src/v-tint2/build.sh xcbutil &
-    bash /src/v-tint2/build.sh libxi &
-    wait 
+    # doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
+    # doExec bash /src/w-tint2/build.sh libcroco || exit 1
+    doExec_mark "w-tint2 b_deps grp"
+    # doExec bash /src/w-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
+    doExec bash /src/w-tint2/build.sh xcbutil &
+    doExec bash /src/w-tint2/build.sh libxi &
+    wait
+    doExec_check || exit 1
 
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
@@ -337,10 +381,9 @@ b_deps)
     oneBuild $1
     ;;          
 esac
-exit 0
 
 
 # dbg
-rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
-export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
-bash /src/v-tint2/build.sh b_deps
+# rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
+# export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
+# bash /src/w-tint2/build.sh b_deps
