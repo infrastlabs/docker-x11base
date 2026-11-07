@@ -2,6 +2,7 @@
 # NOTE: This script is expected to be run under Alpine Linux.
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-openbox}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -113,6 +114,7 @@ endian = 'little'
 #     harfbuzz-dev \
 #     harfbuzz-static \
 function pango(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   pango_meson #call
   mkdir -p /tmp/pango
   log "Downloading pango..."
@@ -142,6 +144,7 @@ function pango(){
 # it ourself.
 #
 function libxrandr(){
+  set -e
   mkdir -p /tmp/libxrandr
   log "Downloading libXrandr..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
@@ -252,6 +255,7 @@ function fontconfig_drop1(){
 # Build Openbox.
 #
 function openbox(){
+  set -e
   pango_meson #call
   env |egrep "FLAGS|clang"
   rm -rf /tmp/openbox; mkdir -p /tmp/openbox
@@ -385,20 +389,25 @@ cache)
     ;;
 full)
     # fontconfig
-    libxrandr
-    pango
-    openbox
+    doExec libxrandr || exit 1
+    doExec pango || exit 1
+    doExec openbox || exit 1
     ;;
 b_deps)
-    apkdeps
+    doExec apkdeps || exit 1
     apk add fontconfig-dev fontconfig-static
-    # bash /src/openbox/build.sh fontconfig &
-    bash /src/openbox/build.sh libxrandr &
-    bash /src/openbox/build.sh pango &
-    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
-    wait
-    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
-    wait
+
+    ####all@u-gtk/build.sh b_deps
+    # doExec_mark "openbox b_deps grp1"
+    # doExec bash /src/openbox/build.sh libxrandr &
+    # doExec bash /src/openbox/build.sh pango &
+    # doExec env STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
+    # wait
+    # doExec_check || exit 1
+    # doExec_mark "openbox b_deps grp2"
+    # doExec env STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    # wait
+    doExec_check || exit 1
     # view libs
     find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
     find /usr/local/lib |egrep "librsvg|libcroco" |grep "\.a$" |sort
@@ -416,7 +425,7 @@ cd /mnt2/docker-x11base/compile/
 ln -s $(pwd)/src /src
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 git pull; bash src/openbox/build.sh b_deps
-export TARGETPATH=/usr/local/static/openbox
+export TARGETPATH=${TARGETPATH:-/usr/local/static/openbox}
 bash src/openbox/build.sh openbox
 
 # # 改export CC=xx-clang-wrapper后 编译成功
