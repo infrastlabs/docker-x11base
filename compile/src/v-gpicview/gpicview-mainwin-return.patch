@@ -1,0 +1,11 @@
+--- src/main-win.c	2016-02-21 06:39:34.000000000 +0800
++++ src/main-win.c	2026-11-07 17:03:22.047998898 +0800
+@@ -378,7 +378,7 @@
+         image_list_sort_by_name( mw->img_list, GTK_SORT_DESCENDING );
+         if (image_list_get_first(mw->img_list))
+             main_win_open(mw, image_list_get_current_file_path(mw->img_list), zoom);
+-        return;
++        return FALSE;
+     }
+ 
+ 
