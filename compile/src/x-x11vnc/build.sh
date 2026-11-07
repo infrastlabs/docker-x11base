@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-x11vnc}"
 source /src/common.sh
 
 # Define software download URLs.
@@ -20,7 +21,7 @@ function libvncserver(){
   log "Downloading LIBVNCSERVER..."
   # down_catfile ${LIBVNCSERVER_URL} | tar -zx --strip 1 -C /tmp/libvncserver #| tar -xJ
   rm -rf /tmp/libvncserver
-  git clone --depth=1 --branch=LibVNCServer-0.9.13 https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver
+  gitclone https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver --branch=LibVNCServer-0.9.13
   log "Configuring LIBVNCSERVER..."
   cd /tmp/libvncserver
   # https://metaso.cn/search-v2/8706590420608032769
@@ -53,7 +54,7 @@ function libxtst(){
   log "Downloading LIBXTST..."
   rm -rf /tmp/libxtst
   # down_catfile ${LIBXTST_URL} | tar -zx --strip 1 -C /tmp/libxtst #| tar -xJ
-  git clone --depth=1 --branch=libXtst-1.2.3 https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst
+  gitclone https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst --branch=libXtst-1.2.3
   log "Configuring LIBXTST..."
   cd /tmp/libxtst && autoreconf -fiv && ./configure --enable-static
   log "Compiling LIBXTST..."
@@ -78,7 +79,7 @@ function x11vnc(){
   log "Downloading X11VNC..."
   rm -rf /tmp/x11vnc; mkdir -p /tmp/x11vnc
   # down_catfile ${X11VNC_URL} | tar -zx --strip 1 -C /tmp/x11vnc
-  git clone --depth=1 --branch=fix-152 https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc
+  gitclone https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc --branch=fix-152
 
   log "Configuring X11VNC..."
   cd /tmp/x11vnc;
@@ -134,15 +135,17 @@ cache)
     # down_catfile ${X11VNC_URL} > /dev/null
     ;;
 full)
-    libvncserver
-    libxtst
-    x11vnc
+    doExec libvncserver || exit 1
+    doExec libxtst || exit 1
+    doExec x11vnc || exit 1
     ;;
 b_deps)
-    bash /src/x-x11vnc/build.sh libvncserver &
-    bash /src/x-x11vnc/build.sh libxtst &
-    bash /src/v-tint2/build.sh libxi &
+    doExec_mark "x-x11vnc b_deps grp"
+    doExec bash /src/x-x11vnc/build.sh libvncserver &
+    doExec bash /src/x-x11vnc/build.sh libxtst &
+    doExec bash /src/w-tint2/build.sh libxi &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
