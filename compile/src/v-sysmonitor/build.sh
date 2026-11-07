@@ -101,11 +101,19 @@ function gnome_system_monitor(){
         || patch -p1 < /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null || true
     fi
     cd /tmp/gsm-build/gsm
+    # 磁盘 tab 卡顿修复 patch（两分支统一应用；.gsm 源码亦不含，见 2026-11-08）
+    git apply /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null \
+      || patch -p1 < /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null || true
 
   log "Configuring GSM (GTK2, static only)..."
     ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm >/tmp/gsm-cfg.log 2>&1 || true
     test -f Makefile || ./config.status >/tmp/gsm-cs.log 2>&1
     test -f Makefile || { log "GSM configure FAILED"; tail -20 /tmp/gsm-cfg.log; exit 1; }
+    # 2.28.2 旧 automake：configure 未替换 GCONF_SCHEMAS_INSTALL_TRUE/FALSE 条件
+    # （src/Makefile 残留 @...@ 字面量 → make "missing separator"）。只编对象，剥掉条件前缀即可
+    # （install-data-local 规则冗余但仅 install 用，不影响编译；/_ext/.gsm 预打源码已失，落回官方 tarball 触发）。
+    # 同时修 Makefile.in(模板, config.status 会再生成 Makefile)与 Makefile; 剥掉未替换的条件前缀
+    sed -i 's/^@GCONF_SCHEMAS_INSTALL_TRUE@//; s/^@GCONF_SCHEMAS_INSTALL_FALSE@//' src/Makefile.in src/Makefile
 
   log "Compiling GSM objects (-std=c++11; link step later)..."
     make -j$(nproc) CFLAGS="-Os -fomit-frame-pointer" CXXFLAGS="-Wall -std=c++11 -Os -fomit-frame-pointer" \
@@ -116,16 +124,9 @@ function gnome_system_monitor(){
     if [ ! -f /usr/lib/libgcc_s.a ]; then
       GCCDIR=$(dirname $(find /usr/lib/gcc -name libgcc.a | head -1)); cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
     fi
-    # GTK2 print backend 存根（同 v-pavucontrol）
-    cat > /tmp/gsm-stub.c <<'EOF'
-int _gtk_print_backend_file_init(void){return 0;}
-int _gtk_print_backend_file_exit(void){return 0;}
-void* _gtk_print_backend_file_create(void){return 0;}
-int _gtk_print_backend_lpr_init(void){return 0;}
-int _gtk_print_backend_lpr_exit(void){return 0;}
-void* _gtk_print_backend_lpr_create(void){return 0;}
-EOF
-    xx-clang -c /tmp/gsm-stub.c -o /tmp/gsm-stub.o; ar rcs /tmp/libstatic-printbackend.a /tmp/gsm-stub.o
+    # GTK2 print 后端（file/lpr）由静态 libgtk 提供；gnome-system-monitor 不调用 gtk_print_*，
+    # 这些 .o 不会被静态链自动拉取 → -Wl,-u 强制符号未定义从 libgtk.a 拉入真实后端
+    # （替代早期 no-op 存根，同 v-pavucontrol，2026-11-08 gtk 重建后验证可链）。
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
     ex1="-lfontconfig -lgio-2.0 -lcairo -lXdamage"
@@ -134,8 +135,9 @@ EOF
     cd /tmp/gsm-build/gsm/src
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/gnome-system-monitor \
       *.o \
+      -Wl,-u,_gtk_print_backend_file_init -Wl,-u,_gtk_print_backend_file_exit -Wl,-u,_gtk_print_backend_file_create \
+      -Wl,-u,_gtk_print_backend_lpr_init -Wl,-u,_gtk_print_backend_lpr_exit -Wl,-u,_gtk_print_backend_lpr_create \
       -Wl,--start-group \
-      /tmp/libstatic-printbackend.a \
       -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
       -L/usr/local/static/gtop/lib -L/usr/local/static/wnck/lib \
       -lgtop-2.0 -lwnck-1 \

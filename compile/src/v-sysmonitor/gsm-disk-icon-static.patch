@@ -1,0 +1,11 @@
+--- a/src/disks.cpp
++++ b/src/disks.cpp
+@@ -95,7 +95,7 @@
+ get_icon_for_device(const char *mountpoint)
+ {
+ 	procman::IconThemeWrapper icon_theme;
+-	string icon_name = get_icon_for_path(mountpoint);
++	string icon_name = "drive-harddisk"; // FIXME(static headless): bypass Gio::VolumeMonitor（无 gvfs module+无 dbus 下每挂载点 get_mounts() 重复枚举→磁盘 tab 主线程忙冻结；实测对照：跳过恢复正常）
+ 	if (icon_name == "")
+ 		// FIXME: defaults to a safe value
+ 		icon_name = "drive-harddisk"; // get_icon_for_path("/");
