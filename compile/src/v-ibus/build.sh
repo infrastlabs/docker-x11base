@@ -300,13 +300,66 @@ function ibus-rime(){
     git clone --depth=1 --branch=1.6.1 $GITHUB/rime/ibus-rime /tmp/ibus-rime-1.6.1
   fi
   cd /tmp/ibus-rime-1.6.1
+
+  # ---- 条件2: boost_signals 空桩（构建前注入）----
+  # librime 1.9.0 用 boost::signals2（header-only，不需真实符号），Alpine 3.15 boost1.77
+  # 无 libboost_signals.a；但 ibus-rime CMakeLists 原 RIME_DEPS 引用 libboost_signals.a →
+  # 注入空桩归档，防链接时找不到该库/未定义。桩放 /tmp（不进源目录，避免 aux_source_directory 误编）。
+  local STUBDIR=/tmp/ibus-rime-build
+  rm -rf "$STUBDIR"; mkdir -p "$STUBDIR/lib"
+  cat > "$STUBDIR/boost_signals_stub.c" <<'EOF'
+/* boost_signals 空桩：Alpine 3.15 boost1.77 无此库（signals2 为 header-only）。
+ * 哨兵符号仅保证归档非空可链；librime 不引用真实 boost::signals 符号。
+ * 适用前提：仅当 librime 仍用 header-only signals2（无真实 boost::signals 依赖）时有效；
+ * 若将来改用真实 boost::signals，此空桩会掩盖缺失符号导致运行时未定义行为，须移除或改真实库。 */
+int rime_boost_signals_stub(void){ return 0; }
+EOF
+  xx-clang -c "$STUBDIR/boost_signals_stub.c" -o "$STUBDIR/boost_signals_stub.o" \
+    || { log "BOOST_SIGNALS stub compile FAILED"; exit 1; }
+  ar rcs "$STUBDIR/lib/libboost_signals.a" "$STUBDIR/boost_signals_stub.o" \
+    || { log "BOOST_SIGNALS stub archive FAILED"; exit 1; }
+
+  # ---- 条件4: glib 静态闭包 + 全 .a 绝对路径（与 x11()/panel() 同套路 start-group）----
+  # ibus-rime CMakeLists 的 target_link_libraries 走 pkg-config -l 名（会解析到 .so），且
+  # RIME_DEPS 引相对名 .a（link_directories 指向不存在的 lib/）→ 链接失败/漏闭包。用已验证的
+  # 全 .a 绝对路径闭包替换该行，单处 --start-group 处理 boost/icu/glib 循环依赖（对应 §6.2/§6.3）。
+  local STATIC_LIBS="\
+/usr/local/static/ibus/lib/libibus-1.0.a \
+/usr/local/static/deps/lib/librime.a \
+$STUBDIR/lib/libboost_signals.a \
+/usr/lib/libicuuc.a /usr/lib/libicui18n.a \
+/usr/lib/libboost_filesystem.a /usr/lib/libboost_locale.a /usr/lib/libboost_regex.a \
+/usr/lib/libboost_system.a /usr/lib/libboost_thread.a \
+/usr/local/static/deps/lib/libglog.a /usr/local/static/deps/lib/libgflags.a \
+/usr/local/static/deps/lib/libnotify.a /usr/local/static/deps/lib/libleveldb.a \
+/usr/local/static/deps/lib/libmarisa.a /usr/local/static/deps/lib/libopencc.a \
+/usr/local/static/deps/lib/libyaml-cpp.a \
+/usr/lib/libglib-2.0.a /usr/lib/libgobject-2.0.a /usr/lib/libgio-2.0.a \
+/usr/lib/libgdk_pixbuf-2.0.a /usr/lib/libintl.a \
+/usr/lib/libgmodule-2.0.a /usr/lib/libpcre.a /lib/libz.a /usr/lib/libmount.a \
+/usr/lib/libblkid.a /usr/lib/libffi.a \
+-lm -lstdc++ -lpthread"
+  if ! grep -q 'target_link_libraries(ibus-engine-rime.*--start-group' CMakeLists.txt; then
+    sed -i "s|^target_link_libraries(ibus-engine-rime .*|target_link_libraries(ibus-engine-rime -Wl,--start-group ${STATIC_LIBS} -Wl,--end-group)|" CMakeLists.txt
+    log "ibus-rime CMakeLists: target_link_libraries 替换为全 .a 静态闭包（--start-group）"
+  fi
+
   log "CMake ibus-rime (static librime + libibus)..."
   mkdir -p build && cd build
   export PKG_CONFIG_PATH="/usr/local/static/ibus/lib/pkgconfig:/usr/local/static/deps/lib/pkgconfig:/usr/local/static/dbus/lib/pkgconfig"
+  # 条件1: Rime_DIR 指向 librime 安装前缀 /usr/local/static/deps 下的 cmake 包目录（RimeConfig.cmake）
+  # 条件3: ICU 强制 .a（禁用动态，指定静态 .a 路径）；-static 全静态链（§6.3 LINK_FLAGS）
   cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr/local/static/ibus-rime \
     -DRIME_DATA_DIR=/usr/local/static/deps/share/rime-data \
     -DBUILD_STATIC=ON \
+    -DRime_DIR=/usr/local/static/deps/share/cmake/rime \
+    -DCMAKE_PREFIX_PATH=/usr/local/static/deps \
+    -DICU_ROOT=/usr -DICU_INCLUDE_DIR=/usr/include \
+    -DICU_UC_LIBRARY=/usr/lib/libicuuc.a \
+    -DICU_I18N_LIBRARY=/usr/lib/libicui18n.a \
+    -DICU_DATA_LIBRARY=/usr/lib/libicudata.a \
+    -DCMAKE_EXE_LINKER_FLAGS="-static -static-libstdc++ -static-libgcc" \
     -DCMAKE_C_COMPILER=xx-clang -DCMAKE_CXX_COMPILER=xx-clang++ \
     ..
   make -j$(nproc)
@@ -339,6 +392,9 @@ x11)
   ;;
 setup)
   setup
+  ;;
+ibus-rime)
+  ibus-rime
   ;;
 b_deps)
   # 依赖盘点：dbus/dbus-glib/gtk2 静态库 + cmake/git 工具
