@@ -395,9 +395,9 @@ b_deps)
     # bash /src/openbox/build.sh fontconfig &
     bash /src/openbox/build.sh libxrandr &
     bash /src/openbox/build.sh pango &
-    STATIC=yes bash /src/v-tint2/build.sh libcroco & #librsvg 前置，复用 v-tint2 脚本
+    STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
-    STATIC=yes bash /src/v-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     wait
     # view libs
     find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
@@ -416,7 +416,7 @@ cd /mnt2/docker-x11base/compile/
 ln -s $(pwd)/src /src
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 git pull; bash src/openbox/build.sh b_deps
-export TARGETPATH=/usr/local/static/openbox
+export TARGETPATH=${TARGETPATH:-/usr/local/static/openbox}
 bash src/openbox/build.sh openbox
 
 # # 改export CC=xx-clang-wrapper后 编译成功
