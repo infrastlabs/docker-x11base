@@ -7,6 +7,7 @@
  */
 #include <gtk/gtk.h>
 #include <ibus.h>
+#include <stdlib.h>
 
 typedef struct {
     GtkWidget        *cand_win;
@@ -28,15 +29,66 @@ typedef struct {
 
 static Panel _panel;
 
+/* rounded corner radius for candidate/aux popups (px); overridable via
+ * PANEL_ROUND env at runtime. Final choice: 2px (matching Greybird roundness). */
+#define PANEL_ROUND 2.0
+
+static gboolean
+_panel_expose_round (GtkWidget *win, GdkEventExpose *event, gpointer data)
+{
+    const gchar *bg = (const gchar *) data;
+    GdkColor color;
+    GtkAllocation alloc;
+    cairo_t *cr;
+    const char *rs = getenv ("PANEL_ROUND");
+    double w, h, r = rs ? atof (rs) : PANEL_ROUND, pi = 3.141592653589793;
+
+    if (!gdk_color_parse (bg, &color))
+        return FALSE;
+
+    gtk_widget_get_allocation (win, &alloc);
+    w = alloc.width;
+    h = alloc.height;
+    cr = gdk_cairo_create (gtk_widget_get_window (win));
+    cairo_new_path (cr);
+    if (r > 0 && w >= 2 * r && h >= 2 * r) {
+        cairo_arc (cr, w - r, r,     r, -pi / 2, 0);
+        cairo_arc (cr, w - r, h - r, r, 0,        pi / 2);
+        cairo_arc (cr, r,     h - r, r, pi / 2,   pi);
+        cairo_arc (cr, r,     r,     r, pi,       3 * pi / 2);
+    } else {
+        cairo_rectangle (cr, 0, 0, w, h);
+    }
+    cairo_close_path (cr);
+    cairo_set_source_rgba (cr, color.red / 65535.0, color.green / 65535.0,
+                           color.blue / 65535.0, 1.0);
+    cairo_fill (cr);
+    cairo_destroy (cr);
+    return FALSE;
+}
+
 static GtkWidget *
 _panel_make_popup (const gchar *bg)
 {
     GtkWidget *win = gtk_window_new (GTK_WINDOW_POPUP);
+    GdkScreen *screen;
+    GdkVisual *visual;
     GdkColor   color;
     gtk_window_set_skip_taskbar_hint (GTK_WINDOW (win), TRUE);
     gtk_window_set_skip_pager_hint (GTK_WINDOW (win), TRUE);
-    if (bg != NULL && gdk_color_parse (bg, &color))
+    /* Rounded translucent window: ARGB visual + custom cairo round background.
+     * Requires a compositor (xcompmgr) on the X server; falls back to a plain
+     * opaque bg if no RGBA visual is available. */
+    screen = gtk_widget_get_screen (win);
+    visual = gdk_screen_get_rgba_visual (screen);
+    if (visual != NULL) {
+        gtk_widget_set_visual (win, visual);
+        gtk_widget_set_app_paintable (win, TRUE);
+        g_signal_connect (win, "expose-event",
+                          G_CALLBACK (_panel_expose_round), (gpointer) bg);
+    } else if (bg != NULL && gdk_color_parse (bg, &color)) {
         gtk_widget_modify_bg (win, GTK_STATE_NORMAL, &color);
+    }
     return win;
 }
 
@@ -85,14 +137,25 @@ _panel_rebuild_candidates (IBusLookupTable *table, gboolean show_cursor)
         row = gtk_label_new (str);
         g_free (str);
         gtk_misc_set_alignment (GTK_MISC (row), 0.0, 0.5);
+        /* dark theme: default candidate text is light, selected row is blue bg + white */
+        GdkColor def_fg;
+        if (gdk_color_parse ("#eeeeec", &def_fg))
+            gtk_widget_modify_fg (row, GTK_STATE_NORMAL, &def_fg);
         if (show_cursor && (i - page_start) == cursor_in_page) {
-            GdkColor bg, fg;
-            if (gdk_color_parse ("#4a90d9", &bg))
-                gtk_widget_modify_bg (row, GTK_STATE_NORMAL, &bg);
-            if (gdk_color_parse ("#ffffff", &fg))
-                gtk_widget_modify_fg (row, GTK_STATE_NORMAL, &fg);
+            /* GtkLabel does not paint its background, so wrap the selected
+             * row in a GtkEventBox to draw the blue highlight. fill=TRUE
+             * makes the highlight span the full row width. */
+            GtkWidget *eb = gtk_event_box_new ();
+            GdkColor bg;
+            if (gdk_color_parse ("#398ee7", &bg))
+                gtk_widget_modify_bg (eb, GTK_STATE_NORMAL, &bg);
+            gtk_widget_modify_fg (row, GTK_STATE_NORMAL,
+                                  &(GdkColor){ 0xffff, 0xffff, 0xffff });
+            gtk_container_add (GTK_CONTAINER (eb), row);
+            gtk_box_pack_start (GTK_BOX (box), eb, FALSE, TRUE, 0);
+        } else {
+            gtk_box_pack_start (GTK_BOX (box), row, FALSE, FALSE, 0);
         }
-        gtk_box_pack_start (GTK_BOX (box), row, FALSE, FALSE, 0);
     }
     gtk_widget_show_all (box);
 }
@@ -127,6 +190,9 @@ _panel_show_candidates (IBusLookupTable *table, gboolean visible)
     _panel_render_preedit ();
     gtk_window_move (GTK_WINDOW (_panel.cand_win),
                      _panel.cur_x, _panel.cur_y + _panel.cur_h + 4);
+    /* cand_vbox is the parent of preedit_label/cand_box; without showing it
+     * the children never get drawn in GTK2. */
+    gtk_widget_show (_panel.cand_vbox);
     gtk_widget_show (_panel.cand_win);
     gtk_window_present (GTK_WINDOW (_panel.cand_win));
 }
@@ -197,23 +263,25 @@ _panel_status_popup (GtkStatusIcon *si,
 static void
 _panel_init (void)
 {
-    _panel.cand_win = _panel_make_popup ("#f6f6f6");
+    _panel.cand_win = _panel_make_popup ("#2d2e30");
     _panel.cand_vbox = gtk_vbox_new (FALSE, 0);
     gtk_container_set_border_width (GTK_CONTAINER (_panel.cand_vbox), 4);
     _panel.preedit_label = gtk_label_new (NULL);
     gtk_misc_set_alignment (GTK_MISC (_panel.preedit_label), 0.0, 0.5);
     gtk_widget_modify_fg (_panel.preedit_label, GTK_STATE_NORMAL,
-                          &(GdkColor){ 0x4444, 0x4444, 0x4444 });
+                          &(GdkColor){ 0xeeee, 0xeeee, 0xeeec });
     gtk_box_pack_start (GTK_BOX (_panel.cand_vbox), _panel.preedit_label,
                         FALSE, FALSE, 0);
     _panel.cand_box = gtk_vbox_new (FALSE, 0);
     gtk_box_pack_start (GTK_BOX (_panel.cand_vbox), _panel.cand_box, FALSE, FALSE, 0);
     gtk_container_add (GTK_CONTAINER (_panel.cand_win), _panel.cand_vbox);
 
-    _panel.aux_win = _panel_make_popup ("#f0f8ff");
+    _panel.aux_win = _panel_make_popup ("#1d1f1f");
     _panel.aux_label = gtk_label_new (NULL);
     gtk_misc_set_alignment (GTK_MISC (_panel.aux_label), 0.0, 0.5);
     gtk_misc_set_padding (GTK_MISC (_panel.aux_label), 4, 4);
+    gtk_widget_modify_fg (_panel.aux_label, GTK_STATE_NORMAL,
+                          &(GdkColor){ 0xeeee, 0xeeee, 0xeeec });
     gtk_container_add (GTK_CONTAINER (_panel.aux_win), _panel.aux_label);
 
     /* language bar (tint2 systray via XEmbed) */
