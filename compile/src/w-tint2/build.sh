@@ -172,7 +172,7 @@ function libxi(){
 # # 本地下载源码>> 细看imlib2的配置
 # # [imlib_context_set_display]
 # # bash /src/xcompmgr/build.sh Xdamage
-# bash /src/v-xlunch/build.sh imlib2
+# bash /src/w-xlunch/build.sh imlib2
 # # find-vscode: X_DISPLAY_MISSING @./Projects/_ee/_deps/imlib2-1.7.4
 # xserver-xorg-dev @ubt
 # apk add xorg-server-dev;
@@ -182,7 +182,7 @@ function libxi(){
 
 ###DEPS >> buidler-gtk224##############
 # export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
-# bash /src/v-tint2/build.sh b_deps #pango/xrand/xdamage>> atk/gdk >> gtk 
+# bash /src/w-tint2/build.sh b_deps #pango/xrand/xdamage>> atk/gdk >> gtk 
 # # err link: 老样子: attempted static link of dynamic object `xxxx.so`
 # # 试着移走so>> 全改名;
 # 
@@ -276,7 +276,7 @@ function tint2(){
       log "Compiling TINT2..."
       # 清动态库
       # make 2>&1 |grep "\.so'$" |awk '{print $8}' |sed "s/\`//g" |sed "s/'//g" |while read one; do echo $one; mv $one ${one}-ex; done
-      cat /src/v-tint2/ldd.txt |egrep -v "^#|^$" |while read one; do echo =$one; test -s $one && \cp -a $one ${one}-ex; test -s ${one}-ex && rm -f $one; done
+      cat /src/w-tint2/ldd.txt |egrep -v "^#|^$" |while read one; do echo =$one; test -s $one && \cp -a $one ${one}-ex; test -s ${one}-ex && rm -f $one; done
       find /usr/lib /usr/local/lib |grep "so-ex$" |while read one; do n2=$(echo $one |sed "s/so-ex/so/g"); test -s $n2 && echo "still exist:$n2"; done #confirm
 #       ############### 改用ldd手动检查>> 改xx-ex
 #       # ldd tint2 |sort  |grep -v ld-linux |awk '{print $1}' |sed "s/\.so.*/\.so/g" |tr "\n" "|"
@@ -320,12 +320,12 @@ full)
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
     apk add xorg-server-dev;
-    bash /src/v-xlunch/build.sh imlib2
+    bash /src/w-xlunch/build.sh imlib2
     # 
-    bash /src/v-tint2/build.sh libcroco # libcroco >deps: imlib2
-    bash /src/v-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
-    bash /src/v-tint2/build.sh xcbutil &
-    bash /src/v-tint2/build.sh libxi &
+    bash /src/w-tint2/build.sh libcroco # libcroco >deps: imlib2
+    bash /src/w-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
+    bash /src/w-tint2/build.sh xcbutil &
+    bash /src/w-tint2/build.sh libxi &
     wait 
 
     # view x8; +libgdk
@@ -343,4 +343,4 @@ exit 0
 # dbg
 rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
-bash /src/v-tint2/build.sh b_deps
+bash /src/w-tint2/build.sh b_deps
