@@ -1,0 +1,445 @@
+--- a/client/x11/main.c
++++ b/client/x11/main.c
+@@ -114,6 +114,31 @@
+                                              X11IC              *x11ic);
+ static void     _context_disabled_cb        (IBusInputContext   *context,
+                                              X11IC              *x11ic);
++static void     _context_update_lookup_table_cb
++                                            (IBusInputContext   *context,
++                                             IBusLookupTable    *table,
++                                             gboolean            visible,
++                                             X11IC              *x11ic);
++static void     _context_show_lookup_table_cb
++                                            (IBusInputContext   *context,
++                                             X11IC              *x11ic);
++static void     _context_hide_lookup_table_cb
++                                            (IBusInputContext   *context,
++                                             X11IC              *x11ic);
++static void     _context_update_auxiliary_text_cb
++                                            (IBusInputContext   *context,
++                                             IBusText           *text,
++                                             gboolean            visible,
++                                             X11IC              *x11ic);
++static void     _context_show_auxiliary_text_cb
++                                            (IBusInputContext   *context,
++                                             X11IC              *x11ic);
++static void     _context_hide_auxiliary_text_cb
++                                            (IBusInputContext   *context,
++                                             X11IC              *x11ic);
++static void     _context_update_property_cb (IBusInputContext   *context,
++                                             IBusProperty       *prop,
++                                             X11IC              *x11ic);
+ 
+ static GHashTable     *_x11_ic_table = NULL;
+ static GHashTable     *_connections = NULL;
+@@ -361,6 +386,10 @@
+         g_return_val_if_reached (0);
+     }
+ 
++    /* Force the rime engine on every XIM IC since the daemon global engine
++     * may not be set (no panel/config running). */
++    ibus_input_context_set_engine (x11ic->context, "rime");
++
+     g_signal_connect (x11ic->context, "commit-text",
+                         G_CALLBACK (_context_commit_text_cb), x11ic);
+     g_signal_connect (x11ic->context, "forward-key-event",
+@@ -376,10 +405,28 @@
+                         G_CALLBACK (_context_enabled_cb), x11ic);
+     g_signal_connect (x11ic->context, "disabled",
+                         G_CALLBACK (_context_disabled_cb), x11ic);
++    /* 方案 D: connect candidate/aux/property signals for in-process GTK2 panel */
++    g_signal_connect (x11ic->context, "update-lookup-table",
++                        G_CALLBACK (_context_update_lookup_table_cb), x11ic);
++    g_signal_connect (x11ic->context, "show-lookup-table",
++                        G_CALLBACK (_context_show_lookup_table_cb), x11ic);
++    g_signal_connect (x11ic->context, "hide-lookup-table",
++                        G_CALLBACK (_context_hide_lookup_table_cb), x11ic);
++    g_signal_connect (x11ic->context, "update-auxiliary-text",
++                        G_CALLBACK (_context_update_auxiliary_text_cb), x11ic);
++    g_signal_connect (x11ic->context, "show-auxiliary-text",
++                        G_CALLBACK (_context_show_auxiliary_text_cb), x11ic);
++    g_signal_connect (x11ic->context, "hide-auxiliary-text",
++                        G_CALLBACK (_context_hide_auxiliary_text_cb), x11ic);
++    g_signal_connect (x11ic->context, "update-property",
++                        G_CALLBACK (_context_update_property_cb), x11ic);
+ 
+ 
+     if (x11ic->input_style & XIMPreeditCallbacks)
+         capabilities |= IBUS_CAP_PREEDIT_TEXT;
++    /* 方案 D: in-process GTK2 panel renders candidate/aux/property */
++    capabilities |= IBUS_CAP_LOOKUP_TABLE;
++    capabilities |= IBUS_CAP_PROPERTY;
+     ibus_input_context_set_capabilities (x11ic->context, capabilities);
+     if (_use_sync_mode == 1)
+         ibus_input_context_set_post_process_key_event (x11ic->context, TRUE);
+@@ -1184,6 +1231,360 @@
+     _xim_preedit_end (_xims, x11ic);
+ }
+ 
++/* ==== 方案 D: in-process GTK2 panel (candidate/aux/property popup + language bar) ==== */
++
++typedef struct {
++    GtkWidget        *cand_win;
++    GtkWidget        *cand_box;
++    GtkWidget        *aux_win;
++    GtkWidget        *aux_label;
++    GtkStatusIcon    *status_icon;
++    IBusInputContext *active_context;
++    X11IC            *active_ic;
++    gint              cur_x;
++    gint              cur_y;
++    gint              cur_h;
++    gchar            *aux_text;
++    gchar            *prop_text;
++    IBusLookupTable  *current_table;
++} X11Panel;
++
++static X11Panel _panel;
++
++static GtkWidget *
++_panel_make_popup (const gchar *bg)
++{
++    GtkWidget *win = gtk_window_new (GTK_WINDOW_POPUP);
++    GdkColor   color;
++    gtk_window_set_skip_taskbar_hint (GTK_WINDOW (win), TRUE);
++    gtk_window_set_skip_pager_hint (GTK_WINDOW (win), TRUE);
++    if (bg != NULL && gdk_color_parse (bg, &color))
++        gtk_widget_modify_bg (win, GTK_STATE_NORMAL, &color);
++    return win;
++}
++
++static void
++_panel_update_cursor (X11IC *x11ic)
++{
++    GdkRectangle preedit_area;
++    Window       w;
++
++    _panel.cur_x = 0;
++    _panel.cur_y = 0;
++    _panel.cur_h = 0;
++    if (x11ic == NULL)
++        return;
++    preedit_area = x11ic->preedit_area;
++    w = x11ic->focus_window ? x11ic->focus_window : x11ic->client_window;
++    if (w != 0) {
++        XWindowAttributes xwa;
++        Window            child;
++        XGetWindowAttributes (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()),
++                              w, &xwa);
++        if (preedit_area.x <= 0 && preedit_area.y <= 0) {
++            XTranslateCoordinates (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()),
++                                   w, xwa.root, 0, xwa.height,
++                                   &_panel.cur_x, &_panel.cur_y, &child);
++        } else {
++            XTranslateCoordinates (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()),
++                                   w, xwa.root, preedit_area.x, preedit_area.y,
++                                   &_panel.cur_x, &_panel.cur_y, &child);
++        }
++        _panel.cur_h = preedit_area.height;
++    }
++}
++
++static void
++_panel_clear_box (GtkWidget *box)
++{
++    GList *kids = gtk_container_get_children (GTK_CONTAINER (box));
++    GList *l;
++    for (l = kids; l != NULL; l = l->next)
++        gtk_widget_destroy (GTK_WIDGET (l->data));
++    g_list_free (kids);
++}
++
++static void
++_panel_rebuild_candidates (IBusLookupTable *table, gboolean show_cursor)
++{
++    guint page_size, ncandidates, cursor, cursor_in_page;
++    guint page_start, page_end, i;
++    GtkWidget *box = _panel.cand_box;
++
++    _panel_clear_box (box);
++    if (table == NULL)
++        return;
++
++    page_size = ibus_lookup_table_get_page_size (table);
++    if (page_size == 0)
++        page_size = 1;
++    ncandidates = ibus_lookup_table_get_number_of_candidates (table);
++    cursor = ibus_lookup_table_get_cursor_pos (table);
++    cursor_in_page = ibus_lookup_table_get_cursor_in_page (table);
++    page_start = (cursor / page_size) * page_size;
++    page_end = MIN (page_start + page_size, ncandidates);
++
++    for (i = page_start; i < page_end; i++) {
++        IBusText  *cand = ibus_lookup_table_get_candidate (table, i);
++        const gchar *ctext = (cand != NULL) ? ibus_text_get_text (cand) : "";
++        IBusText  *label = ibus_lookup_table_get_label (table, i - page_start);
++        const gchar *ltext = (label != NULL) ? ibus_text_get_text (label) : NULL;
++        GtkWidget *row;
++        gchar     *str;
++
++        if (ltext != NULL && *ltext != '\0')
++            str = g_strdup_printf ("%s  %s", ltext, ctext);
++        else
++            str = g_strdup_printf ("%d.  %s", i - page_start + 1, ctext);
++        row = gtk_label_new (str);
++        g_free (str);
++        gtk_misc_set_alignment (GTK_MISC (row), 0.0, 0.5);
++        if (show_cursor && (i - page_start) == cursor_in_page) {
++            GdkColor bg, fg;
++            if (gdk_color_parse ("#4a90d9", &bg))
++                gtk_widget_modify_bg (row, GTK_STATE_NORMAL, &bg);
++            if (gdk_color_parse ("#ffffff", &fg))
++                gtk_widget_modify_fg (row, GTK_STATE_NORMAL, &fg);
++        }
++        gtk_box_pack_start (GTK_BOX (box), row, FALSE, FALSE, 0);
++    }
++    gtk_widget_show_all (box);
++}
++
++static void
++_panel_show_candidates (IBusLookupTable *table, gboolean visible)
++{
++    if (!visible || table == NULL ||
++        ibus_lookup_table_get_number_of_candidates (table) == 0) {
++        gtk_widget_hide (_panel.cand_win);
++        return;
++    }
++    if (_panel.current_table != table) {
++        if (_panel.current_table != NULL)
++            g_object_unref (_panel.current_table);
++        _panel.current_table = IBUS_LOOKUP_TABLE (g_object_ref (table));
++    }
++    _panel_rebuild_candidates (table, ibus_lookup_table_is_cursor_visible (table));
++    gtk_window_move (GTK_WINDOW (_panel.cand_win),
++                     _panel.cur_x, _panel.cur_y + _panel.cur_h + 4);
++    gtk_widget_show (_panel.cand_win);
++    gtk_window_present (GTK_WINDOW (_panel.cand_win));
++}
++
++static void
++_panel_render_aux (void)
++{
++    gchar *full;
++
++    if (_panel.aux_text == NULL || *_panel.aux_text == '\0') {
++        gtk_widget_hide (_panel.aux_win);
++        return;
++    }
++    if (_panel.prop_text != NULL && *_panel.prop_text != '\0')
++        full = g_strdup_printf ("%s  %s", _panel.aux_text, _panel.prop_text);
++    else
++        full = g_strdup (_panel.aux_text);
++    gtk_label_set_text (GTK_LABEL (_panel.aux_label), full);
++    g_free (full);
++    gtk_window_move (GTK_WINDOW (_panel.aux_win),
++                     _panel.cur_x, _panel.cur_y + _panel.cur_h + 4);
++    gtk_widget_show (_panel.aux_win);
++    gtk_window_present (GTK_WINDOW (_panel.aux_win));
++}
++
++static void
++_panel_switch_engine (GtkWidget *item, gpointer data)
++{
++    gchar *name = (gchar *) data;
++    if (name != NULL) {
++        ibus_bus_set_global_engine (_bus, name);
++        g_free (name);
++    }
++}
++
++static void
++_panel_status_popup (GtkStatusIcon *si,
++                     guint          button,
++                     guint          activate_time,
++                     gpointer       user_data)
++{
++    GtkWidget *menu = gtk_menu_new ();
++    GList     *engines = ibus_bus_list_active_engines (_bus);
++    IBusEngineDesc *cur_desc = ibus_bus_get_global_engine (_bus);
++    const gchar *cur = (cur_desc != NULL) ? ibus_engine_desc_get_name (cur_desc) : NULL;
++    GList     *l;
++
++    for (l = engines; l != NULL; l = l->next) {
++        IBusEngineDesc *desc = IBUS_ENGINE_DESC (l->data);
++        const gchar *ename = ibus_engine_desc_get_name (desc);
++        const gchar *lname = ibus_engine_desc_get_longname (desc);
++        GtkWidget *item = gtk_check_menu_item_new_with_label (
++                              (lname != NULL && *lname != '\0') ? lname : ename);
++        if (cur != NULL && ename != NULL && g_strcmp0 (cur, ename) == 0)
++            gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
++        g_signal_connect_data (item, "activate",
++                               G_CALLBACK (_panel_switch_engine),
++                               g_strdup (ename), (GClosureNotify) g_free, 0);
++        gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
++    }
++    g_list_free_full (engines, g_object_unref);
++    if (cur_desc != NULL)
++        g_object_unref (cur_desc);
++    gtk_widget_show_all (menu);
++    gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, button, activate_time);
++}
++
++static void
++_panel_init (void)
++{
++    _panel.cand_win = _panel_make_popup ("#f6f6f6");
++    _panel.cand_box = gtk_vbox_new (FALSE, 0);
++    gtk_container_set_border_width (GTK_CONTAINER (_panel.cand_box), 4);
++    gtk_container_add (GTK_CONTAINER (_panel.cand_win), _panel.cand_box);
++
++    _panel.aux_win = _panel_make_popup ("#f0f8ff");
++    _panel.aux_label = gtk_label_new (NULL);
++    gtk_misc_set_alignment (GTK_MISC (_panel.aux_label), 0.0, 0.5);
++    gtk_misc_set_padding (GTK_MISC (_panel.aux_label), 4, 4);
++    gtk_container_add (GTK_CONTAINER (_panel.aux_win), _panel.aux_label);
++
++    /* language bar (tint2 systray via XEmbed) */
++    _panel.status_icon = gtk_status_icon_new ();
++    gtk_status_icon_set_from_icon_name (_panel.status_icon, "input-keyboard");
++    /* fall back to a real pixbuf if the icon theme lacks input-keyboard
++     * (common in minimal containers); rime.png ships with the static ibus-rime */
++    {
++        const gchar *icon_paths[] = {
++            "/usr/local/static/ibus-rime/share/ibus-rime/icons/rime.png",
++            "/usr/share/ibus-rime/icons/rime.png",
++            NULL
++        };
++        gint i;
++        for (i = 0; icon_paths[i] != NULL; i++) {
++            GdkPixbuf *pb = gdk_pixbuf_new_from_file (icon_paths[i], NULL);
++            if (pb != NULL) {
++                GdkPixbuf *sized = gdk_pixbuf_scale_simple (pb, 16, 16,
++                                                           GDK_INTERP_BILINEAR);
++                gtk_status_icon_set_from_pixbuf (_panel.status_icon, sized);
++                if (sized != NULL) g_object_unref (sized);
++                g_object_unref (pb);
++                break;
++            }
++        }
++    }
++    gtk_status_icon_set_tooltip_text (_panel.status_icon, "IBus");
++    g_signal_connect (_panel.status_icon, "popup-menu",
++                      G_CALLBACK (_panel_status_popup), NULL);
++    g_signal_connect (_panel.status_icon, "activate",
++                      G_CALLBACK (_panel_status_popup), NULL);
++}
++
++static void
++_context_update_lookup_table_cb (IBusInputContext *context,
++                                 IBusLookupTable  *table,
++                                 gboolean          visible,
++                                 X11IC            *x11ic)
++{
++    g_assert (IBUS_IS_INPUT_CONTEXT (context));
++    g_assert (x11ic);
++    _panel.active_context = context;
++    _panel.active_ic = x11ic;
++    _panel_update_cursor (x11ic);
++    _panel_show_candidates (table, visible);
++}
++
++static void
++_context_show_lookup_table_cb (IBusInputContext *context,
++                               X11IC            *x11ic)
++{
++    g_assert (IBUS_IS_INPUT_CONTEXT (context));
++    g_assert (x11ic);
++    _panel.active_context = context;
++    _panel.active_ic = x11ic;
++    _panel_update_cursor (x11ic);
++    _panel_show_candidates (_panel.current_table, TRUE);
++}
++
++static void
++_context_hide_lookup_table_cb (IBusInputContext *context,
++                               X11IC            *x11ic)
++{
++    gtk_widget_hide (_panel.cand_win);
++}
++
++static void
++_context_update_auxiliary_text_cb (IBusInputContext *context,
++                                   IBusText         *text,
++                                   gboolean          visible,
++                                   X11IC            *x11ic)
++{
++    g_assert (IBUS_IS_INPUT_CONTEXT (context));
++    g_assert (x11ic);
++    _panel.active_context = context;
++    _panel.active_ic = x11ic;
++    _panel_update_cursor (x11ic);
++    if (_panel.aux_text != NULL)
++        g_free (_panel.aux_text);
++    _panel.aux_text = g_strdup (text != NULL ? ibus_text_get_text (text) : "");
++    if (visible)
++        _panel_render_aux ();
++    else
++        gtk_widget_hide (_panel.aux_win);
++}
++
++static void
++_context_show_auxiliary_text_cb (IBusInputContext *context,
++                                 X11IC            *x11ic)
++{
++    g_assert (IBUS_IS_INPUT_CONTEXT (context));
++    g_assert (x11ic);
++    _panel.active_context = context;
++    _panel.active_ic = x11ic;
++    _panel_update_cursor (x11ic);
++    _panel_render_aux ();
++}
++
++static void
++_context_hide_auxiliary_text_cb (IBusInputContext *context,
++                                 X11IC            *x11ic)
++{
++    gtk_widget_hide (_panel.aux_win);
++}
++
++static void
++_context_update_property_cb (IBusInputContext *context,
++                             IBusProperty     *prop,
++                             X11IC            *x11ic)
++{
++    IBusText  *t;
++    const gchar *label = NULL;
++    const gchar *symbol = NULL;
++    gchar     *str;
++
++    g_assert (IBUS_IS_INPUT_CONTEXT (context));
++    g_assert (IBUS_IS_PROPERTY (prop));
++    g_assert (x11ic);
++    _panel.active_context = context;
++    t = ibus_property_get_label (prop);
++    if (t != NULL)
++        label = ibus_text_get_text (t);
++    t = ibus_property_get_symbol (prop);
++    if (t != NULL)
++        symbol = ibus_text_get_text (t);
++    if (label == NULL && symbol == NULL)
++        return;
++    str = g_strdup_printf ("%s%s%s",
++                           symbol != NULL ? symbol : "",
++                           (symbol != NULL && label != NULL) ? " " : "",
++                           label != NULL ? label : "");
++    if (_panel.prop_text != NULL)
++        g_free (_panel.prop_text);
++    _panel.prop_text = str;
++    if (_panel.status_icon != NULL)
++        gtk_status_icon_set_tooltip_text (_panel.status_icon, str);
++    _panel_render_aux ();
++}
++
+ static char
+ _get_char_env (const gchar *name,
+                char         defval)
+@@ -1373,7 +1774,8 @@
+         g_warning ("Failed to set locale with your environment variables. "
+                    "Some multi-byte characters won't be committed correctly.");
+     }
+-    gdk_init (&argc, &argv);
++    gtk_init (&argc, &argv);
++    _panel_init ();
+     XSetErrorHandler (_xerror_handler);
+     XSetIOErrorHandler (_xerror_io_handler);
+ 
