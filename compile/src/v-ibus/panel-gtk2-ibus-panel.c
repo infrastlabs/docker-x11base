@@ -235,24 +235,63 @@ _panel_status_popup (GtkStatusIcon *si,
                      gpointer       user_data)
 {
     GtkWidget *menu = gtk_menu_new ();
-    GList     *engines = ibus_bus_list_active_engines (_panel.bus);
+    GList     *engines = ibus_bus_list_engines (_panel.bus);
+    g_printerr ("DBG status_popup: list_engines n=%d\n", engines ? g_list_length (engines) : 0);
     IBusEngineDesc *cur_desc = ibus_bus_get_global_engine (_panel.bus);
+    /* 单引擎（rime 直拉）场景 daemon 未 set_global_engine → get_global_engine 为 NULL；
+     * 主动 set_global_engine("rime") 建立全局引擎再重查，使菜单能显示当前引擎名。 */
+    if (cur_desc == NULL) {
+        g_printerr ("DBG status_popup: no global engine, set_global_engine(rime)\n");
+        ibus_bus_set_global_engine (_panel.bus, "rime");
+        gint i;
+        for (i = 0; i < 10 && cur_desc == NULL; i++) {
+            while (g_main_context_iteration (NULL, FALSE)) {}
+            g_usleep (100 * 1000);
+            cur_desc = ibus_bus_get_global_engine (_panel.bus);
+        }
+    }
     const gchar *cur = (cur_desc != NULL) ? ibus_engine_desc_get_name (cur_desc) : NULL;
     GList     *l;
+    gboolean   have_item = FALSE;
 
+    /* 引擎列表（对标 apt：列出输入法引擎可切换、勾选当前；过滤 xkb 键盘布局，
+     * 避免菜单被 885 个键盘布局占满）。 */
     for (l = engines; l != NULL; l = l->next) {
         IBusEngineDesc *desc = IBUS_ENGINE_DESC (l->data);
         const gchar *ename = ibus_engine_desc_get_name (desc);
         const gchar *lname = ibus_engine_desc_get_longname (desc);
-        GtkWidget *item = gtk_check_menu_item_new_with_label (
-                              (lname != NULL && *lname != '\0') ? lname : ename);
-        if (cur != NULL && ename != NULL && g_strcmp0 (cur, ename) == 0)
+        GtkWidget *item;
+        if (ename == NULL || g_str_has_prefix (ename, "xkb:"))
+            continue;   /* 跳过键盘布局（非输入法引擎） */
+        item = gtk_check_menu_item_new_with_label (
+                   (lname != NULL && *lname != '\0') ? lname : ename);
+        if (cur != NULL && g_strcmp0 (cur, ename) == 0)
             gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM (item), TRUE);
         g_signal_connect_data (item, "activate",
                                G_CALLBACK (_panel_switch_engine),
                                g_strdup (ename), (GClosureNotify) g_free, 0);
         gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
+        have_item = TRUE;
     }
+
+    /* fallback：无可用输入法引擎 → 只读"当前引擎"（避免空菜单白条） */
+    if (!have_item) {
+        GtkWidget *item = gtk_menu_item_new_with_label (
+                              cur != NULL ? cur : "当前引擎: 无");
+        gtk_widget_set_sensitive (item, FALSE);
+        gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
+    }
+
+    /* 分隔线 + 退出（对标 apt 菜单尾部的 Quit 项） */
+    gtk_menu_shell_append (GTK_MENU_SHELL (menu),
+                           gtk_separator_menu_item_new ());
+    {
+        GtkWidget *quit = gtk_menu_item_new_with_label ("退出");
+        g_signal_connect_data (quit, "activate",
+                               G_CALLBACK (gtk_main_quit), NULL, NULL, 0);
+        gtk_menu_shell_append (GTK_MENU_SHELL (menu), quit);
+    }
+
     g_list_free_full (engines, g_object_unref);
     if (cur_desc != NULL)
         g_object_unref (cur_desc);
@@ -467,6 +506,8 @@ main (int argc, char **argv)
     IBusPanelService *service;
 
     gtk_init (&argc, &argv);
+    /* 注册 IBus 类型（IBusEngineDesc 等）→ get_global_engine 才能反序列化返回对象 */
+    ibus_init ();
 
     bus = ibus_bus_new ();
     if (!ibus_bus_is_connected (bus)) {
