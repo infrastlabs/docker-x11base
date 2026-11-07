@@ -141,7 +141,7 @@ full)
 b_deps)
     bash /src/x-x11vnc/build.sh libvncserver &
     bash /src/x-x11vnc/build.sh libxtst &
-    bash /src/v-tint2/build.sh libxi &
+    bash /src/w-tint2/build.sh libxi &
     wait
     ;;
 *) #compile
