@@ -55,6 +55,8 @@ function libfm(){
   branch="--branch=1.3.2" # #ok with automake @alpine315 
   rm -rf /tmp/libfm; git clone --depth=1 $branch https://gitee.com/g-system/fk-libfm /tmp/libfm
   cd /tmp/libfm
+    # FIX: 默认 quick_exec=TRUE（desktop/可执行文件直接执行不弹确认框，2026-11-08）
+    git apply /src/v-pcmanfm/libfm-quickexec.patch
     # attempted static link of dynamic object `/usr/lib/libmenu-cache.so'
     #ref_pcmanfm.md>> # 改动态编译：OK
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -279,11 +281,11 @@ cd /mnt2/docker-x11base/compile/
 ln -s $(pwd)/src /src
 export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 git pull; bash src/v-pcmanfm/build.sh b_deps
-export TARGETPATH=/usr/local/static/pcmanfm
+export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
 bash src/v-pcmanfm/build.sh pcmanfm
 
 # #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
->>> Install PCMANFM...
+# >>> Install PCMANFM...
 -rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
 
 
