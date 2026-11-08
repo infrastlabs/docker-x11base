@@ -181,12 +181,26 @@ function thunar(){
   log "Download Thunar (文件名大写 T)..."
   fetch_src Thunar-$VER "https://archive.xfce.org/src/xfce/thunar/1.6/Thunar-$VER.tar.bz2"
 
-  log "Configure (disable 全插件/可选依赖；GTK2 最后一版，GtkUIManager 内嵌 .xml，无 GtkBuilder patch)..."
+  PATCH_DIR=$(dirname "$0")
+  log "Apply static patches (D-Bus 名隔离 + UCA 内置注册)..."
+  if grep -q "org.xfce.Thunar.static" $SRC/thunar/thunar-dbus-service.c; then
+    log "thunar-static-dbus.patch already applied"
+  else
+    patch -p1 -d $SRC < "$PATCH_DIR/thunar-static-dbus.patch" || { log "THUNAR DBUS PATCH FAILED"; exit 1; }
+  fi
+  if grep -q "THUNARX_STATIC_UCA" $SRC/thunarx/thunarx-provider-factory.c; then
+    log "thunar-static-uca.patch already applied"
+  else
+    patch -p1 -d $SRC < "$PATCH_DIR/thunar-static-uca.patch" || { log "THUNAR UCA PATCH FAILED"; exit 1; }
+  fi
+
+  log "Configure (disable 可选依赖；UCA 插件启用并内置静态注册；GTK2 最后一版，GtkUIManager 内嵌 .xml)..."
   cd $SRC
   ./configure --prefix=$PREFIX --enable-static --disable-shared \
     --disable-exif --disable-notifications --disable-gudev --disable-startup-notification \
-    --disable-tpa-plugin --disable-uca-plugin --disable-wallpaper-plugin --disable-apr-plugin --disable-sbr-plugin \
+    --disable-tpa-plugin --disable-wallpaper-plugin --disable-apr-plugin --disable-sbr-plugin \
     --disable-gtk-doc \
+    CFLAGS="$CFLAGS -DTHUNARX_STATIC_UCA" \
     LDFLAGS="$LDFLAGS" PKG_CONFIG_PATH="$PKGCONF" \
     || { log "THUNAR CONFIGURE FAILED"; exit 1; }
 
@@ -197,10 +211,23 @@ function thunar(){
   make -C thunar clean localedir=/usr/share/locale >/dev/null 2>&1 || true
   make -C thunar localedir=/usr/share/locale 2>&1 || log "make thunar CCLD failed (expected, objects built)"
 
-  log "Static-link thunar (libthunarx 内链)..."
+  log "Build UCA plugin objects (static 内链)..."
+  UCA_OBJS=""
+  UCA_CFLAGS="-DHAVE_CONFIG_H -DTHUNARX_STATIC_UCA -I$SRC -I$SRC/plugins \
+    -DBINDIR=\"/usr/bin\" -DPACKAGE_LOCALE_DIR=\"/usr/share/locale\" -DDATADIR=\"/usr/share\" \
+    $(PKG_CONFIG_PATH="$PKGCONF" pkg-config --cflags exo-1 libxfce4ui-1 libxfce4util-1.0)"
+  mkdir -p /tmp/thunar-uca-obj
+  for f in $SRC/plugins/thunar-uca/*.c; do
+    b=$(basename $f .c)
+    xx-clang -c $f -o /tmp/thunar-uca-obj/$b.o $UCA_CFLAGS || { log "UCA OBJ FAILED: $b"; exit 1; }
+    UCA_OBJS="$UCA_OBJS /tmp/thunar-uca-obj/$b.o"
+  done
+
+  log "Static-link thunar (libthunarx + UCA 内链；UCA 对象放 --start-group 内解决跨库符号顺序)..."
   mkdir -p $PREFIX/bin
   static_gtk_libs
-  ( cd $SRC/thunar && xx-clang -static -Wl,--strip-all -o $PREFIX/bin/thunar *.o ../thunarx/.libs/libthunarx-2.a $LIBS ) \
+  ( cd $SRC/thunar && xx-clang -static -Wl,--strip-all -o $PREFIX/bin/thunar \
+      *.o -Wl,--start-group $UCA_OBJS ../thunarx/.libs/libthunarx-2.a -Wl,--end-group $LIBS ) \
     || { log "THUNAR STATIC LINK FAILED"; exit 1; }
 
   log "Install data (desktop/pixmaps/thunar-settings script, best-effort)..."
@@ -255,8 +282,44 @@ function ristretto(){
   log "ristretto 0.8.5 static verified"
 }
 
+# 构建单个 xfce 库到 /usr/local/static/xfce（参考 libexif 模式；xfce 库栈 util→conf→ui→exo→garcon 依赖序）。
+# $1=name-ver $2=url $3=检查相对 lib/ 的 .a $4..=configure 额外参数。
+function xfce_lib(){
+  local NV=$1 URL=$2 CHECK=$3; shift 3
+  local PREFIX=/usr/local/static/xfce
+  if test -f $PREFIX/lib/$CHECK; then log "xfce $NV present, skip"; return; fi
+  log "Fetch xfce $NV..."
+  fetch_src $NV "$URL"
+  local SRC=/tmp/xfce-build/$NV
+  log "Configure xfce $NV (xx-clang static)..."
+  cd $SRC
+  CC=xx-clang CFLAGS="$CFLAGS" ./configure --prefix=$PREFIX --enable-static --disable-shared "$@" \
+    || { log "XFCE CONFIGURE FAILED: $NV"; exit 1; }
+  make -j$(nproc) >/dev/null 2>&1 || { log "XFCE BUILD FAILED: $NV"; exit 1; }
+  make install >/dev/null 2>&1 || { log "XFCE INSTALL FAILED: $NV"; exit 1; }
+  test -f $PREFIX/lib/$CHECK || { log "XFCE CHECK FAILED: $NV ($CHECK)"; exit 1; }
+  log "xfce $NV installed"
+}
+
 case "$1" in
 cache)
+    ;;
+b_deps)
+    # gtk2 静态库：确保最新（base 镜像 builder-gtk224 可能旧，u-gtk 有更新则重编）。
+    ensure_gtk_libs
+    # dbus / dbus-glib（xfce 库栈与 app 静态链依赖，x-dbus 建到 /usr/local/static/dbus[/-glib]）。
+    # 注意：x-dbus 的 ${TARGETPATH:-...} 回退会被 common.sh 默认(static_temp1)/调用方污染——必须显式传对。
+    test -f /usr/local/static/dbus/lib/libdbus-1.a || TARGETPATH=/usr/local/static/dbus sh /src/x-dbus/build.sh dbus
+    test -f /usr/local/static/dbus-glib/lib/libdbus-glib-1.a || TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib
+    # xfce 库栈（依赖序；xfconf 起需 pc 链：xfce + dbus + dbus-glib）。
+    export PKG_CONFIG_PATH="/usr/local/static/xfce/lib/pkgconfig:/usr/local/static/dbus/lib/pkgconfig:/usr/local/static/dbus-glib/lib/pkgconfig"
+    xfce_lib libxfce4util-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4util/4.12/libxfce4util-4.12.1.tar.bz2" libxfce4util.a --disable-nls --disable-gtk-doc
+    xfce_lib xfconf-4.12.1 "https://archive.xfce.org/src/xfce/xfconf/4.12/xfconf-4.12.1.tar.bz2" libxfconf-0.a --disable-nls --disable-perl-bindings
+    xfce_lib libxfce4ui-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4ui/4.12/libxfce4ui-4.12.1.tar.bz2" libxfce4ui-1.a --disable-nls --disable-gtk3 --disable-startup-notification --disable-gladeui
+    xfce_lib exo-0.10.6 "https://archive.xfce.org/src/xfce/exo/0.10/exo-0.10.6.tar.bz2" libexo-1.a --disable-nls
+    xfce_lib garcon-0.4.0 "https://archive.xfce.org/src/xfce/garcon/0.4/garcon-0.4.0.tar.bz2" libgarcon-1.a --disable-nls
+    # libexif（thunar/ristretto 需要）。
+    libexif
     ;;
 full)
     ;;

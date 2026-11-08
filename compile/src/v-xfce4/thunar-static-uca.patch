@@ -1,0 +1,73 @@
+--- a/thunarx/thunarx-provider-module.c	2013-05-06 00:37:23.000000000 +0800
++++ b/thunarx/thunarx-provider-module.c	2026-11-08 21:26:03.000000000 +0800
+@@ -28,6 +28,14 @@
+ #include <thunarx/thunarx-provider-module.h>
+ #include <thunarx/thunarx-provider-plugin.h>
+ 
++#ifdef THUNARX_STATIC_UCA
++/* built-in statically linked UCA extension entry points */
++extern void thunar_extension_initialize (ThunarxProviderPlugin *plugin);
++extern void thunar_extension_shutdown (void);
++extern void thunar_extension_list_types (const GType **types, gint *n_types);
++#endif
++
++
+ 
+ 
+ /* Property identifiers */
+@@ -176,6 +184,19 @@
+   ThunarxProviderModule *module = THUNARX_PROVIDER_MODULE (type_module);
+   gchar                 *path;
+ 
++#ifdef THUNARX_STATIC_UCA
++  /* built-in statically linked UCA extension: no g_module_open needed */
++  if (g_str_equal (type_module->name, "static-uca"))
++    {
++      module->library = NULL;
++      module->initialize = thunar_extension_initialize;
++      module->shutdown   = thunar_extension_shutdown;
++      module->list_types = thunar_extension_list_types;
++      (*module->initialize) (module);
++      return TRUE;
++    }
++#endif
++
+   /* load the module using the runtime link editor */
+   path = g_build_filename (THUNARX_DIRECTORY, type_module->name, NULL);
+   module->library = g_module_open (path, G_MODULE_BIND_LAZY | G_MODULE_BIND_LOCAL);
+@@ -218,8 +239,9 @@
+   /* shutdown the plugin */
+   (*module->shutdown) ();
+ 
+-  /* unload the plugin from memory */
+-  g_module_close (module->library);
++  /* unload the plugin from memory (skip for built-in static module) */
++  if (G_LIKELY (module->library != NULL))
++    g_module_close (module->library);
+ 
+   /* reset module state */
+   module->library = NULL;
+--- a/thunarx/thunarx-provider-factory.c	2013-05-06 00:37:23.000000000 +0800
++++ b/thunarx/thunarx-provider-factory.c	2026-11-08 21:26:16.000000000 +0800
+@@ -193,6 +193,21 @@
+       g_dir_close (dp);
+     }
+ 
++#ifdef THUNARX_STATIC_UCA
++  /* register the built-in statically linked UCA extension */
++  {
++    ThunarxProviderModule *builtin;
++
++    builtin = thunarx_provider_module_new ("static-uca");
++    thunarx_provider_modules = g_list_prepend (thunarx_provider_modules, builtin);
++    if (g_type_module_use (G_TYPE_MODULE (builtin)))
++      {
++        thunarx_provider_factory_add (factory, builtin);
++        modules = g_list_prepend (modules, builtin);
++      }
++  }
++#endif
++
+   return modules;
+ }
+ 
