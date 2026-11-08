@@ -92,6 +92,7 @@ function gtk_ibus_a2(){
   # 其余 ibus 对象/libibus.a 直接取自 IBUS_BUILD 构建产物, ar r 按名合并。
   local IBUS="${IBUS_BUILD:-/tmp/ibus}"
   local OBJ=/tmp/ibus-a2-merge
+  git config --global --add safe.directory "$IBUS" 2>/dev/null || true
   [ -f "$IBUS/client/gtk2/.libs/im_ibus_la-ibusim.o" ] || { log "A2 SKIP: ibus module objects NOT found ($IBUS)"; return 0; }
   [ -f "$IBUS/src/.libs/libibus-1.0.a" ] || { log "A2 SKIP: libibus-1.0.a NOT found ($IBUS)"; return 0; }
   log "A2: merge ibus im module -> ./gtk/.libs/libgtk-x11-2.0.a (IBUS=$IBUS)"
@@ -99,8 +100,10 @@ function gtk_ibus_a2(){
   # 1) gtkimmodule.c: 加 INCLUDE_IM_ibus do_builtin(ibus)
   grep -q "do_builtin (ibus)" gtk/gtkimmodule.c || patch -p1 < /src/u-gtk/gtk-ibus-builtin.patch || { log "A2 gtk patch FAILED"; exit 1; }
   # 2) 重编 gtkimmodule.o (继承配置宏 + INCLUDE_IM_ibus)
+  # 2b) 强制源文件比 .o 新: 主 build 刚把对象编到最新, make -n 不打印命令 → touch 保证捕获到
+  touch gtk/gtkimmodule.c
   local CMD; CMD=$(make -n -C gtk gtkimmodule.lo 2>/dev/null | grep -m1 "mode=compile")
-  CMD=$(printf '%s' "$CMD" | sed -n 's#^.* gcc #gcc #p')
+  CMD=$(printf '%s' "$CMD" | sed -n 's#^.* xx-clang #xx-clang #p')
   CMD=$(printf '%s' "$CMD" | sed "s#-o gtkimmodule\.lo#-o $OBJ/gtkimmodule.o#; s#-DINCLUDE_IM_xim#-DINCLUDE_IM_xim -DINCLUDE_IM_ibus#")
   [ -n "$CMD" ] || { log "A2 FAIL: gtkimmodule compile cmd NOT captured"; exit 1; }
   ( cd /tmp/gtk/gtk && eval "$CMD" ) || { log "A2 FAIL: gtkimmodule.o compile"; exit 1; }
@@ -109,7 +112,7 @@ function gtk_ibus_a2(){
   # 4) ibusim.o: 守卫补丁 + -DINCLUDE_IM_ibus 重编
   grep -q "#ifndef INCLUDE_IM_ibus" "$IBUS/client/gtk2/ibusim.c" || patch -d "$IBUS" -p1 < /src/u-gtk/ibus-ibusim-gmodule-check-init.patch || { log "A2 ibusim patch FAILED"; exit 1; }
   local IBCMD; IBCMD=$(make -n -C "$IBUS/client/gtk2" im_ibus_la-ibusim.lo 2>/dev/null | grep -m1 "mode=compile")
-  IBCMD=$(printf '%s' "$IBCMD" | sed -n 's#^.* xx-clang #xx-clang #p')
+  IBCMD=$(printf '%s' "$IBCMD" | sed -n 's#^.* gcc #gcc #p')
   IBCMD=$(printf '%s' "$IBCMD" | sed "s#-o im_ibus_la-ibusim\.lo#-o $OBJ/ibusim.o#; s#-DHAVE_CONFIG_H#-DHAVE_CONFIG_H -DINCLUDE_IM_ibus#")
   [ -n "$IBCMD" ] || { log "A2 FAIL: ibusim compile cmd NOT captured"; exit 1; }
   ( cd "$IBUS/client/gtk2" && eval "$IBCMD" ) || { log "A2 FAIL: ibusim.o compile"; exit 1; }
@@ -123,20 +126,53 @@ function gtk_ibus_a2(){
   log "A2 merged; _gtk_immodule_ibus_init count: $(nm ./gtk/.libs/libgtk-x11-2.0.a 2>/dev/null | grep -c ' T _gtk_immodule_ibus_init')"
 }
 
+# 增量应用 patch: 内容 hash 未变则跳过(文件 mtime 保持 → make 复用 .o);
+# 变更则先 git checkout 还原触及文件到 HEAD, 再重打(新 mtime → 只重编这些 .o)。
+# 依赖 gtk() 设置的 PATCHDIR / STATEDIR 全局。
+function inc_patch(){
+  local name="$1" files="$2"
+  local pf="$PATCHDIR/$name"
+  local h; h=$(sha256sum "$pf" 2>/dev/null | cut -d' ' -f1)
+  [ -n "$h" ] || { log "inc_patch: $name MISSING ($pf)"; exit 1; }
+  local prev; prev=$(cat "$STATEDIR/$name.sha" 2>/dev/null || true)
+  if [ "$prev" = "$h" ]; then log "inc_patch: $name unchanged (skip)"; return 0; fi
+  log "inc_patch: $name changed -> reset+apply"
+  for f in $files; do git checkout --force -- "$f" 2>/dev/null || true; done
+  patch -p1 < "$pf" || { log "PATCH FAILED: $name"; exit 1; }
+  echo "$h" > "$STATEDIR/$name.sha"
+}
+
 function gtk(){
   # apk update; apk add gtk-doc shared-mime-info
 
-  log "Downloading gtk..."
-  branch="--branch=2.24.32" #2.24.33  ##提示automake版本不符(过高)
+  log "Preparing gtk source tree..."
   branch="--branch=2.24.33"
-  # https://blog.csdn.net/weixin_46591962/article/details/132247425
-  rm -rf /tmp/gtk; git clone --depth=1 $branch $GITHUB/GNOME/gtk /tmp/gtk
-  cd /tmp/gtk
-  log "Patching gtk theme engine (builtin murrine)..."
-    patch -p1 < /src/u-gtk/gtkthemes-builtin-murrine.patch || { log "THEME PATCH FAILED"; exit 1; }
-    patch -p1 < /src/u-gtk/gtk2-2.24.33-lxtask-static.patch || { log "GTK PATCH FAILED"; exit 1; }
-    patch -p1 < /src/u-gtk/gtk2-2.24.33-printbackends-static.patch || { log "PRINTBACKEND PATCH FAILED"; exit 1; }
-    patch -p1 < /src/u-gtk/gtkbuilder-static-types.patch || { log "GTKBUILDER PATCH FAILED"; exit 1; }
+  local GTK=/tmp/gtk
+  local PATCHDIR="${PATCH_DIR:-/src/u-gtk}"
+  local SIGFILE="$GTK/.u-gtk-config.sig"
+  local STATEDIR="$GTK/.u-gtk-state"
+  mkdir -p "$STATEDIR"
+  # 安全目录: 树可能由外部(host/另一容器)拷贝进来, 属主非 root, git 拒绝操作。
+  git config --global --add safe.directory "$GTK" 2>/dev/null || true
+  # ① 源码树缓存: 已有完整配置的树则复用(增量), 否则全新 clone。
+  #    复用判定需 .git(能 checkout 还原) + config.status(已 configure 过)。
+  #    当前 broken 状态(无 .git 或半成品)会被丢弃重 clone。
+  if [ -d "$GTK/.git" ] && [ -f "$GTK/config.status" ]; then
+    log "Reuse /tmp/gtk source tree (incremental)"
+    cd "$GTK"
+  else
+    log "Fresh clone gtk (no usable cache)"
+    rm -rf "$GTK"; git clone --depth=1 $branch $GITHUB/GNOME/gtk "$GTK"
+    cd "$GTK"
+  fi
+  # ② patch 增量: 按 patch 内容 hash 判定是否变更; 变更才 reset+重打(只重编该 patch
+  #    触及的 .o), 未变则跳过(文件 mtime 保持 → make 时间戳增量复用 .o)。
+  #    .libs/*.o、Makefile、config.status 是 untracked 生成物, 不受 checkout 影响。
+  log "Applying gtk patches (incremental)..."
+    inc_patch gtkthemes-builtin-murrine.patch "gtk/gtkthemes.c"
+    inc_patch gtk2-2.24.33-lxtask-static.patch "gtk/gtkmain.c gtk/gtkmodules.c gtk/gtkprintbackend.c modules/engines/pixbuf/pixbuf-main.c"
+    inc_patch gtk2-2.24.33-printbackends-static.patch "gtk/Makefile.am modules/printbackends/file/gtkprintbackendfile.c modules/printbackends/lpr/gtkprintbackendlpr.c"
+    inc_patch gtkbuilder-static-types.patch "gtk/gtkbuilder.c"
     args="--disable-option-checking \
       --disable-FEATURE  \
       --disable-silent-rules \
@@ -164,13 +200,19 @@ function gtk(){
       # --enable-shared=no \
     # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
-    ./autogen.sh 
-    # --enable-xkb=yes \ #no>yes
-    # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
-    # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
-    ./configure --enable-static \
-      --with-included-immodules=xim \
-      --prefix=/usr
+    CONFIG_ARGS="--enable-static --with-included-immodules=xim --prefix=/usr"
+    # ③ configure 缓存: 参数 + Makefile.am 补丁未变 → 跳过 configure (省 ~5min)。
+    #    Makefile.am 补丁(printbackends)变更才需重新生成 Makefile.in; 只改 .c 的补丁不需要。
+    local SIG=$( { cat "$PATCHDIR/gtk2-2.24.33-printbackends-static.patch"; echo "$CONFIG_ARGS"; } | sha256sum | cut -d' ' -f1 )
+    if [ -f config.status ] && [ "$(cat "$SIGFILE" 2>/dev/null)" = "$SIG" ]; then
+      log "Skip configure (args + Makefile.am patch unchanged)"
+    else
+      ./autogen.sh
+      # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
+      # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
+      ./configure $CONFIG_ARGS
+      echo "$SIG" > "$SIGFILE"
+    fi
 
   log "Compiling gtk..."
     # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
@@ -184,8 +226,15 @@ function gtk(){
 
   log "Building murrine theme engine (static)..."
     MURRINE_GIT="${MURRINE_GIT:-https://ghfast.top/https://github.com/jlindgren90/murrine.git}"
-    rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
-    ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
+    # ④ murrine 缓存: 已有构建树则复用, make 增量; 否则全新 clone+configure。
+    git config --global --add safe.directory /tmp/murrine 2>/dev/null || true
+    if [ -d /tmp/murrine/.git ] && [ -f /tmp/murrine/config.status ]; then
+      log "Reuse /tmp/murrine (incremental)"
+      ( cd /tmp/murrine && unset LDFLAGS; make -j$(nproc) )
+    else
+      rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
+      ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
+    fi
     [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
     ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/*.o
     log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
