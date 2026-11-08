@@ -71,6 +71,15 @@ function xfce4settings(){
     patch -p1 -d $SRC < "$PATCH_DIR/xfce4settings-gtkbuilder-types.patch" || { log "GTKBUILDER PATCH FAILED"; exit 1; }
   fi
 
+  # xfconf-free 直接应用 patch：xfce4-display-settings 免 xfsettingsd/xfconf daemon 依赖
+  # （xfce_randr_apply_native 直接 XRRSetCrtcConfig；无 daemon 时降级不崩溃，仅硬件应用）
+  if grep -q "xfce_randr_apply_native" $SRC/dialogs/display-settings/xfce-randr.c; then
+    log "xfconf-free patch already applied"
+  else
+    log "Apply xfconf-free patch..."
+    patch -p1 -d $SRC < "$PATCH_DIR/xfce4settings-xfconf-free.patch" || { log "XFCONF-FREE PATCH FAILED"; exit 1; }
+  fi
+
   log "Configure..."
   cd $SRC
   ./configure --prefix=$TARGETPATH --enable-static --disable-shared \
@@ -80,14 +89,12 @@ function xfce4settings(){
     || { log "CONFIGURE FAILED"; exit 1; }
 
   log "Make (逐子目录 localedir=/usr/share/locale；CCLD 动态链 libICE.la 缺失可容错，只用 .o)..."
-  for d in xfsettingsd xfce4-settings-editor xfce4-settings-manager \
-           dialogs/display-settings dialogs/appearance-settings dialogs/keyboard-settings \
-           dialogs/mime-settings dialogs/mouse-settings dialogs/accessibility-settings; do
+  for d in dialogs/display-settings; do
     make -C $d clean localedir=/usr/share/locale >/dev/null 2>&1 || true
     make -C $d localedir=/usr/share/locale 2>&1 || log "make $d CCLD failed (expected, objects built)"
   done
 
-  log "Static-link 10 binaries (xx-clang -static)..."
+  log "Static-link 1 binary (xx-clang -static)..."
   mkdir -p $TARGETPATH/bin
   LIBS="-L/usr/local/static/xfce/lib -L/usr/local/static/dbus/lib -L/usr/local/static/dbus-glib/lib -L/usr/local/lib"
   LIBS="$LIBS -Wl,--start-group -lexo-1 -lgarcon-gtk2-1 -lgarcon-1 -lxfce4ui-1 -lxfce4kbd-private-2 -lxfconf-0 -lxfce4util -ldbus-glib-1 -ldbus-1"
@@ -106,37 +113,15 @@ function xfce4settings(){
     log "OK: $out"
   }
 
-  link_bin xfsettingsd xfsettingsd \
-    xfsettingsd-main.o xfsettingsd-accessibility.o xfsettingsd-debug.o xfsettingsd-clipboard-manager.o \
-    xfsettingsd-gtk-decorations.o xfsettingsd-keyboards.o xfsettingsd-keyboard-shortcuts.o \
-    xfsettingsd-keyboard-layout.o xfsettingsd-pointers.o xfsettingsd-workspaces.o xfsettingsd-xsettings.o \
-    xfsettingsd-displays.o
-  link_bin xfce4-settings-editor xfce4-settings-editor \
-    xfce4_settings_editor-main.o xfce4_settings_editor-xfce-settings-cell-renderer.o \
-    xfce4_settings_editor-xfce-settings-editor-box.o xfce4_settings_editor-xfce-settings-marshal.o \
-    xfce4_settings_editor-xfce-settings-prop-dialog.o
-  link_bin xfce4-settings-manager xfce4-settings-manager \
-    xfce4_settings_manager-main.o xfce4_settings_manager-xfce-settings-manager-dialog.o \
-    xfce4_settings_manager-xfce-text-renderer.o
   link_bin dialogs/display-settings xfce4-display-settings \
     xfce4_display_settings-main.o xfce4_display_settings-display-name.o xfce4_display_settings-edid-parse.o \
     xfce4_display_settings-foo-marshal.o xfce4_display_settings-scrollarea.o xfce4_display_settings-xfce-randr.o
-  link_bin dialogs/appearance-settings xfce4-appearance-settings xfce4_appearance_settings-main.o
-  link_bin dialogs/keyboard-settings xfce4-keyboard-settings \
-    xfce4_keyboard_settings-main.o xfce4_keyboard_settings-command-dialog.o xfce4_keyboard_settings-xfce-keyboard-settings.o
-  link_bin dialogs/mime-settings xfce4-mime-settings \
-    xfce4_mime_settings-main.o xfce4_mime_settings-xfce-mime-chooser.o xfce4_mime_settings-xfce-mime-window.o
-  link_bin dialogs/mouse-settings xfce4-mouse-settings xfce4_mouse_settings-main.o
-  link_bin dialogs/accessibility-settings xfce4-accessibility-settings xfce4_accessibility_settings-main.o
-  link_bin dialogs/accessibility-settings xfce4-find-cursor xfce4_find_cursor-find-cursor.o
 
   log "Verify (xx-verify --static)..."
-  for b in xfsettingsd xfce4-settings-editor xfce4-settings-manager xfce4-display-settings \
-           xfce4-appearance-settings xfce4-keyboard-settings xfce4-mime-settings xfce4-mouse-settings \
-           xfce4-accessibility-settings xfce4-find-cursor; do
+  for b in xfce4-display-settings; do
     xx-verify --static $TARGETPATH/bin/$b || { log "xx-verify FAILED: $b"; exit 1; }
   done
-  log "All 10 binaries static verified"
+  log "All 1 binary static verified"
 }
 
 function libexif(){
