@@ -1,0 +1,189 @@
+--- a/src/main.c	2016-10-06 23:45:41.000000000 +0800
++++ b/src/main.c	2026-11-08 11:56:12.965274327 +0800
+@@ -44,6 +44,7 @@
+ gboolean start_fullscreen = FALSE;
+ gboolean start_slideshow = FALSE;
+ gboolean show_settings = FALSE;
++gboolean xfconf_ok = FALSE;
+ 
+ typedef struct {
+     RsttoImageList *image_list;
+@@ -123,7 +124,9 @@
+         return 0;
+     }
+ 
+-    xfconf_init(NULL);
++    xfconf_ok = xfconf_init (NULL);
++    if (!xfconf_ok)
++        g_message (_("WARNING: Xfconf failed to initialize; settings will not be persisted"));
+ 
+     gtk_window_set_default_icon_name("ristretto");
+     settings = rstto_settings_new();
+@@ -184,7 +187,8 @@
+ 
+     g_object_unref (settings);
+ 
+-    xfconf_shutdown();
++    if (xfconf_ok)
++        xfconf_shutdown();
+ 
+     return 0;
+ }
+--- a/src/settings.c	2019-04-08 07:53:53.000000000 +0800
++++ b/src/settings.c	2026-11-08 11:56:24.477332809 +0800
+@@ -146,7 +146,10 @@
+     RsttoSettings *settings = RSTTO_SETTINGS (object);
+ 
+     settings->priv = g_new0 (RsttoSettingsPriv, 1);
+-    settings->priv->channel = xfconf_channel_new ("ristretto");
++    if (xfconf_ok)
++        settings->priv->channel = xfconf_channel_new ("ristretto");
++    else
++        settings->priv->channel = NULL;
+ 
+     accelmap_path = xfce_resource_lookup (XFCE_RESOURCE_CONFIG, "ristretto/accels.scm");
+     if (accelmap_path)
+@@ -189,6 +192,8 @@
+     settings->priv->errors.missing_thumbnailer = TRUE;
+     settings->priv->thumbnail_size = THUMBNAIL_SIZE_NORMAL;
+ 
++    if (settings->priv->channel)
++    {
+     xfconf_g_property_bind (
+             settings->priv->channel,
+             "/window/width",
+@@ -338,6 +343,7 @@
+             G_TYPE_STRING,
+             settings,
+             "desktop-type");
++    }
+ 
+ }
+ 
+--- a/src/xfce_wallpaper_manager.c	2019-07-02 06:38:22.000000000 +0800
++++ b/src/xfce_wallpaper_manager.c	2026-11-08 11:56:49.233458567 +0800
+@@ -323,6 +323,8 @@
+     }
+ 
+ 
++    if (manager->priv->channel)
++    {
+     xfconf_channel_set_string (
+             manager->priv->channel,
+             image_path_prop,
+@@ -340,6 +342,7 @@
+             manager->priv->channel,
+             image_style_prop,
+             manager->priv->style);
++    }
+ 
+     g_free (image_path_prop);
+     g_free (image_style_prop);
+@@ -412,7 +415,10 @@
+     GtkWidget *image_prop_table = gtk_table_new (2, 2, FALSE);
+ 
+     manager->priv = g_new0(RsttoXfceWallpaperManagerPriv, 1);
+-    manager->priv->channel = xfconf_channel_new ("xfce4-desktop");
++    if (xfconf_ok)
++        manager->priv->channel = xfconf_channel_new ("xfce4-desktop");
++    else
++        manager->priv->channel = NULL;
+     manager->priv->color1 = g_new0 (RsttoColor, 1);
+     manager->priv->color1->a = 0xffff;
+     manager->priv->color2 = g_new0 (RsttoColor, 1);
+@@ -420,10 +426,13 @@
+     manager->priv->style = 3; /* stretched is now default value */
+     manager->priv->check_button = gtk_check_button_new_with_label (
+             _("Apply to all workspaces"));
+-    manager->priv->workspace_mode = xfconf_channel_get_bool (
+-            manager->priv->channel,
+-            SINGLE_WORKSPACE_MODE,
+-            TRUE);
++    if (manager->priv->channel)
++        manager->priv->workspace_mode = xfconf_channel_get_bool (
++                manager->priv->channel,
++                SINGLE_WORKSPACE_MODE,
++                TRUE);
++    else
++        manager->priv->workspace_mode = TRUE;
+ 
+     manager->priv->dialog = gtk_dialog_new_with_buttons (
+             _("Set as wallpaper"),
+@@ -716,9 +725,10 @@
+     active = gtk_toggle_button_get_active (
+             GTK_TOGGLE_BUTTON (button));
+     
+-    xfconf_channel_set_bool (manager->priv->channel,
+-            SINGLE_WORKSPACE_MODE,
+-            active);
++    if (manager->priv->channel)
++        xfconf_channel_set_bool (manager->priv->channel,
++                SINGLE_WORKSPACE_MODE,
++                active);
+ }
+ 
+ static void
+--- a/src/util.h	2016-10-10 23:06:11.000000000 +0800
++++ b/src/util.h	2026-11-08 11:56:12.957274286 +0800
+@@ -24,6 +24,8 @@
+ 
+ G_BEGIN_DECLS
+ 
++extern gboolean xfconf_ok;
++
+ typedef enum
+ {
+   RSTTO_IMAGE_ORIENT_NONE = 1,
+--- a/src/thumbnailer.c	2019-04-15 00:05:26.000000000 +0800
++++ b/src/thumbnailer.c	2026-11-08 12:10:35.433655503 +0800
+@@ -298,7 +298,8 @@
+         g_source_remove (thumbnailer->priv->request_timer_id);
+         if (thumbnailer->priv->handle)
+         {
+-            if(tumbler_thumbnailer1_call_dequeue_sync(
++            if(thumbnailer->priv->proxy &&
++               tumbler_thumbnailer1_call_dequeue_sync(
+                 thumbnailer->priv->proxy,
+                 thumbnailer->priv->handle,
+                 NULL,
+@@ -343,7 +344,8 @@
+ 
+     if (thumbnailer->priv->handle)
+     {
+-        if(tumbler_thumbnailer1_call_dequeue_sync(
++        if(thumbnailer->priv->proxy &&
++           tumbler_thumbnailer1_call_dequeue_sync(
+                 thumbnailer->priv->proxy,
+                 thumbnailer->priv->handle,
+                 NULL,
+@@ -411,7 +413,8 @@
+         i++;
+     }
+ 
+-    if(tumbler_thumbnailer1_call_queue_sync(
++    if(thumbnailer->priv->proxy &&
++       tumbler_thumbnailer1_call_queue_sync(
+         thumbnailer->priv->proxy,
+         (const gchar * const*)uris,
+         (const gchar * const*)mimetypes,
+--- a/src/main_window.c	2019-07-13 20:58:59.000000000 +0800
++++ b/src/main_window.c	2026-11-08 12:10:35.453655605 +0800
+@@ -3465,7 +3465,8 @@
+              * interface. If it fails, fall back to the
+              * internal properties-dialog.
+              */
+-            unused = g_dbus_proxy_call_sync (window->priv->filemanager_proxy,
++            if (window->priv->filemanager_proxy != NULL)
++                unused = g_dbus_proxy_call_sync (window->priv->filemanager_proxy,
+                                              "DisplayFileProperties",
+                                               g_variant_new ("(sss)",
+                                                              uri,
+@@ -3475,7 +3476,7 @@
+                                              -1,
+                                              NULL,
+                                              &error);
+-            if (error != NULL)
++            if (error != NULL || window->priv->filemanager_proxy == NULL)
+             {
+                 g_warning("DBUS CALL FAILED: '%s'", error->message);
+ 

@@ -89,6 +89,10 @@ function xfce4settings(){
     || { log "CONFIGURE FAILED"; exit 1; }
 
   log "Make (逐子目录 localedir=/usr/share/locale；CCLD 动态链 libICE.la 缺失可容错，只用 .o)..."
+  # 其余 9 个二进制屏蔽（只留 xfce4-display-settings），注释保留不删——需要时取消注释并入 for 列表：
+  # for d in xfsettingsd xfce4-settings-editor xfce4-settings-manager \
+  #          dialogs/display-settings dialogs/appearance-settings dialogs/keyboard-settings \
+  #          dialogs/mime-settings dialogs/mouse-settings dialogs/accessibility-settings; do
   for d in dialogs/display-settings; do
     make -C $d clean localedir=/usr/share/locale >/dev/null 2>&1 || true
     make -C $d localedir=/usr/share/locale 2>&1 || log "make $d CCLD failed (expected, objects built)"
@@ -116,8 +120,33 @@ function xfce4settings(){
   link_bin dialogs/display-settings xfce4-display-settings \
     xfce4_display_settings-main.o xfce4_display_settings-display-name.o xfce4_display_settings-edid-parse.o \
     xfce4_display_settings-foo-marshal.o xfce4_display_settings-scrollarea.o xfce4_display_settings-xfce-randr.o
+  # 其余 9 个二进制 link_bin 屏蔽（注释保留不删，需要时取消注释）：
+  # link_bin xfsettingsd xfsettingsd \
+  #   xfsettingsd-main.o xfsettingsd-accessibility.o xfsettingsd-debug.o xfsettingsd-clipboard-manager.o \
+  #   xfsettingsd-gtk-decorations.o xfsettingsd-keyboards.o xfsettingsd-keyboard-shortcuts.o \
+  #   xfsettingsd-keyboard-layout.o xfsettingsd-pointers.o xfsettingsd-workspaces.o xfsettingsd-xsettings.o \
+  #   xfsettingsd-displays.o
+  # link_bin xfce4-settings-editor xfce4-settings-editor \
+  #   xfce4_settings_editor-main.o xfce4_settings_editor-xfce-settings-cell-renderer.o \
+  #   xfce4_settings_editor-xfce-settings-editor-box.o xfce4_settings_editor-xfce-settings-marshal.o \
+  #   xfce4_settings_editor-xfce-settings-prop-dialog.o
+  # link_bin xfce4-settings-manager xfce4-settings-manager \
+  #   xfce4_settings_manager-main.o xfce4_settings_manager-xfce-settings-manager-dialog.o \
+  #   xfce4_settings_manager-xfce-text-renderer.o
+  # link_bin dialogs/appearance-settings xfce4-appearance-settings xfce4_appearance_settings-main.o
+  # link_bin dialogs/keyboard-settings xfce4-keyboard-settings \
+  #   xfce4_keyboard_settings-main.o xfce4_keyboard_settings-command-dialog.o xfce4_keyboard_settings-xfce-keyboard-settings.o
+  # link_bin dialogs/mime-settings xfce4-mime-settings \
+  #   xfce4_mime_settings-main.o xfce4_mime_settings-xfce-mime-chooser.o xfce4_mime_settings-xfce-mime-window.o
+  # link_bin dialogs/mouse-settings xfce4-mouse-settings xfce4_mouse_settings-main.o
+  # link_bin dialogs/accessibility-settings xfce4-accessibility-settings xfce4_accessibility_settings-main.o
+  # link_bin dialogs/accessibility-settings xfce4-find-cursor xfce4_find_cursor-find-cursor.o
 
   log "Verify (xx-verify --static)..."
+  # 其余 9 个二进制 verify 屏蔽（注释保留不删，需要时取消注释）：
+  # for b in xfsettingsd xfce4-settings-editor xfce4-settings-manager xfce4-display-settings \
+  #          xfce4-appearance-settings xfce4-keyboard-settings xfce4-mime-settings xfce4-mouse-settings \
+  #          xfce4-accessibility-settings xfce4-find-cursor; do
   for b in xfce4-display-settings; do
     xx-verify --static $TARGETPATH/bin/$b || { log "xx-verify FAILED: $b"; exit 1; }
   done
@@ -191,6 +220,17 @@ function ristretto(){
 
   log "Download ristretto..."
   fetch_src ristretto-$VER "https://archive.xfce.org/src/apps/ristretto/0.8/ristretto-$VER.tar.bz2"
+
+  # xfconf-free patch：xfconf_init 判返回值 + channel 判有效（无 xfconf daemon 时降级内存默认值不段错误；
+  # 有 xfconf 时保留持久化）。另含 gio-dbus 保护：thumbnailer/filemanager proxy 判空（无 dbus 会话总线时
+  # 缩略图/属性对话框降级不崩）。文件：main/settings/xfce_wallpaper_manager/thumbnailer/main_window + util.h extern xfconf_ok
+  PATCH_DIR=$(dirname "$0")
+  if grep -q "xfconf_ok" $SRC/src/main.c; then
+    log "ristretto xfconf-free patch already applied"
+  else
+    log "Apply ristretto xfconf-free patch..."
+    patch -p1 -d $SRC < "$PATCH_DIR/ristretto-xfconf-dbus-free.patch" || { log "RISTRETTO XFCONF-FREE PATCH FAILED"; exit 1; }
+  fi
 
   log "Configure ristretto (UI 手写+UIManager 内嵌 .xml，无 GtkBuilder；nls 保留)..."
   cd $SRC
