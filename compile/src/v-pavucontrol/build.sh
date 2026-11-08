@@ -8,6 +8,9 @@ source /src/common.sh
 # 组装容器 = builder-awe（主题/图标库 murrine/pixmap/rsvg/svg 在此；gtkmm 栈 + pulse 栈已拷入）。
 # canberra patch：pavucontrol 用 libcanberra-gtk 做音量反馈音；静态链无 libcanberra，
 #   且 configure 硬查 libcanberra-gtk 会失败 → 打补丁去掉（4 处，见 pavucontrol-canberra.patch）。
+# glade expand patch：device/stream 的 nameLabel 在 glade 里 expand=False + ellipsize=end →
+#   静态构建布局宽度不足即截断设备名（Dummy Output）/流名（Silence）；改 expand=True 让标签
+#   随容器扩展（2 处，见 pavucontrol-glade-expand.patch）。
 # 版本 3.0 = 最后 GTK2 版（--disable-gtk3 走 gtkmm-2.4 分支）。
 #
 # 网络坑（2026-11-05）：容器外网不可达（ghfast.top 失效），host 走 gh-proxy.com 下 tarball
@@ -32,6 +35,11 @@ function pavucontrol(){
   log "Applying canberra patch (drop libcanberra-gtk, 4 places)..."
     git apply /src/v-pavucontrol/pavucontrol-canberra.patch 2>/dev/null \
       || patch -p1 < /src/v-pavucontrol/pavucontrol-canberra.patch 2>/dev/null \
+      || true
+
+  log "Applying glade expand patch (device/stream nameLabel expand False->True; 否则 ellipsize=end 截断设备/流名)..."
+    git apply /src/v-pavucontrol/pavucontrol-glade-expand.patch 2>/dev/null \
+      || patch -p1 < /src/v-pavucontrol/pavucontrol-glade-expand.patch 2>/dev/null \
       || true
 
   log "Autogen (tarball has no generated configure)..."
