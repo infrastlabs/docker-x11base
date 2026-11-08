@@ -38,6 +38,15 @@ function engrampa(){
     log "localedir patch already applied"
   fi
 
+  # 去重复全局定义：main.c 重定义了 fr-init.h 已 extern 的 WindowList/ForceDirectoryCreation
+  # （fr-init.c 已定义）→ 静态链 multiple definition；去掉定义即可免 --allow-multiple-definition。
+  if grep -q 'WindowList        = NULL' /tmp/engrampa/src/main.c; then
+    log "Apply dup-globals patch..."
+    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-dup-globals.patch" || { log "DUP-GLOBALS PATCH FAILED"; exit 1; }
+  else
+    log "dup-globals patch already applied"
+  fi
+
   log "Configuring ENGRAMPA..."
   cd /tmp/engrampa
   ./autogen.sh
@@ -66,7 +75,7 @@ function engrampa(){
   cd /tmp/engrampa/src
   mkdir -p $TARGETPATH/bin
   test -f ../copy-n-paste/.libs/libeggsmclient.a || { log "libeggsmclient.a MISSING"; exit 1; }
-  xx-clang -static -Wl,--strip-all -Wl,--allow-multiple-definition -o $TARGETPATH/bin/engrampa \
+  xx-clang -static -Wl,--strip-all -o $TARGETPATH/bin/engrampa \
     actions.o dlg-add-files.o dlg-add-folder.o dlg-ask-password.o dlg-batch-add.o \
     dlg-delete.o dlg-extract.o dlg-new.o dlg-open-with.o dlg-package-installer.o \
     dlg-password.o dlg-prop.o dlg-update.o eggfileformatchooser.o eggtreemultidnd.o \
