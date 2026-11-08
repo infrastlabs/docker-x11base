@@ -64,3 +64,24 @@ function oneBuild(){
     print_time_cost "$1" $begin_time; #echo "$1, finished."    
 }
 
+# ensure_gtk_libs: 判 gtk2 静态库（u-gtk 产物）是否最新，非最新则调 u-gtk 重编 .a。
+# 最新判据：/src/u-gtk/*.patch 内容 hash 组合 vs 记录 /usr/local/static/.gtk-state/gtk.sha。
+# base 镜像（builder-gtk224）若已含最新 u-gtk 库+记录则跳过；否则（patch 变更/记录缺失/库缺失）重编。
+# 用途：各 GTK2 应用 b_deps 先调用，确保静态链到最新 gtk2 库（2026-11-08，user 拍板）。
+function ensure_gtk_libs(){
+  local ST=/usr/local/static/.gtk-state
+  local P=/src/u-gtk
+  local CUR PREV
+  CUR=$(sha256sum $P/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
+  [ -n "$CUR" ] || { log "ensure_gtk_libs: no patches in $P, skip"; return 0; }
+  PREV=$(cat $ST/gtk.sha 2>/dev/null || true)
+  if [ "$PREV" = "$CUR" ] && [ -f /usr/lib/libgtk-x11-2.0.a ]; then
+    log "ensure_gtk_libs: gtk2 libs latest, skip"
+    return 0
+  fi
+  log "ensure_gtk_libs: gtk2 libs NOT latest -> rebuild via u-gtk"
+  sh /src/u-gtk/build.sh gtk || { log "ensure_gtk_libs: u-gtk rebuild FAILED"; exit 1; }
+  mkdir -p $ST; echo "$CUR" > $ST/gtk.sha
+  log "ensure_gtk_libs: gtk2 rebuilt, marker updated"
+}
+
