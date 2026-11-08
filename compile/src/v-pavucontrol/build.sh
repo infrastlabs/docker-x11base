@@ -59,27 +59,17 @@ function pavucontrol(){
       GCCDIR=$(dirname $(find /usr/lib/gcc -name libgcc.a | head -1))
       cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
     fi
-    # GTK2 静态构建未含 print 后端（gtkprintbackend.o 引用的 _gtk_print_backend_file/lpr_* 未定义）
-    # → 提供 6 个存根（返回 0/NULL，pavucontrol 不用打印）。
-    rm -f /tmp/pav-stub.c /tmp/pav-stub.o /tmp/libstatic-printbackend.a
-    cat > /tmp/pav-stub.c <<'EOF'
-/* GTK2 print backends (file/lpr) not built in this static GTK; pavucontrol
-   doesn't use printing, so provide graceful stubs (backend unavailable). */
-int _gtk_print_backend_file_init(void)  { return 0; }
-int _gtk_print_backend_file_exit(void)  { return 0; }
-void* _gtk_print_backend_file_create(void) { return 0; }
-int _gtk_print_backend_lpr_init(void)   { return 0; }
-int _gtk_print_backend_lpr_exit(void)   { return 0; }
-void* _gtk_print_backend_lpr_create(void)  { return 0; }
-EOF
-    xx-clang -c /tmp/pav-stub.c -o /tmp/pav-stub.o
-    ar rcs /tmp/libstatic-printbackend.a /tmp/pav-stub.o
+    # GTK2 print 后端（file/lpr）由静态 libgtk 提供（-DGTK_PRINT_BACKENDS="file,lpr"，
+    # gtkprintbackendfile.o/gtkprintbackendlpr.o）。但 pavucontrol 不调用任何 gtk_print_* →
+    # 这些 .o 不会被静态链自动拉取 → 用 -Wl,-u 强制对应符号未定义，从 libgtk.a 拉入真实后端
+    # （替代早期 no-op 存根，2026-11-08 gtk 重建后验证可链）。
     mkdir -p $TARGETPATH/bin
     cd /tmp/pavucontrol/src
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/pavucontrol \
       *.o \
+      -Wl,-u,_gtk_print_backend_file_init -Wl,-u,_gtk_print_backend_file_exit -Wl,-u,_gtk_print_backend_file_create \
+      -Wl,-u,_gtk_print_backend_lpr_init -Wl,-u,_gtk_print_backend_lpr_exit -Wl,-u,_gtk_print_backend_lpr_create \
       -Wl,--start-group \
-      /tmp/libstatic-printbackend.a \
       -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
       -L/usr/local/lib \
       -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
@@ -93,6 +83,17 @@ EOF
     mkdir -p $TARGETPATH/share/pavucontrol $TARGETPATH/share/applications
     cp /tmp/pavucontrol/src/pavucontrol.glade $TARGETPATH/share/pavucontrol/
     cp /tmp/pavucontrol/src/pavucontrol.desktop $TARGETPATH/share/applications/
+
+  log "Install PAVUCONTROL locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/pavucontrol/po ]; then
+      for p in /tmp/pavucontrol/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/pavucontrol.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/pavucontrol/po/*.po | wc -l) langs"
+    fi
 
   log "Verify PAVUCONTROL..."
     file $TARGETPATH/bin/pavucontrol
