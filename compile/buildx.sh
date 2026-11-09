@@ -78,7 +78,7 @@ builder)
     ;;
 gtk224)
     repo=registry-1.docker.io
-    img="x11-base:alpine-builder-gtk224"
+    img="x11-base:alpine-builder-gtk224-2"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
@@ -124,6 +124,7 @@ gtk224)
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
     args="--provenance=false"
     # full yes x9: 5h,9min,44s
+    # 11-04 后新增/调整项 CI 开关（默认不启用，需显式 --build-arg COMPILE_*=yes 才建）
     args="""
     --provenance=false 
     --build-arg REPO=$repo/
@@ -143,6 +144,23 @@ gtk224)
     --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
+    --build-arg COMPILE_XFCE4=no
+    --build-arg COMPILE_DBUS=no
+    --build-arg COMPILE_IBUS=no
+    --build-arg COMPILE_ENGRAMPA=no
+    --build-arg COMPILE_GPICVIEW=no
+    --build-arg COMPILE_PASYSTRAY=no
+    --build-arg COMPILE_SYSMONITOR=no
+    --build-arg COMPILE_PAVUCONTROL=no
+    --build-arg COMPILE_GTKMM=no
+    --build-arg COMPILE_XBINDKEYS=no
+    --build-arg COMPILE_XRANDR=no
+    --build-arg COMPILE_FEH=no
+    --build-arg COMPILE_GEANY=no
+    --build-arg COMPILE_HSETROOT=no
+    --build-arg COMPILE_SCROT=no
+    --build-arg COMPILE_DUNST=no
+    --build-arg COMPILE_ROFI=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
