@@ -62,7 +62,14 @@ deb12-builder)
     ;;
 builder)
     repo=registry-1.docker.io
+    # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac
     img="x11-base:alpine-builder"
+    args="""
+    --provenance=false --sbom=false
+    --build-arg REPO=$repo/
+    """
+
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
@@ -74,11 +81,20 @@ builder)
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm"
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
-    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/Dockerfile.builder . 
+    output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
+    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder . 
     ;;
 gtk224)
     repo=registry-1.docker.io
+    # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac REPO_TEN
+    # repo=$REPO_TEN
     img="x11-base:alpine-builder-gtk224-2"
+    args="""
+    --provenance=false --sbom=false
+    --build-arg REPO=$repo/
+    """
+
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
@@ -89,8 +105,31 @@ gtk224)
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #dbg
-    # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
-    docker buildx build $cache $plat --push -t $repo/$ns/$img -f src/../builder/Dockerfile.builder.gtk224 . 
+    output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
+    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtk224 . 
+    ;;
+gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
+    repo=registry-1.docker.io
+    # repo=registry.cn-shenzhen.aliyuncs.com
+    test ! -z "$REPO" && repo=$REPO #@gitac
+    img="x11-base:alpine-builder-gtkmm224-2"
+    args="""
+    --provenance=false --sbom=false
+    --build-arg REPO=$repo/
+    """
+
+    # cache
+    ali="registry.cn-shenzhen.aliyuncs.com"
+    cimg="$img-cache"
+    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
+    ali2=$REPO_TEN_HK
+    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
+    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
+    
+    plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
+    # plat="--platform linux/amd64" #dbg
+    output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
+    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtkmm224 . 
     ;;
 *) #compile
     # TigerVNC 1.12.0 |10 Nov 2021
@@ -111,10 +150,6 @@ gtk224)
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
-    # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
-    ali2=$REPO_TEN_HK
-    cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
-    cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/amd64" #dbg
@@ -170,7 +205,9 @@ gtk224)
     ali2=$REPO_TEN_HK
     cache="--cache-from type=registry,ref=$ali2/$ns/$cimg"
     cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
-    docker buildx build $cache $plat $args --push -t $repo/$ns/$img -f src/Dockerfile . 
+
+    output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
+    docker buildx build $cache $plat $args $output -f src/Dockerfile . 
     # err=$?
     # test "0" == "$err" && build_rootfs || exit $err
     ;;          
