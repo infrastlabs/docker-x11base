@@ -139,8 +139,10 @@ cache)
     # down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    imlib2
+    su_exec
     lrzsz
+    n2n
+    tinc
     ;;
 *) #compile
     oneBuild $1
