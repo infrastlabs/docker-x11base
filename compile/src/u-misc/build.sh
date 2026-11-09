@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-u-misc}"
 source /src/common.sh
 
 #
@@ -8,7 +9,7 @@ function su_exec(){
   log "Downloading SU-EXEC..."
   rm -rf /tmp/su-exec; # mkdir -p /tmp/su-exec
   # branch="--branch=$XLUNCH_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-su-exec /tmp/su-exec #;
+  gitclone https://gitee.com/g-system/fk-su-exec /tmp/su-exec $branch #;
   log "Configuring SU-EXEC..."
   cd /tmp/su-exec #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
@@ -33,7 +34,7 @@ function lrzsz(){
   log "Downloading LRZSZ..."
   rm -rf /tmp/lrzsz; # mkdir -p /tmp/lrzsz
   # branch="--branch=$LRZSZ_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-lrzsz /tmp/lrzsz #;
+  gitclone https://gitee.com/g-system/fk-lrzsz /tmp/lrzsz $branch #;
   log "Configuring LRZSZ..."
   cd /tmp/lrzsz #&& ./bootstrap;
     autoconf 
@@ -64,7 +65,7 @@ function n2n(){
   log "Downloading N2N..."
   rm -rf /tmp/n2n; # mkdir -p /tmp/n2n
   # branch="--branch=$N2N_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-lucktu-n2n /tmp/n2n #;
+  gitclone https://gitee.com/g-system/fk-lucktu-n2n /tmp/n2n $branch #;
   log "Configuring N2N..."
   cd /tmp/n2n #&& ./bootstrap;
     bash autogen.sh 
@@ -113,7 +114,7 @@ function tinc(){
   log "Downloading TINC..."
   rm -rf /tmp/tinc; # mkdir -p /tmp/tinc
   # branch="--branch=$TINC_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-tinc /tmp/tinc #;
+  gitclone https://gitee.com/g-system/fk-tinc /tmp/tinc $branch #;
   log "Configuring TINC..."
   cd /tmp/tinc #&& ./bootstrap;
     autoreconf -if
@@ -139,8 +140,10 @@ cache)
     # down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    imlib2
-    lrzsz
+    doExec su_exec || exit 1
+    doExec lrzsz || exit 1
+    doExec n2n || exit 1
+    doExec tinc || exit 1
     ;;
 *) #compile
     oneBuild $1
