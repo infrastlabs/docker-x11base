@@ -62,7 +62,7 @@ function doSync(){
 
   cat > conf/images.yaml<<EOF
 # builder,compile
-$src/infrastlabs/x11-base:alpine-builder-gtk224: $dst/infrastlabs/x11-base:alpine-builder-gtk224
+$src/infrastlabs/x11-base:alpine-builder-gtk224-2: $dst/infrastlabs/x11-base:alpine-builder-gtk224-2
 $src/infrastlabs/x11-base:alpine-builder: $dst/infrastlabs/x11-base:alpine-builder
 $src/infrastlabs/x11-base:alpine-compile: $dst/infrastlabs/x11-base:alpine-compile
 # distros:rfs,core,app
