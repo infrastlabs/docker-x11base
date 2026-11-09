@@ -6,9 +6,9 @@ on:
     branches: [ "dev" ]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
     # runs-on: ubuntu-20.04
-    # runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04
     # runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
@@ -60,21 +60,24 @@ jobs:
 
           
           # JUST LOGIN HERE
-          # echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN
+          echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN
           echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN_HK
           # echo "${DOCKER_REGISTRY_QCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_QCLOUD_USER} --password-stdin $REPO_QING
 
           # BUILD
           :> /tmp/.timecost
 
+          export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+          # args="--provenance=false --sbom=false"
           # #############################
           cd .github; 
           echo compile; cd ../compile;
             # bash buildx.sh ubt-builder
             # bash buildx.sh deb12-builder
             # 
-            # bash buildx.sh builder
-            bash buildx.sh gtk224 #builder-gtk224
+            # bash buildx.sh builder #gtk224 to ali's layer not supported err, re-build origin
+            # bash buildx.sh gtk224 #builder-gtk224
+            bash buildx.sh gtkmm224
             exit 0
             # bash buildx.sh #compile
           echo rootfs; cd ../rootfs;
