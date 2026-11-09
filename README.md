@@ -78,10 +78,10 @@ core-voidlinux `v2509` | ![pic](https://img.shields.io/docker/image-size/voidlin
 **CompileDbg**
 
 ```bash
-# infrastlabs/x11-base:builder ##alpine-builder-gtk224
+# infrastlabs/x11-base:builder ##alpine-builder-gtk224-2
 # --privileged>> make: /bin/sh: Operation not permitted
 REPO=registry.cn-shenzhen.aliyuncs.com/ #ccr.ccs.tencentyun.com/  dockerhub.qingcloud.com/ registry-1.docker.io/
-root@VM-12-9-ubuntu:~# docker run -it --rm -v /mnt:/mnt2 --privileged ${REPO}infrastlabs/x11-base:alpine-builder-gtk224 sh
+root@VM-12-9-ubuntu:~# docker run -it --rm -v /mnt:/mnt2 --privileged ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 sh
 # apk add git gawk
 export GITHUB=https://hub.yzuu.cf
 cd /mnt2/docker-x11base/compile/src/
