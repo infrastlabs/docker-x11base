@@ -2,23 +2,14 @@ ARG COMPILE_IMG=alpine-compile
 FROM infrastlabs/x11-base:builder AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
-  RUN apk update; apk add gawk git icu-static icu-dev libjpeg-turbo-static jpeg-dev;
+  RUN apk update; apk add gawk git;
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
   COPY ./src /src
-  # openbox/build(fontconfig,Xrandr,pango); xcompmgr/build(Xdamage);  u-gtk/build(atk,gdk,gtk); u-gtkmm/build(gtkmm栈); w-xlunch/build(imlib2)
-  # use: lxde,pcmanfm, geany, tint2, xfce414, pavucontrol, gnome-system-monitor(gtkmm链), feh/scrot/hsetroot/tint2/xlunch(imlib2)
+  # openbox/build(fontconfig,Xrandr,pango); xcompmgr/build(Xdamage);  u-gtk/build(atk,gdk,gtk)
+  # use: lxde,pcmanfm, geany, tint2, xfce414
   RUN chmod +x /src/**/*.sh; \
     ls -lh /src/**/*.sh
   RUN bash /src/u-gtk/build.sh b_deps
-  # imlib2 框架级图片库: 5 个 w-* 应用(feh/scrot/hsetroot/tint2/xlunch)共用; 直接调 w-xlunch 定制构建(内置 PNG/SVG/JPEG loader 嵌入),
-  # 避免各 w-* stage 重复下载+编译(~4次/镜像); 产物 /usr/local/lib/libImlib2.a
-  RUN bash /src/w-xlunch/build.sh imlib2
-  # gtkmm 栈(7组件+mm-common)静态, 供 pavucontrol/gsm 复用(--prefix=/usr, .a 落 /usr/lib); ICU 供 rime(ibus-rime) 链
-  RUN bash /src/u-gtkmm/build.sh full
-  # 缓存复用前提: 保留 /tmp/gtk + /tmp/gtkmm-src + /tmp/imlib2 源树(增量 .o/config.status, 同 gtk 复用)与 .cache 下载缓存,
-  # /usr/lib/*.a 成品绝对保留(§5.2 gtk2 .a 禁清); 只清可清中间产物: apk 包缓存 / 构建日志 / 坏(0字节)下载缓存.
-  RUN rm -rf /var/cache/apk/* /root/.cache; \
-      rm -f /tmp/*.log /tmp/*.out /usr/local/static/.cache/libexif-0.6.23.tar.bz2
 
 
 
