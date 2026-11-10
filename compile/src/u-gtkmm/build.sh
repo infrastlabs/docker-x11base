@@ -35,6 +35,20 @@ function gtkmm(){
   # release tarball 有 configure; box 的 git-archive 无 -> 缺则 autogen.sh (autoreconf) 生成
   mkcfg(){ [ -f ./configure ] || { echo "no configure -> autogen"; ./autogen.sh; }; }
 
+  # buildx 隔离/多阶段继承(CI): 自编库(pango/gtk/atk)头可能不在 /usr/include 标准位
+  # (装 xx sysroot 或前一构建阶段隔离路径, 即使 amd64) -> pangomm/gtkmm 的 <pango/pango-markup.h>
+  # 等找不到; native(docker run) 头在标准位不触发。检测任一缺失则 find 定位补 CPPFLAGS。
+  if [ ! -f /usr/include/pango-1.0/pango/pango-markup.h ] || [ ! -f /usr/include/gtk-2.0/gtk/gtk.h ]; then
+    NEW=""
+    for pat in "pango-1.0/pango/pango-markup.h" "atk-1.0/atk/atk.h" "gtk-2.0/gtk/gtk.h"; do
+      [ -f "/usr/include/$pat" ] && continue
+      F=$(find / -name "$(basename "$pat")" -path "*/$(dirname "$pat")" 2>/dev/null | head -1)
+      [ -n "$F" ] && NEW="-I$(dirname "$(dirname "$F")") $NEW"
+    done
+    [ -n "$NEW" ] && export CPPFLAGS="$NEW $CPPFLAGS"
+    log "自编库头不在 /usr/include 标准位, 补 CPPFLAGS: ${NEW:-<未找到>}"
+  fi
+
   log "Prep: 建 u-gtk pc 符号链接别名 (8 个, pango/atk/gail 缺版本后缀)..."
     # pkg-config 需 pango-1.0.pc / pangocairo-1.0.pc / pangofc-1.0.pc / pangoft2-1.0.pc /
     #   pangoot-1.0.pc / pangoxft-1.0.pc / atk-1.0.pc / gail-1.0.pc (指向 u-gtk 的非版本化 .pc)
