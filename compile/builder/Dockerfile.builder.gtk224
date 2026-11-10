@@ -1,8 +1,13 @@
 ARG COMPILE_IMG=alpine-compile
-FROM infrastlabs/x11-base:builder AS base
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
+# FROM infrastlabs/x11-base:builder AS base
   ARG TARGETPLATFORM
-  ENV CACHE=/usr/local/static/.cache
-  RUN apk update; apk add gawk git;
+  ENV \
+    CACHE=/usr/local/static/.cache \
+    DOEXEC_CALLER=u-gtk
+  RUN sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories; \
+    apk update; apk add gawk git;
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
   COPY ./src /src
   # openbox/build(fontconfig,Xrandr,pango); xcompmgr/build(Xdamage);  u-gtk/build(atk,gdk,gtk)
