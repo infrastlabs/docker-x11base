@@ -2,12 +2,14 @@ diff --git a/gtk/Makefile.am b/gtk/Makefile.am
 index 5b337da..9266bba 100644
 --- a/gtk/Makefile.am
 +++ b/gtk/Makefile.am
-@@ -704,6 +704,8 @@ gtk_os_unix_c_sources = \
+@@ -704,6 +704,10 @@ gtk_os_unix_c_sources = \
  	gtkprintoperation-unix.c	\
  	gtkprintunixdialog.c		\
          gtkprintbackend.c		\
 +	$(top_srcdir)/modules/printbackends/file/gtkprintbackendfile.c	\
 +	$(top_srcdir)/modules/printbackends/lpr/gtkprintbackendlpr.c	\
++	$(top_srcdir)/modules/engines/pixbuf/pixbuf-draw.c	\
++	$(top_srcdir)/modules/engines/pixbuf/pixbuf-main.c	\
  	gtksearchenginebeagle.c		\
  	gtksearchenginetracker.c
  gtk_all_c_sources += $(gtk_os_unix_c_sources)
