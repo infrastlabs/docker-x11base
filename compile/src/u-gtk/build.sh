@@ -146,6 +146,7 @@ function inc_patch(){
   log "inc_patch: $name changed -> reset+apply"
   for f in $files; do git checkout --force -- "$f" 2>/dev/null || true; done
   patch -p1 < "$pf" || { log "PATCH FAILED: $name"; exit 1; }
+  mkdir -p "$STATEDIR"  # fresh clone 后目录被 rm -rf 删; 写前再保证(见 gtk() clone 后 mkdir)
   echo "$h" > "$STATEDIR/$name.sha"
 }
 
@@ -173,6 +174,7 @@ function gtk(){
     rm -rf "$GTK"; git clone --depth=1 $branch https://gitee.com/g-system/fk-gtk "$GTK"
     cd "$GTK"
   fi
+  mkdir -p "$STATEDIR"  # fresh clone 的 rm -rf 会删掉 .u-gtk-state, clone 后重建; 增量则幂等
   # ② patch 增量: 按 patch 内容 hash 判定是否变更; 变更才 reset+重打(只重编该 patch
   #    触及的 .o), 未变则跳过(文件 mtime 保持 → make 时间戳增量复用 .o)。
   #    .libs/*.o、Makefile、config.status 是 untracked 生成物, 不受 checkout 影响。
@@ -208,7 +210,7 @@ function gtk(){
       # --enable-shared=no \
     # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
-    CONFIG_ARGS="--enable-static --with-included-immodules=xim --prefix=/usr"
+    CONFIG_ARGS="--enable-static --disable-shared --with-included-immodules=xim --prefix=/usr"  # --disable-shared: 项目只要 .a; 原默认建 .so 在 murrine/pixmap merge 前链接 → theme_* undefined
     # ③ configure 缓存: 参数 + Makefile.am 补丁未变 → 跳过 configure (省 ~5min)。
     #    Makefile.am 补丁(printbackends)变更才需重新生成 Makefile.in; 只改 .c 的补丁不需要。
     local SIG=$( { cat "$PATCHDIR/gtk2-2.24.33-printbackends-static.patch"; echo "$CONFIG_ARGS"; } | sha256sum | cut -d' ' -f1 )
@@ -226,9 +228,14 @@ function gtk(){
     # make -j$(nproc) #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
     # 
     # retry2
-    make -j$(nproc) -C gdk & #first
-    make -j$(nproc) -C gtk &
-    wait
+    # 2026-11-11: 串行——原并行(gdk & gtk)无依赖协调, gtk 会先于 gdk 生成 gdkenumtypes.h
+    # → fatal error: gdk/gdkenumtypes.h not found (可恢复但报错刷屏); 先 gdk 完(生成头)再 gtk 彻底避免。
+    # 2026-11-11: 只建库目标(.la→.a), 不建工具(gtk-query-immodules-2.0/g-ir-scanner 临时可执行
+    # 会静态链 .a, 而 .a 的 gtkthemes.o 引用 theme_*(murrine/pixmap) 尚未 merge → undefined reference;
+    # 项目只要 .a, 工具无需构建。库目标依赖含 gdkenumtypes.h 生成。
+    # || log 容忍部分失败(如 .so 目标), 真正门在下方 [ -f .a ] 检查。
+    make -j$(nproc) -C gdk libgdk-x11-2.0.la || log "gdk make rc=$? (partial, .a checked below)"
+    make -j$(nproc) -C gtk libgtk-x11-2.0.la || log "gtk make rc=$? (partial, .a checked below)"
     find |egrep "g.*k-x11.*\.a$"
     [ -f ./gtk/.libs/libgtk-x11-2.0.a ] || { log "libgtk-x11-2.0.a MISSING"; exit 1; }
 
