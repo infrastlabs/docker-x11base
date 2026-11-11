@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-u-gtk}"
 
 function atk(){ ##@meson
   # apk update; apk add gobject-introspection-dev
@@ -302,25 +303,28 @@ full)
     echo "emp";
     ;;
 b_deps)
-    bash /src/openbox/build.sh apkdeps
-    bash /src/openbox/build.sh pango & ##needed by gtk
-    bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
-    bash /src/xcompmgr/build.sh Xdamage &
-    STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
+    doExec /src/openbox/build.sh apkdeps
+    doExec_mark "group1: pango libxrandr Xdamage libcroco"   # 组边界: 留痕不清, check 只读本组
+    doExec /src/openbox/build.sh pango & ##needed by gtk
+    doExec /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
+    doExec /src/xcompmgr/build.sh Xdamage &
+    STATIC=yes doExec /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
-    # 
-    apkdeps
-    STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
-    bash /src/u-gtk/build.sh atk & #needed by gtk
+    doExec_check || exit 1   # 并发组1 错误码识别: 任一失败即退出
+    doExec apkdeps
+    doExec_mark "group2: librsvg atk"   # 组边界: 留痕不清, check 只读本组
+    STATIC=yes doExec /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    doExec /src/u-gtk/build.sh atk & #needed by gtk
     wait
-    bash /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
-    bash /src/u-gtk/build.sh gtk
+    doExec_check || exit 1   # 并发组2 错误码识别
+    doExec /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
+    doExec /src/u-gtk/build.sh gtk
 
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
     ;;
 *) #compile
-    oneBuild $1
+    oneBuild $1   # 去嵌套 doExec: oneBuild 自处理日志+退出码, 失败由 set -e 捕获
     ;;          
 esac
 exit 0
