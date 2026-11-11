@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-tint2}"
 
 # libcroco/librsvg 装 /usr/local，.pc 在 /usr/local/lib/pkgconfig；Alpine pkgconf 默认不含 → 前置，供本脚本 configure 找到新装 .pc。
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
@@ -207,6 +208,7 @@ function libxi(){
 # cat ../src/battery/battery.c |grep strnappend
 # # 重名方法改名>> tint2过了; tint2conf err:
 function tint2(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   # xcomposite-dev gtk+2.0-dev
   apk add pango-dev librsvg-dev
   apk add startup-notification-dev
@@ -329,7 +331,7 @@ cache)
     ;;
 full)
     # imlib2
-    tint2
+    doExec tint2
     ;;
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
