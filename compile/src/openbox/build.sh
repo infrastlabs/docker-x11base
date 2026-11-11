@@ -114,6 +114,7 @@ endian = 'little'
 #     harfbuzz-dev \
 #     harfbuzz-static \
 function pango(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   pango_meson #call
   mkdir -p /tmp/pango
   log "Downloading pango..."
@@ -143,6 +144,7 @@ function pango(){
 # it ourself.
 #
 function libxrandr(){
+  set -e
   mkdir -p /tmp/libxrandr
   log "Downloading libXrandr..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
@@ -253,6 +255,7 @@ function fontconfig_drop1(){
 # Build Openbox.
 #
 function openbox(){
+  set -e
   pango_meson #call
   env |egrep "FLAGS|clang"
   rm -rf /tmp/openbox; mkdir -p /tmp/openbox
@@ -386,9 +389,9 @@ cache)
     ;;
 full)
     # fontconfig
-    libxrandr
-    pango
-    openbox
+    doExec libxrandr
+    doExec pango
+    doExec openbox
     ;;
 b_deps)
     apkdeps
