@@ -2,6 +2,7 @@
 # NOTE: This script is expected to be run under Alpine Linux.
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-openbox}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
