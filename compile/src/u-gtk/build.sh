@@ -294,6 +294,19 @@ function apkdeps(){
     fontconfig-static libxcomposite-dev #pcmanfm
 }
 
+function doExec(){
+  cmd=$1; shift
+  args=$@
+  elog=/tmp/doExec/; mkdir -p $elog;
+  if [ -f $cmd ]; then
+    cmd="bash $cmd"  
+  fi
+  # $cmd $args |tee -a $elog/$(echo $cmd |sed "s^/^_^g")_$args.log |grep -Ei "warn|error"
+  $cmd $args > >(tee -a $elog/$(echo $cmd |sed "s^/^_^g")_$args.log |grep -Ei "warn|error") 2>&1 
+  errCode=$?
+  echo "$errCode|$cmd" >> $elog/_exec_result.txt
+}
+
 case "$1" in
 cache)
     # down_catfile ${XRDP_URL} > /dev/null
@@ -302,25 +315,25 @@ full)
     echo "emp";
     ;;
 b_deps)
-    bash /src/openbox/build.sh apkdeps
-    bash /src/openbox/build.sh pango & ##needed by gtk
-    bash /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
-    bash /src/xcompmgr/build.sh Xdamage &
-    STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
+    doExec /src/openbox/build.sh apkdeps
+    doExec /src/openbox/build.sh pango & ##needed by gtk
+    doExec /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
+    doExec /src/xcompmgr/build.sh Xdamage &
+    STATIC=yes doExec /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
     # 
-    apkdeps
-    STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
-    bash /src/u-gtk/build.sh atk & #needed by gtk
+    doExec apkdeps
+    STATIC=yes doExec /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    doExec /src/u-gtk/build.sh atk & #needed by gtk
     wait
-    bash /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
-    bash /src/u-gtk/build.sh gtk
+    doExec /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
+    doExec /src/u-gtk/build.sh gtk
 
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
     ;;
 *) #compile
-    oneBuild $1
+    doExec oneBuild $1
     ;;          
 esac
 exit 0
