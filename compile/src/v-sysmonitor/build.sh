@@ -53,6 +53,8 @@ build_gtop(){
     cp libgtopconfig.h /usr/local/static/gtop/include/libgtop-2.0/
     cp -r include/glibtop /usr/local/static/gtop/include/libgtop-2.0/
     cp glibtop.h /usr/local/static/gtop/include/libgtop-2.0/
+    # glibtop.h:61 用无前缀 #include <glibtop_server.h>; 该头是平台相关(sysdeps/<plat>/), 需显式 cp linux 版。
+    cp sysdeps/linux/glibtop_server.h /usr/local/static/gtop/include/libgtop-2.0/
     ls -lh /usr/local/static/gtop/lib/libgtop-2.0.a
 }
 
