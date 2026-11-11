@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-u-gtkmm}"
 
 #
 # Build gtkmm 栈 2.4（7 组件 + mm-common）静态，GTK2
@@ -29,6 +30,8 @@ fetch(){
 }
 
 function gtkmm(){
+  # 调路口 doExec 子 shell 会 set +e(保命令继续+rcfile 捕获), 此处重启用 set -e 保函数内失败即终止(否则失败被吞, 最终 rc 误报 0)。
+  set -e
   # common.sh 的 LDFLAGS="-static" 会让构建辅助工具(如 glibmm 的 generate_defs_glib)静态链接失败
   # -> gtkmm 库的 .a 由 --enable-static --disable-shared 控制, 不需要 -static LDFLAGS; 辅助工具须动态链
   export LDFLAGS="-Wl,--as-needed"
@@ -134,7 +137,7 @@ cache)
     # down_catfile $GNOME/gtkmm/2.24/gtkmm-2.24.5.tar.xz > /dev/null
     ;;
 full)
-    gtkmm
+    doExec gtkmm   # 调路口 doExec 包装整个 gtkmm() 方法块(全量落日志+白名单回显+错误码); 函数内 set -e 保失败终止
     ;;
 b_deps)
     # GTK2 静态库(u-gtk)已在 base; 此栈额外需: 源码 tarball 可在 /tmp/gtkmm-stack 或走 down_catfile
