@@ -238,10 +238,13 @@ function gtk(){
     [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
     ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/*.o
     log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
-  log "Building pixmap theme engine (static)..."
-    make -C modules/engines/pixbuf || { log "PIXMAP build FAILED"; exit 1; }
-    ar r ./gtk/.libs/libgtk-x11-2.0.a modules/engines/pixbuf/*.o
-    log "Merged pixmap engine into ./gtk/.libs/libgtk-x11-2.0.a"
+  log "Pixmap theme engine (builtin via Makefile.am source, no separate make/ar r)..."
+    # 2026-11-11: pixbuf engine 改为编进 libgtk——printbackends-static.patch 的 gtk/Makefile.am
+    # 已加 modules/engines/pixbuf/pixbuf-draw.c+pixbuf-main.c 到 gtk_os_unix_c_sources, make -C gtk
+    # 自然编进 libgtk-x11-2.0.a(提供 pixmap_theme_* 符号, gtkthemes-builtin-murrine.patch 已 extern 声明;
+    # pixbuf-main.c 的 theme_*→pixmap_theme_* 改名由 lxtask-static.patch 完成, 免与 murrine 冲突)。
+    # 替代旧独立 make -C modules/engines/pixbuf + ar r merge(同 printbackends 复盘, 弃 ar r 魔改)。
+    # 产物检查仍靠下方 [ -f .a ] + xx-verify。
   gtk_ibus_a2
   log "Print backends (file/lpr) built via Makefile.am sources..."
     # gtk2-2.24.33-printbackends-static.patch: ①改 gtkprintbackend{file,lpr}.c 的
