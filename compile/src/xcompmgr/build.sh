@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-xcompmgr}"
 
 function Xdamage(){
   # mkdir -p /tmp/Xdamage
