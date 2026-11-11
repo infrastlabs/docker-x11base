@@ -3,6 +3,10 @@ set -e
 source /src/common.sh
 export DOEXEC_CALLER="${DOEXEC_CALLER:-u-gtk}"
 
+# 静态库链装在 /usr/local，其 .pc 也在 /usr/local/lib/pkgconfig；Alpine pkgconf 默认不含该路径
+# → 前置 PKG_CONFIG_PATH，让 librsvg configure 能找到组1 新装的 libcroco-0.6.pc（gdk-pixbuf/atk 同理，供 gtk 用）。
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 function atk(){ ##@meson
   # apk update; apk add gobject-introspection-dev
 
