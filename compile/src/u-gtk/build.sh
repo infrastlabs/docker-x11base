@@ -300,7 +300,8 @@ function apkdeps(){
     gtk-doc intltool vala \
       gtk+2.0-dev \
     \
-    fontconfig-static libxcomposite-dev #pcmanfm
+    fontconfig-static libxcomposite-dev \
+    gdk-pixbuf-dev pango-dev # librsvg configure 需 gdk-pixbuf-2.0/pangocairo/pangoft2 .pc；gtk+2.0-dev 未传递装这两个（实测 MISS）
   # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
