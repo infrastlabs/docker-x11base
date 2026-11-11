@@ -2,6 +2,9 @@
 set -e
 source /src/common.sh
 
+# libcroco/librsvg 装 /usr/local，.pc 在 /usr/local/lib/pkgconfig；Alpine pkgconf 默认不含 → 前置，供本脚本 configure 找到新装 .pc。
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 # 
 # LIBCROCO_URL=https://mirror.ossplanet.net/gnome/sources/libcroco/0.6/libcroco-0.6.13.tar.xz
 
