@@ -9,7 +9,8 @@ function atk(){ ##@meson
   log "Downloading atk..."
   branch="--branch=ATK_2_35_1" #ATK_2_36_0  [2.35.1@ubt2004; 2.36.0@alpine315]
   branch="--branch=ATK_2_36_0"
-  rm -rf /tmp/atk; git clone --depth=1 $branch $GITHUB/GNOME/atk /tmp/atk
+  # 源码源切到 gitee 镜像: GNOME/atk 仓库已归档消失(github 404), 改由 g-system/fk-atk 提供 (tag ATK_2_36_0)
+  rm -rf /tmp/atk; git clone --depth=1 $branch https://gitee.com/g-system/fk-atk /tmp/atk
   cd /tmp/atk
     # [44/53] Linking static target atk/libatk-1.0.a
     # [45/53] Linking target atk/libatk-1.0.so.0.23510.1 ##err attempted static link of dynamic object '/usr/lib/libglib-2.0.so'
@@ -39,7 +40,8 @@ function gdk-pixbuf(){ ##@meson
   log "Downloading gdk-pixbuf..."
   branch="--branch=2.40.0" #2.42.8 [2.40.0@ubt2004; 2.42.8@alpine315]
   branch="--branch=2.42.8"
-  rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch $GITHUB/GNOME/gdk-pixbuf /tmp/gdk-pixbuf
+  # 源码源切到 gitee 镜像 g-system/fk-gdk-pixbuf (tag 2.42.8 镜像内已确认)
+  rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch https://gitee.com/g-system/fk-gdk-pixbuf /tmp/gdk-pixbuf
   cd /tmp/gdk-pixbuf
   log "Patching gdk-pixbuf (builtin svg loader)..."
     patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
@@ -163,7 +165,8 @@ function gtk(){
     cd "$GTK"
   else
     log "Fresh clone gtk (no usable cache)"
-    rm -rf "$GTK"; git clone --depth=1 $branch $GITHUB/GNOME/gtk "$GTK"
+    # 源码源切到 gitee 镜像 g-system/fk-gtk (tag 2.24.33 镜像内已确认; 默认分支 main 为 gtk4, 必须按 tag 拉)
+    rm -rf "$GTK"; git clone --depth=1 $branch https://gitee.com/g-system/fk-gtk "$GTK"
     cd "$GTK"
   fi
   # ② patch 增量: 按 patch 内容 hash 判定是否变更; 变更才 reset+重打(只重编该 patch
@@ -226,7 +229,8 @@ function gtk(){
     [ -f ./gtk/.libs/libgtk-x11-2.0.a ] || { log "libgtk-x11-2.0.a MISSING"; exit 1; }
 
   log "Building murrine theme engine (static)..."
-    MURRINE_GIT="${MURRINE_GIT:-https://ghfast.top/https://github.com/jlindgren90/murrine.git}"
+    # 源码源切到 gitee 镜像 g-system/fk-murrine (master); 环境变量 MURRINE_GIT 仍可覆盖
+    MURRINE_GIT="${MURRINE_GIT:-https://gitee.com/g-system/fk-murrine}"
     # ④ murrine 缓存: 已有构建树则复用, make 增量; 否则全新 clone+configure。
     git config --global --add safe.directory /tmp/murrine 2>/dev/null || true
     if [ -d /tmp/murrine/.git ] && [ -f /tmp/murrine/config.status ]; then
@@ -293,6 +297,7 @@ function apkdeps(){
       gtk+2.0-dev \
     \
     fontconfig-static libxcomposite-dev #pcmanfm
+  # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
 case "$1" in
@@ -303,7 +308,8 @@ full)
     echo "emp";
     ;;
 b_deps)
-    doExec /src/openbox/build.sh apkdeps
+    doExec apkdeps   # u-gtk 的 apkdeps 放最前: 含 gtk-doc(gtkdocize), 供组1 libcroco autogen.sh 用
+    doExec /src/openbox/build.sh apkdeps   # openbox 依赖(静态库链); 不动
     doExec_mark "group1: pango libxrandr Xdamage libcroco"   # 组边界: 留痕不清, check 只读本组
     doExec /src/openbox/build.sh pango & ##needed by gtk
     doExec /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
@@ -311,7 +317,6 @@ b_deps)
     STATIC=yes doExec /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
     doExec_check || exit 1   # 并发组1 错误码识别: 任一失败即退出
-    doExec apkdeps
     doExec_mark "group2: librsvg atk"   # 组边界: 留痕不清, check 只读本组
     STATIC=yes doExec /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     doExec /src/u-gtk/build.sh atk & #needed by gtk
