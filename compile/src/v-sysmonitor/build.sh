@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-sysmonitor}"
 
 #
 # Build gnome-system-monitor 2.28.2 (GTK2/gtkmm-2.4) 静态
@@ -40,6 +41,7 @@ fetch(){
 }
 
 build_gtop(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   log "Build libgtop-2.40.0 static..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libgtop-2.40.0
     fetch libgtop-2.40.0.tar.xz $GNOME/libgtop/2.40/libgtop-2.40.0.tar.xz
@@ -59,6 +61,7 @@ build_gtop(){
 }
 
 build_wnck(){
+  set -e
   log "Build libwnck-2.30.7 static (no Xres, conditional)..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libwnck-2.30.7
     fetch libwnck-2.30.7.tar.xz $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz
@@ -82,6 +85,7 @@ stub_pc(){
 }
 
 function gnome_system_monitor(){
+  set -e
   export TARGETPATH=${TARGETPATH:-/usr/local/static/gsm}
   export PKG_CONFIG_PATH="/usr/local/static/gtop/lib/pkgconfig:/usr/local/static/wnck/lib/pkgconfig:$PKG_CONFIG_PATH"
   # configure 测试程序用非 -static LDFLAGS（pavucontrol 式）；最终二进制手动 xx-clang++ -static
@@ -172,9 +176,9 @@ cache)
     # down_catfile $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz > /dev/null
     ;;
 full)
-    build_gtop
-    build_wnck
-    gnome_system_monitor
+    doExec build_gtop
+    doExec build_wnck
+    doExec gnome_system_monitor
     ;;
 b_deps)
     # 静态库依赖检查
