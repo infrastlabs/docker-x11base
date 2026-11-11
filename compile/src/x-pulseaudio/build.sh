@@ -161,7 +161,11 @@ function pulseaudio(){
   cd /tmp/pulseaudio #&& ./bootstrap;
   # ./configure  --enable-static --prefix=$TARGETPATH
   # make
-  export CMAKE_BINARY_DIR=$TARGETPATH
+  # 去 --disable-glib2（sam-build.sh 原禁 glib mainloop → 无 libpulse-mainloop-glib.a；
+  #   pavucontrol 需要。只动构建开关，不碰 fk 定制源码，不影响原有静态库）。
+  sed -i '/--disable-glib2/d' sam-build.sh
+  # 装到 /usr/local/static/pulseaudio（外部可指定 CMAKE_BINARY_DIR；未指定默认 TARGETPATH）
+  export CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR:-$TARGETPATH}"
   bash sam-build.sh
 
   log "Install PULSEAUDIO..."
