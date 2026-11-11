@@ -19,7 +19,9 @@ test -z "$CONSOLE_LOG" && export CONSOLE_LOG=yes
 # export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 test -z "$GITHUB" && export GITHUB=https://github.com 
 # https://blog.csdn.net/Zxiuping/article/details/120764834
-git config --global http.sslVerify false ##关闭SSL验证
+# git config --global http.sslVerify false ##关闭SSL验证
+# 幂等+容错: 多组件并发 source 时并发写 /root/.gitconfig 会锁(could not lock config file)致失败; 已设则跳过, 写失败容错。
+git config --global --get http.sslVerify >/dev/null 2>&1 || git config --global http.sslVerify false 2>/dev/null || true
 
 
 # rm -rf $LOGS; #avoid deleted @batch-mode
@@ -52,16 +54,29 @@ function oneBuild(){
     LOGS=$TARGETPATH/../.logs; mkdir -p $LOGS
     # $1 |tee $LOGS/$1.log
     # env |sort #view
-    set +e
     echo -e "\n$1, start building.."
     begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/oneBuild-$1.log
     test "yes" == "$CONSOLE_LOG" && echo CONSOLE_LOG=yes || echo CONSOLE_LOG=no
-    test "yes" == "$CONSOLE_LOG" && $1 |tee $logfile || $1 > $logfile 2>&1;
-    # $1 > $logfile 2>&1;
-
+    # 2026-11-11 修正吞错: 原 "$1 |tee $logfile" 管道退出码取 tee 的(0) 非 $1 的;
+    # 且原 "$?" 取的是 find|sort 的(0), 恒报 "err 0, pass"。改用临时文件捕获 $1 真实退出码。
+    # 子 shell 内 set +e 保 $1 失败继续(行为不变); rcfile 捕获 $1 真实退出码(非管道 tee 的 0)。
+    # return $rc 让调用方 set -e 捕获; 管道 || true 防 find 无结果/tail 无内容时 set -e 误触发。
+    local rcfile=$(mktemp $LOGS/.rc.XXXXXX)
+    if [ "yes" = "$CONSOLE_LOG" ]; then
+        ( set +e; $1; echo $? > $rcfile ) 2>&1 | tee $logfile || true
+    else
+        ( set +e; $1; echo $? > $rcfile ) > $logfile 2>&1 || true
+    fi
+    local rc=$(cat $rcfile 2>/dev/null); rm -f $rcfile
+    [ -z "$rc" ] && rc=1
     echo -e "\nTARGETPATH=$TARGETPATH"; find $TARGETPATH -type f |sort
-    test "0" !=  "$?" && tail -200 $logfile || echo "err 0, pass"
-    print_time_cost "$1" $begin_time; #echo "$1, finished."    
+    if [ "$rc" != 0 ]; then
+        echo "err $rc, fail"; tail -200 $logfile || true
+    else
+        echo "err 0, pass"
+    fi
+    print_time_cost "$1" $begin_time || true
+    return $rc
 }
 
 # ensure_gtk_libs: 判 gtk2 静态库（u-gtk 产物）是否最新，非最新则调 u-gtk 重编 .a。
@@ -84,4 +99,3 @@ function ensure_gtk_libs(){
   mkdir -p $ST; echo "$CUR" > $ST/gtk.sha
   log "ensure_gtk_libs: gtk2 rebuilt, marker updated"
 }
-
