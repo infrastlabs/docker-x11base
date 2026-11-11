@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-u-gtk}"
 
 function atk(){ ##@meson
   # apk update; apk add gobject-introspection-dev
