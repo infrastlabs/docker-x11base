@@ -160,9 +160,17 @@ function pulseaudio(){
   gitclone https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio $branch #;
   log "Configuring PULSEAUDIO..."
   cd /tmp/pulseaudio #&& ./bootstrap;
-  # ./configure  --enable-static --prefix=$TARGETPATH
-  # make
-  export CMAKE_BINARY_DIR=$TARGETPATH
+  # 2026-11-16: CI 干净环境 git-version-gen failed 根因——gitclone 快照恢复的 .git 无 version tag
+  # (git describe 失败) 且无 .tarball-version; configure.ac:24 用 m4_esyscmd(./git-version-gen .tarball-version),
+  # 只要存在 .tarball-version(内容数字开头) 即读它、不依赖 git describe。此处显式生成绕过。
+  # PULSEAUDIO_VER=br-v13-99-3 → 版本 13.99.3 (去 br-v 前缀; git-version-gen 只接受数字开头, v 前缀判 damaged)
+  echo "${PULSEAUDIO_VER#br-v}" > .tarball-version
+  log "wrote .tarball-version=$(cat .tarball-version)"
+  # 去 --disable-glib2（sam-build.sh 原禁 glib mainloop → 无 libpulse-mainloop-glib.a；
+  #   pavucontrol 需要。只动构建开关，不碰 fk 定制源码，不影响原有静态库）。
+  sed -i '/--disable-glib2/d' sam-build.sh
+  # 装到 /usr/local/static/pulseaudio（外部可指定 CMAKE_BINARY_DIR；未指定默认 TARGETPATH）
+  export CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR:-$TARGETPATH}"
   bash sam-build.sh
 
   log "Install PULSEAUDIO..."
