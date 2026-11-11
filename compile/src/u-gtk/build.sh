@@ -234,8 +234,10 @@ function gtk(){
     # 会静态链 .a, 而 .a 的 gtkthemes.o 引用 theme_*(murrine/pixmap) 尚未 merge → undefined reference;
     # 项目只要 .a, 工具无需构建。库目标依赖含 gdkenumtypes.h 生成。
     # || log 容忍部分失败(如 .so 目标), 真正门在下方 [ -f .a ] 检查。
-    # 2026-11-11: 显式生成 gdk 枚举头——make libgdk-x11-2.0.la 不自动触发 glib-mkenums 生成
-    # gdkenumtypes.h(串行化后仍 fatal gdk/gdkenumtypes.h not found); 先建头再编库, 消除 rc=2。
+    # 2026-11-11: gdkenumtypes.h 由 stamp-gdkenumtypes.h 标记控制——make libgdk 并行编 .o 时,
+    # gdkenumtypes.h(无recipe, 仅依赖 stamp)不等待 stamp 生成头 → 头缺失 fatal。
+    # 强制 rm 头+stamp 重跑 glib-mkenums 生成头, 再并行编库, 消除竞争(d9d3e1e 只 make 头, stamp 在则跳过无效)。
+    rm -f gdk/gdkenumtypes.h gdk/stamp-gdkenumtypes.h
     make -j$(nproc) -C gdk gdkenumtypes.h || log "gdk gdkenumtypes.h gen rc=$? (continue)"
     make -j$(nproc) -C gdk libgdk-x11-2.0.la || log "gdk make rc=$? (partial, .a checked below)"
     make -j$(nproc) -C gtk libgtk-x11-2.0.la || log "gtk make rc=$? (partial, .a checked below)"
