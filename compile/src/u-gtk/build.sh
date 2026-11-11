@@ -238,8 +238,19 @@ function gtk(){
     # gdkenumtypes.h(无recipe, 仅依赖 stamp)不等待 stamp 生成头 → 头缺失 fatal。
     # 强制 rm 头+stamp 重跑 glib-mkenums 生成头, 再并行编库, 消除竞争(d9d3e1e 只 make 头, stamp 在则跳过无效)。
     rm -f gdk/gdkenumtypes.h gdk/stamp-gdkenumtypes.h
-    make -j$(nproc) -C gdk gdkenumtypes.h || log "gdk gdkenumtypes.h gen rc=$? (continue)"
+    # 2026-11-11: BUILT_SOURCES(生成头/源: gdkconfig.h gdkalias.h gdkenumtypes.* gdkmarshalers.* gdkaliasdef.c)
+    # 是 all 的依赖, 不是 libgdk-x11-2.0.la 的依赖——直接建 .la 目标会跳过生成头
+    # (CI fresh: gdkalias.h 缺失 → fatal error 'gdkalias.h' file not found; 同理 gtktypebuiltins.h)。
+    # 先显式生成全部 BUILT_SOURCES, 再建库目标(不建 all 的工具: 工具链 .a 未 merge theme_* 会 undefined; 项目只要 .a)。
+    # 同 gdkenumtypes.h 教训(d9d3e1e/292e74b), 别只补出错的头, 一次把 BUILT_SOURCES 全生成。
+    make -j$(nproc) -C gdk gdkconfig.h gdkalias.h gdkenumtypes.h gdkmarshalers.h gdkaliasdef.c gdkenumtypes.c gdkmarshalers.c || log "gdk BUILT_SOURCES rc=$? (continue)"
     make -j$(nproc) -C gdk libgdk-x11-2.0.la || log "gdk make rc=$? (partial, .a checked below)"
+    # gtk 3 个头由 stamp 标记控制(同 gdkenumtypes.h): stamp 在但头缺失 → make 跳过重建。
+    # 仅头缺失时 rm stamp 强制重建(增量复用头在则不动, 免无谓重编; fresh clone 无 stamp 天然全重建)。
+    [ -f gtk/gtktypebuiltins.h ] || rm -f gtk/stamp-gtktypebuiltins.h
+    [ -f gtk/gtkmarshal.h ] || rm -f gtk/stamp-gtkmarshal.h
+    [ -f gtk/gtkmarshalers.h ] || rm -f gtk/stamp-gtkmarshalers.h
+    make -j$(nproc) -C gtk gtkalias.h gtktypebuiltins.h gtkmarshal.h gtkmarshalers.h gtkbuiltincache.h gtkaliasdef.c gtktypebuiltins.c gtktypefuncs.c gtkmarshalers.c gtkmarshal.c || log "gtk BUILT_SOURCES rc=$? (continue)"
     make -j$(nproc) -C gtk libgtk-x11-2.0.la || log "gtk make rc=$? (partial, .a checked below)"
     find |egrep "g.*k-x11.*\.a$"
     [ -f ./gtk/.libs/libgtk-x11-2.0.a ] || { log "libgtk-x11-2.0.a MISSING"; exit 1; }
