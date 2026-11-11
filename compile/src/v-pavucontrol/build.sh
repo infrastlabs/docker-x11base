@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pavucontrol}"
 
 #
 # Build pavucontrol 3.0 (GTK2/gtkmm-2.4) 静态
@@ -18,6 +19,7 @@ source /src/common.sh
 #   正常网络环境走 $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz（down_catfile）。
 
 function pavucontrol(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   log "Downloading PAVUCONTROL (v3.0 tarball)..."
     if [ ! -f /tmp/pavucontrol/configure.ac ]; then
       if [ -f /tmp/pavucontrol-3.0.tar.gz ]; then
@@ -56,7 +58,7 @@ function pavucontrol(){
       --prefix=$TARGETPATH
 
   log "Compiling PAVUCONTROL (12 objects)..."
-    # make 默认目标会尝试链接（Makefile 的 PULSE_LIBS 缺 -lpulsecommon-13.0，链接失败）；
+    # make 默认目标会尝试链接（Makefile 的 PULSE_LIBS 缺 -lpulsecommon-13.99，链接失败）；
     # 只取它产出的 .o，最终二进制由下方手动 xx-clang++ -static 静态链（geany 式）。
     make -j$(nproc) 2>&1 || log "make link step expected to fail (PULSE_LIBS lacks libpulsecommon); objects produced"
     test -f src/pavucontrol-pavucontrol.o || { log "PAVUCONTROL objects MISSING"; exit 1; }
@@ -81,7 +83,7 @@ function pavucontrol(){
       -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
       -L/usr/local/lib \
       -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
-      -lpulse-mainloop-glib -lpulse -lpulsecommon-13.0 \
+      -lpulse-mainloop-glib -lpulse -lpulsecommon-13.99 \
       -lXinerama -lXrandr -lXfixes -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 \
       $LIBS0 \
       -Wl,--end-group \
@@ -117,12 +119,17 @@ cache)
     # down_catfile $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz > /dev/null
     ;;
 full)
-    pavucontrol
+    doExec pavucontrol
     ;;
 b_deps)
-    # GTK2 静态库 + gtkmm 栈 + pulse 栈已在 builder-awe 就位（见 u-gtk / v-pavucontrol §3.3/3.4）
+    # 编译依赖库：pulse 栈（项目内 fk-pulseaudio 定制版，含 libpulse-mainloop-glib）
+    #   x-pulseaudio b_deps = dep 库（libogg/libFLAC/libvorbis/libopus/libsndfile .a → /usr/local/lib）
+    #   x-pulseaudio full   = pulse 静态库（libpulse/libpulse-simple/libpulse-mainloop-glib + pulsecommon/pulsecore → /usr/local/static/pulseaudio）
+    export CMAKE_BINARY_DIR=/usr/local/static/pulseaudio
+    bash /src/x-pulseaudio/build.sh b_deps
+    bash /src/x-pulseaudio/build.sh full
     echo "== gtkmm stack =="; ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a 2>&1
-    echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.0.a 2>&1
+    echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.a 2>&1
     ;;
 *) #compile
     oneBuild $1
