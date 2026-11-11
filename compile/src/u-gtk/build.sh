@@ -294,18 +294,54 @@ function apkdeps(){
     fontconfig-static libxcomposite-dev #pcmanfm
 }
 
+# doExec: 通用命令执行包装——全量落日志 + 白名单实时回显 + 错误码记录(供并发 wait 后检查)。
+# 与旧版差异: ① 去 bash 专属 >(tee|grep) 进程替换, 改标准管道保实时回显(POSIX);
+#   ② rc 用临时文件精确捕获(原 "$?" 取进程替换/管道尾部, 吞错); ③ 过滤改正向白名单(原 warn|error 被重复编译器警告淹没)。
+# 调用: doExec <cmd> [args...]   返回: 命令退出码(非并发调用方 set -e 自动捕获失败).
+# 结果记录: /tmp/doExec/_exec_result.txt 每行 "rc|cmd args" (只增不清->留痕; doExec_mark 写组边界, wait 后 doExec_check 只读本组).
 function doExec(){
-  cmd=$1; shift
-  args=$@
-  elog=/tmp/doExec/; mkdir -p $elog;
-  if [ -f $cmd ]; then
-    cmd="bash $cmd"  
-  fi
-  # $cmd $args |tee -a $elog/$(echo $cmd |sed "s^/^_^g")_$args.log |grep -Ei "warn|error"
-  $cmd $args > >(tee -a $elog/$(echo $cmd |sed "s^/^_^g")_$args.log |grep -Ei "warn|error") 2>&1 
-  errCode=$?
-  echo "$errCode|$cmd" >> $elog/_exec_result.txt
+  local cmd=$1; shift
+  local args=$@
+  local elog=/tmp/doExec; mkdir -p $elog
+  [ -f "$cmd" ] && cmd="bash $cmd"
+  local lf=$elog/$(echo "$cmd $args" | sed 's^[ /]^_^g').log
+  local rcfile=$(mktemp $elog/.rc.XXXXXX)
+  # 实时: 子 shell 输出流经 tee(全量落日志) + 白名单 grep(高信号行回显); rcfile 捕获 $cmd 真实退出码.
+  ( set +e; $cmd $args; echo $? > $rcfile ) 2>&1 | tee -a "$lf" \
+    | grep -E "ERROR:|fatal|error:|Error[0-9]|undefined reference|No such file|can't stat|MISSING|FAILED|>>> |start building|err [0-9]+, (pass|fail)|本操作|OK: [0-9]+ MiB|TARGETPATH=" \
+    | grep -vE "perl-error|fail_on_|--add-missing|-Werror|pixbuf-fail|\[[0-9]+/[0-9]+\] (Compiling|Generating|Linking)" || true
+  local rc=$(cat $rcfile 2>/dev/null); rm -f $rcfile
+  [ -z "$rc" ] && rc=1   # $cmd 内显式 exit 时 rcfile 未写 -> 视为失败
+  echo "$rc|$cmd $args" >> "$elog/_exec_result.txt"
+  [ "$rc" != 0 ] && echo "== doExec FAIL: $cmd $args (rc=$rc) =="
+  return $rc
 }
+
+# doExec_mark: 写并发组边界标记（结果文件只增不清 -> 留痕；MARK 之后为本组记录）。
+function doExec_mark(){
+  echo "# MARK $*" >> /tmp/doExec/_exec_result.txt
+}
+
+# doExec_check: 并发组 wait 后检查 /tmp/doExec/_exec_result.txt, 任一 rc!=0 则报错返回 1(调用方 || exit 1).
+# 精准识别: 只读最后一个 # MARK 行之后的记录（前组留痕不清、不误判当前组）。
+function doExec_check(){
+  local f=/tmp/doExec/_exec_result.txt
+  [ -f "$f" ] || return 0
+  local start=$(grep -n '^# MARK ' "$f" | tail -1 | cut -d: -f1)
+  [ -z "$start" ] && start=0
+  local fail=0 rc cmd idx=0
+  while IFS='|' read -r rc cmd; do
+    idx=$((idx+1))
+    [ $idx -le $start ] && continue
+    [ -z "$rc" ] && continue
+    if [ "$rc" != 0 ]; then
+      echo "== doExec FAILED: $cmd (rc=$rc) =="
+      fail=1
+    fi
+  done < "$f"
+  return $fail
+}
+
 
 case "$1" in
 cache)
@@ -316,16 +352,19 @@ full)
     ;;
 b_deps)
     doExec /src/openbox/build.sh apkdeps
+    doExec_mark "group1: pango libxrandr Xdamage libcroco"   # 组边界: 留痕不清, check 只读本组
     doExec /src/openbox/build.sh pango & ##needed by gtk
     doExec /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
     doExec /src/xcompmgr/build.sh Xdamage &
     STATIC=yes doExec /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
-    # 
+    doExec_check || exit 1   # 并发组1 错误码识别: 任一失败即退出
     doExec apkdeps
+    doExec_mark "group2: librsvg atk"   # 组边界: 留痕不清, check 只读本组
     STATIC=yes doExec /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     doExec /src/u-gtk/build.sh atk & #needed by gtk
     wait
+    doExec_check || exit 1   # 并发组2 错误码识别
     doExec /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
     doExec /src/u-gtk/build.sh gtk
 
@@ -333,7 +372,7 @@ b_deps)
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
     ;;
 *) #compile
-    doExec oneBuild $1
+    oneBuild $1   # 去嵌套 doExec: oneBuild 自处理日志+退出码, 失败由 set -e 捕获
     ;;          
 esac
 exit 0
