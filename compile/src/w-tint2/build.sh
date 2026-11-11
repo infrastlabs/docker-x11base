@@ -16,6 +16,9 @@ function libcroco(){
   # （默认连 .so 一起装，pc 里 -lcroco-0.6 会优先链 .so，静态二进制直接带动态依赖）
   test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
   test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
+  # STATIC 下 libxml2.a 的传递依赖(zlib/lzma/bzip2/m)不自动链接, 导致 csslint-0.6 工具链接失败
+  # (undefined reference to deflateEnd/gzopen/lzma_code...) → make install 失败 → libcroco-0.6.pc 未装。
+  test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
   mkdir -p /tmp/libcroco
   log "Downloading libcroco..."
@@ -73,6 +76,8 @@ function librsvg(){
   # （默认连 .so 一起装，pc 里 -lrsvg-2 会优先链 .so，openbox 静态链接直接报 attempted static link）
   test "yes" = "$STATIC" || export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
   test "yes" = "$STATIC" && export DISABLE_SHARED=--disable-shared
+  # STATIC 下链接 libcroco-0.6.a→libxml2.a 的传递依赖(zlib/lzma/bzip2/m)不自动链接, 需显式加。
+  test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
   log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
@@ -81,7 +86,13 @@ function librsvg(){
   rm -rf /tmp/librsvg; git clone --depth=1 $branch https://gitee.com/g-system/fk-librsvg /tmp/librsvg
   cd /tmp/librsvg
   ./autogen.sh 
-  ./configure --enable-static $DISABLE_SHARED
+  # STATIC 下 librsvg-2.a 的消费方(rsvg-convert/rsvg-loader/GISCAN 等可执行)均被 -static 强制静态链接,
+  #   需 libgdk_pixbuf-2.0.a(Alpine 无 gdk-pixbuf-static 包)会失败; 故仅构建/安装 librsvg-2.a 库本体:
+  #   --enable-introspection=no 跳过 GISCAN; 清空顶层 bin_PROGRAMS(rsvg-convert 等), 剔除 SUBDIRS 中 gdk-pixbuf-loader/tests/tools/doc。
+  test "yes" = "$STATIC" && export CONFIGURE_INTRO=--enable-introspection=no
+  ./configure --enable-static $DISABLE_SHARED $CONFIGURE_INTRO
+  test "yes" = "$STATIC" && sed -i 's/^bin_PROGRAMS = rsvg-convert.*/bin_PROGRAMS =/' Makefile
+  test "yes" = "$STATIC" && sed -i 's/^SUBDIRS = \. gdk-pixbuf-loader tests tools doc build/SUBDIRS = . build/' Makefile
   log "Compiling librsvg..."
   make 
   log "Installing librsvg..."
