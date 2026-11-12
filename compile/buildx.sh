@@ -104,7 +104,7 @@ gtk224)
     cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64" #dbg
     output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
     docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtk224 . 
     ;;
@@ -127,7 +127,7 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64" #dbg
     output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
     docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtkmm224 . 
     ;;
@@ -146,14 +146,14 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     repo=registry-1.docker.io
     # repo=registry.cn-shenzhen.aliyuncs.com
     test ! -z "$REPO" && repo=$REPO #@gitac
-    img="x11-base:alpine-compile"
+    img="x11-base:alpine-compile-2"
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #dbg
     # plat="--platform linux/arm64" #pulse-arm-dbg
+    plat="--platform linux/amd64" #dbg
     
     compile="alpine-compile"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -166,36 +166,38 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_IMG=$compile
     --build-arg COMPILE_TIGER=no
     --build-arg COMPILE_XRDP=no
-    --build-arg COMPILE_X11VNC=yes
+    --build-arg COMPILE_X11VNC=no
     --build-arg COMPILE_SSH=no
-    --build-arg COMPILE_PULSE=no
     --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=no
-    --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_SUCKLESS=no
     --build-arg COMPILE_XCOMPMGR=no
-    --build-arg COMPILE_XLUNCH=no
-    --build-arg COMPILE_PCMANFM=no
-    --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
-    --build-arg COMPILE_XFCE4=no
-    --build-arg COMPILE_DBUS=no
-    --build-arg COMPILE_IBUS=no
-    --build-arg COMPILE_ENGRAMPA=no
-    --build-arg COMPILE_GPICVIEW=no
-    --build-arg COMPILE_PASYSTRAY=no
-    --build-arg COMPILE_SYSMONITOR=no
-    --build-arg COMPILE_PAVUCONTROL=no
-    --build-arg COMPILE_GTKMM=no
-    --build-arg COMPILE_XBINDKEYS=no
-    --build-arg COMPILE_XRANDR=no
+
     --build-arg COMPILE_FEH=no
-    --build-arg COMPILE_GEANY=no
     --build-arg COMPILE_HSETROOT=no
     --build-arg COMPILE_SCROT=no
+    --build-arg COMPILE_TINT2=no
+    --build-arg COMPILE_XLUNCH=no
+
+    --build-arg COMPILE_XBINDKEYS=no
+    --build-arg COMPILE_XRANDR=no
     --build-arg COMPILE_DUNST=no
     --build-arg COMPILE_ROFI=no
+    --build-arg COMPILE_PULSE=yes
+    --build-arg COMPILE_PASYSTRAY=yes
+    --build-arg COMPILE_PAVUCONTROL=yes
+    --build-arg COMPILE_SYSMONITOR=yes
+    
+    --build-arg COMPILE_LXDE=yes
+    --build-arg COMPILE_PCMANFM=yes
+    --build-arg COMPILE_XFCE4=yes
+    --build-arg COMPILE_GEANY=yes
+    --build-arg COMPILE_ENGRAMPA=yes
+    --build-arg COMPILE_GPICVIEW=yes
+    --build-arg COMPILE_DBUS=no
+    --build-arg COMPILE_IBUS=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
     """
     # --network=host: docker buildx create --use --name mybuilder2 --buildkitd-flags '--allow-insecure-entitlement network.host'
