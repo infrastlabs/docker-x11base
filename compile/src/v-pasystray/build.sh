@@ -69,7 +69,7 @@ function pasystray(){
       *.o \
       -Wl,--start-group \
       -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
-      -lpulse-mainloop-glib -lpulse -lpulsecommon-13.0 \
+      -lpulse-mainloop-glib -lpulse -lpulsecommon-13.99 \
       -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 \
       -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig \
       -lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lcairo \
@@ -111,7 +111,7 @@ full)
 b_deps)
     # GTK2 静态库 + pulse 栈已在 builder-awe 就位（见 u-gtk / v-pavucontrol §3.3/3.4）
     echo "== gtk2 stack =="; ls /usr/lib/libgtk-x11-2.0.a /usr/lib/libgdk-x11-2.0.a 2>&1
-    echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.0.a 2>&1
+    echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.a 2>&1
     ;;
 *) #compile
     oneBuild $1
