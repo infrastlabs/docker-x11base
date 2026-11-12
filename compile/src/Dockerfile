@@ -602,8 +602,9 @@ RUN rm -rf  /rootfs/bin /rootfs/sbin;
 #   upx /rootfs${STATIC}/suckless/bin/dwm; \
 #   upx /rootfs${STATIC}/suckless/bin/dmenu
 # view02
-RUN find /rootfs${STATIC} -type f |sort |wc
-RUN find /rootfs${STATIC} -type f |sort
+# RUN find /rootfs${STATIC} -type f |sort
+RUN find /rootfs${STATIC} -type f |sort |wc; \
+  du -sh /rootfs${STATIC}/*
 # RUN rm -rf ${STATIC}; ln -s /rootfs${STATIC} ${STATIC}
 
 # Set multiple labels at once, author,builtdate
@@ -611,6 +612,6 @@ ARG BUILDDATE
 LABEL \
   github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
   github.com.infrastlabs.docker-x11base.release="production" \
-  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.version="v26.11" \
   github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
   github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"
