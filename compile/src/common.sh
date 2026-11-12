@@ -57,21 +57,14 @@ function oneBuild(){
     echo -e "\n$1, start building.."
     begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/oneBuild-$1.log
     test "yes" == "$CONSOLE_LOG" && echo CONSOLE_LOG=yes || echo CONSOLE_LOG=no
-    # 2026-11-11 修正吞错: 原 "$1 |tee $logfile" 管道退出码取 tee 的(0) 非 $1 的;
-    # 且原 "$?" 取的是 find|sort 的(0), 恒报 "err 0, pass"。改用临时文件捕获 $1 真实退出码。
-    # 子 shell 内 set +e 保 $1 失败继续(行为不变); rcfile 捕获 $1 真实退出码(非管道 tee 的 0)。
-    # return $rc 让调用方 set -e 捕获; 管道 || true 防 find 无结果/tail 无内容时 set -e 误触发。
-    local rcfile=$(mktemp $LOGS/.rc.XXXXXX)
-    if [ "yes" = "$CONSOLE_LOG" ]; then
-        ( set +e; $1; echo $? > $rcfile ) 2>&1 | tee $logfile || true
-    else
-        ( set +e; $1; echo $? > $rcfile ) > $logfile 2>&1 || true
-    fi
-    local rc=$(cat $rcfile 2>/dev/null); rm -f $rcfile
-    [ -z "$rc" ] && rc=1
+    # 2026-11-12 方案A: 复用 doExec 拿精确 rc + 白名单实时回显 + 分层日志(/tmp/doExec/<caller>/)。
+    # doExec 内部 ( set +e; $1; ... ) 保方法块失败继续跑完(行为与旧版一致, 非 set -e 即停);
+    # 保留 oneBuild 的产物清单(find TARGETPATH) + err/pass 判定 + 耗时; 失败 tail doExec 实际日志。
+    doExec "$1"
+    local rc=$?
     echo -e "\nTARGETPATH=$TARGETPATH"; find $TARGETPATH -type f |sort
     if [ "$rc" != 0 ]; then
-        echo "err $rc, fail"; tail -200 $logfile || true
+        echo "err $rc, fail"; tail -200 "${DOEXEC_LOG:-$logfile}" || true
     else
         echo "err 0, pass"
     fi
@@ -93,10 +86,11 @@ function doExec(){
   local elog=/tmp/doExec/$caller; mkdir -p $elog
   [ -f "$cmd" ] && cmd="bash $cmd"
   local lf=$elog/$(echo "$cmd $args" | sed 's^[ /]^_^g').log
+  export DOEXEC_LOG=$lf   # 供 oneBuild 失败 tail 到本 doExec 实际日志
   local rcfile=$(mktemp $elog/.rc.XXXXXX)
   # 实时: 子 shell 输出流经 tee(全量落日志) + 白名单 grep(高信号行回显); rcfile 捕获 $cmd 真实退出码.
   ( set +e; $cmd $args; echo $? > $rcfile ) 2>&1 | tee -a "$lf" \
-    | grep -E "ERROR:|fatal|error:|Error[0-9]|undefined reference|No such file|can't stat|MISSING|FAILED|>>> |start building|err [0-9]+, (pass|fail)|本操作|OK: [0-9]+ MiB|TARGETPATH=" \
+    | grep -E "ERROR:|fatal|error:|Error ?[0-9]|undefined reference|No such file|No rule|can't stat|MISSING|FAILED|>>> |start building|err [0-9]+, (pass|fail)|本操作|OK: [0-9]+ MiB|TARGETPATH=" \
     | grep -vE "perl-error|fail_on_|--add-missing|-Werror|pixbuf-fail|\[[0-9]+/[0-9]+\] (Compiling|Generating|Linking)" || true
   local rc=$(cat $rcfile 2>/dev/null); rm -f $rcfile
   [ -z "$rc" ] && rc=1   # $cmd 内显式 exit 时 rcfile 未写 -> 视为失败
