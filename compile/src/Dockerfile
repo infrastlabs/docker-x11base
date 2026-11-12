@@ -8,6 +8,7 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
   RUN git config --global http.sslVerify false
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
+  COPY ./tarsrc /tarsrc
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     ls -lh /src/**/*.sh
@@ -18,9 +19,10 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
   ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
   RUN git config --global http.sslVerify false
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
+  COPY ./tarsrc /tarsrc
   COPY ./src /src
-  RUN chmod +x /src/**/*.sh; \
-    ls -lh /src/**/*.sh
+  RUN chmod +x /src/**/*.sh
+    # ls -lh /src/**/*.sh ##avoid ci-log with double print
 
 # --platform=$BUILDPLATFORM 
 FROM base AS tiger
@@ -34,7 +36,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/x-tigervnc/build.sh b_deps; \
   sh /src/x-tigervnc/build.sh b_tiger; \
   \
-  find ${TARGETPATH} -type f |sort
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3
   # xx-verify --static ${TARGETPATH}/bin/Xvnc; \
   # xx-verify --static ${TARGETPATH}/bin/vncpasswd; \
   # upx ${TARGETPATH}/bin/Xvnc; \
@@ -70,7 +72,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/x-xrdp/build.sh b_deps; \
   sh /src/x-xrdp/build.sh xrdp; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
   # xx-verify --static ${TARGETPATH}/sbin/xrdp; \
   # xx-verify --static ${TARGETPATH}/sbin/xrdp-chansrv; \
   # upx ${TARGETPATH}/sbin/xrdp; \
@@ -90,7 +92,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/x-x11vnc/build.sh b_deps; \
   sh /src/x-x11vnc/build.sh x11vnc; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 FROM base AS dropbear
 ARG COMPILE_SSH="yes"
@@ -100,10 +102,12 @@ RUN mkdir -p $TARGETPATH; \
   # sh /src/x-dropbear/build.sh cache; \
   \
   test "yes" != "$COMPILE_SSH" && exit 0 || echo doMake; \
-  sh /src/x-dropbear/build.sh dropbear; \
+  # 2026-11-16: 先 b_deps 建 libxcrypt(yescrypt), 再 dropbear 链入——原只调 dropbear 未建 libcrypt.a→无 yescrypt 登录失败
+  sh /src/x-dropbear/build.sh b_deps; \
+  sh /src/x-dropbear/build.sh dropbear_2026_94; \
   \
-  find ${TARGETPATH} -type f |sort; 
-
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
+  test -x ${TARGETPATH}/sbin/dropbear || exit 1
 FROM base AS suckless
 ARG COMPILE_SUCKLESS="yes"
 ENV CONSOLE_LOG=no \
@@ -116,7 +120,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/suckless/build.sh dwm; \
   sh /src/suckless/build.sh dmenu; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
 FROM base AS fluxbox
@@ -136,7 +140,7 @@ RUN mkdir -p $TARGETPATH; \
     export TARGETPATH=/usr/local/static/fluxbox; \
     bash /src/fluxbox/build.sh.xft.sh fluxbox; \
   \
-  find ${TARGETPATH} -type f |sort; 
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; 
 
 # Build Openbox.
 # FROM infrastlabs/x11-base:builder AS openbox
@@ -160,7 +164,7 @@ RUN mkdir -p $TARGETPATH; \
   # bash /src/_ex/fontconfig/build.sh; \
   # bash /src/openbox/build.sh.bk1.sh; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 # RUN xx-verify --static \
 #     /tmp/openbox-install/usr/bin/openbox \
 #     /tmp/openbox-install/usr/bin/obxprop
@@ -200,7 +204,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/xcompmgr/build.sh Xdamage; \
   sh /src/xcompmgr/build.sh xcompmgr; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 FROM base AS perp
 ARG COMPILE_PERP="yes"
@@ -212,7 +216,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_PERP" && exit 0 || echo doMake; \
   sh /src/xperp/build.sh perp; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build misc:su-exec,lrzsz,n2n,tinc
 FROM base AS misc
@@ -228,7 +232,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/u-misc/build.sh n2n; \
   sh /src/u-misc/build.sh tinc; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build xbindkeys
 FROM base AS xbindkeys
@@ -242,7 +246,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_XBINDKEYS" && exit 0 || echo doMake; \
   sh /src/x-xbindkeys/build.sh xbindkeys; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build xrandr
 FROM base AS xrandr
@@ -254,10 +258,10 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_XRANDR" && exit 0 || echo doMake; \
   sh /src/x-xrandr/build.sh xrandr; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
-# Build dunst (xcb 通知守护)
+# Build dunst (xcb 通知守护) + notify-send（通知发送端，x-dunst 内构建）
 FROM base AS dunst
 ARG COMPILE_DUNST="yes"
 ENV CONSOLE_LOG=no \
@@ -266,7 +270,8 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_DUNST" && exit 0 || echo doMake; \
   sh /src/x-dunst/build.sh b_deps; \
   sh /src/x-dunst/build.sh dunst; \
-  find ${TARGETPATH} -type f |sort;
+  sh /src/x-dunst/build.sh notify_send; \
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build rofi (基础应用; 需 xcb-util -> b_deps 复用 w-tint2 xcbutil)
 FROM base AS rofi
@@ -277,7 +282,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_ROFI" && exit 0 || echo doMake; \
   sh /src/x-rofi/build.sh b_deps; \
   sh /src/x-rofi/build.sh rofi; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 #######################################################
 #######################################################
@@ -293,7 +298,8 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/w-feh/build.sh b_deps; \
   sh /src/w-feh/build.sh feh; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
+  test -x ${TARGETPATH}/bin/feh || exit 1
 
 
 # Build hsetroot (imlib 应用, 壁纸设置)
@@ -305,7 +311,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_HSETROOT" && exit 0 || echo doMake; \
   sh /src/w-hsetroot/build.sh b_deps; \
   sh /src/w-hsetroot/build.sh hsetroot; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build scrot (imlib 截图)
 FROM base AS scrot
@@ -316,7 +322,8 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_SCROT" && exit 0 || echo doMake; \
   sh /src/w-scrot/build.sh b_deps; \
   sh /src/w-scrot/build.sh scrot; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
+  test -x ${TARGETPATH}/bin/scrot || exit 1
 
 # Build tint2
 FROM base AS tint2
@@ -330,7 +337,8 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/w-tint2/build.sh b_deps; \
   sh /src/w-tint2/build.sh tint2; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
+  test -x ${TARGETPATH}/bin/tint2 || exit 1
 
 # Build xlunch
 FROM base AS xlunch
@@ -341,10 +349,10 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/w-xlunch/build.sh cache; \
   \
   test "yes" != "$COMPILE_XLUNCH" && exit 0 || echo doMake; \
-  sh /src/w-xlunch/build.sh imlib2; \
+  # sh /src/w-xlunch/build.sh imlib2; \
   sh /src/w-xlunch/build.sh xlunch; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 #######################################################
 #######################################################
@@ -360,7 +368,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-lxde/build.sh lxappearance; \
   sh /src/v-lxde/build.sh lxtask; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 FROM base AS pcmanfm
 ARG COMPILE_PCMANFM="yes"
@@ -373,7 +381,8 @@ RUN mkdir -p $TARGETPATH; \
   bash /src/v-pcmanfm/build.sh b_deps; \
   bash /src/v-pcmanfm/build.sh pcmanfm; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
+  test -x ${TARGETPATH}/bin/pcmanfm || exit 1
 
 # Build xfce4 (xfce4settings/thunar/ristretto; GTK2, 共享 xfce 库栈)
 # b_deps: ensure_gtk_libs(最新 gtk2) + dbus/dbus-glib + xfce 库栈(util/conf/ui/exo/garcon) + libexif
@@ -387,10 +396,14 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_XFCE4" && exit 0 || echo doMake; \
   sh /src/v-xfce4/build.sh b_deps; \
   sh /src/v-xfce4/build.sh xfce4settings; \
-  sh /src/v-xfce4/build.sh thunar; \
-  sh /src/v-xfce4/build.sh ristretto; \
+  # sh /src/v-xfce4/build.sh ristretto; \
+  # sh /src/v-xfce4/build.sh thunar; \
   \
-  find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |sort;
+  test -x $TARGETPATH/bin/xfce4-display-settings || { echo "XFCE4 FAIL: xfce4-display-settings not built"; exit 1; }; \
+  # test -x /usr/local/static/ristretto/bin/ristretto || { echo "XFCE4 FAIL: ristretto not built"; exit 1; }; \
+  # test -x /usr/local/static/thunar/bin/thunar || { echo "XFCE4 FAIL: thunar not built"; exit 1; }; \
+  \
+  find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build geany
 FROM base AS geany
@@ -404,7 +417,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-geany/build.sh b_deps; \
   sh /src/v-geany/build.sh geany; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build engrampa (GTK2 归档管理器; engrampa() 自足, 无独立 b_deps)
 FROM base AS engrampa
@@ -414,7 +427,7 @@ ENV CONSOLE_LOG=no \
 RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_ENGRAMPA" && exit 0 || echo doMake; \
   sh /src/v-engrampa/build.sh engrampa; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build gpicview (GTK2 图片查看器)
 FROM base AS gpicview
@@ -425,7 +438,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_GPICVIEW" && exit 0 || echo doMake; \
   sh /src/v-gpicview/build.sh b_deps; \
   sh /src/v-gpicview/build.sh gpicview; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
 #######################################################
@@ -454,7 +467,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/x-pulseaudio/build.sh b_deps; \
   sh /src/x-pulseaudio/build.sh pulseaudio; \
   \
-  find ${TARGETPATH} -type f |sort; 
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3
 
 # Build pavucontrol (GTK2/gtkmm, 需 pulse+gtkmm 栈)
 FROM pulseaudio AS pavucontrol
@@ -468,7 +481,7 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-pavucontrol/build.sh b_deps; \
   sh /src/v-pavucontrol/build.sh pavucontrol; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build pasystray (GTK2 托盘, 需 pulse 栈 -> FROM pulseaudio 继承)
 FROM pulseaudio AS pasystray
@@ -479,7 +492,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_PASYSTRAY" && exit 0 || echo doMake; \
   sh /src/v-pasystray/build.sh b_deps; \
   sh /src/v-pasystray/build.sh pasystray; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build sysmonitor (gtkmm 栈; 需 pulse+gtkmm -> FROM gtkmm 继承)
 # full = build_gtop + build_wnck + gnome_system_monitor (gtop/wnck 非父级提供, 故直接 full,
@@ -493,7 +506,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_SYSMONITOR" && exit 0 || echo doMake; \
   bash /src/w-tint2/build.sh xcbutil; \
   sh /src/v-sysmonitor/build.sh full; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
 # Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
@@ -504,8 +517,9 @@ ENV CONSOLE_LOG=no \
 RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_DBUS" && exit 0 || echo doMake; \
   sh /src/x-dbus/build.sh dbus; \
+  sh /src/x-dbus/build.sh dbus-launch; \
   TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib; \
-  find /usr/local/static/dbus /usr/local/static/dbus-glib -type f 2>/dev/null |sort;
+  find /usr/local/static/dbus /usr/local/static/dbus-glib -type f 2>/dev/null |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build ibus (GTK2 输入法: librime/ibus/panel/x11/ibus-rime/setup; 需 dbus+gtk2)
 # 注意: v-ibus/build.sh 是 bash-only (busybox sh 解析失败 line297), 故用 bash 调用
@@ -517,7 +531,7 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_IBUS" && exit 0 || echo doMake; \
   bash /src/v-ibus/build.sh b_deps; \
   bash /src/v-ibus/build.sh full; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # FROM compile
 # FROM ${BASEIMAGE} #导致img嵌套，层次达max;
@@ -568,16 +582,16 @@ RUN \
 # RUN rm -rf /rootfs${STATIC}/xrdp
 # RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
 # stages: 未用到的stage,会跳过构建
-# COPY --from=tiger ${STATIC} /rootfs${STATIC}
-# COPY --from=xrdp ${STATIC} /rootfs${STATIC}
-# COPY --from=x11vnc ${STATIC} /rootfs${STATIC}
-# COPY --from=dropbear ${STATIC} /rootfs${STATIC}
-# COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
-# COPY --from=openbox ${STATIC} /rootfs${STATIC}
-# COPY --from=suckless ${STATIC} /rootfs${STATIC}
-# COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
-# COPY --from=perp ${STATIC} /rootfs${STATIC}
-# COPY --from=misc ${STATIC} /rootfs${STATIC}
+COPY --from=tiger ${STATIC} /rootfs${STATIC}
+COPY --from=xrdp ${STATIC} /rootfs${STATIC}
+COPY --from=x11vnc ${STATIC} /rootfs${STATIC}
+COPY --from=dropbear ${STATIC} /rootfs${STATIC}
+COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
+COPY --from=openbox ${STATIC} /rootfs${STATIC}
+COPY --from=suckless ${STATIC} /rootfs${STATIC}
+COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
+COPY --from=perp ${STATIC} /rootfs${STATIC}
+COPY --from=misc ${STATIC} /rootfs${STATIC}
 # 
 COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
 COPY --from=scrot ${STATIC} /rootfs${STATIC}
@@ -602,8 +616,9 @@ COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
 COPY --from=geany ${STATIC} /rootfs${STATIC}
 COPY --from=engrampa ${STATIC} /rootfs${STATIC}
 COPY --from=gpicview ${STATIC} /rootfs${STATIC}
-# COPY --from=dbus ${STATIC} /rootfs${STATIC}
+COPY --from=dbus ${STATIC} /rootfs${STATIC}
 # COPY --from=ibus ${STATIC} /rootfs${STATIC}
+COPY --from=base /tmp/NOCACHE /tmp/
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
 RUN rm -rf  /rootfs/bin /rootfs/sbin;
@@ -615,8 +630,10 @@ RUN rm -rf  /rootfs/bin /rootfs/sbin;
 #   upx /rootfs${STATIC}/suckless/bin/dwm; \
 #   upx /rootfs${STATIC}/suckless/bin/dmenu
 # view02
-RUN find /rootfs${STATIC} -type f |sort |wc
-RUN find /rootfs${STATIC} -type f |sort
+# RUN find /rootfs${STATIC} -type f |sort
+RUN find /rootfs${STATIC} -type f |sort |wc; \
+  du -sh /rootfs${STATIC}/*; \
+  cat /tmp/NOCACHE
 # RUN rm -rf ${STATIC}; ln -s /rootfs${STATIC} ${STATIC}
 
 # Set multiple labels at once, author,builtdate
@@ -624,6 +641,6 @@ ARG BUILDDATE
 LABEL \
   github.com.infrastlabs.docker-x11base.vendor=Infrastlabs \
   github.com.infrastlabs.docker-x11base.release="production" \
-  github.com.infrastlabs.docker-x11base.version="1.0.1-beta" \
+  github.com.infrastlabs.docker-x11base.version="v26.11" \
   github.com.infrastlabs.docker-x11base.maintainer="sam <sldevsir@126.com>" \
   github.com.infrastlabs.docker-x11base.builtdate="$BUILDDATE"
