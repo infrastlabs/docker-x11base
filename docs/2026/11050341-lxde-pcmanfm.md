@@ -327,3 +327,36 @@ g_type_ensure(gtk_text_view_get_type());
 - 资源无泄漏：`single_inst_client_free` 正确释放 channel + socket。
 - `PACKAGE_UI_DIR` 硬编码 `/usr/local/static/pcmanfm/share/pcmanfm/`：仅影响跨前缀分发，非 bug。
 - 壁纸 / 关窗不退出见 4.1.4。
+
+## 五、builder-pav 容器内按 Dockerfile 方式重跑（2026-11-12）
+
+### 5.1、调用方式（参考 Dockerfile lxde / pcmanfm stage）
+
+- **lxde stage**（Dockerfile 352-366 行）：`ENV CONSOLE_LOG=no TARGETPATH=/usr/local/static/lxde` → `sh /src/v-lxde/build.sh lxtask`
+- **pcmanfm stage**（368-380 行）：`ENV CONSOLE_LOG=no TARGETPATH=/usr/local/static/pcmanfm` → `bash /src/v-pcmanfm/build.sh b_deps` → `bash /src/v-pcmanfm/build.sh pcmanfm`
+- builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）内 `/src` 已软链宿主 `compile/src`，照 stage 的环境变量在容器内执行即可复现。
+
+### 5.2、源码获取：GITHUB 覆盖（hub.njuu.cf 不可达）
+
+- 容器内网络实测：`gitee.com` **可达**（`g-system/fk-libfm`、`g-system/fk-menu-cache` 直连 clone OK）；`hub.njuu.cf` **不可达**（`git ls-remote` rc=128）；`github.com` 直连 clone **失败**（`Failure when receiving data from the peer`）。
+- **lxtask 可换源不改脚本**：`common.sh:20` 是**条件导出**（`test -z "$GITHUB" && export GITHUB=https://github.com`）→ 容器内直接 `export GITHUB=https://ghfast.top/https://github.com` 即可。
+- **pcmanfm 必须改脚本位置**：`v-pcmanfm/build.sh` 尾部 `export GITHUB=https://hub.njuu.cf`（282 行）**位于 `exit 0`（275 行）之后** → 永不执行，实际克隆源取 common.sh 默认 `github.com`。调试期把覆盖行插到脚本开头 `source /src/common.sh` **之后**（4 行）才生效；**第一次失败即因插到 `exit 0` 之后**。
+- ghfast.top 前缀代理对 `lxde/lxtask`、`lxde/pcmanfm` 均可用（`git ls-remote` rc=0，pcmanfm 1.3.1 tag 在）。
+- **待办**：作者后续将把源转存 gitee，届时改 `vers.txt` / `build.sh` 的克隆源。
+
+### 5.3、结果与验证（独立兜底，不信 oneBuild 的 `err 0, pass`）
+
+| 组件 | 产物 | `file` | `ldd` | `xx-verify --static` | 日志 miss |
+|---|---|---|---|---|---|
+| lxtask | `/usr/local/static/lxde/bin/lxtask` **11.6M** | statically linked, stripped | Not a valid dynamic program | **PASS** | 0 |
+| pcmanfm | `/usr/local/static/pcmanfm/bin/pcmanfm` **12.5M** | statically linked, stripped | Not a valid dynamic program | **PASS** | 0 |
+
+- b_deps 产物齐备：`/usr/local/lib/libfm.a`（554K）、`libfm-gtk.a`（786K）、`libfm-extra.a`（25K）、`/usr/lib/libmenu-cache.a`（37K）。
+- 日志兜底口径：`grep -acE "undefined reference|attempted static link|cannot find"` = **0**。
+- pcmanfm 日志尾段计时 22 秒（2 核）；安装文件 11 个（bin/ui/desktop/man/desktopfile 齐全）。
+
+### 5.4、避坑项（本次新增）
+
+- **脚本内 `export` 的位置决定它是否执行**：`v-pcmanfm/build.sh` 的 `export GITHUB=...` 在 `exit 0`（275 行）之后的尾部注释区 → 永不执行；改克隆源必须插到 `source /src/common.sh` 之后、首个 clone 之前。
+- **pcmanfm 克隆失败的表象是"源码缺失"**：clone 失败后脚本仍继续（`cd /tmp/pcmanfm` 报 `No such file or directory`、`./autogen.sh`/`./configure` 均 `No such file`），要到 `make` 阶段才报 `PCMANFM build FAILED` → **日志前段 `fatal: unable to access` 才是真因**（AGENTS 三、3「看日志兜底」在此同样适用）。
+- lxtask 与 pcmanfm 换源方式不同：前者可用环境变量覆盖（common.sh 条件导出），后者须改脚本内 export 位置。
