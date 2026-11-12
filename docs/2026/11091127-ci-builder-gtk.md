@@ -966,6 +966,32 @@ b_deps)
 
 **④ 下一步（2026-11-11 拍板）**：先补 sysmonitor（`xcb-util` + `startup-notification` 静态库），后 pavucontrol（pulse 栈：**x11base 仓已有构建脚本，可在 `b_deps` 复用脚本调用**；源码源先手动用 `ghfast.top` 代理测试，不调整脚本）。
 
+#### 1.1 gsm 静态链跑通：补建 startup-notification 静态库（2026-11-12）
+
+**背景**：沿用 §3.4 的 `builder-pav`（`alpine-builder-gtkmm224-2` 镜像）容器，参考 Dockerfile 调用 `bash /src/w-tint2/build.sh xcbutil; sh /src/v-sysmonitor/build.sh full`。CI sysmonitor 阶段此前失败在 `#52 [sysmonitor 1/1] ... clang-12: error: linker command failed` → `GSM static-link FAILED`。
+
+**根因（真实链接错误，容器内手动重跑链接命令抓到）**：
+- `/usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lstartup-notification-1`。
+- 依赖链：`libwnck → libstartup-notification → xcb-util / X11-xcb`。`xcb-util` 已由 `w-tint2 xcbutil` 补建（`/tmp/xcb-util/src/.libs/libxcb-util.a`），但 **startup-notification 的 `.a` 从未构建**——`v-sysmonitor/build.sh` 只链 `-lstartup-notification-1`，没建对应静态库；Dockerfile sysmonitor 阶段也只跑了 `xcbutil` + `full`，无 startup-notification 静态构建。
+- apk `startup-notification-dev` 只给 `.so`/`.pc`，**无静态 `.a`**，需源码编译。
+
+**修复（commit `1c7b99d`，`compile/src/v-sysmonitor/build.sh`）**：
+- 新增 `build_startup_notification()`：autotools 构建 `startup-notification-0.12`（`--enable-static --disable-shared --prefix=/usr/local`，`make LIBS="-lXau -lXdmcp"`）→ `/usr/local/lib/libstartup-notification-1.a`；同 `x-rofi` 的 `build_dep` 做法，带「已存在则复用」跳过。
+- `full` 流程在 `build_wnck` 之后、`gnome_system_monitor` 之前加 `doExec build_startup_notification`。
+- `fetch()` 支持 `.tar.gz`（startup-notification 为 gz；gtop/wnck 为 xz）。
+- `build_gtop` / `build_wnck` 加「已产出 `.a` 则跳过重编」（构建幂等，网络抖动/离线可复用）。
+- gsm 源码已就绪（`Makefile` + `src/procman.cpp` 存在）则跳过 `rm`+重下（避免每次重下源码；网络抖动/离线兜底）。
+
+**源码 URL**：`https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz`（`x-rofi` 同款，CI 已验证可达；本地离线缓存 `.gsm-deps/startup-notification-0.12.tar.gz` 仅开发用，未入仓）。
+
+**验证（容器 `builder-pav`，`bash /src/v-sysmonitor/build.sh full`）**：
+- gsm 静态链成功 → `/usr/local/static/gsm/bin/gnome-system-monitor` **17.8MB**，`ELF statically linked stripped`。
+- `xx-verify --static` ✅；`strings`：`procman.ini`（gconf-shim）/`utilities-system-monitor`（icon）/`MurrineRcStyle`（murrine）全部 OK。
+
+**注意（本容器实测坑）**：
+- `doExec` 返回真实 rc，且脚本顶部 `set -e` 会隐式捕获失败（实测 `doExec false` → 脚本 rc=1，尾部 `exit 0` 不会执行）。但 `full` case 原无显式 `|| exit`——为不依赖 `set -e` 隐式行为、避免「调用上下文变化/errexit 被关」时静默掩盖，已改 `full` case 每个 `doExec ... || exit 1`（commit 同下）。判断成功仍建议看 doExec 日志 `/tmp/doExec/<caller>/*.log` 或产物存在，不只凭脚本返回码。
+- 容器环境若继承 `TARGETPATH=/usr/local/static_temp1`，gsm 会装到那里而非 `/usr/local/static/gsm`（CI Dockerfile 显式设 `TARGETPATH=/usr/local/static/gsm`，不受影响）。
+
 
 ### 2、pulse 栈当时怎么搞的（awe 容器 + 历史文档回顾，2026-11-11）
 

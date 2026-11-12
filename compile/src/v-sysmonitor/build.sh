@@ -206,10 +206,12 @@ cache)
     # down_catfile $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz > /dev/null
     ;;
 full)
-    doExec build_gtop
-    doExec build_wnck
-    doExec build_startup_notification
-    doExec gnome_system_monitor
+    # 显式 || exit 1: 不依赖 set -e 隐式捕获——doExec 返回 rc, 任一失败立即退出
+    # (尾部 exit 0 仅在所有 doExec 成功时到达; set -e 关掉/调用上下文变化也不掩盖)
+    doExec build_gtop || exit 1
+    doExec build_wnck || exit 1
+    doExec build_startup_notification || exit 1
+    doExec gnome_system_monitor || exit 1
     ;;
 b_deps)
     # 静态库依赖检查
