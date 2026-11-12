@@ -19,7 +19,8 @@ function geany(){
         tar xzf /tmp/geany-1.34.0.tar.gz -C /tmp --strip-components=1
       else
         rm -rf /tmp/geany
-        git clone --depth=1 --branch=1.34.0 $GITHUB/geany/geany /tmp/geany
+        # git clone --depth=1 --branch=1.34.0 $GITHUB/geany/geany /tmp/geany
+        git clone --depth=1 --branch=1.34.0 https://gitee.com/g-system/fk-geany /tmp/geany
       fi
     fi
     cd /tmp/geany
