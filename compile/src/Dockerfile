@@ -436,18 +436,18 @@ RUN mkdir -p $TARGETPATH; \
 #######################################################
 # Build gtkmm 栈 (7 libs, 供 pavucontrol/gnome-system-monitor)
 # pavucontrol 需 pulse 静态库 -> gtkmm 建在 pulseaudio stage 上 (继承 pulse), pavucontrol 再 FROM gtkmm
-FROM pulseaudio AS gtkmm
-ARG COMPILE_GTKMM="yes"
-ENV CONSOLE_LOG=no
-RUN mkdir -p /usr/local/static; \
-  test "yes" != "$COMPILE_GTKMM" && exit 0 || echo doMake; \
-  sh /src/u-gtkmm/build.sh b_deps; \
-  sh /src/u-gtkmm/build.sh gtkmm; \
-  \
-  ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a;
+# FROM pulseaudio AS gtkmm
+# ARG COMPILE_GTKMM="yes"
+# ENV CONSOLE_LOG=no
+# RUN mkdir -p /usr/local/static; \
+#   test "yes" != "$COMPILE_GTKMM" && exit 0 || echo doMake; \
+#   sh /src/u-gtkmm/build.sh b_deps; \
+#   sh /src/u-gtkmm/build.sh gtkmm; \
+#   \
+#   ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a;
 
 # Build pavucontrol (GTK2/gtkmm, 需 pulse+gtkmm 栈)
-FROM gtkmm AS pavucontrol
+FROM pulseaudio AS pavucontrol
 ARG COMPILE_PAVUCONTROL="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pavucontrol
@@ -475,7 +475,7 @@ RUN mkdir -p $TARGETPATH; \
 # full = build_gtop + build_wnck + gnome_system_monitor (gtop/wnck 非父级提供, 故直接 full,
 # 不调 b_deps -- 其 ls gtop/wnck 在 set -e 下会因未建而中止)
 # 静态链需 xcb-util (libwnck→startup-notification→xcb-util), 由 w-tint2 xcbutil 补建
-FROM gtkmm AS sysmonitor
+FROM base AS sysmonitor
 ARG COMPILE_SYSMONITOR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/gsm
