@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 source /src/common.sh
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-xlunch}"
 
 # 脚本目录（绝对路径；imlib2() 内会 cd，须在函数外先算好）
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -24,6 +25,7 @@ XLUNCH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_V
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2-1.7.4.tar.gz
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2_loaders-1.7.4.tar.gz
 function imlib2(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   apk add xorg-server-dev
 
   # 
@@ -141,6 +143,7 @@ PYEOF
 # Build xlunch
 # export TARGETPATH=/usr/local/static/xlunch
 function xlunch(){
+  set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   apk add hicolor-icon-theme #need hicolor
   # ref: xcompmgr
   apk add cairo-static expat-static fribidi-static glib-static graphite2-static harfbuzz-static
@@ -202,8 +205,8 @@ cache)
     down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    imlib2
-    xlunch
+    doExec imlib2
+    doExec xlunch
     ;;
 b_deps)
     b_deps
