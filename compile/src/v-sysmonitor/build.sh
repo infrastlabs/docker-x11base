@@ -34,14 +34,17 @@ fetch(){
   done
   if [ -f /tmp/gsm-deps/$name ]; then
     echo "unpack $name (offline)"; 
-    case $name in *.xz) tar xJf /tmp/gsm-deps/$name -C /tmp/gsm-build;; *) tar xjf /tmp/gsm-deps/$name -C /tmp/gsm-build;; esac
+    case $name in *.xz) tar xJf /tmp/gsm-deps/$name -C /tmp/gsm-build;; *.gz) tar xzf /tmp/gsm-deps/$name -C /tmp/gsm-build;; *) tar xjf /tmp/gsm-deps/$name -C /tmp/gsm-build;; esac
   else
-    echo "download $name"; down_catfile $path | tar -xJ -C /tmp/gsm-build 2>/dev/null || down_catfile $path | tar -xj -C /tmp/gsm-build
+    echo "download $name"; down_catfile $path | tar -xJ -C /tmp/gsm-build 2>/dev/null || down_catfile $path | tar -xj -C /tmp/gsm-build 2>/dev/null || down_catfile $path | tar -xz -C /tmp/gsm-build
   fi
 }
 
 build_gtop(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  if [ -s /usr/local/static/gtop/lib/libgtop-2.0.a ]; then
+    log "reuse existing libgtop-2.0.a (skip build)"; return 0
+  fi
   log "Build libgtop-2.40.0 static..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libgtop-2.40.0
     fetch libgtop-2.40.0.tar.xz $GNOME/libgtop/2.40/libgtop-2.40.0.tar.xz
@@ -62,6 +65,9 @@ build_gtop(){
 
 build_wnck(){
   set -e
+  if [ -s /usr/local/static/wnck/lib/libwnck-1.a ]; then
+    log "reuse existing libwnck-1.a (skip build)"; return 0
+  fi
   log "Build libwnck-2.30.7 static (no Xres, conditional)..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libwnck-2.30.7
     fetch libwnck-2.30.7.tar.xz $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz
@@ -75,6 +81,25 @@ build_wnck(){
     cp libwnck-1.0.pc /usr/local/static/wnck/lib/pkgconfig/
     cp libwnck/*.h /usr/local/static/wnck/include/libwnck-1.0/libwnck/
     ls -lh /usr/local/static/wnck/lib/libwnck-1.a
+}
+
+# startup-notification（libwnck → libstartup-notification → xcb-util/X11-xcb 传递依赖）。
+# 纯 C autotools，装 /usr/local/lib（同 x-rofi build_dep），供 gsm 静态链 -lstartup-notification-1。
+build_startup_notification(){
+  set -e
+  if [ -s /usr/local/lib/libstartup-notification-1.a ]; then
+    log "reuse existing libstartup-notification-1.a (skip build)"; return 0
+  fi
+  log "Build startup-notification-0.12 static..."
+    mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/startup-notification-0.12
+    fetch startup-notification-0.12.tar.gz \
+      https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz
+    cd /tmp/gsm-build/startup-notification-0.12
+    ./configure --enable-static --disable-shared --prefix=/usr/local >/tmp/sn-cfg.log 2>&1 || true
+    make -j$(nproc) LIBS="-lXau -lXdmcp" >/tmp/sn-make.log 2>&1 || true
+    make install >/tmp/sn-inst.log 2>&1 || true
+    test -s /usr/local/lib/libstartup-notification-1.a || { log "libstartup-notification-1.a MISSING"; exit 1; }
+    ls -lh /usr/local/lib/libstartup-notification-1.a
 }
 
 # gnome-icon-theme / gnome-doc-utils 是 data/构建工具，无 .a；pkg-config 检查需 .pc
@@ -94,17 +119,22 @@ function gnome_system_monitor(){
   stub_pc
 
   log "Download/unpack GSM (2.28.2 tarball)..."
-    rm -rf /tmp/gsm-build/gsm; mkdir -p /tmp/gsm-build
-    # gsm 源码已在 /_ext/.gsm/gnome-system-monitor-2.28.2（已打 gconf patch）
-    if [ -d /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 ]; then
-      cp -r /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 /tmp/gsm-build/gsm
+    # 复用已就绪源码（configure 通过且 Makefile 已生成），避免每次 rm+重下（网络抖动/离线）
+    if [ -f /tmp/gsm-build/gsm/Makefile ] && [ -f /tmp/gsm-build/gsm/src/procman.cpp ]; then
+      log "reuse existing /tmp/gsm-build/gsm source (skip download)"
     else
-      mkdir -p /tmp/gsm-build/gsm
-      down_catfile $GNOME/gnome-system-monitor/2.28/gnome-system-monitor-2.28.2.tar.bz2 \
-        | tar -xj --strip 1 -C /tmp/gsm-build/gsm
-      cd /tmp/gsm-build/gsm
-      git apply /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null \
-        || patch -p1 < /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null || true
+      rm -rf /tmp/gsm-build/gsm; mkdir -p /tmp/gsm-build
+      # gsm 源码已在 /_ext/.gsm/gnome-system-monitor-2.28.2（已打 gconf patch）
+      if [ -d /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 ]; then
+        cp -r /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 /tmp/gsm-build/gsm
+      else
+        mkdir -p /tmp/gsm-build/gsm
+        down_catfile $GNOME/gnome-system-monitor/2.28/gnome-system-monitor-2.28.2.tar.bz2 \
+          | tar -xj --strip 1 -C /tmp/gsm-build/gsm
+        cd /tmp/gsm-build/gsm
+        git apply /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null \
+          || patch -p1 < /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null || true
+      fi
     fi
     cd /tmp/gsm-build/gsm
     # 磁盘 tab 卡顿修复 patch（两分支统一应用；.gsm 源码亦不含，见 2026-11-08）
@@ -178,6 +208,7 @@ cache)
 full)
     doExec build_gtop
     doExec build_wnck
+    doExec build_startup_notification
     doExec gnome_system_monitor
     ;;
 b_deps)
@@ -185,6 +216,7 @@ b_deps)
     echo "== gtop/wnck =="; ls /usr/local/static/gtop/lib/libgtop-2.0.a /usr/local/static/wnck/lib/libwnck-1.a 2>&1
     echo "== gtkmm stack =="; ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a 2>&1
     echo "== xcb-util (startup-notification 依赖) =="; ls /tmp/xcb-util/src/.libs/libxcb-util.a 2>&1
+    echo "== startup-notification =="; ls /usr/local/lib/libstartup-notification-1.a 2>&1
     ;;
 *) #compile
     oneBuild $1
