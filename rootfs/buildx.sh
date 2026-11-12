@@ -23,7 +23,7 @@ function doBuildx(){
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     plat="--platform linux/amd64" #
 
-    compile="alpine-compile-2"; builddate=$(date +%Y-%m-%d_%H:%M:%S)
+    compile="alpine-compile-2-dbg"; builddate=$(date +%Y-%m-%d_%H:%M:%S)
     # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
     # --build-arg REPO=$repo/ #temp notes, just use dockerHub's
     args="""
