@@ -244,6 +244,12 @@ function gtk(){
     # 先显式生成全部 BUILT_SOURCES, 再建库目标(不建 all 的工具: 工具链 .a 未 merge theme_* 会 undefined; 项目只要 .a)。
     # 同 gdkenumtypes.h 教训(d9d3e1e/292e74b), 别只补出错的头, 一次把 BUILT_SOURCES 全生成。
     make -j$(nproc) -C gdk gdkconfig.h gdkalias.h gdkenumtypes.h gdkmarshalers.h gdkaliasdef.c gdkenumtypes.c gdkmarshalers.c || log "gdk BUILT_SOURCES rc=$? (continue)"
+    # 2026-11-12: libgdk-x11-2.0.la 的 DEPENDENCIES/LIBADD 引用 x11/libgdk-x11.la(X11 后端子库), 但
+    # gdk/Makefile 无其构建规则——它只由 SUBDIRS 递归(make all 的 all-recursive; gdk SUBDIRS=$(gdktarget) . tests,
+    # gdktarget=x11)构建。直接建 .la 目标不触发 SUBDIRS 递归 → fresh 树缺 x11/libgdk-x11.la → "No rule to make target"。
+    # 显式先建 x11 子库, 再建 gdk 主库(其 link 依赖 x11/.la), 否则 gtk 再因缺 ../gdk/libgdk-x11-2.0.la 亡。
+    # 同 BUILT_SOURCES(121a4de)/gdkenumtypes.h(292e74b) 教训: .la 目标不触发子库递归, 需显式补建。
+    make -j$(nproc) -C gdk/x11 libgdk-x11.la || log "gdk x11 rc=$? (continue)"
     make -j$(nproc) -C gdk libgdk-x11-2.0.la || log "gdk make rc=$? (partial, .a checked below)"
     # gtk 3 个头由 stamp 标记控制(同 gdkenumtypes.h): stamp 在但头缺失 → make 跳过重建。
     # 仅头缺失时 rm stamp 强制重建(增量复用头在则不动, 免无谓重编; fresh clone 无 stamp 天然全重建)。
