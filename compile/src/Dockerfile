@@ -1,6 +1,7 @@
 ARG COMPILE_IMG=alpine-compile
 ARG REPO=
-FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
+# FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
@@ -107,6 +108,21 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort; 
 
+FROM base AS suckless
+ARG COMPILE_SUCKLESS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/suckless
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/suckless/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_SUCKLESS" && exit 0 || echo doMake; \
+  sh /src/suckless/build.sh st; \
+  sh /src/suckless/build.sh dwm; \
+  sh /src/suckless/build.sh dmenu; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+
 FROM base AS fluxbox
 ARG COMPILE_FLUX="yes"
 ENV CONSOLE_LOG=no \
@@ -125,21 +141,6 @@ RUN mkdir -p $TARGETPATH; \
     bash /src/fluxbox/build.sh.xft.sh fluxbox; \
   \
   find ${TARGETPATH} -type f |sort; 
-
-FROM base AS suckless
-ARG COMPILE_SUCKLESS="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/suckless
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/suckless/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_SUCKLESS" && exit 0 || echo doMake; \
-  sh /src/suckless/build.sh st; \
-  sh /src/suckless/build.sh dwm; \
-  sh /src/suckless/build.sh dmenu; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
 
 # Build Openbox.
 # FROM infrastlabs/x11-base:builder AS openbox
@@ -190,6 +191,8 @@ RUN mkdir -p $TARGETPATH; \
 # RUN /tmp/build-fontconfig.sh
 
 
+#######################################################
+#######################################################
 FROM base AS xcompmgr
 ARG COMPILE_XCOMPMGR="yes"
 ENV CONSOLE_LOG=no \
@@ -201,6 +204,122 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/xcompmgr/build.sh Xdamage; \
   sh /src/xcompmgr/build.sh xcompmgr; \
   \
+  find ${TARGETPATH} -type f |sort;
+
+FROM base AS perp
+ARG COMPILE_PERP="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/perp
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/xperp/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PERP" && exit 0 || echo doMake; \
+  sh /src/xperp/build.sh perp; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build misc:su-exec,lrzsz,n2n,tinc
+FROM base AS misc
+ARG COMPILE_MISC="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/misc
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/v-misc/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_MISC" && exit 0 || echo doMake; \
+  sh /src/u-misc/build.sh su_exec; \
+  sh /src/u-misc/build.sh lrzsz; \
+  sh /src/u-misc/build.sh n2n; \
+  sh /src/u-misc/build.sh tinc; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build xbindkeys
+FROM base AS xbindkeys
+ARG COMPILE_XBINDKEYS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xbindkeys
+RUN mkdir -p $TARGETPATH; \
+  # 源码: 落仓 tarball(容器内 nongnu 截断, 不可在线) -> cp 到 /tmp 供 build.sh
+  cp /src/x-xbindkeys/xbindkeys-1.8.7.tar.gz /tmp/; \
+  \
+  test "yes" != "$COMPILE_XBINDKEYS" && exit 0 || echo doMake; \
+  sh /src/x-xbindkeys/build.sh xbindkeys; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+# Build xrandr
+FROM base AS xrandr
+ARG COMPILE_XRANDR="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/xrandr
+RUN mkdir -p $TARGETPATH; \
+  \
+  test "yes" != "$COMPILE_XRANDR" && exit 0 || echo doMake; \
+  sh /src/x-xrandr/build.sh xrandr; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+
+# Build dunst (xcb 通知守护)
+FROM base AS dunst
+ARG COMPILE_DUNST="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/dunst
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_DUNST" && exit 0 || echo doMake; \
+  sh /src/x-dunst/build.sh b_deps; \
+  sh /src/x-dunst/build.sh dunst; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build rofi (基础应用; 需 xcb-util -> b_deps 复用 w-tint2 xcbutil)
+FROM base AS rofi
+ARG COMPILE_ROFI="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/rofi
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_ROFI" && exit 0 || echo doMake; \
+  sh /src/x-rofi/build.sh b_deps; \
+  sh /src/x-rofi/build.sh rofi; \
+  find ${TARGETPATH} -type f |sort;
+
+#######################################################
+#######################################################
+# Build feh
+FROM base AS feh
+ARG COMPILE_FEH="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/feh
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/w-feh/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_FEH" && exit 0 || echo doMake; \
+  sh /src/w-feh/build.sh b_deps; \
+  sh /src/w-feh/build.sh feh; \
+  \
+  find ${TARGETPATH} -type f |sort;
+
+
+# Build hsetroot (imlib 应用, 壁纸设置)
+FROM base AS hsetroot
+ARG COMPILE_HSETROOT="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/hsetroot
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_HSETROOT" && exit 0 || echo doMake; \
+  sh /src/w-hsetroot/build.sh b_deps; \
+  sh /src/w-hsetroot/build.sh hsetroot; \
+  find ${TARGETPATH} -type f |sort;
+
+# Build scrot (imlib 截图)
+FROM base AS scrot
+ARG COMPILE_SCROT="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/scrot
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_SCROT" && exit 0 || echo doMake; \
+  sh /src/w-scrot/build.sh b_deps; \
+  sh /src/w-scrot/build.sh scrot; \
   find ${TARGETPATH} -type f |sort;
 
 # Build tint2
@@ -231,59 +350,8 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
-# Build feh
-FROM base AS feh
-ARG COMPILE_FEH="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/feh
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/w-feh/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_FEH" && exit 0 || echo doMake; \
-  sh /src/w-feh/build.sh b_deps; \
-  sh /src/w-feh/build.sh feh; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
-# Build xbindkeys
-FROM base AS xbindkeys
-ARG COMPILE_XBINDKEYS="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/xbindkeys
-RUN mkdir -p $TARGETPATH; \
-  # 源码: 落仓 tarball(容器内 nongnu 截断, 不可在线) -> cp 到 /tmp 供 build.sh
-  cp /src/x-xbindkeys/xbindkeys-1.8.7.tar.gz /tmp/; \
-  \
-  test "yes" != "$COMPILE_XBINDKEYS" && exit 0 || echo doMake; \
-  sh /src/x-xbindkeys/build.sh xbindkeys; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
-# Build xrandr
-FROM base AS xrandr
-ARG COMPILE_XRANDR="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/xrandr
-RUN mkdir -p $TARGETPATH; \
-  \
-  test "yes" != "$COMPILE_XRANDR" && exit 0 || echo doMake; \
-  sh /src/x-xrandr/build.sh xrandr; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
-FROM base AS pcmanfm
-ARG COMPILE_PCMANFM="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/pcmanfm
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-pcmanfm/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_PCMANFM" && exit 0 || echo doMake; \
-  bash /src/v-pcmanfm/build.sh b_deps; \
-  bash /src/v-pcmanfm/build.sh pcmanfm; \
-  \
-  find ${TARGETPATH} -type f |sort;
-
+#######################################################
+#######################################################
 # Build lxde
 FROM base AS lxde
 ARG COMPILE_LXDE="yes"
@@ -298,17 +366,16 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |sort;
 
-# Build geany
-FROM base AS geany
-ARG COMPILE_GEANY="yes"
+FROM base AS pcmanfm
+ARG COMPILE_PCMANFM="yes"
 ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/geany
+  TARGETPATH=/usr/local/static/pcmanfm
 RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-geany/build.sh cache; \
+  # sh /src/v-pcmanfm/build.sh cache; \
   \
-  test "yes" != "$COMPILE_GEANY" && exit 0 || echo doMake; \
-  sh /src/v-geany/build.sh b_deps; \
-  sh /src/v-geany/build.sh geany; \
+  test "yes" != "$COMPILE_PCMANFM" && exit 0 || echo doMake; \
+  bash /src/v-pcmanfm/build.sh b_deps; \
+  bash /src/v-pcmanfm/build.sh pcmanfm; \
   \
   find ${TARGETPATH} -type f |sort;
 
@@ -329,27 +396,18 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |sort;
 
-# Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
-FROM base AS dbus
-ARG COMPILE_DBUS="yes"
+# Build geany
+FROM base AS geany
+ARG COMPILE_GEANY="yes"
 ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/dbus
+  TARGETPATH=/usr/local/static/geany
 RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_DBUS" && exit 0 || echo doMake; \
-  sh /src/x-dbus/build.sh dbus; \
-  TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib; \
-  find /usr/local/static/dbus /usr/local/static/dbus-glib -type f 2>/dev/null |sort;
-
-# Build ibus (GTK2 输入法: librime/ibus/panel/x11/ibus-rime/setup; 需 dbus+gtk2)
-# 注意: v-ibus/build.sh 是 bash-only (busybox sh 解析失败 line297), 故用 bash 调用
-FROM dbus AS ibus
-ARG COMPILE_IBUS="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/ibus
-RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_IBUS" && exit 0 || echo doMake; \
-  bash /src/v-ibus/build.sh b_deps; \
-  bash /src/v-ibus/build.sh full; \
+  # sh /src/v-geany/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_GEANY" && exit 0 || echo doMake; \
+  sh /src/v-geany/build.sh b_deps; \
+  sh /src/v-geany/build.sh geany; \
+  \
   find ${TARGETPATH} -type f |sort;
 
 # Build engrampa (GTK2 归档管理器; engrampa() 自足, 无独立 b_deps)
@@ -373,50 +431,9 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-gpicview/build.sh gpicview; \
   find ${TARGETPATH} -type f |sort;
 
-# Build hsetroot (imlib 应用, 壁纸设置)
-FROM base AS hsetroot
-ARG COMPILE_HSETROOT="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/hsetroot
-RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_HSETROOT" && exit 0 || echo doMake; \
-  sh /src/w-hsetroot/build.sh b_deps; \
-  sh /src/w-hsetroot/build.sh hsetroot; \
-  find ${TARGETPATH} -type f |sort;
 
-# Build scrot (imlib 截图)
-FROM base AS scrot
-ARG COMPILE_SCROT="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/scrot
-RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_SCROT" && exit 0 || echo doMake; \
-  sh /src/w-scrot/build.sh b_deps; \
-  sh /src/w-scrot/build.sh scrot; \
-  find ${TARGETPATH} -type f |sort;
-
-# Build dunst (xcb 通知守护)
-FROM base AS dunst
-ARG COMPILE_DUNST="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/dunst
-RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_DUNST" && exit 0 || echo doMake; \
-  sh /src/x-dunst/build.sh b_deps; \
-  sh /src/x-dunst/build.sh dunst; \
-  find ${TARGETPATH} -type f |sort;
-
-# Build rofi (基础应用; 需 xcb-util -> b_deps 复用 w-tint2 xcbutil)
-FROM base AS rofi
-ARG COMPILE_ROFI="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/rofi
-RUN mkdir -p $TARGETPATH; \
-  test "yes" != "$COMPILE_ROFI" && exit 0 || echo doMake; \
-  sh /src/x-rofi/build.sh b_deps; \
-  sh /src/x-rofi/build.sh rofi; \
-  find ${TARGETPATH} -type f |sort;
-
+#######################################################
+#######################################################
 # Build gtkmm 栈 (7 libs, 供 pavucontrol/gnome-system-monitor)
 # pavucontrol 需 pulse 静态库 -> gtkmm 建在 pulseaudio stage 上 (继承 pulse), pavucontrol 再 FROM gtkmm
 FROM pulseaudio AS gtkmm
@@ -468,32 +485,28 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-sysmonitor/build.sh full; \
   find ${TARGETPATH} -type f |sort;
 
-FROM base AS perp
-ARG COMPILE_PERP="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/perp
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/xperp/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_PERP" && exit 0 || echo doMake; \
-  sh /src/xperp/build.sh perp; \
-  \
-  find ${TARGETPATH} -type f |sort;
 
-# Build misc:su-exec,lrzsz,n2n,tinc
-FROM base AS misc
-ARG COMPILE_MISC="yes"
+# Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
+FROM base AS dbus
+ARG COMPILE_DBUS="yes"
 ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/misc
+  TARGETPATH=/usr/local/static/dbus
 RUN mkdir -p $TARGETPATH; \
-  # sh /src/v-misc/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_MISC" && exit 0 || echo doMake; \
-  sh /src/u-misc/build.sh su_exec; \
-  sh /src/u-misc/build.sh lrzsz; \
-  sh /src/u-misc/build.sh n2n; \
-  sh /src/u-misc/build.sh tinc; \
-  \
+  test "yes" != "$COMPILE_DBUS" && exit 0 || echo doMake; \
+  sh /src/x-dbus/build.sh dbus; \
+  TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib; \
+  find /usr/local/static/dbus /usr/local/static/dbus-glib -type f 2>/dev/null |sort;
+
+# Build ibus (GTK2 输入法: librime/ibus/panel/x11/ibus-rime/setup; 需 dbus+gtk2)
+# 注意: v-ibus/build.sh 是 bash-only (busybox sh 解析失败 line297), 故用 bash 调用
+FROM dbus AS ibus
+ARG COMPILE_IBUS="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/ibus
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_IBUS" && exit 0 || echo doMake; \
+  bash /src/v-ibus/build.sh b_deps; \
+  bash /src/v-ibus/build.sh full; \
   find ${TARGETPATH} -type f |sort;
 
 # FROM compile
