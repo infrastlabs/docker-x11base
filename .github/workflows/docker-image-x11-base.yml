@@ -66,6 +66,10 @@ jobs:
 
           # BUILD
           :> /tmp/.timecost
+          # 方案一：管道传递给 cat（推荐，可保留错误输出）
+          # { docker pull ubuntu:latest || :; } | cat
+          # docker buildx build --progress=plain -t my-image .
+          export BUILDKIT_PROGRESS=plain
 
           export BUILDX_NO_DEFAULT_ATTESTATIONS=1
           # args="--provenance=false --sbom=false"
@@ -77,9 +81,9 @@ jobs:
             # 
             # bash buildx.sh builder #gtk224 to ali's layer not supported err, re-build origin
             # bash buildx.sh gtk224 #builder-gtk224
-            bash buildx.sh gtkmm224
-            exit 0
-            # bash buildx.sh #compile
+            # bash buildx.sh gtkmm224
+            bash buildx.sh #compile
+            # exit 0
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
             # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
@@ -87,7 +91,7 @@ jobs:
             # exit 0
           # 
           # #############################
-          doDistros=true
+          doDistros=false
           if [ "true" == "$doDistros" ]; then
           echo distros; cd ../distros;
             # # dbg
@@ -199,7 +203,7 @@ jobs:
           cd ../.github/workflows; test "true" == "$doSync" && bash syncer.sh;
           # 
           # #############################
-          echo undockPkg; doPkg=false
+          echo undockPkg; doPkg=true
           cd ../../.github/workflows; test "true" == "$doPkg" && bash undock.sh;
           # 
           # view timecost
@@ -215,8 +219,8 @@ jobs:
         uses: softprops/action-gh-release@v2 #v2.0.8
         # if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: latest
-          tag_name: v24.12
+          name: v26.11
+          tag_name: v26.11
           make_latest: true
           token: ${{ github.token }} #Defaults to ${{ github.token }}
           body: |
@@ -234,22 +238,42 @@ jobs:
           files: |
             # ebook.pdf
             # LICENSE
-            .github/workflows/.ws/pkgs/dropbear-*.tar.gz
-            .github/workflows/.ws/pkgs/perp-*.tar.gz
-            .github/workflows/.ws/pkgs/tigervnc-*.tar.gz
-            .github/workflows/.ws/pkgs/pulseaudio-*.tar.gz
-            .github/workflows/.ws/pkgs/xrdp-*.tar.gz
-            .github/workflows/.ws/pkgs/x11vnc-*.tar.gz
-            .github/workflows/.ws/pkgs/3rd-*.tar.gz
-            .github/workflows/.ws/pkgs/misc-*.tar.gz
-            .github/workflows/.ws/pkgs/fluxbox-*.tar.gz
-            .github/workflows/.ws/pkgs/openbox-*.tar.gz
-            .github/workflows/.ws/pkgs/suckless-*.tar.gz
-            .github/workflows/.ws/pkgs/tint2-*.tar.gz
-            # .github/workflows/.ws/pkgs/xcompmgr-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/xlunch-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/feh-amd64.tar.gz
-            # .github/workflows/.ws/pkgs/lxde-amd64.tar.gz
+            # .github/workflows/.ws/pkgs/tigervnc-*.tar.gz
+            # .github/workflows/.ws/pkgs/pulseaudio-*.tar.gz
+            # .github/workflows/.ws/pkgs/xrdp-*.tar.gz
+            # .github/workflows/.ws/pkgs/x11vnc-*.tar.gz
+            # .github/workflows/.ws/pkgs/fluxbox-*.tar.gz
+            # .github/workflows/.ws/pkgs/openbox-*.tar.gz
+            # .github/workflows/.ws/pkgs/suckless-*.tar.gz
+            # .github/workflows/.ws/pkgs/dropbear-*.tar.gz
+            # .github/workflows/.ws/pkgs/xcompmgr-*.tar.gz
+            # .github/workflows/.ws/pkgs/perp-*.tar.gz
+            # .github/workflows/.ws/pkgs/misc-*.tar.gz
+            # .github/workflows/.ws/pkgs/3rd-*.tar.gz
+            # 
+            # .github/workflows/.ws/pkgs/feh-*.tar.gz
+            # .github/workflows/.ws/pkgs/hsetroot-*.tar.gz
+            # .github/workflows/.ws/pkgs/scrot-*.tar.gz
+            # .github/workflows/.ws/pkgs/xlunch-*.tar.gz
+            # .github/workflows/.ws/pkgs/tint2-*.tar.gz
+            # 
+            # .github/workflows/.ws/pkgs/xbindkeys-*.tar.gz
+            # .github/workflows/.ws/pkgs/xrandr-*.tar.gz
+            # .github/workflows/.ws/pkgs/dunst-*.tar.gz
+            # .github/workflows/.ws/pkgs/rofi-*.tar.gz
+            .github/workflows/.ws/pkgs/pasystray-*.tar.gz
+            .github/workflows/.ws/pkgs/pavucontrol-*.tar.gz
+            .github/workflows/.ws/pkgs/gsm-*.tar.gz
+            # 
+            .github/workflows/.ws/pkgs/lxde-*.tar.gz
+            .github/workflows/.ws/pkgs/pcmanfm-*.tar.gz
+            .github/workflows/.ws/pkgs/xfce4-*.tar.gz
+            .github/workflows/.ws/pkgs/geany-*.tar.gz
+            # .github/workflows/.ws/pkgs/engrampa-*.tar.gz
+            # .github/workflows/.ws/pkgs/gpicview-*.tar.gz
+            # .github/workflows/.ws/pkgs/dbus-*.tar.gz
+            # .github/workflows/.ws/pkgs/ibus-*.tar.gz
+            
   # post-build:
   #   name: Post-build
   #   needs: [ build ]
