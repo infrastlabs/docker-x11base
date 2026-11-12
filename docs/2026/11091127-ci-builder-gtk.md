@@ -28,10 +28,12 @@
   - 1、gtkmm 栈构建验证（2026-11-11）
   - 2、pango 版本顺带结论（2026-11-10/11，纠正旧判断）
   - 3、gtkmm224 镜像核对与乌龙澄清（2026-11-12）
+  - 4、gtkmm 栈组件并行化拆解分析（2026-11-12，只分析未落地）
 - 四、应用调试（抽取：原 3.4 + 3.5）
   - 1、gtkmm 下游应用缺失清单（pavucontrol / gnome-system-monitor）
   - 2、pulse 栈当时怎么搞的（awe 容器 + 历史文档回顾）
   - 3、pulse 栈项目内版本落地与应用调试
+  - 4、容器内网络排查明细 + 误判链（builder-pav，2026-11-12）
 ## 一、alpine-builder-gtk224 → gtk224-2 分析（2026-11-09）
 
 ### 1、镜像更名引用点全量清单
@@ -787,6 +789,157 @@ make -j$(nproc) -C gdk/x11 libgdk-x11.la || log "gdk x11 rc=$? (continue)"
 
 **镜像备份**：`gtk224-2` → `alpine-builder-gtk224-2-bak-20261112:latest`（c9bb66e，防误覆盖）。
 
+### 4、gtkmm 栈组件并行化拆解分析（2026-11-12，只分析未落地）
+
+#### 4.1、依赖图与可并行性结论
+
+##### 4.1.1、现状：8 组件全串行
+
+`compile/src/u-gtkmm/build.sh` 的 `gtkmm()` 是唯一方法块，8 组件**全串行**：mm-common(0.9.12) → libsigc++(2.10.8) → glibmm/giomm(2.48.1) → cairomm(1.12.0) → pangomm(2.40.0) → atkmm(2.24.2) → gtkmm/gdkmm(2.24.5) → verify。每个组件内部 `make -j$(nproc)` 已并行，但**组件之间串行**——总时长 604s（约 10min，§3.1 记录）。
+
+##### 4.1.2、真实依赖图（configure.ac PKG_CHECK_MODULES 实锤）
+
+从各组件 `configure.ac` 的 `PKG_CHECK_MODULES` 提取（源码 `/tmp/gtkmm-src/`）：
+
+| 组件 | PKG_CHECK_MODULES 声明的依赖 | 说明 |
+|---|---|---|
+| libsigc++ | mm-common（MM_PREREQ/MM_INIT_MODULE） | 自身即 sigc++ 基础 |
+| glibmm/giomm | **sigc++**（sigc++-2.0>=2.8.0） | glib/gobject/gio = 系统 C 库 |
+| cairomm | **sigc++**（sigc++-2.0>=2.5.1） | cairo = 系统 |
+| pangomm | **glibmm + cairomm**（glibmm>=2.48.0 cairomm>=1.2.2 pangocairo>=1.38.0） | pangocairo 系统 |
+| atkmm | **glibmm**（glibmm>=2.46.2 + atk>=1.18） | atk 系统 |
+| gtkmm/gdkmm | **giomm(随glibmm) + pangomm + atkmm**（giomm>=2.27.93 pangomm>=2.27.1 atkmm>=2.22.2 + gtk+-2.0） | gtk 系统 |
+
+依赖图（菱形 DAG，非星形）：
+
+```
+mm-common → libsigc++ → { glibmm ∥ cairomm } → { pangomm ∥ atkmm } → gtkmm
+```
+
+##### 4.1.3、可并行调度表（依赖尊重，最多 2 路）
+
+| 阶段 | 并行内容 | 前置依赖 |
+|---|---|---|
+| A | mm-common | —（提供 MM_* m4 宏，必须最先） |
+| B | libsigc++ | mm-common |
+| C | **glibmm ∥ cairomm** | libsigc++ |
+| D | **pangomm ∥ atkmm** | glibmm（pangomm 另需 cairomm） |
+| E | gtkmm | giomm + pangomm + atkmm |
+
+**每阶段最多 2 路**（结构限制，非机器限制）：
+- C 阶段仅 glibmm/cairomm 两个独立。
+- D 阶段 pangomm 需等 cairomm（pango 用 cairo），atkmm 只等 glibmm。
+
+##### 4.1.4、预计收益
+
+串行 604s。并行后：C 省 min(glibmm,cairomm)≈60s、D 省 min(pangomm,atkmm)≈60s → **总省约 2min，10min→8min，约 20%**。不会 4x——最重的 glibmm/gtkmm 仍在关键路径串行。
+
+##### 4.1.5、落地注意点（4 个坑）
+
+1. **`fetch()` 的 `name` 是全局变量**——并行两路同时 fetch 会互相覆盖 → 须改 `local name="$1"`。
+2. **`cd /tmp/gtkmm-src/<comp>`** 状态性——每组件须包进子 shell `( ... )`，否则并行 cwd 互相干扰。
+3. **`set -e` + 后台 `&` + `wait`**——需逐 rc 检查（复用 `doExec_mark/doExec_check` 并发组模式，同 u-gtk b_deps）。
+4. **峰值内存/CPU**——glibmm+cairomm 同时编瞬时负载翻倍；CI 弱机可能 OOM。gtkmm（最重）保持串行，风险可控。
+
+##### 4.1.6、结论
+
+**能拆，但只值 2 路**（菱形依赖链 + 最重两组件在关键路径），收益 ~20%（约省 2min），且须解决 4 个并行坑。**投入产出比一般**——若 CI 不卡 gtkmm 这一步，优先级不高；若确要省时，按 A-E 调度落地。
+
+#### 4.2、并行化落地实现思路（细化，2026-11-12 补充，仅思路未改码）
+
+##### 4.2.1、重构原则：组件函数化 + doExec 组调度
+
+现状 `gtkmm()` 是单方法块、8 组件内联**串行**（`u-gtkmm/build.sh` 32-133 行），无法直接并行。落地分两步：
+
+1. **组件函数化**：把每个组件的 `configure/make/install` 段抽成独立函数（`mm_common/libsigc/glibmm/cairomm/pangomm/atkmm/gtkmm/verify`），并加对应 `case` 入口，使每组件可独立 `doExec /src/u-gtkmm/build.sh <comp>` 调用。
+2. **调度并行**：`full`/`b_deps` 按 A-E 阶段调度，C/D 阶段用 `doExec ... &` 两路 + `wait` + `doExec_check`（**复用 u-gtk `b_deps` 组模式**：`doExec_mark` 写组边界留痕，`doExec_check` wait 后只读本组记录）。
+
+##### 4.2.2、每组件函数要点（继承现状逻辑）
+
+- 每函数开头 `set -e`（doExec 子 shell 会 `set +e`，函数内重启用，保失败即终止——同现 `gtkmm()` 开头 `set -e`）。
+- `cd /tmp/gtkmm-src/<comp>` 在函数内：每路 doExec 是**独立子 shell**，cwd 天然隔离，并行互不干扰。
+- 保留各组件 patch（`glibmm-gprivate.patch` / `pangomm-pango-markup.patch`）、`mkcfg`（无 configure 则 autogen）、`--enable-static --disable-shared`、make install 后 `.a` 兜底 cp。
+- 特例：mm-common 只装宏（不链静态）；libsigc++ 需 `--disable-documentation`（doxygen 缺失）。
+
+##### 4.2.3、调度伪代码（`full`/`b_deps` 同体）
+
+```sh
+b_deps)
+  # A/B 串行（轻量小件，无并行价值）
+  doExec /src/u-gtkmm/build.sh mm_common || exit 1
+  doExec /src/u-gtkmm/build.sh libsigc  || exit 1
+  # C 两路：glibmm ∥ cairomm
+  doExec_mark "C: glibmm cairomm"
+  doExec /src/u-gtkmm/build.sh glibmm &
+  doExec /src/u-gtkmm/build.sh cairomm &
+  wait; doExec_check || exit 1
+  # D 两路：pangomm ∥ atkmm
+  doExec_mark "D: pangomm atkmm"
+  doExec /src/u-gtkmm/build.sh pangomm &
+  doExec /src/u-gtkmm/build.sh atkmm  &
+  wait; doExec_check || exit 1
+  # E 最重，单独串行（gtkmm 在关键路径）
+  doExec /src/u-gtkmm/build.sh gtkmm || exit 1
+  doExec /src/u-gtkmm/build.sh verify || exit 1
+  ;;
+```
+
+- `full` 改为走同一调度（现状 `doExec gtkmm` 整块 → 改为 b_deps 逻辑，或 `full) b_deps` 复用）。
+- `doExec` 首个参数是文件路径 → 内部 `bash` 执行（common.sh `doExec` 87 行），组件 `case` 分支接收 `<comp>`。
+
+##### 4.2.4、4 个坑的落地处理
+
+| 坑（§4.1.5） | 落地处理 |
+|---|---|
+| 1. `fetch()` 的 `name` 全局变量 | 改 `local name="$1"`（函数内声明，两路并行 fetch 互不覆盖） |
+| 2. `cd` 状态性 | 每组件函数独立 `cd` + doExec 独立子 shell，cwd 天然隔离 |
+| 3. `set -e` + `&` + `wait` | doExec 捕获真实 rc 到 `_exec_result.txt`；`doExec_mark` 写组边界；`wait` 后 `doExec_check` 只读本组，任一非 0 退出 |
+| 4. 峰值内存/CPU | 只 2 路；gtkmm（最重）E 阶段单独串行，风险可控；CI 弱机可退 1 路（组内改串行） |
+
+##### 4.2.5、收益与取舍
+
+- 按 §4.1.4：省约 2min（10min→8min，约 20%），结构上限 2 路。
+- **决策建议**：若 CI gtkmm 这步是瓶颈且机器有余量 → 按 4.2.3 落地；若 CI 不卡或机器弱 → 保持现状串行，优先级低（§4.1.6 结论）。
+
+##### 4.2.6、落地后验证方法
+
+- 实跑：`docker exec builder-awe sh /src/u-gtkmm/build.sh b_deps`（或 full），对照串行 604s 记录（§3.1）。
+- 错误定位：`/tmp/doExec/u-gtkmm/_exec_result.txt` 各组件 `rc|cmd`，`doExec_check` 报错行。
+- 产物核对：`verify` 分支 `ls /usr/lib/libgtkmm-2.4.a ...` + `pkg-config --exists gtkmm-2.4`。
+
+#### 4.3、落地实施结果（2026-11-12，builder-awe 实测，已落地）
+
+##### 4.3.1、build.sh 落地改造（`compile/src/u-gtkmm/build.sh`）
+
+- **组件函数化**：原 `gtkmm()` 内联 8 组件拆成 `c_mm_common/c_libsigc/c_glibmm/c_cairomm/c_pangomm/c_atkmm/c_gtkmm/c_verify`，各组件独立 `case` 入口（`mm_common/libsigc/glibmm/cairomm/pangomm/atkmm/gtkmm_comp/verify`），供 `doExec /src/u-gtkmm/build.sh <comp>` 独立调用。
+- **A-E 调度**：`gtkmm()` 按依赖图，C/D 用 `doExec_mark` + `doExec ... &` 两路 + `wait` + `doExec_check`（u-gtk b_deps 组模式）。
+- **4 坑处理**：`fetch` name 改 `local`；每组件函数独立子 shell（doExec）天然隔离 cwd；doExec 捕获 rc + doExec_check 逐组错误识别；`make -j${PARALLEL_JOBS:-$(nproc)}`（并行时降线程）。
+
+##### 4.3.2、关键：并行收益取决于核数（nproc 自适应）
+
+- **实测发现**：`builder-awe` 仅 **2 核**（`nproc=2`）。2 路各 `make -j$(nproc)`（=4 线程）**过载**；改 `PARALLEL_JOBS=nproc/2`（每路 1 线程）后仍**比串行慢**——总 **833s（13.9min）> 串行 604s（10min）**。
+- **原因**：核数固定 2 时，并行两路各分半核，每组件用 1 核（慢 2 倍）；关键路径（glibmm）仍 1 核，不比串行（单路 -j2 满 2 核）快。**nproc<4 并行无收益甚至更慢**。
+- **落地**：`gtkmm()` 按 `nproc` 自适应——**nproc>=4 才并行**（2 路各 `-j(nproc/2)`，总 nproc 线程不超载），**nproc<4 自动退串行**（全组件 `-j$(nproc)`）。`FORCE_PARALLEL=1` 可强制并行（验证调度逻辑用）。
+
+##### 4.3.3、强制并行验证（FORCE_PARALLEL=1，nproc=2）
+
+- 完整调度序列跑通：`A/B (mm-common libsigc++) → C 两路 (glibmm∥cairomm) → D 两路 (pangomm∥atkmm) → E (gtkmm) → Verify`。
+- **C/D 组 `doExec_check` 全部通过**（glibmm/cairomm/pangomm/atkmm 均 rc=0），无 `exit 1`。
+- **产物正确**：8 库全装（`/usr/lib/libgtkmm-2.4.a` 7.4M 等），`pkg-config gtkmm-2.4 OK (2.24.5)`。
+- **结论**：并行调度逻辑正确（功能无损）；时长层面 nproc=2 无收益（833s>604s），**CI 机器 nproc>=4 才提速**。
+
+##### 4.3.4、CI 三架构适配
+
+- CI 三架构（amd64/arm64/armv7）同一 `build.sh`：`nproc>=4` 走并行（C/D 两路各半核），**慢架构（arm64/armv7）绝对省时更大**（组件构建时长更长，并行重叠省 min 时长按比例放大）；`nproc<4` 自动串行（不劣化）。
+- 注意：arm 交叉编译若 CI 用模拟器/慢 runner，核数可能 <4 → 自动串行；需确认 CI runner 核数再定。
+
+##### 4.3.5、落地总结（凝练，2026-11-12）
+
+- **改动**（`compile/src/u-gtkmm/build.sh`）：组件函数化（8 组件独立 `case` 入口）+ A-E 调度（C/D 两路 `doExec` 组）+ 4 坑落地（`fetch name` 改 `local` / doExec 子 shell 隔离 cwd / `doExec_check` 逐组错误识别 / `PARALLEL_JOBS` 并行降线程）。
+- **关键发现**：并行收益**取决于核数**——`builder-awe` 仅 2 核，并行反而慢（`FORCE_PARALLEL=1` 实测 **833s > 串行 604s**）；故 `nproc>=4` 才并行（2 路各 `-j(nproc/2)`，总 nproc 线程不超载），`nproc<4` 自动退串行。
+- **实测**：强制并行完整跑通（A/B → C 两路 → D 两路 → E → Verify），**C/D `doExec_check` 全过**（4 组件 rc=0），8 库装全 + `pkg-config gtkmm-2.4 OK (2.24.5)`。
+- **CI 三架构**：同一脚本 `nproc>=4` 走并行，**arm64/armv7 慢架构绝对省时更大**；`nproc<4`（如 arm 模拟器 runner）自动串行——需确认 CI runner 核数。
+
 ## 四、应用调试（抽取：原 3.4 + 3.5）
 
 ### 1、gtkmm 下游应用缺失清单（pavucontrol / gnome-system-monitor，2026-11-11）
@@ -937,3 +1090,135 @@ b_deps)
 
 **依赖链**：`pulseaudio stage`（x-pulseaudio b_deps+full）→ `gtkmm stage`（FROM pulseaudio 继承）→ `pavucontrol stage`（FROM gtkmm，v-pavucontrol b_deps 再触发/确认）。
 
+#### 3.4 新 gtkmm224-2 镜像容器跑通 pavucontrol + libgtk pixmap theme 不完整修复（2026-11-12）
+
+**背景**：用户拉取远端更新版 `alpine-builder-gtkmm224-2`（digest `1340081e`，本地旧 `1c8e613`），照 awe 方式起容器 `builder-pav`（`-v /_ext:/_ext` + sleep 循环），参考 Dockerfile 调用 `bash /src/v-pavucontrol/build.sh full` 构建 pavucontrol。
+
+**流程**：
+1. `b_deps`：x-pulseaudio 编译 libogg/flac/vorbis/opus/sndfile + pulseaudio 13.99 → `/usr/local/static/pulseaudio/lib/libpulse.a` + `libpulsecommon-13.99.a`。
+2. `full`（pavucontrol()）：静态链失败 → 暴露 libgtk bug。
+
+**libgtk pixmap theme 不完整 bug（根因）**：
+- 现象：`theme_pixbuf_render`/`theme_pixbuf_get_pixbuf`/`pixbuf_rc_style_register_type`/`pixbuf_type_rc_style` undefined（pixbuf-draw.o/pixbuf-main.o 被链入但符号缺失）。
+- 根因：`gtk2-2.24.33-printbackends-static.patch` 把 pixmap theme 编进 libgtk 时**只加** `pixbuf-draw.c`+`pixbuf-main.c`，漏了 `pixbuf-rc-style.c`（rc_style 注册）+`pixbuf-render.c`（render 实现）——pixmap engine 共 **4 个 .c**，只加 2 个，libgtk 不完整。应用静态链 libgtk 拉入 pixmap theme 对象 → 缺符号。
+- 为何 gtk 构建时不炸：只建 `.a` 不链应用，未暴露；应用（pavucontrol）链接才暴露。
+
+**修复 + 重建**：
+- 补丁加回 2 文件（hunk `+704,10`→`+704,12`）。
+- 容器内用 GNOME tarball 源码（`/tmp/gtk+-2.24.33`）+ `git init` + `touch config.status`（Reuse 分支），建最小 `autogen.sh`（`autoreconf -fi`）重生成 Makefile.in（初版 tarball 无 autogen.sh + automake 版本不匹配坑），删 SIG 强制 configure。
+- 重建 gtk `err 0, pass` 217s；`theme_pixbuf_render/get_pixbuf`+`pixbuf_rc_style_register_type`+`pixbuf_type_rc_style` 全部定义（pixbuf-type 为 BSS `B` 符号）。
+
+**结果**：pavucontrol 静态链成功 → `/usr/local/static/pavucontrol/bin/pavucontrol` **17.8MB**，`ELF statically linked stripped`，xx-verify 通过；glade+desktop+35 语言 .mo；strings GTK_ICON_THEME/MurrineRcStyle ✓（rsvg 软检查 0，pavucontrol 未引用 rsvg 故未拉入，不阻断）。
+
+**commit**：`be7883e`（libgtk pixmap theme 修复，补丁+build.sh 注释）。
+
+**注**：容器内重建 libgtk 缺 ibus（/tmp/ibus 不在，A2 SKIP）——不影响 pavucontrol（仅 xim 内置够用）；需 ibus 输入法需另起 ibus 树合并。
+
+
+### 4、容器网络排查明细（2026-11-12）：bridge NAT 与 iptables 双后端
+
+任务：容器内跑 `xfce4` 的 `thunar` / `ristretto`，需要构建 `libxfce4ui`、`exo`、`libgarcon`，其中 `libgarcon` 依赖 `libexif`。构建过程中 `v-xfce4` 需要下载大量源码包，网络不通。以下记录完整排查过程。
+
+#### 一、现象与初判
+
+- `curl` / `wget` 下载超时，`apt-get` 无法连接镜像源。
+- 宿主机网络正常，容器内 `ping` 公网 DNS 通但 HTTP 不通。
+- 初判为 iptables NAT 规则缺失：`docker0` 是 bridge 网络，容器出站必须经宿主机 `FORWARD` + `POSTROUTING` MASQUERADE。
+
+#### 二、关键误判：iptables 双后端（nft vs legacy）
+
+**这是本次排查最重要的坑。**
+
+```bash
+# 宿主机检查后端
+iptables --version
+# 如果输出 "iptables v1.8.x (legacy)" → legacy 后端
+# 如果输出 "iptables v1.8.x (nf_tables)" → nft 后端
+
+# 容器内检查
+ls /proc/net/ip_tables_names
+# 存在 → legacy 内核模块已加载
+# 不存在 → 容器实际走 nftables 后端
+```
+
+本环境宿主机为 **legacy** 后端。我在排查中一度往 `iptables-nft` 加了 3 条规则：
+
+```bash
+iptables -I FORWARD -i docker0 -j ACCEPT
+iptables -I FORWARD -o docker0 -j ACCEPT
+iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+```
+
+**这 3 条规则加到了 nft 后端，而容器流量实际走 legacy 后端，所以完全无效。**
+
+#### 三、逐层诊断法（本次验证有效）
+
+```bash
+# 1. 包到没到容器 veth（宿主机执行）
+tcpdump -i docker0 -n 'src host 172.17.0.2' &
+# 从容器 curl 外部地址，看 tcpdump 是否抓到 SYN
+
+# 2. FORWARD 链规则（legacy 后端）
+iptables -L FORWARD -n -v
+
+# 3. nat POSTROUTING 规则
+iptables -t nat -L POSTROUTING -n -v
+
+# 4. 容器内实际出口 IP（关键验证）
+ip route get 1.1.1.1
+# 应输出 "via <gateway> src <容器IP>"
+# 如果 src 不是容器 IP → NAT 未生效，包会以源地址 172.17.0.2 出去，公网回包无处可回
+```
+
+`ip route get` 是判断 NAT 是否生效的最快方法，不需要抓包。
+
+#### 四、实际结论：网络是瞬态故障，bridge NAT 无问题
+
+排查推进到最后，发现：
+
+```bash
+# 容器内
+echo > /dev/tcp/8.8.8.8/443 && echo "TCP OK"     # 通
+curl -v https://www.google.com 2>&1 | grep "SSL connection"  # TLS 握手成功
+curl -o /dev/null -w '%{http_code}' https://dl.xfce.org/...     # 200/404 均有响应
+```
+
+**结论：bridge NAT 规则一直存在且工作正常，之前不通是瞬态网络退化**（DNS 解析成功但 TCP 三次握手失败 / 上游路由抖动），重启或等待即恢复，**不是 iptables 配置问题**。
+
+> 教训：网络不通时先用 `ip route get` 验证 NAT 路径，再 `nc -vz` 逐跳测试，最后才怀疑 iptables。盲目往 iptables 加规则只会污染规则链（尤其双后端环境）。
+
+#### 五、busybox 容器内网络诊断的两个坑（本次踩到）
+
+1. **`sh` 不支持 `/dev/tcp`**：`echo > /dev/tcp/8.8.8.8/443` 报 `nonexistent directory`，是 busybox `sh` 无此实现，**不代表网络不通**。TCP 测试要用 `curl` / `nc`。
+2. **长耗时 `docker exec` 触发 host 侧输出截断**：`nc -zv`、`curl` 等待类命令常表现为"整段无输出"，极易误判为卡死/不通。解法：命令输出重定向到容器内文件，再单独 `cat` 读；或后台 `&` 跑。
+   实测 `curl http://archive.xfce.org/` → `code=301`，**网络实际是通的**（301 为该站正常重定向）。
+
+#### 六、xfce4 构建最终结果（2026-11-12 完成，thunar / ristretto / display-settings 均验证通过）
+
+**容器实为 `builder-pav`**（镜像 `x11-base:alpine-builder-gtkmm224-2`，网络 10.18.0.0/24）。直接跑 `sh /src/v-xfce4/build.sh <sub>`，**无 `/usr/local/bin/build-xfce4.sh` 包装器**。
+
+**`/src` 已软链接到仓库**：`/src` → `.../docker-x11base/compile/src`（原烘焙副本备份 `/src-baked`），改仓库文件容器内即时生效，免 `docker cp`。
+
+| 步骤 | 结果 |
+|---|---|
+| ensure_gtk_libs | skip（gtk2 静态树已在 `/usr/lib/`，marker `/usr/local/static/.gtk-state/gtk.sha` 有效） |
+| dbus / dbus-glib | 已就绪，skip |
+| libxfce4util / xfconf / libxfce4ui / exo / garcon | 全部产出 `.a`（顺带 `libgarcon-gtk2-1.a`、`libxfce4kbd-private-2.a`） |
+| libexif 0.6.23 | 产出 `/usr/local/static/exif/lib/libexif.a` |
+| **thunar 1.6.3** | **静态链接成功，`xx-verify --static` rc=0，13.7MB，未定义符号 0** |
+| **ristretto 0.8.5** | **静态链接成功，`xx-verify --static` rc=0，13.2MB，未定义符号 0** |
+| **xfce4-display-settings** | **静态链接成功，`xx-verify --static` rc=0，12.8MB**（`xfce4settings` 只建这 1 个二进制，其余 9 个注释屏蔽；产物落在 `TARGETPATH=/usr/local/static_temp1/bin/`——common.sh 默认值） |
+
+##### 6.1、两处脚本修复
+
+**（1）`xfce_lib` 闸门放宽**（`compile/src/v-xfce4/build.sh:298` 附近）
+
+xfce 包常含 daemon（xfconfd / xfce4ui），其链接需额外符号；原逻辑 `make` / `make install` 失败即 `exit 1`，会把仅需库本身的构建整个中断。改为 make/install 失败仅 WARN，**真正闸门只保留 `test -f $PREFIX/lib/$CHECK`**（`.a` 存在性）。实测 libxfce4ui / exo / garcon 均出现 MAKE WARN 后仍 `installed`。
+
+**（2）LIBS 去掉 `-lXi -lSM -lICE`**（`static_gtk_libs` 与 xfce4settings 两份 LIBS 共 4 行）
+
+Alpine 的 `libice-dev` / `libxi-dev` **不含 `.a`**（仅运行时 `.so`），静态链接报 `cannot find -lXi` / `-lICE`。实测三者均无符号被引用，直接不链即可，链接即通过。
+
+##### 6.2、日志里"看似失败"的红鲱鱼
+
+`build.sh:212` 的 `make -C thunar` 是**故意允许失败**的（脚本注释明写 "CCLD failed (expected, objects built)"，只用它产出的 `.o`）。该步 stderr 里大量 `undefined reference to pcre_* / pixman_*` 属于动态链 libglib 的传递依赖，**与最终静态链接无关**，勿据此判断静态链失败。真错误要看 `build.sh:229` 静态链一行。
