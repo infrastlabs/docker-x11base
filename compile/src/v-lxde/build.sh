@@ -14,7 +14,7 @@ function lxappearance(){
   rm -rf /tmp/lxappearance; # mkdir -p /tmp/lxappearance
   # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxappearance
   # branch="--branch=$LXAPPEARANCE_VER"
-  git clone --depth=1 $branch $GITHUB/lxde/lxappearance /tmp/lxappearance #;
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-lxappearance /tmp/lxappearance #;
   log "Configuring LXAPPEARANCE..."
   cd /tmp/lxappearance #&& ./bootstrap;
   ./autogen.sh
@@ -57,7 +57,7 @@ function lxtask(){
   # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxtask
   LXTASK_VER=master
   branch="--branch=$LXTASK_VER"
-  git clone --depth=1 $branch $GITHUB/lxde/lxtask /tmp/lxtask #;
+  git clone --depth=1 $branch https://gitee.com/g-system/fk-lxtask /tmp/lxtask #;
   log "Configuring LXTASK..."
   cd /tmp/lxtask #&& ./bootstrap;
   ./autogen.sh
