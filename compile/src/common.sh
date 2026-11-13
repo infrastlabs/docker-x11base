@@ -59,6 +59,24 @@ function down_catfile(){
   test -s $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
   cat $CACHE/$file
 }
+# gitclone: 优先本地缓存 clone（tarsrc-git，宿主预克隆 gitee 仓库）；未命中回落网络 clone（不换源）。
+# 命中时 cp 保留 .git（xcbutil 等需 git submodule update --init）；submodule 本身的本地缓存由调用方 sed 指向。
+# 2026-11-13: 解决 CI gitee clone 抖动（Connection reset / 慢）致 b_deps 依赖未就位。
+# 调用: gitclone <url> <dir> [branch]   branch 为空="" 则默认分支。
+gitclone() {
+  _url=$1; _dir=$2; _br=${3:-}
+  _repo=${_url##*/}
+  _cache=${GITCACHE:-/src/../tarsrc-git}/$_repo
+  if test -d "$_cache/.git"; then
+    rm -rf "$_dir"; cp -a "$_cache" "$_dir"
+    # 缓存 .git owner 是宿主 uid, 容器 root 跑 git 会报 dubious ownership (feh 曾中招) → 登记 safe.directory
+    git config --global --add safe.directory "$_dir" 2>/dev/null || true
+    log "gitclone cached: $_repo"
+    return 0
+  fi
+  if test -n "$_br"; then git clone --depth=1 "$_br" "$_url" "$_dir"
+  else git clone --depth=1 "$_url" "$_dir"; fi
+}
 function print_time_cost(){
     local item_name=$1
     local begin_time=$2
