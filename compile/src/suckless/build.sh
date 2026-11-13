@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-suckless}"
 source /src/common.sh
 
 # pango="-lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0"
@@ -20,8 +21,8 @@ function st(){
   # down_catfile ${ST_URL} | tar -zx --strip 1 -C /tmp/st
   ST_VER=br-luke-st
   # https://dl.suckless.org/st/st-0.8.4.tar.gz
-  # git clone --depth=1 --branch=$ST_VER git://git.suckless.org/st /tmp/st #;
-  git clone --depth=1 --branch=$ST_VER https://gitee.com/g-system/fk-suckless-st /tmp/st
+  # git://git.suckless.org/st
+  gitclone https://gitee.com/g-system/fk-suckless-st /tmp/st --branch=$ST_VER
   log "Configuring ST..."
   cd /tmp/st #&& ./bootstrap;
 
@@ -62,7 +63,7 @@ DWM_VER=6.2
 function dwm(){
   log "Downloading DWM..."
   rm -rf /tmp/dwm; # mkdir -p /tmp/st
-  git clone --depth=1 --branch=$DWM_VER git://git.suckless.org/dwm /tmp/dwm #;
+  gitclone git://git.suckless.org/dwm /tmp/dwm --branch=$DWM_VER #;
   log "Configuring DWM..."
   cd /tmp/dwm #&& ./bootstrap;
 
@@ -105,7 +106,7 @@ DMENU_VER=5.0
 function dmenu(){
   log "Downloading DMENU..."
   rm -rf /tmp/dmenu; # mkdir -p /tmp/st
-  git clone --depth=1 --branch=$DMENU_VER git://git.suckless.org/dmenu /tmp/dmenu #;
+  gitclone git://git.suckless.org/dmenu /tmp/dmenu --branch=$DMENU_VER #;
   log "Configuring DMENU..."
   cd /tmp/dmenu #&& ./bootstrap;
 
@@ -203,10 +204,9 @@ cache)
     # down_catfile ${XRDP_URL} > /dev/null
     ;;
 full)
-    # fdkaac
-    st
-    dwm
-    dmenu
+    doExec st || exit 1
+    doExec dwm || exit 1
+    doExec dmenu || exit 1
     ;;
 # b_deps)
 #     /src/xrdp/build.sh libxrandr &
