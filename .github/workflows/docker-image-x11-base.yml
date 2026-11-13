@@ -60,7 +60,7 @@ jobs:
 
           
           # JUST LOGIN HERE
-          echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN
+          # echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN #some time login err
           echo "${DOCKER_REGISTRY_TENCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_TENCLOUD_USER} --password-stdin $REPO_TEN_HK
           # echo "${DOCKER_REGISTRY_QCLOUD_PASS}" |docker login --username=${DOCKER_REGISTRY_QCLOUD_USER} --password-stdin $REPO_QING
 
