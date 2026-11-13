@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-dbus}"
 source /src/common.sh
 
 #
@@ -167,10 +168,10 @@ cache)
     down_catfile $DBUS_URL > /dev/null
     ;;
 full)
-    dbus
+    doExec dbus || exit 1
     ;;
 full-glib)
-    dbus_glib
+    doExec dbus_glib || exit 1
     ;;
 b_deps)
     # 静态库依赖检查
