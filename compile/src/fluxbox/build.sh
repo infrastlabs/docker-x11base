@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-fluxbox}"
 source /src/common.sh
 
 #
@@ -11,7 +12,7 @@ function fluxbox(){
   # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C /tmp/fluxbox
   # https://dl.suckless.org/fluxbox/fluxbox-0.8.4.tar.gz
   # branch="--branch=$FLUXBOX_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox #;
+  gitclone https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox $branch #;
   log "Configuring FLUXBOX..."
   cd /tmp/fluxbox #&& ./bootstrap;
 
@@ -68,7 +69,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    fluxbox
+    doExec fluxbox || exit 1
     ;;
 *) #compile
     oneBuild $1
