@@ -246,6 +246,24 @@
 - **修复**：`librsvg-2.0.pc` Requires 补 `pangocairo libxml-2.0 libcroco-0.6`（w-tint2/build.sh librsvg make install 后 sed 补）；实跑 `libgdk_pixbuf-2.0.a` = **1,060,650 B，svg=19 符号**，undefined 清零。
 - **结论**：svg loader 需**两层**修复——① `-Dbuiltin_loaders=svg`（u-gtk gdk_pixbuf，b7da717）② librsvg `.pc` 补依赖（w-tint2 librsvg）。两者齐备重烤 gtk224-2→gtkmm224-2 才真正生效。
 
+##### 7.3、打印 / 输入法适配核查（2026-11-13，gtk224-2 镜像）
+
+> **背景**：svg loader 修复后，按 AGENTS 五章 4 项核查打印 / 输入法适配（gtk2 应用验证项②③④之一）。
+
+**打印（print backends）✅ 正常**：
+- `libgtk-x11-2.0.a` 含 `_gtk_print_backend_file_init/create/exit` + `_gtk_print_backend_lpr_init/create/exit`（file/lpr 两 backend 编进 libgtk）。
+- gtk.log 确认 `gtk2-2.24.33-printbackends-static.patch` 应用（`inc_patch: ...printbackends-static.patch changed -> reset+apply` + patching gtkprintbackend.c / file / lpr 3 文件）。
+- 结论：print 静态适配已生效，无需处理。
+
+**输入法（ibus）❌ 未生效**：
+- 镜像 `libgtk-x11-2.0.a` **无 ibus 符号**（`nm` 仅 gtk 基础，无 `_gtk_im_module` ibus 注册）。
+- 根因：`u-gtk/build.sh gtk_ibus_a2()`（:93）前置检查 `/tmp/ibus/client/gtk2/.libs/im_ibus_la-ibusim.o`，**缺失则 A2 SKIP**（:103）；而 **u-gtk b_deps 无 ibus 构建步骤**（仅 apkdeps/pango/libxrandr/Xdamage/libcroco/librsvg/atk/gdk_pixbuf/gtk），`Dockerfile.builder.gtk224` 也只跑 u-gtk b_deps → 镜像构建时 `/tmp/ibus` 不存在 → **A2 SKIP → ibus 未编进 libgtk**。
+- 佐证：builder-awe 容器层有 `/tmp/ibus`（手工构建过）→ 其 libgtk 含 `_gtk_im_module_create/list/get_default_context_id`（merge 过）；镜像无 → 差异证明镜像构建漏了 ibus。
+- 修复方向（未落地）：
+  1. `Dockerfile.builder.gtk224` 在 u-gtk b_deps 前加 `RUN bash /src/v-ibus/build.sh ibus`（构建 `/tmp/ibus`，v-ibus:188 产出 `im_ibus_la-ibusim.o`）→ u-gtk gtk() 的 `gtk_ibus_a2` 即可 merge。
+  2. **源码源**：v-ibus `ibus()` 源码走 `git clone $GITHUB/ibus/ibus@1.5.35`（:146，仓内无 ibus tarball，`compile/tarsrc` 也无）——容器 github 可能不通，需缓存兜底（宿主克隆 ibus@1.5.35 入 `tarsrc-git/ibus` 或下载 ibus-1.5.35.tar.gz 入 `tarsrc`）。
+  3. 中文输入法可能仍走 **xim**（不依赖 ibus）——但 AGENTS 五章 4 项要求 ibus 可输入，故 ibus 适配需补。
+
 ## 二、u-gtk doExec 日志过滤 + 错误码识别（2026-11-11）
 
 > 起因：gtkmm CI 构建失败（`pangomm/attrlist.cc: pango/pango-markup.h not found`，2026-11-10）。排查 pango 版本时发现 `u-gtk/build.sh` 的并发 `doExec` **记录不到错误码**——`atk` 克隆失败（`fatal: could not read Username`）后仍报 `err 0, pass` 继续跑。根因定位到 `common.sh` 的 `oneBuild` 吞错，而非 doExec 本身。
