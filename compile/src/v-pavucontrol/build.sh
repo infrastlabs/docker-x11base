@@ -119,15 +119,15 @@ cache)
     # down_catfile $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz > /dev/null
     ;;
 full)
-    doExec pavucontrol
+    doExec pavucontrol || exit 1
     ;;
 b_deps)
     # 编译依赖库：pulse 栈（项目内 fk-pulseaudio 定制版，含 libpulse-mainloop-glib）
     #   x-pulseaudio b_deps = dep 库（libogg/libFLAC/libvorbis/libopus/libsndfile .a → /usr/local/lib）
     #   x-pulseaudio full   = pulse 静态库（libpulse/libpulse-simple/libpulse-mainloop-glib + pulsecommon/pulsecore → /usr/local/static/pulseaudio）
     export CMAKE_BINARY_DIR=/usr/local/static/pulseaudio
-    bash /src/x-pulseaudio/build.sh b_deps
-    bash /src/x-pulseaudio/build.sh full
+    doExec bash /src/x-pulseaudio/build.sh b_deps || exit 1
+    doExec bash /src/x-pulseaudio/build.sh full || exit 1
     echo "== gtkmm stack =="; ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a 2>&1
     echo "== pulse stack =="; ls /usr/local/static/pulseaudio/lib/libpulse.a /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.a 2>&1
     ;;
