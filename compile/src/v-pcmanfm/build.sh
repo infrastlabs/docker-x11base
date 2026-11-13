@@ -157,7 +157,7 @@ function pcmanfm(){
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
   branch="--branch=1.3.1"
-  rm -rf /tmp/pcmanfm; gitclone $GITHUB/lxde/pcmanfm /tmp/pcmanfm $branch #;
+  rm -rf /tmp/pcmanfm; gitclone https://gitee.com/g-system/fk-pcmanfm /tmp/pcmanfm $branch #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
     # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
