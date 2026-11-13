@@ -618,12 +618,12 @@ builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）�
 - **builder-awe（依赖已就位：`/usr/local/lib/libImlib2.a`、`libfm-gtk.a`、`librsvg-2.a`、`libcroco-0.6.a`）复现 `sh /src/w-feh/build.sh feh`** → **成功**：`/tmp/feh-repro/bin/feh` 生成 + `err 0, pass`、RC=0（19s）。
 - **结论**：w-feh 脚本 + 链接逻辑本身 OK；CI 空产物是**构建期 imlib2 等依赖未就位**（base 阶段 w-xlunch imlib2 / libfm 等构建失败或下载失败），非脚本缺陷。**本地 builder 无网络**（github/curl 不通），无法复现 CI 的 imlib2 下载/构建失败点。
 
-> **订正（2026-11-13 镜像内日志实查）**：4 空组件编译日志**就在镜像内**——`.logs/doExec/u-gtkmm/{feh,scrot,tint2,pcmanfm}.log`（上层镜像环境变量写死导致 doExec 日志全落 u-gtkmm 目录，故此前漏查、误判"需 CI 日志"）。从日志确证具体失败点：
-> - **feh**：`fatal: unable to access 'https://gitee.com/g-system/fk-feh/': Recv failure: Connection reset by peer`（clone 失败→`/tmp/fk-feh` 无→make 全 No such file）→ **网络（gitee 连接被重置）**。
-> - **scrot**：`configure.ac:25/28: error: => GNU autoconf-archive not present <=` → `autoreconf failed` → **缺 autoconf-archive（构建期依赖未装，非网络）**。
-> - **tint2**：cmake **配置成功**（`Found imlib2 1.7.4`），但链接 `cannot find -lxcb-util`（×2，`/usr/bin/x86_64-alpine-linux-musl-ld`）→ 编到 60% `Linking C executable tint2` 失败、无产物 → **xcb-util 静态库缺失**；且 `/usr/local/lib/libImlib2.a` 全盘不存在（imlib2 构建"err 0 pass"但 `.a` 未落标准路径）→ cmake `Looking for imlib_context_set_display in Imlib2 - not found`（次要点）。b_deps `xcbutil` 日志：clone `gitee.com/g-system/fk-xcb__util` → `Connection reset by peer` → `/tmp/xcb-util` 无 → autogen/configure 全 No such file → 无 `.a`。
-> - **pcmanfm**：依赖 `menu-cache` clone 失败（`unable to access 'https://gitee.com/g-system/fk-menu-cache/': Recv failure: Connection reset by peer`→`/tmp/menu-cache` 无→autogen/configure 全 No such file→`cp: can't stat /usr/local/lib/libmenu-cache.a`）→ 链接 `cannot find -lmenu-cache` → `PCMANFM build FAILED` → **menu-cache 网络 clone 失败，非 pcmanfm 脚本 bug**（libfm 同轮 gitee g-system 克隆成功 338s）。
-> 即 **feh/tint2（xcb-util）/pcmanfm（menu-cache）根因 = gitee g-system clone 遇 `Recv failure: Connection reset by peer`（网络瞬断/限流，非永久不可达——同源 fk-libfm 同轮成功）→ 源码没克隆下来 → 依赖静态库缺失 → 链接失败**；**scrot 根因 = 缺 `autoconf-archive`（clone 成功但 autoreconf 失败，非网络）**。与 3.1.4 三层（Dockerfile `find` 掩盖 + `exit 0` + 依赖未就位）吻合，且**不再需要"有网络重跑"即可定论**。
+**订正（2026-11-13 镜像内日志实查）**：4 空组件编译日志**就在镜像内**——`.logs/doExec/u-gtkmm/{feh,scrot,tint2,pcmanfm}.log`（上层镜像环境变量写死导致 doExec 日志全落 u-gtkmm 目录，故此前漏查、误判"需 CI 日志"）。从日志确证具体失败点：
+- **feh**：`fatal: unable to access 'https://gitee.com/g-system/fk-feh/': Recv failure: Connection reset by peer`（clone 失败→`/tmp/fk-feh` 无→make 全 No such file）→ **网络（gitee 连接被重置）**。
+- **scrot**：`configure.ac:25/28: error: => GNU autoconf-archive not present <=` → `autoreconf failed` → **缺 autoconf-archive（构建期依赖未装，非网络）**。
+- **tint2**：cmake **配置成功**（`Found imlib2 1.7.4`），但链接 `cannot find -lxcb-util`（×2，`/usr/bin/x86_64-alpine-linux-musl-ld`）→ 编到 60% `Linking C executable tint2` 失败、无产物 → **xcb-util 静态库缺失**；且 `/usr/local/lib/libImlib2.a` 全盘不存在（imlib2 构建"err 0 pass"但 `.a` 未落标准路径）→ cmake `Looking for imlib_context_set_display in Imlib2 - not found`（次要点）。b_deps `xcbutil` 日志：clone `gitee.com/g-system/fk-xcb__util` → `Connection reset by peer` → `/tmp/xcb-util` 无 → autogen/configure 全 No such file → 无 `.a`。
+- **pcmanfm**：依赖 `menu-cache` clone 失败（`unable to access 'https://gitee.com/g-system/fk-menu-cache/': Recv failure: Connection reset by peer`→`/tmp/menu-cache` 无→autogen/configure 全 No such file→`cp: can't stat /usr/local/lib/libmenu-cache.a`）→ 链接 `cannot find -lmenu-cache` → `PCMANFM build FAILED` → **menu-cache 网络 clone 失败，非 pcmanfm 脚本 bug**（libfm 同轮 gitee g-system 克隆成功 338s）。
+即 **feh/tint2（xcb-util）/pcmanfm（menu-cache）根因 = gitee g-system clone 遇 `Recv failure: Connection reset by peer`（网络瞬断/限流，非永久不可达——同源 fk-libfm 同轮成功）→ 源码没克隆下来 → 依赖静态库缺失 → 链接失败**；**scrot 根因 = 缺 `autoconf-archive`（clone 成功但 autoreconf 失败，非网络）**。与 3.1.4 三层（Dockerfile `find` 掩盖 + `exit 0` + 依赖未就位）吻合，且**不再需要"有网络重跑"即可定论**。
 
 ##### 3.1.6、结论与建议（未落地）
 
@@ -659,6 +659,47 @@ builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）�
 5. **配套（3.1.4 已述，勿漏）**：去掉 w-feh/w-tint2/v-pcmanfm 尾部 `exit 0`；Dockerfile stage 末尾 `test -x $TARGETPATH/bin/<产物> || exit 1` 替代 `find` 掩盖。
 
 > **注意**：改 build.sh 后须在 builder 容器实跑（`docker exec builder-awe sh /src/w-feh/build.sh feh`，AGENTS 三章），别只看日志定论。
+
+#### 3.3、4 空组件依赖未就位修复验证（2026-11-13 实跑，干净 gtkmm 容器）
+
+> **背景**：按 3.2.3 修复思路落地后，用**干净 `alpine-builder-gtkmm224-2` 容器**（= Dockerfile base）逐一实跑 4 空组件，验证"依赖未就位"是否真正解除。容器带 `--network host` + `-v /_ext:/_ext` + `/src` 软链（= AGENTS 三章 3.1 Xvnc 同款套路，但构建类），每组件**独立容器**（`ver-feh`/`ver-scrot`/`ver-tint2`/`ver-pcmanfm`），避免同容器互装库掩盖"缺依赖"。
+> **调用法**：照 Dockerfile stage——`TARGETPATH=/usr/local/static/<comp>`、`CONSOLE_LOG=no`、`sh|bash /src/<comp>/build.sh b_deps` + 主组件，`test -x $TARGETPATH/bin/<产物> || exit 1` 兜底。
+
+##### 3.3.1、验证矩阵（4 组件全部构建成功）
+
+| 组件 | 首次失败点 | 修复落地 | 复验 | 产物（xx-verify=0 / ldd） |
+|---|---|---|---|---|
+| **feh** | `gitee g-system/fk-feh` Connection reset（3.2.1） | `apk add curl-dev curl-static`（w-feh:14，已提交 2026649）+ `git clone`→`gitclone`（:21）+ 删尾部 `exit 0` | `feh_rc=0` | feh 3.9M，`statically linked`（**not stripped**，debug_info，xx-verify=0），ldd Not a valid dynamic program |
+| **scrot** | 缺 autoconf-archive（3.2.1） | `apk add autoconf-archive`（w-scrot b_deps，已提交 e9938e2） | `scrot_rc=0` | scrot 2.5M，`statically linked, stripped`，xx-verify=0 |
+| **tint2** | `fk-xcb__util` Connection reset → 无 `.a`（3.2.1） | `gitclone` 缓存命中（w-tint2 xcbutil:111）+ b_deps 补 `libtool automake autoconf`（:115）+ submodule fallback 修正 `m4/`（:118）+ 删 `exit 0` | `tint2_rc=0`（33s） | tint2 10.5M，`statically linked, stripped`，xx-verify=0 |
+| **pcmanfm** | `fk-menu-cache` Connection reset → 无 `.a`（3.2.1） | `gitclone` 缓存（v-pcmanfm libfm:57/menu-cache:104）+ **主源码 `github.com/lxde/pcmanfm` clone 失败**→ 改 `gitclone`（:160，宿主克隆 1.3.1 入缓存）+ 删 `exit 0` | `pcmanfm_rc=0`（16s） | pcmanfm 13.3M，`statically linked, stripped`，xx-verify=0 |
+
+- **判据**（AGENTS 三章 3）：`xx-verify --static` 返回 0 + `file` 报 `statically linked` + `ldd` 报 `Not a valid dynamic program`；成功复验日志 `grep -c "undefined reference|attempted static link"` = 0。4 组件全过。
+- **feh not stripped**：构建时 LDFLAGS 未带 `--strip-all` 残留 debug_info（体积 3.9M vs 应 ~2M）；`xx-verify` 仍 0、静态性无损，**后续可选修**（w-feh build.sh 确认 LDFLAGS 覆盖处），本轮不阻塞。
+
+##### 3.3.2、新增根因（3.2.1 未覆盖，本次实跑暴露）
+
+1. **base 镜像 libgtk 缺 u-gtk 改造符号**（tint2/pcmanfm 真正卡点）：
+   - 现象：tint2 `tint2conf`、pcmanfm 链接均报 `undefined reference to theme_pixbuf_render`（`pixbuf-draw.c`），复验日志此前 = 22/11。
+   - 根因：`theme_pixbuf_render/get_pixbuf/pixbuf_rc_style_register_type/pixbuf_type_rc_style` 4 符号由 u-gtk pixmap engine 提供（`pixbuf-render.c` 等 4 个 `.c`，2026-11-12 才补全，见 u-gtk/build.sh:280-285）；**`gtkmm224-2` 镜像（=base）的 `/usr/lib/libgtk-x11-2.0.a` 是 u-gtkmm 重编的无 patch 版**（Nov 12 04:52，9.76M，nm 无 `theme_pixbuf_render`），而 `gtk224-2` 镜像（builder-awe）是改造版（Nov 8 10.8M，nm 有）。
+   - 佐证：`Dockerfile.builder.gtkmm224:15` 注释掉 `RUN bash /src/u-gtk/build.sh b_deps`，u-gtkmm/full 重编 gtk2 覆盖 gtk224-2 继承的改造 libgtk → base 镜像缺符号；builder-pav 容器（§3.4）Nov 12 11:34 的 libgtk 有符号 = **容器层手动重建**，**不在镜像层**（`docker inspect` 同 digest `d4c994c8` 但 libgtk mtime/size 不同）。故 CI 构建（干净 base）必失败。
+   - **验证**：从 builder-awe 拷改造版 libgtk 覆盖 ver-tint2/ver-pcmanfm 的 `/usr/lib/libgtk-x11-2.0.a` → tint2/pcmanfm 复验通过（tint2_rc=0/pcmanfm_rc=0）。**证明确认唯一缺项是改造版 libgtk**。
+   - **修复方向**：Dockerfile.builder.gtkmm224 需在 u-gtkmm 之后补跑 `u-gtk/build.sh b_deps`（重烤 base 镜像），或主 Dockerfile 加 u-gtk stage 供 gtk2 应用 FROM。**用户 2026-11-13 拍板：远端已有新 gtkmm224-2 镜像解决此问题，本次不拉镜像（磁盘 99% 满），验证用拷贝改造版 libgtk 代替**。
+2. **pcmanfm 主源码 github clone 失败**（3.2.1 未覆盖，b_deps 过了但主组件源码拉不到）：
+   - 现象：pcmanfm 主组件 `git clone $GITHUB/lxde/pcmanfm`（v-pcmanfm:160）报 `Failure when receiving data from the peer` → `/tmp/pcmanfm` 无 → cd/autogen/configure 全 No such file。
+   - 根因：pcmanfm 主源码走 `$GITHUB`（默认 github），**容器内 github 不通**（宿主 github 通，宿主克隆 pcmanfm@1.3.1 成功 RC=0）；b_deps 的 gitee 缓存命中了，主源码没走缓存。
+   - 修复：v-pcmanfm:160 `git clone`→`gitclone`（宿主克隆 pcmanfm@1.3.1 入 `compile/tarsrc-git/pcmanfm`）→ 复验 `pcmanfm_rc=0`。
+
+##### 3.3.3、落地改动（gitclone 机制，2026-11-13）
+
+- `common.sh`：新增 `gitclone()`（本地缓存 clone，`GITCACHE` 默认 `/src/../tarsrc-git`；命中 `cp -a` 保留 `.git` 供 submodule；命中后 `git config --global --add safe.directory` 规避 `dubious ownership`——feh 曾中招；未命中回落网络 clone 不换源）。
+- `w-feh/build.sh`：`git clone`→`gitclone`（:21）；curl-dev/curl-static（:14）；删尾部 `exit 0`（已提交 2026649）。
+- `w-tint2/build.sh`：5 处 `git clone`→`gitclone`（libcroco/librsvg/xcb-util/libxi/tint2）；b_deps 补 `libtool automake autoconf`（:115）；submodule fallback 修正 `m4/`（:118）；删尾部 `exit 0`（已提交 263517f）。
+- `v-pcmanfm/build.sh`：2 处 `git clone`→`gitclone`（libfm/menu-cache）+ 主源码 gitclone（:160）；删尾部 `exit 0`（已提交 cd07e39）。
+- `.gitignore`：加 `/compile/tarsrc-git/`（宿主预克隆 gitee/github 仓库缓存，勿入仓）。
+- **宿主机预克隆缓存**（`compile/tarsrc-git/`，不入仓）：fk-feh/fk-libcroco/fk-libfm/fk-librsvg/fk-libxi/fk-menu-cache/fk-tint2/fk-xcb__util/util-common-m4/pcmanfm；分支已按 build.sh 对齐（libcroco@0.6.13/librsvg@2.40.21/libfm@1.3.2/tint2@16.1/pcmanfm@1.3.1）。
+
+> **⚠️ 待办**：base 镜像 libgtk 缺符号（3.3.2-1）需镜像层修复（重烤 gtkmm224-2 含 u-gtk 改造）才能真正解除 CI 依赖；本次验证依赖拷贝改造版 libgtk（临时），**非 CI 可复现**。远端已有新镜像但本次未拉取。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）
 
