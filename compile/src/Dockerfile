@@ -1,7 +1,17 @@
 ARG COMPILE_IMG=alpine-compile
 ARG REPO=
-# FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
-FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS base
+# split to basemm, for former validate: like geany with gtk's theme/icon/print/input/..
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
+  ARG TARGETPLATFORM
+  ENV CACHE=/usr/local/static/.cache
+  RUN apk update; apk add gawk git;
+  ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
+  RUN git config --global http.sslVerify false
+  # COPY --from=compile /rootfs${CACHE} ${CACHE}
+  COPY ./src /src
+  RUN chmod +x /src/**/*.sh; \
+    ls -lh /src/**/*.sh
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git;
@@ -47,20 +57,6 @@ RUN \
   xx-verify --static /tmp/xdpyprobe/xdpyprobe; \
   upx /tmp/xdpyprobe/xdpyprobe
 
-
-
-FROM base AS pulseaudio
-ARG COMPILE_PULSE="yes"
-ENV CONSOLE_LOG=no \
-  TARGETPATH=/usr/local/static/pulseaudio
-RUN mkdir -p $TARGETPATH; \
-  # sh /src/x-dropbear/build.sh cache; \
-  \
-  test "yes" != "$COMPILE_PULSE" && exit 0 || echo doMake; \
-  sh /src/x-pulseaudio/build.sh b_deps; \
-  sh /src/x-pulseaudio/build.sh pulseaudio; \
-  \
-  find ${TARGETPATH} -type f |sort; 
 
 FROM base AS xrdp
 ARG COMPILE_XRDP="yes"
@@ -454,6 +450,20 @@ RUN mkdir -p $TARGETPATH; \
 #   \
 #   ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a;
 
+# basemm for pavucontrol
+FROM basemm AS pulseaudio
+ARG COMPILE_PULSE="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/pulseaudio
+RUN mkdir -p $TARGETPATH; \
+  # sh /src/x-dropbear/build.sh cache; \
+  \
+  test "yes" != "$COMPILE_PULSE" && exit 0 || echo doMake; \
+  sh /src/x-pulseaudio/build.sh b_deps; \
+  sh /src/x-pulseaudio/build.sh pulseaudio; \
+  \
+  find ${TARGETPATH} -type f |sort; 
+
 # Build pavucontrol (GTK2/gtkmm, 需 pulse+gtkmm 栈)
 FROM pulseaudio AS pavucontrol
 ARG COMPILE_PAVUCONTROL="yes"
@@ -483,7 +493,7 @@ RUN mkdir -p $TARGETPATH; \
 # full = build_gtop + build_wnck + gnome_system_monitor (gtop/wnck 非父级提供, 故直接 full,
 # 不调 b_deps -- 其 ls gtop/wnck 在 set -e 下会因未建而中止)
 # 静态链需 xcb-util (libwnck→startup-notification→xcb-util), 由 w-tint2 xcbutil 补建
-FROM base AS sysmonitor
+FROM basemm AS sysmonitor
 ARG COMPILE_SYSMONITOR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/gsm
