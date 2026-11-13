@@ -53,6 +53,8 @@ full)
     ;;
 b_deps)
     # 先建自建 imlib2（内嵌 png/jpeg/svg loader 到 /usr/local/lib/libImlib2.a）；jpeg loader 需 jpeglib.h
+    # scrot autogen 需 autoconf-archive（AX_ 宏，configure.ac:25/28 报 not present）
+    apk add autoconf-archive
     apk add libjpeg-turbo-static jpeg-dev
     doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
     ;;
