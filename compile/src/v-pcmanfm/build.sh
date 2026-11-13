@@ -275,21 +275,20 @@ b_deps)
 esac
 
 # dbg:
-# root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
-apk add gawk git
-cd /mnt2/docker-x11base/compile/
-ln -s $(pwd)/src /src
-export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
-git pull; bash src/v-pcmanfm/build.sh b_deps
-export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
-bash src/v-pcmanfm/build.sh pcmanfm
+# # root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
+# apk add gawk git
+# cd /mnt2/docker-x11base/compile/
+# ln -s $(pwd)/src /src
+# export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
+# git pull; bash src/v-pcmanfm/build.sh b_deps
+# export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
+# bash src/v-pcmanfm/build.sh pcmanfm
 
-# #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
-# >>> Install PCMANFM...
--rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
+# # #gtk全部构建>> build.sh pcmanfm>> 生成pcmanfm静态文件成功
+# # >>> Install PCMANFM...
+# -rwxr-xr-x    1 root     root       37.1M Dec  1 19:23 /opt/base/bin/pcmanfm
 
-
-# 单独再重试，pcmanfm又出现依赖错: 
-# gdkscreen-x11.c:(.text+0xd69): undefined reference to `XineramaQueryScreens'
-# libgdk-x11-2.0.a(gdkscreen-x11.o): in function `_gdk_x11_screen_size_changed'
+# # 单独再重试，pcmanfm又出现依赖错: 
+# # gdkscreen-x11.c:(.text+0xd69): undefined reference to `XineramaQueryScreens'
+# # libgdk-x11-2.0.a(gdkscreen-x11.o): in function `_gdk_x11_screen_size_changed'
 
