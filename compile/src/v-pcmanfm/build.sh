@@ -54,7 +54,7 @@ function libfm(){
   # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/libfm
   branch="--branch=1.3.1" #1.3.2
   branch="--branch=1.3.2" # #ok with automake @alpine315 
-  rm -rf /tmp/libfm; git clone --depth=1 $branch https://gitee.com/g-system/fk-libfm /tmp/libfm
+  rm -rf /tmp/libfm; gitclone https://gitee.com/g-system/fk-libfm /tmp/libfm $branch
   cd /tmp/libfm
     # FIX: 默认 quick_exec=TRUE（desktop/可执行文件直接执行不弹确认框，2026-11-08）
     git apply /src/v-pcmanfm/libfm-quickexec.patch
@@ -101,7 +101,7 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
-  rm -rf /tmp/menu-cache; git clone --depth=1 $branch https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache
+  rm -rf /tmp/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache $branch
   cd /tmp/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -157,7 +157,7 @@ function pcmanfm(){
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
   branch="--branch=1.3.1"
-  rm -rf /tmp/pcmanfm; git clone --depth=1 $branch $GITHUB/lxde/pcmanfm /tmp/pcmanfm #;
+  rm -rf /tmp/pcmanfm; gitclone $GITHUB/lxde/pcmanfm /tmp/pcmanfm $branch #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
     # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
