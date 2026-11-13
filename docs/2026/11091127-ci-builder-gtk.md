@@ -222,6 +222,30 @@
 - **B（gtkmm 镜像内补）**：Dockerfile.builder.gtkmm224 在 u-gtkmm 后补 `RUN bash /src/u-gtk/build.sh gdk_pixbuf`（重建含 svg loader 版，同 libgtk theme_pixbuf_render 处理）——不改 FROM，只重烤 gtkmm。
 - **净影响**：SVG 图标（Papirus，实测 509 svg/0 png）在静态 gtk2 下**无法显示**；需 PNG 集 `elementary-xfce` 或补 svg loader（u-gtk.md 改造项 3）。
 
+##### 7.2、根因确认 + 修复（2026-11-13，镜像内日志 + 实跑验证）
+
+> **背景**：用户重构建 `gtk224-2`（fd811b17）后图标仍故障，实测 `libgdk_pixbuf-2.0.a` 仍 svg=0/1.04MB。7.1 的"构建早于 patch"推断被证伪——**patch 在、构建也跑了 svg，但编成了独立 `.so`**。
+
+**根因（镜像内日志铁证）**：`/usr/local/static/.logs/doExec/u-gtk/gdk_pixbuf.log`：
+- `patch -p1` 应用成功（gdk-pixbuf-io.c/io-svg.c/meson.build/meson_options.txt 5 文件）
+- `Builtin loaders : png`（**只 png，无 svg**）；`Installing libpixbufloader-svg.so to .../loaders`（svg 成**独立动态 loader**）
+- 直接原因：`u-gtk/build.sh gdk_pixbuf` meson 命令 `meson build --default-library=both` **没传 `-Dbuiltin_loaders=svg`**；而 patch 只把 svg 加进 `meson_options.txt` 的 **choices**，**默认 `value:['png','jpeg']` 不含 svg** → meson 把 svg 当普通 loader 编 `.so`（dlopen 用不上）。
+
+**修复**（commit `b7da717`）：`u-gtk/build.sh` gdk_pixbuf meson 改 `-Dbuiltin_loaders=png,jpeg,svg`。
+
+**实跑验证**（builder-awe / gtk224-2 容器，gdk_pixbuf 增量）：
+- 修复后 `libgdk_pixbuf-2.0.a` = **1,314,642 B，svg=15 符号**（vs 旧 1,040,794 B svg=0）——svg 已编进 `.a`。
+- 注：日志 `xmlNewEntity`/`pango_cairo_font_map_get_default` 链接错误 = 构建期工具链 librsvg 测试程序失败（缺 xml2/pango 传递），**不影响 `.a` 产出**。
+
+**结论**：7.1 的"gtk224-2 构建早于 patch"推断**不成立**；真根因是 meson `builtin_loaders` 默认不含 svg（patch 没改默认 value）。修 build.sh 后重烤 gtk224-2→gtkmm224-2 即生效。
+
+**⚠️ 二次验证（干净 gtk224-2 容器 `ver-gtk224`，2026-11-13）——发现第 2 层根因**：
+- `b7da717` 后 builder-awe svg=15 是**容器层旧残留**（误导）；**干净 gtk224-2 容器跑 gdk_pixbuf 仍 svg=0**。
+- 日志：`libstaticpixbufloader-svg.a` 编译了（`-Dbuiltin_loaders=svg` 生效），但链接 `libgdk_pixbuf-2.0.so` 失败：`undefined reference to xml*`→`pango_cairo_*`→`cr_*`（按序补依赖逐个暴露）。
+- **根因**：`librsvg-2.0.pc` Requires **只有** `glib-2.0 gio-2.0 gdk-pixbuf-2.0 cairo`，Requires.private 空——**缺 pangocairo/libxml-2.0/libcroco-0.6**（librsvg 静态依赖链，lxtask 3.6.1:804 `-lrsvg-2 -lcroco-0.6 -lxml2`）→ meson `dependency('librsvg-2.0')` 不带这些 → 链接 librsvg-2.a 失败 → svg loader 未编入 `.a`。
+- **修复**：`librsvg-2.0.pc` Requires 补 `pangocairo libxml-2.0 libcroco-0.6`（w-tint2/build.sh librsvg make install 后 sed 补）；实跑 `libgdk_pixbuf-2.0.a` = **1,060,650 B，svg=19 符号**，undefined 清零。
+- **结论**：svg loader 需**两层**修复——① `-Dbuiltin_loaders=svg`（u-gtk gdk_pixbuf，b7da717）② librsvg `.pc` 补依赖（w-tint2 librsvg）。两者齐备重烤 gtk224-2→gtkmm224-2 才真正生效。
+
 ## 二、u-gtk doExec 日志过滤 + 错误码识别（2026-11-11）
 
 > 起因：gtkmm CI 构建失败（`pangomm/attrlist.cc: pango/pango-markup.h not found`，2026-11-10）。排查 pango 版本时发现 `u-gtk/build.sh` 的并发 `doExec` **记录不到错误码**——`atk` 克隆失败（`fatal: could not read Username`）后仍报 `err 0, pass` 继续跑。根因定位到 `common.sh` 的 `oneBuild` 吞错，而非 doExec 本身。
