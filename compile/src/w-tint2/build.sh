@@ -330,19 +330,19 @@ cache)
     # down_catfile ${LIBCROCO_URL} > /dev/null
     ;;
 full)
-    # imlib2
-    doExec tint2
+    doExec tint2 || exit 1
     ;;
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
     apk add xorg-server-dev;
-    bash /src/w-xlunch/build.sh imlib2
-    # 
-    bash /src/w-tint2/build.sh libcroco # libcroco >deps: imlib2
-    bash /src/w-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
-    bash /src/w-tint2/build.sh xcbutil &
-    bash /src/w-tint2/build.sh libxi &
-    wait 
+    doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
+    doExec bash /src/w-tint2/build.sh libcroco || exit 1
+    doExec_mark "w-tint2 b_deps grp"
+    doExec bash /src/w-tint2/build.sh librsvg & #librsvg> libcroco >deps: imlib2
+    doExec bash /src/w-tint2/build.sh xcbutil &
+    doExec bash /src/w-tint2/build.sh libxi &
+    wait
+    doExec_check || exit 1
 
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
