@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-suckless}"
 source /src/common.sh
 
 # pango="-lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0"
@@ -203,10 +204,9 @@ cache)
     # down_catfile ${XRDP_URL} > /dev/null
     ;;
 full)
-    # fdkaac
-    st
-    dwm
-    dmenu
+    doExec st || exit 1
+    doExec dwm || exit 1
+    doExec dmenu || exit 1
     ;;
 # b_deps)
 #     /src/xrdp/build.sh libxrandr &
