@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-xfce4}"
 source /src/common.sh
 
 #
@@ -308,20 +309,25 @@ cache)
     ;;
 b_deps)
     # gtk2 静态库：确保最新（base 镜像 builder-gtk224 可能旧，u-gtk 有更新则重编）。
-    ensure_gtk_libs
+    doExec ensure_gtk_libs || exit 1
     # dbus / dbus-glib（xfce 库栈与 app 静态链依赖，x-dbus 建到 /usr/local/static/dbus[/-glib]）。
     # 注意：x-dbus 的 ${TARGETPATH:-...} 回退会被 common.sh 默认(static_temp1)/调用方污染——必须显式传对。
-    test -f /usr/local/static/dbus/lib/libdbus-1.a || TARGETPATH=/usr/local/static/dbus sh /src/x-dbus/build.sh dbus
-    test -f /usr/local/static/dbus-glib/lib/libdbus-glib-1.a || TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib
+    # 注意：TARGETPATH=... doExec func 不生效(dash 函数前缀 env 不传到子进程)，故经 env 显式传（env 前缀在 doExec 内仍会 word-split，但 TARGETPATH=... 无空格，安全）。
+    if ! test -f /usr/local/static/dbus/lib/libdbus-1.a; then
+      doExec env TARGETPATH=/usr/local/static/dbus sh /src/x-dbus/build.sh dbus || exit 1
+    fi
+    if ! test -f /usr/local/static/dbus-glib/lib/libdbus-glib-1.a; then
+      doExec env TARGETPATH=/usr/local/static/dbus-glib sh /src/x-dbus/build.sh dbus_glib || exit 1
+    fi
     # xfce 库栈（依赖序；xfconf 起需 pc 链：xfce + dbus + dbus-glib）。
     export PKG_CONFIG_PATH="/usr/local/static/xfce/lib/pkgconfig:/usr/local/static/dbus/lib/pkgconfig:/usr/local/static/dbus-glib/lib/pkgconfig"
-    xfce_lib libxfce4util-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4util/4.12/libxfce4util-4.12.1.tar.bz2" libxfce4util.a --disable-nls --disable-gtk-doc
-    xfce_lib xfconf-4.12.1 "https://archive.xfce.org/src/xfce/xfconf/4.12/xfconf-4.12.1.tar.bz2" libxfconf-0.a --disable-nls --disable-perl-bindings
-    xfce_lib libxfce4ui-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4ui/4.12/libxfce4ui-4.12.1.tar.bz2" libxfce4ui-1.a --disable-nls --disable-gtk3 --disable-startup-notification --disable-gladeui
-    xfce_lib exo-0.10.6 "https://archive.xfce.org/src/xfce/exo/0.10/exo-0.10.6.tar.bz2" libexo-1.a --disable-nls
-    xfce_lib garcon-0.4.0 "https://archive.xfce.org/src/xfce/garcon/0.4/garcon-0.4.0.tar.bz2" libgarcon-1.a --disable-nls
+    doExec xfce_lib libxfce4util-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4util/4.12/libxfce4util-4.12.1.tar.bz2" libxfce4util.a --disable-nls --disable-gtk-doc || exit 1
+    doExec xfce_lib xfconf-4.12.1 "https://archive.xfce.org/src/xfce/xfconf/4.12/xfconf-4.12.1.tar.bz2" libxfconf-0.a --disable-nls --disable-perl-bindings || exit 1
+    doExec xfce_lib libxfce4ui-4.12.1 "https://archive.xfce.org/src/xfce/libxfce4ui/4.12/libxfce4ui-4.12.1.tar.bz2" libxfce4ui-1.a --disable-nls --disable-gtk3 --disable-startup-notification --disable-gladeui || exit 1
+    doExec xfce_lib exo-0.10.6 "https://archive.xfce.org/src/xfce/exo/0.10/exo-0.10.6.tar.bz2" libexo-1.a --disable-nls || exit 1
+    doExec xfce_lib garcon-0.4.0 "https://archive.xfce.org/src/xfce/garcon/0.4/garcon-0.4.0.tar.bz2" libgarcon-1.a --disable-nls || exit 1
     # libexif（thunar/ristretto 需要）。
-    libexif
+    doExec libexif || exit 1
     ;;
 full)
     ;;
