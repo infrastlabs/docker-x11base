@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pcmanfm}"
 source /src/common.sh
 
 # git clone https://hub.nuaa.cf/GNOME/atk #3.29 MiB 1985> ATK_2_36_0 1943
@@ -230,12 +231,12 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    atk
-    gdk-pixbuf
-    gtk ##long-cost: 共历时766秒 (比首次手动长??)
-    libfm
-    menu-cache
-    pcmanfm
+    doExec atk || exit 1
+    doExec gdk-pixbuf || exit 1
+    doExec gtk || exit 1 ##long-cost: 共历时766秒 (比首次手动长??)
+    doExec libfm || exit 1
+    doExec menu-cache || exit 1
+    doExec pcmanfm || exit 1
     ;;
 b_deps)
     # bash /src/openbox/build.sh apkdeps
@@ -249,8 +250,8 @@ b_deps)
     # bash /src/v-pcmanfm/build.sh gdk-pixbuf & #needed by gtk
     # wait
     # bash /src/v-pcmanfm/build.sh gtk
-    bash /src/v-pcmanfm/build.sh libfm
-    bash /src/v-pcmanfm/build.sh menu-cache #在libfm之后
+    doExec bash /src/v-pcmanfm/build.sh libfm || exit 1
+    doExec bash /src/v-pcmanfm/build.sh menu-cache || exit 1 #在libfm之后
 
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
