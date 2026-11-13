@@ -23,7 +23,7 @@ function engrampa(){
   else
     rm -rf /tmp/engrampa
     branch="--branch=v$ENGRAMPA_VER"
-    git clone --depth=1 $branch $GITHUB/mate-desktop/engrampa /tmp/engrampa
+    git clone --depth=1 $branch https://gitee.com/g-system/fk-engrampa /tmp/engrampa
   fi
 
   # apply glib g_ptr_array_copy dead-code patch (系统 glib>=2.32 三参 API 与 engrampa 自带单参冲突)
