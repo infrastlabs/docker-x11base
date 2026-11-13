@@ -17,7 +17,7 @@ function scrot(){
   else
     rm -rf /tmp/scrot
     branch="--branch=$SCROT_VER"
-    git clone --depth=1 $branch https://ghfast.top/https://github.com/resurrecting-open-source-projects/scrot /tmp/scrot
+    git clone --depth=1 $branch https://gitee.com/g-system/fk-scrot /tmp/scrot
   fi
 
   log "Configuring SCROT..."
