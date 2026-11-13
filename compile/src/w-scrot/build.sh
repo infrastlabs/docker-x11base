@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-scrot}"
 source /src/common.sh
 
 #
@@ -53,7 +54,7 @@ full)
 b_deps)
     # 先建自建 imlib2（内嵌 png/jpeg/svg loader 到 /usr/local/lib/libImlib2.a）；jpeg loader 需 jpeglib.h
     apk add libjpeg-turbo-static jpeg-dev
-    bash /src/w-xlunch/build.sh imlib2
+    doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
     ;;
 *) #compile
     oneBuild $1
