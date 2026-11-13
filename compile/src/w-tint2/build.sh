@@ -118,12 +118,16 @@ function xcbutil(){
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
   apk add util-macros libtool automake autoconf #ubt: xorg-macros
-  # 2026-11-13: m4 submodule 缓存仅在本地(tarsrc-git)存在时指向缓存; CI 构建上下文无 tarsrc-git(仅 COPY src)
-  # → 不 sed 保持原始 freedesktop URL 走网络 submodule update; 失败再回落 gitee g-system 镜像(缓存即从该源克隆)
-  M4CACHE=${GITCACHE:-/src/../tarsrc-git}/util-common-m4
-  test -d "$M4CACHE/.git" && sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^$M4CACHE^g" .gitmodules
-  git submodule update --init 2>&1 | tail -1
-  test -f m4/xcb_util_common.m4 || { rm -rf m4; test -d "$M4CACHE/.git" && cp -a "$M4CACHE" m4 || git clone --depth=1 https://gitee.com/g-system/util-common-m4 m4; }
+  # 2026-11-13: m4 子模块改用 gitclone 预热(享受缓存链 GITCACHE>tar.gz>网络), 不再依赖 submodule update(git:// 常被禁/抖动)
+  # gitee g-system/util-common-m4 镜像与宿主缓存 tarsrc-git/util-common-m4 同名(_repo=util-common-m4) → GITCACHE 命中;
+  # CI 无 tarsrc-git 时回落 tar.gz 快照/网络 gitee 克隆, 不再 sed .gitmodules 指向不存在路径(cp can't stat 教训, 3.3.4/5.1)
+  # autogen.sh 检查 `git submodule status|grep ^-`(父仓库 gitlink 与 gitclone 的 m4 独立克隆 HEAD 不一致→报 uninitialized→exit 1)
+  # → 移除父仓库对 m4 的 submodule 跟踪(.gitmodules 删段; git rm --cached/.git/config 兜底), autogen 检查即过(实测生成 Makefile)
+  rm -rf m4; gitclone https://gitee.com/g-system/util-common-m4 m4
+  sed -i '/\[submodule "m4"\]/,/^$/d' .gitmodules 2>/dev/null || true
+  git rm --cached m4 >/dev/null 2>&1 || true
+  git config --remove-section submodule.m4 2>/dev/null || true
+  test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失败)"; }
   ./autogen.sh 
   #  
   # cd /mnt2/_deps/xcb__util/
