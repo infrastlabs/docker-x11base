@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-xperp}"
 source /src/common.sh
 
 #
@@ -33,7 +34,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    perp
+    doExec perp || exit 1
     ;;
 *) #compile
     oneBuild $1
