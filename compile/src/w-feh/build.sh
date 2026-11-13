@@ -18,7 +18,7 @@ function feh(){
   # down_catfile ${FEH_URL} | tar -zx --strip 1 -C /tmp/fk-feh
   # branch="--branch=$FEH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/feh
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-feh /tmp/fk-feh #;
+  gitclone https://gitee.com/g-system/fk-feh /tmp/fk-feh $branch #;
   log "Configuring FEH..."
   cd /tmp/fk-feh #&& ./bootstrap;
     deps1="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
