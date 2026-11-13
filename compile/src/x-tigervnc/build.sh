@@ -1,6 +1,7 @@
 #!/bin/sh
 # NOTE: This script is expected to be run under Alpine Linux.
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-tigervnc}"
 source /src/common.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -478,29 +479,32 @@ cache)
     down_catfile ${XKBCOMP_URL} > /dev/null
     ;;
 full)
-    gnutls
-    libxfont2
-    libfontenc
-    libtasn1
-    libxshmfence
-    # 
-    tigervnc
-    xkb
-    xkbcomp
+    doExec gnutls || exit 1
+    doExec libxfont2 || exit 1
+    doExec libfontenc || exit 1
+    doExec libtasn1 || exit 1
+    doExec libxshmfence || exit 1
+    doExec tigervnc || exit 1
+    doExec xkb || exit 1
+    doExec xkbcomp || exit 1
     ;;
 b_deps)
     # /src/x-tigervnc/build.sh gnutls &
-    bash /src/x-tigervnc/build.sh libxfont2 &
-    bash /src/x-tigervnc/build.sh libfontenc &
-    bash /src/x-tigervnc/build.sh libtasn1 &
-    bash /src/x-tigervnc/build.sh libxshmfence &
+    doExec_mark "x-tigervnc b_deps grp"
+    doExec bash /src/x-tigervnc/build.sh libxfont2 &
+    doExec bash /src/x-tigervnc/build.sh libfontenc &
+    doExec bash /src/x-tigervnc/build.sh libtasn1 &
+    doExec bash /src/x-tigervnc/build.sh libxshmfence &
     wait
+    doExec_check || exit 1
     ;;
 b_tiger)
-    bash /src/x-tigervnc/build.sh tigervnc &
-    bash /src/x-tigervnc/build.sh xkb &
-    bash /src/x-tigervnc/build.sh xkbcomp &
+    doExec_mark "x-tigervnc b_tiger grp"
+    doExec bash /src/x-tigervnc/build.sh tigervnc &
+    doExec bash /src/x-tigervnc/build.sh xkb &
+    doExec bash /src/x-tigervnc/build.sh xkbcomp &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
