@@ -192,8 +192,8 @@ function b_deps(){
   apk update
   apk add librsvg-dev cairo-dev pango-dev xz-dev
   test -s /usr/local/lib/librsvg-2.a || {
-    STATIC=yes bash /src/w-tint2/build.sh libcroco
-    STATIC=yes bash /src/w-tint2/build.sh librsvg
+    doExec env STATIC=yes bash /src/w-tint2/build.sh libcroco || exit 1
+    doExec env STATIC=yes bash /src/w-tint2/build.sh librsvg || exit 1
   }
 }
 
@@ -205,11 +205,11 @@ cache)
     down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    doExec imlib2
-    doExec xlunch
+    doExec imlib2 || exit 1
+    doExec xlunch || exit 1
     ;;
 b_deps)
-    b_deps
+    doExec b_deps || exit 1
     ;;
 *) #compile
     oneBuild $1
