@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-xbindkeys}"
 source /src/common.sh
 
 #
