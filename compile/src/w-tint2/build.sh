@@ -27,7 +27,7 @@ function libcroco(){
   # cd /tmp/libcroco
   # down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C /tmp/libcroco
   branch="--branch=0.6.13"
-  rm -rf /tmp/libcroco; git clone --depth=1 $branch https://gitee.com/g-system/fk-libcroco /tmp/libcroco
+  rm -rf /tmp/libcroco; gitclone https://gitee.com/g-system/fk-libcroco /tmp/libcroco $branch
   cd /tmp/libcroco
   # cd libcroco-0.6.13
   ./autogen.sh 
@@ -84,7 +84,7 @@ function librsvg(){
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
   branch="--branch=2.40.21"
-  rm -rf /tmp/librsvg; git clone --depth=1 $branch https://gitee.com/g-system/fk-librsvg /tmp/librsvg
+  rm -rf /tmp/librsvg; gitclone https://gitee.com/g-system/fk-librsvg /tmp/librsvg $branch
   cd /tmp/librsvg
   ./autogen.sh 
   # STATIC 下 librsvg-2.a 的消费方(rsvg-convert/rsvg-loader/GISCAN 等可执行)均被 -static 强制静态链接,
@@ -108,13 +108,14 @@ function librsvg(){
 # [xcb-util]
 function xcbutil(){
   log "Downloading xcb_util..."
-  rm -rf /tmp/xcb-util; git clone --depth=1 $branch https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util
+  rm -rf /tmp/xcb-util; gitclone https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util $branch
   cd /tmp/xcb-util
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
-  apk add util-macros #ubt: xorg-macros
-  sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^https://gitee.com/g-system/util-common-m4.git^g" .gitmodules
-  git submodule update --init
+  apk add util-macros libtool automake autoconf #ubt: xorg-macros
+  sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^/src/../tarsrc-git/util-common-m4^g" .gitmodules
+  git submodule update --init 2>&1 | tail -1
+  test -f m4/xcb_util_common.m4 || { rm -rf m4; cp -a /src/../tarsrc-git/util-common-m4 m4; }
   ./autogen.sh 
   #  
   # cd /mnt2/_deps/xcb__util/
@@ -133,7 +134,7 @@ function xcbutil(){
 function libxi(){
   # git clone $GITHUB/aleax/libxi
   log "Downloading libxi..."
-  rm -rf /tmp/libxi; git clone --depth=1 $branch https://gitee.com/g-system/fk-libxi /tmp/libxi
+  rm -rf /tmp/libxi; gitclone https://gitee.com/g-system/fk-libxi /tmp/libxi $branch
   cd /tmp/libxi
   ./autogen.sh 
   ./configure  --enable-static --disable-shared #disable dyn;
@@ -222,7 +223,7 @@ function tint2(){
   # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C /tmp/tint2
   branch="--branch=16.1"
   # repo=$GITHUB/o9000/tint2
-  rm -rf /tmp/tint2; git clone --depth=1 $branch https://gitee.com/g-system/fk-tint2 /tmp/tint2 #;
+  rm -rf /tmp/tint2; gitclone https://gitee.com/g-system/fk-tint2 /tmp/tint2 $branch #;
   log "Configuring TINT2..."
   cd /tmp/tint2 #&& ./bootstrap;
     # sed -i "s^bash extra/genentries^#bash extra/genentries^g" Makefile
