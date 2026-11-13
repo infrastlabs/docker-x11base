@@ -11,6 +11,11 @@ source /src/common.sh
 function engrampa(){
   ENGRAMPA_VER=1.14.1
 
+  # autogen 硬性依赖 mate-autogen(mate-common)/yelp-build(yelp-tools)/itstool，缺则 ./autogen.sh 静默失败→无 configure
+  # （2026-11-13 修复：构建环境须装；幂等，已装则 no-op）
+  apk add mate-common yelp-tools itstool >/dev/null 2>&1
+  which mate-autogen >/dev/null || { log "mate-autogen MISSING (apk add mate-common)"; exit 1; }
+
   log "Downloading ENGRAMPA..."
   if test -d /tmp/engrampa/.git; then
     log "engrampa source already present, skip clone"
@@ -40,7 +45,7 @@ function engrampa(){
 
   # 去重复全局定义：main.c 重定义了 fr-init.h 已 extern 的 WindowList/ForceDirectoryCreation
   # （fr-init.c 已定义）→ 静态链 multiple definition；去掉定义即可免 --allow-multiple-definition。
-  if grep -q 'WindowList        = NULL' /tmp/engrampa/src/main.c; then
+  if grep -qE 'WindowList[[:space:]]*=[[:space:]]*NULL' /tmp/engrampa/src/main.c; then
     log "Apply dup-globals patch..."
     patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-dup-globals.patch" || { log "DUP-GLOBALS PATCH FAILED"; exit 1; }
   else
