@@ -16,7 +16,7 @@ LIBXCRYPT_ALL="yescrypt,gost_yescrypt,scrypt,bcrypt,bcrypt_y,bcrypt_a,bcrypt_x,s
 function libxcrypt(){
   log "Downloading LIBXCRYPT..."
   rm -rf $LIBXCRYPT_DIR
-  git clone --depth=1 --branch=v$LIBXCRYPT_VER $GITHUB/besser82/libxcrypt $LIBXCRYPT_DIR
+  git clone --depth=1 --branch=v$LIBXCRYPT_VER https://gitee.com/g-system/fk-libxcrypt $LIBXCRYPT_DIR
   cd $LIBXCRYPT_DIR
   # crypt-hashes.h 不在 git 源码树（INCLUDE_* 无默认值），须从 hashes.conf 生成
   perl build-aux/scripts/gen-crypt-hashes-h lib/hashes.conf "$LIBXCRYPT_ALL" > lib/crypt-hashes.h
