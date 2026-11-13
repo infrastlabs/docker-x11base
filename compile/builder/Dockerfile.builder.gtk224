@@ -3,9 +3,7 @@ ARG REPO=
 FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
 # FROM infrastlabs/x11-base:builder AS base
   ARG TARGETPLATFORM
-  ENV \
-    CACHE=/usr/local/static/.cache \
-    DOEXEC_CALLER=u-gtk
+  ENV CACHE=/usr/local/static/.cache
   RUN sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories; \
     apk update; apk add gawk git;
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
