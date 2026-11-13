@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pasystray}"
 source /src/common.sh
 
 #
@@ -106,7 +107,7 @@ cache)
     # down_catfile $GITHUB/christophgysin/pasystray/archive/refs/tags/0.8.2.tar.gz > /dev/null
     ;;
 full)
-    pasystray
+    doExec pasystray || exit 1
     ;;
 b_deps)
     # GTK2 静态库 + pulse 栈已在 builder-awe 就位（见 u-gtk / v-pavucontrol §3.3/3.4）
