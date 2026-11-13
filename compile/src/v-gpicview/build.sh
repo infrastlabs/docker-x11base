@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-gpicview}"
 source /src/common.sh
 
 #
@@ -119,7 +120,7 @@ cache)
     # down_catfile $GPICVIEW_URL > /dev/null
     ;;
 full)
-    gpicview
+    doExec gpicview || exit 1
     ;;
 b_deps)
     echo "== gtk2/jpeg/x11 =="
