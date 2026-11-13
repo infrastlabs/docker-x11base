@@ -14,7 +14,7 @@ export CC=xx-clang
 export CXX=xx-clang++
 
 # params
-test -z "$TARGETPATH" && export TARGETPATH=/usr/local/static_temp1 #/opt/base
+test -z "$TARGETPATH" && export TARGETPATH=/usr/local/static/temp1 #/opt/base
 test -z "$CONSOLE_LOG" && export CONSOLE_LOG=yes
 # export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu
 test -z "$GITHUB" && export GITHUB=https://github.com 
