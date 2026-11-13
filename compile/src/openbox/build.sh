@@ -389,20 +389,23 @@ cache)
     ;;
 full)
     # fontconfig
-    doExec libxrandr
-    doExec pango
-    doExec openbox
+    doExec libxrandr || exit 1
+    doExec pango || exit 1
+    doExec openbox || exit 1
     ;;
 b_deps)
-    apkdeps
+    doExec apkdeps || exit 1
     apk add fontconfig-dev fontconfig-static
-    # bash /src/openbox/build.sh fontconfig &
-    bash /src/openbox/build.sh libxrandr &
-    bash /src/openbox/build.sh pango &
-    STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
+    doExec_mark "openbox b_deps grp1"
+    doExec bash /src/openbox/build.sh libxrandr &
+    doExec bash /src/openbox/build.sh pango &
+    doExec env STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
-    STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    doExec_check || exit 1
+    doExec_mark "openbox b_deps grp2"
+    doExec env STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     wait
+    doExec_check || exit 1
     # view libs
     find /usr/lib |egrep "libpango|libXrandr|libfontconfig" |grep "\.a$" |sort
     find /usr/local/lib |egrep "librsvg|libcroco" |grep "\.a$" |sort
