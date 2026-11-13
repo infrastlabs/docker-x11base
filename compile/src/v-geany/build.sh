@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-geany}"
 source /src/common.sh
 
 #
@@ -71,7 +72,7 @@ case "$1" in
 cache)
     ;;
 full)
-    geany
+    doExec geany || exit 1
     ;;
 b_deps)
     # GTK2 静态库已在 builder（builder-obox，alpine-builder-gtk224-2）齐备（见 u-gtk/v-pcmanfm b_deps）
