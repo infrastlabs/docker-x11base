@@ -561,40 +561,42 @@ RUN \
 # RUN rm -rf /rootfs${STATIC}/xrdp
 # RUN rm -rf /rootfs/usr/local/xrdp /rootfs/usr/local/tigervnc
 # stages: 未用到的stage,会跳过构建
-COPY --from=tiger ${STATIC} /rootfs${STATIC}
-COPY --from=xrdp ${STATIC} /rootfs${STATIC}
-COPY --from=x11vnc ${STATIC} /rootfs${STATIC}
-COPY --from=dropbear ${STATIC} /rootfs${STATIC}
-COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
-COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
-COPY --from=openbox ${STATIC} /rootfs${STATIC}
-COPY --from=suckless ${STATIC} /rootfs${STATIC}
+# COPY --from=tiger ${STATIC} /rootfs${STATIC}
+# COPY --from=xrdp ${STATIC} /rootfs${STATIC}
+# COPY --from=x11vnc ${STATIC} /rootfs${STATIC}
+# COPY --from=dropbear ${STATIC} /rootfs${STATIC}
+# COPY --from=fluxbox ${STATIC} /rootfs${STATIC}
+# COPY --from=openbox ${STATIC} /rootfs${STATIC}
+# COPY --from=suckless ${STATIC} /rootfs${STATIC}
+# COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
+# COPY --from=perp ${STATIC} /rootfs${STATIC}
+# COPY --from=misc ${STATIC} /rootfs${STATIC}
 # 
-COPY --from=xcompmgr ${STATIC} /rootfs${STATIC}
-COPY --from=xlunch ${STATIC} /rootfs${STATIC}
+# COPY --from=feh ${STATIC} /rootfs${STATIC}
+# COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
+# COPY --from=scrot ${STATIC} /rootfs${STATIC}
+# COPY --from=tint2 ${STATIC} /rootfs${STATIC}
+# COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tint2
-COPY --from=tint2 ${STATIC} /rootfs${STATIC}
-COPY --from=feh ${STATIC} /rootfs${STATIC}
-COPY --from=xbindkeys ${STATIC} /rootfs${STATIC}
-COPY --from=xrandr ${STATIC} /rootfs${STATIC}
-COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
-COPY --from=lxde ${STATIC} /rootfs${STATIC}
-COPY --from=geany ${STATIC} /rootfs${STATIC}
-COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
+# 
+# COPY --from=xbindkeys ${STATIC} /rootfs${STATIC}
+# COPY --from=xrandr ${STATIC} /rootfs${STATIC}
+# COPY --from=dunst ${STATIC} /rootfs${STATIC}
+# COPY --from=rofi ${STATIC} /rootfs${STATIC}
+COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
+COPY --from=pasystray ${STATIC} /rootfs${STATIC}
 COPY --from=pavucontrol ${STATIC} /rootfs${STATIC}
-COPY --from=dbus ${STATIC} /rootfs${STATIC}
-COPY --from=ibus ${STATIC} /rootfs${STATIC}
+COPY --from=sysmonitor ${STATIC} /rootfs${STATIC}
+# 
+COPY --from=lxde ${STATIC} /rootfs${STATIC}
+COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
+# COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
+COPY --from=geany ${STATIC} /rootfs${STATIC}
 COPY --from=engrampa ${STATIC} /rootfs${STATIC}
 COPY --from=gpicview ${STATIC} /rootfs${STATIC}
-COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
-COPY --from=scrot ${STATIC} /rootfs${STATIC}
-COPY --from=dunst ${STATIC} /rootfs${STATIC}
-COPY --from=rofi ${STATIC} /rootfs${STATIC}
-COPY --from=pasystray ${STATIC} /rootfs${STATIC}
-COPY --from=sysmonitor ${STATIC} /rootfs${STATIC}
-COPY --from=perp ${STATIC} /rootfs${STATIC}
-COPY --from=misc ${STATIC} /rootfs${STATIC}
+# COPY --from=dbus ${STATIC} /rootfs${STATIC}
+# COPY --from=ibus ${STATIC} /rootfs${STATIC}
 
 # clear lib,share/man; create links: (ubt/deb: bin> /usr/bin)
 RUN rm -rf  /rootfs/bin /rootfs/sbin;
