@@ -44,6 +44,7 @@ fetch_src() { # name url
   else
     mkdir -p /tmp/xfce-build
     local TARBALL=$TARGETPATH/../.cache/$name.tar.bz2
+    mkdir -p $(dirname "$TARBALL")
     test -s $TARBALL || down_catfile "$url" > $TARBALL
     tar xjf $TARBALL -C /tmp/xfce-build || { log "TARBALL EXTRACT FAILED: $name"; exit 1; }
   fi
@@ -59,6 +60,7 @@ function xfce4settings(){
   else
     mkdir -p /tmp/xfce-build
     TARBALL=$TARGETPATH/../.cache/xfce4-settings-$VER.tar.bz2
+    mkdir -p $(dirname "$TARBALL")
     test -s $TARBALL || down_catfile https://archive.xfce.org/src/xfce/xfce4-settings/4.12/xfce4-settings-$VER.tar.bz2 > $TARBALL
     tar xjf $TARBALL -C /tmp/xfce-build
   fi
