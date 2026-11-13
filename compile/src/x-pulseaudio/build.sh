@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-pulseaudio}"
 source /src/common.sh
 
 # _xiph[ogg,flac,vorbis,opus],libsndfile
@@ -185,7 +186,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    pulseaudio
+    doExec pulseaudio || exit 1
     ;;
     # dep1="-logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc"
     # 尝试重编译deps ogg> [opus]flac,vorbis> sndfile  (ref: docs/core/pulse05.md)
@@ -195,14 +196,20 @@ full)
       # vorbis/enc-v137 https://hub.yzuu.cf/xiph/vorbis #432, Ogg Vorbis audio format Jul 11, 1999+
       # libsndfile-v1.0.31 https://hub.yzuu.cf/libsndfile/libsndfile #1.3k, A C library for reading and writing sound files Jan 18, 2004+
 b_deps) #TODO1
-    bash /src/x-pulseaudio/build.sh libogg &
+    doExec_mark "x-pulseaudio b_deps grp1"
+    doExec bash /src/x-pulseaudio/build.sh libogg &
     wait
-    bash /src/x-pulseaudio/build.sh libopus &
-    bash /src/x-pulseaudio/build.sh libflac &
-    bash /src/x-pulseaudio/build.sh libvorbis &
+    doExec_check || exit 1
+    doExec_mark "x-pulseaudio b_deps grp2"
+    doExec bash /src/x-pulseaudio/build.sh libopus &
+    doExec bash /src/x-pulseaudio/build.sh libflac &
+    doExec bash /src/x-pulseaudio/build.sh libvorbis &
     wait
-    bash /src/x-pulseaudio/build.sh libsndfile &
+    doExec_check || exit 1
+    doExec_mark "x-pulseaudio b_deps grp3"
+    doExec bash /src/x-pulseaudio/build.sh libsndfile &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
