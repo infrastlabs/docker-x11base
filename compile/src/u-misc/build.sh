@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-u-misc}"
 source /src/common.sh
 
 #
@@ -139,10 +140,10 @@ cache)
     # down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    su_exec
-    lrzsz
-    n2n
-    tinc
+    doExec su_exec || exit 1
+    doExec lrzsz || exit 1
+    doExec n2n || exit 1
+    doExec tinc || exit 1
     ;;
 *) #compile
     oneBuild $1
