@@ -181,16 +181,16 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
 
-    --build-arg COMPILE_FEH=no
+    --build-arg COMPILE_FEH=yes
     --build-arg COMPILE_HSETROOT=no
-    --build-arg COMPILE_SCROT=no
+    --build-arg COMPILE_SCROT=yes
     --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_XLUNCH=no
 
     --build-arg COMPILE_XBINDKEYS=no
     --build-arg COMPILE_XRANDR=yes
     --build-arg COMPILE_DUNST=yes
-    --build-arg COMPILE_ROFI=no
+    --build-arg COMPILE_ROFI=yes
     --build-arg COMPILE_PULSE=no
     --build-arg COMPILE_PASYSTRAY=no
     --build-arg COMPILE_PAVUCONTROL=no
@@ -201,7 +201,7 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_XFCE4=no
     --build-arg COMPILE_GEANY=yes
     --build-arg COMPILE_ENGRAMPA=no
-    --build-arg COMPILE_GPICVIEW=no
+    --build-arg COMPILE_GPICVIEW=yes
     --build-arg COMPILE_DBUS=no
     --build-arg COMPILE_IBUS=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
