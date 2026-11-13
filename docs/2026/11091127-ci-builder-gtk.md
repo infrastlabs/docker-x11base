@@ -197,6 +197,31 @@
 
 **落地**：`compile/builder/Dockerfile.builder.gtk224` 的 apk 行加 `libjpeg-turbo-static jpeg-dev`；u-gtk `b_deps` 后加 `RUN bash /src/w-xlunch/build.sh imlib2`。后续 w-* stage 的 b_deps 里 imlib2 调用保留（幂等，已存在则复用/跳过）。
 
+### 7、gtkmm 镜像 svg loader 未生效（2026-11-13）
+
+#### 7.1、发现与根因分析（2026-11-13，镜像内无日志、只能构建链推断）
+
+> **背景**：拉取新 gtkmm224-2 镜像（`sha256:328141db`，Digest 新于旧 `d4c994c8`）后，按 AGENTS 五章 4 节核查 gtk2 图标/主题支持：**主题引擎（murrine/pixmap）已生效**（libgtk 有 `pixmap_theme_*`/`theme_pixbuf_render` 等 73 个 theme 符号），但 **SVG 图标 loader 未生效**。
+
+**实测（新 gtkmm 镜像 `libgdk_pixbuf-2.0.a`）**：
+
+| 项 | `gtkmm224-2`（新 328141db） | `gtk224`（builder-awe 容器） |
+|---|---|---|
+| libgdk_pixbuf-2.0.a 大小 | 1,040,794 B | 1,314,642 B |
+| svg 符号数（`nm \| grep -ic svg`） | **0** | **15**（含 `_gdk_pixbuf__svg_fill_vtable`）|
+| 可用 loader | 仅 jpeg/png | jpeg/png + **svg** |
+
+**根因（镜像内日志看不到，推断）**：
+1. **镜像内无构建日志**：`/rootfs/usr/local/static/.logs`、`/usr/local/static/.logs`、`/tmp/*.log` 全无——Dockerfile.builder.gtkmm224:27 `rm -f /tmp/*.log /tmp/*.out` 构建时清理，**无法从镜像内日志定位**。
+2. **u-gtkmm 不重编 gdk-pixbuf**：`u-gtkmm/build.sh` 的 `b_deps` 只 `echo "base GTK2"` 检查、`c_gtkmm` 只产 `libgdkmm/libgtkmm` 绑定层（`u-gtkmm/build.sh:141-152`），**不碰 libgdk_pixbuf** → gtkmm 镜像 libgdk_pixbuf 继承自 `FROM gtk224-2`。
+3. **u-gtk 有 svg patch 但 gtk224-2 可能未烤**：`u-gtk/build.sh gdk_pixbuf()`（:41-76）应用 `gdk-pixbuf-2.42.8-lxtask-static.patch`（builtin svg loader，:51）并 `cp /usr/local/lib/libgdk_pixbuf-2.0.a /usr/lib/`（:75）——理论上 `Dockerfile.builder.gtk224:15 RUN bash /src/u-gtk/build.sh b_deps` 应烤入 svg loader。但 gtkmm（FROM gtk224-2）无 svg → **gtk224-2 镜像构建早于 svg loader patch 加入**（patch 是 2026-11 上旬 lxtask 3.6.1 才加，gtk224-2 未重烤）→ FROM 继承无 svg 版。
+4. **builder-awe 有 svg 是容器层**：builder-awe 用 `alpine-builder-gtk224`（无 `-2`，2 年前镜像），其 svg 版 libgdk_pixbuf 是容器内跑过最新 u-gtk b_deps（AGENTS 五章 1：改造版 gtk2 只在 builder-awe 构建）所致，**非镜像自带**——不能以 builder-awe 反推 gtk224-2 含 svg。
+
+**修复方向（需实证 gtk224-2 现状）**：
+- **A（FROM 源）**：拉 gtk224-2 镜像测 libgdk_pixbuf svg 符号，确认是否缺；若缺则**重烤 gtk224-2**（Dockerfile.builder.gtk224 已含 u-gtk b_deps + svg patch）→ 重烤 gtkmm224-2（FROM 新 gtk224-2 继承 svg）。
+- **B（gtkmm 镜像内补）**：Dockerfile.builder.gtkmm224 在 u-gtkmm 后补 `RUN bash /src/u-gtk/build.sh gdk_pixbuf`（重建含 svg loader 版，同 libgtk theme_pixbuf_render 处理）——不改 FROM，只重烤 gtkmm。
+- **净影响**：SVG 图标（Papirus，实测 509 svg/0 png）在静态 gtk2 下**无法显示**；需 PNG 集 `elementary-xfce` 或补 svg loader（u-gtk.md 改造项 3）。
+
 ## 二、u-gtk doExec 日志过滤 + 错误码识别（2026-11-11）
 
 > 起因：gtkmm CI 构建失败（`pangomm/attrlist.cc: pango/pango-markup.h not found`，2026-11-10）。排查 pango 版本时发现 `u-gtk/build.sh` 的并发 `doExec` **记录不到错误码**——`atk` 克隆失败（`fatal: could not read Username`）后仍报 `err 0, pass` 继续跑。根因定位到 `common.sh` 的 `oneBuild` 吞错，而非 doExec 本身。
