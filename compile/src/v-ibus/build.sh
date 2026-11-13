@@ -295,7 +295,7 @@ function panel(){
 }
 
 # ---- ibus-rime 1.6.1（rime 引擎接入 ibus，静态链 librime+libibus）----
-function ibus-rime(){
+function ibus_rime(){
   log "Downloading ibus-rime 1.6.1..."
   if [ ! -d /tmp/ibus-rime-1.6.1 ]; then
     git clone --depth=1 --branch=1.6.1 $GITHUB/rime/ibus-rime /tmp/ibus-rime-1.6.1
@@ -379,7 +379,7 @@ full)
   doExec ibus || exit 1
   doExec panel || exit 1
   doExec x11 || exit 1
-  doExec ibus-rime || exit 1
+  doExec ibus_rime || exit 1
   doExec setup || exit 1
   ;;
 ibus)
@@ -394,8 +394,8 @@ x11)
 setup)
   setup
   ;;
-ibus-rime)
-  ibus-rime
+ibus_rime)
+  ibus_rime
   ;;
 b_deps)
   # 依赖盘点：dbus/dbus-glib/gtk2 静态库 + cmake/git 工具
