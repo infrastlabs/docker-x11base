@@ -100,6 +100,11 @@ function librsvg(){
   make install
   # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs：pangocairo/cairo/gio…）
   test "yes" = "$STATIC" && rm -f /usr/local/lib/librsvg-2.so*
+  # 2026-11-13: librsvg-2.0.pc Requires 缺 pangocairo/libxml-2.0/libcroco-0.6(实测 Only glib/gio/gdk-pixbuf/cairo, Requires.private 空)
+  # → meson dependency('librsvg-2.0') 链接 librsvg-2.a 时 undefined xml*/pango_cairo_*/cr_*(librsvg 依赖链: libxml2+pangocairo+libcroco)
+  # → gdk_pixbuf svg loader 编进 .a 时链接失败→SVG图标故障; 补全 Requires 供所有消费方(openbox/gdk_pixbuf/lxtask)解析带全依赖
+  sed -i 's/^Requires: .*/Requires: glib-2.0 gio-2.0 gdk-pixbuf-2.0 cairo pangocairo libxml-2.0 libcroco-0.6/' /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null || true
+  grep -E "^Requires" /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null
   # find |grep librsvg-
   # ./.libs/librsvg-2.a
   find /usr/local/lib |grep librsvg |grep "\.a$"
