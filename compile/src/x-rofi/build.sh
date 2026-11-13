@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-rofi}"
 source /src/common.sh
 
 #
@@ -82,35 +83,35 @@ b_deps(){
   # 若 /usr/local/lib/libxcb-util.a 已存在则直接用(不重编), 否则调 w-tint2。
   if ! test -s /usr/local/lib/libxcb-util.a; then
     log "xcb-util missing, build via w-tint2 xcbutil..."
-    bash /src/w-tint2/build.sh xcbutil || { log "b_deps FAILED: xcb-util (w-tint2 xcbutil)"; exit 1; }
+    doExec bash /src/w-tint2/build.sh xcbutil || { log "b_deps FAILED: xcb-util (w-tint2 xcbutil)"; exit 1; }
   fi
   test -s /usr/local/lib/libxcb-util.a || { log "b_deps FAILED: libxcb-util.a missing"; exit 1; }
   # xcb-util-image (依赖 xcb-util, 提供 xcb-image.pc)
-  build_dep xcb-util-image-0.4.1.tar.gz xcb-util-image-0.4.1 libxcb-image.a \
+  doExec build_dep xcb-util-image-0.4.1.tar.gz xcb-util-image-0.4.1 libxcb-image.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-image-0.4.1.tar.gz \
     || { log "b_deps FAILED: xcb-util-image"; exit 1; }
   # xcb-util-renderutil (提供 xcb-renderutil.pc)
-  build_dep xcb-util-renderutil-0.3.10.tar.gz xcb-util-renderutil-0.3.10 libxcb-render-util.a \
+  doExec build_dep xcb-util-renderutil-0.3.10.tar.gz xcb-util-renderutil-0.3.10 libxcb-render-util.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-renderutil-0.3.10.tar.gz \
     || { log "b_deps FAILED: xcb-util-renderutil"; exit 1; }
   # xcb-util-wm (一个包出 icccm+ewmh 两个库, 提供 xcb-icccm.pc / xcb-ewmh.pc)
-  build_dep xcb-util-wm-0.4.2.tar.gz xcb-util-wm-0.4.2 libxcb-icccm.a:libxcb-ewmh.a \
+  doExec build_dep xcb-util-wm-0.4.2.tar.gz xcb-util-wm-0.4.2 libxcb-icccm.a:libxcb-ewmh.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-wm-0.4.2.tar.gz \
     || { log "b_deps FAILED: xcb-util-wm"; exit 1; }
   # xcb-util-keysyms (提供 xcb-keysyms.pc)
-  build_dep xcb-util-keysyms-0.4.1.tar.gz xcb-util-keysyms-0.4.1 libxcb-keysyms.a \
+  doExec build_dep xcb-util-keysyms-0.4.1.tar.gz xcb-util-keysyms-0.4.1 libxcb-keysyms.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-keysyms-0.4.1.tar.gz \
     || { log "b_deps FAILED: xcb-util-keysyms"; exit 1; }
   # xcb-util-xrm (Airblader 维护, 提供 xcb-xrm.pc)
-  build_dep xcb-util-xrm-1.0.tar.gz xcb-util-xrm-1.0 libxcb-xrm.a \
+  doExec build_dep xcb-util-xrm-1.0.tar.gz xcb-util-xrm-1.0 libxcb-xrm.a \
     https://github.com/Airblader/xcb-util-xrm/releases/download/v1.0/xcb-util-xrm-1.0.tar.gz \
     || { log "b_deps FAILED: xcb-util-xrm"; exit 1; }
   # xcb-util-cursor (依赖 image/renderutil/util 的 .pc, 最后建; 提供 xcb-cursor.pc)
-  build_dep xcb-util-cursor-0.1.6.tar.gz xcb-util-cursor-0.1.6 libxcb-cursor.a \
+  doExec build_dep xcb-util-cursor-0.1.6.tar.gz xcb-util-cursor-0.1.6 libxcb-cursor.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-cursor-0.1.6.tar.gz \
     || { log "b_deps FAILED: xcb-util-cursor"; exit 1; }
   # startup-notification (提供 libstartup-notification-1.0.pc)
-  build_dep startup-notification-0.12.tar.gz startup-notification-0.12 libstartup-notification-1.a \
+  doExec build_dep startup-notification-0.12.tar.gz startup-notification-0.12 libstartup-notification-1.a \
     https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz \
     || { log "b_deps FAILED: startup-notification"; exit 1; }
   log "b_deps all OK"
