@@ -53,7 +53,7 @@ function gdk_pixbuf(){ ##@meson
     # ./autogen.sh 
     # ./configure; 
     # meson build
-    meson build  --default-library=both #both static
+    meson build  --default-library=both -Dbuiltin_loaders=png,jpeg,svg #both static; svg必须进builtin(patch默认value=['png','jpeg']不含svg, 否则编成独立libpixbufloader-svg.so动态loader, 静态应用用不上)
 
   log "Compiling gdk-pixbuf..."
     # 去除xsltproc;
