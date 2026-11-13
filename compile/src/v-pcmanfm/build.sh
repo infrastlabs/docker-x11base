@@ -94,7 +94,7 @@ function libfm(){
 # (6/7) Installing harfbuzz-static (3.0.0-r2)
 # (7/7) Installing libxml2-dev (2.9.14-r2)
 # 
-function menu-cache(){ ##依赖libfm-extra @libfm
+function menu_cache(){ ##依赖libfm-extra @libfm
   # apk update; apk add gtk-doc
   # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
 
@@ -235,7 +235,7 @@ full)
     doExec gdk-pixbuf || exit 1
     doExec gtk || exit 1 ##long-cost: 共历时766秒 (比首次手动长??)
     doExec libfm || exit 1
-    doExec menu-cache || exit 1
+    doExec menu_cache || exit 1
     doExec pcmanfm || exit 1
     ;;
 b_deps)
@@ -251,7 +251,7 @@ b_deps)
     # wait
     # bash /src/v-pcmanfm/build.sh gtk
     doExec bash /src/v-pcmanfm/build.sh libfm || exit 1
-    doExec bash /src/v-pcmanfm/build.sh menu-cache || exit 1 #在libfm之后
+    doExec bash /src/v-pcmanfm/build.sh menu_cache || exit 1 #在libfm之后
 
     # view x8; +libgdk
     # lost: Xrandr, atk, gtk
