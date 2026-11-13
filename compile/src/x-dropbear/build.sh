@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-dropbear}"
 source /src/common.sh
 
 # 静态 libxcrypt：musl libc 的 crypt() 不支持 yescrypt（新版发行版默认），
@@ -73,8 +74,8 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    libxcrypt
-    dropbear
+    doExec libxcrypt || exit 1
+    doExec dropbear || exit 1
     ;;
 *) #compile
     oneBuild $1
