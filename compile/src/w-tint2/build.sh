@@ -356,6 +356,6 @@ esac
 
 
 # dbg
-rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
-export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
-bash /src/w-tint2/build.sh b_deps
+# rm -rf /src; ln -s /mnt2/docker-x11base/compile/src /src
+# export GITHUB=https://hub.njuu.cf # nuaa, yzuu, njuu  ##DBG
+# bash /src/w-tint2/build.sh b_deps
