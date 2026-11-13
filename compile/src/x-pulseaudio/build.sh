@@ -51,7 +51,7 @@ function libogg(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   branch="--branch=v1.3.5"
-  repo=$GITHUB/xiph/ogg
+  repo=https://gitee.com/g-system/fk-xiph-ogg #$GITHUB/xiph/ogg
   rm -rf /tmp/libogg; git clone --depth=1 $branch $repo /tmp/libogg
   log "Configuring libOgg..."
   (
@@ -70,7 +70,7 @@ function libflac(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   branch="--branch=1.3.4"
-  repo=$GITHUB/xiph/flac
+  repo=https://gitee.com/g-system/fk-xiph-flac #$GITHUB/xiph/flac
   rm -rf /tmp/libflac; git clone --depth=1 $branch $repo /tmp/libflac
   log "Configuring libFLAC..."
   (
@@ -89,7 +89,7 @@ function libvorbis(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   branch="--branch=v1.3.7"
-  repo=$GITHUB/xiph/vorbis
+  repo=https://gitee.com/g-system/fk-xiph-vorbis #$GITHUB/xiph/vorbis
   rm -rf /tmp/libvorbis; git clone --depth=1 $branch $repo /tmp/libvorbis
   log "Configuring libVorbis..."
   (
@@ -108,7 +108,7 @@ function libopus(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   branch="--branch=v1.3.1"
-  repo=$GITHUB/xiph/opus
+  repo=https://gitee.com/g-system/fk-xiph-opus #$GITHUB/xiph/opus
   rm -rf /tmp/libopus; git clone --depth=1 $branch $repo /tmp/libopus
   log "Configuring libOpus..."
   (
@@ -129,7 +129,7 @@ function libsndfile(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   branch="--branch=1.0.31"
-  repo=$GITHUB/libsndfile/libsndfile
+  repo=https://gitee.com/g-system/fk-libsndfile #$GITHUB/libsndfile/libsndfile
   rm -rf /tmp/libsndfile; git clone --depth=1 $branch $repo /tmp/libsndfile
   log "Configuring libSndfile..."
   (
