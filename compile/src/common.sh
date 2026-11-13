@@ -57,7 +57,7 @@ function oneBuild(){
     echo -e "\n$1, start building.."
     begin_time="`gawk 'BEGIN{print systime()}'`"; export logfile=$LOGS/oneBuild-$1.log
     test "yes" == "$CONSOLE_LOG" && echo CONSOLE_LOG=yes || echo CONSOLE_LOG=no
-    # 2026-11-12 方案A: 复用 doExec 拿精确 rc + 白名单实时回显 + 分层日志(/tmp/doExec/<caller>/)。
+    # 2026-11-12 方案A: 复用 doExec 拿精确 rc + 白名单实时回显 + 分层日志($LOGS/doExec/<caller>/)。
     # doExec 内部 ( set +e; $1; ... ) 保方法块失败继续跑完(行为与旧版一致, 非 set -e 即停);
     # 保留 oneBuild 的产物清单(find TARGETPATH) + err/pass 判定 + 耗时; 失败 tail doExec 实际日志。
     doExec "$1"
@@ -76,14 +76,17 @@ function oneBuild(){
 # 与旧版差异: ① 去 bash 专属 >(tee|grep) 进程替换, 改标准管道保实时回显(POSIX);
 #   ② rc 用临时文件精确捕获(原 "$?" 取进程替换/管道尾部, 吞错); ③ 过滤改正向白名单(原 warn|error 被重复编译器警告淹没)。
 # 调用: doExec <cmd> [args...]   返回: 命令退出码(非并发调用方 set -e 自动捕获失败).
-# 结果记录: /tmp/doExec/<caller>/_exec_result.txt 每行 "rc|cmd args" (只增不清->留痕; doExec_mark 写组边界, wait 后 doExec_check 只读本组).
-# caller=脚本调入口名(${DOEXEC_CALLER:-default}, 继承不覆盖): u-gtk 调 openbox 时 openbox 内 doExec 也落 /tmp/doExec/u-gtk/.
+# 结果记录: $LOGS/doExec/<caller>/_exec_result.txt 每行 "rc|cmd args" (只增不清->留痕; doExec_mark 写组边界, wait 后 doExec_check 只读本组).
+# caller=脚本调入口名(${DOEXEC_CALLER:-default}, 继承不覆盖): u-gtk 调 openbox 时 openbox 内 doExec 也落 $LOGS/doExec/u-gtk/.
 # 2026-11-11 从 u-gtk/build.sh 上移 common.sh（公共执行包装，u-gtk/u-gtkmm 等并发/构建脚本共用）。
 function doExec(){
   local cmd=$1; shift
   local args=$@
   local caller=${DOEXEC_CALLER:-default}
-  local elog=/tmp/doExec/$caller; mkdir -p $elog
+  # 2026-11-13: 日志从 /tmp/doExec 并入 .logs(=TARGETPATH/../.logs)，构建后仍保留(否则失败组件日志丢失，见文档五章1.6)
+  : ${TARGETPATH:=/tmp}
+  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  local elog=$LOGS/doExec/$caller; mkdir -p $elog
   [ -f "$cmd" ] && cmd="bash $cmd"
   local lf=$elog/$(echo "$cmd $args" | sed 's^[ /]^_^g').log
   export DOEXEC_LOG=$lf   # 供 oneBuild 失败 tail 到本 doExec 实际日志
@@ -101,13 +104,17 @@ function doExec(){
 
 # doExec_mark: 写并发组边界标记（结果文件只增不清 -> 留痕；MARK 之后为本组记录）。
 function doExec_mark(){
-  echo "# MARK $*" >> /tmp/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
+  : ${TARGETPATH:=/tmp}
+  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  echo "# MARK $*" >> $LOGS/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
 }
 
-# doExec_check: 并发组 wait 后检查 /tmp/doExec/_exec_result.txt, 任一 rc!=0 则报错返回 1(调用方 || exit 1).
+# doExec_check: 并发组 wait 后检查 $LOGS/doExec/_exec_result.txt, 任一 rc!=0 则报错返回 1(调用方 || exit 1).
 # 精准识别: 只读最后一个 # MARK 行之后的记录（前组留痕不清、不误判当前组）。
 function doExec_check(){
-  local f=/tmp/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
+  : ${TARGETPATH:=/tmp}
+  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  local f=$LOGS/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
   [ -f "$f" ] || return 0
   local start=$(grep -n '^# MARK ' "$f" | tail -1 | cut -d: -f1)
   [ -z "$start" ] && start=0
