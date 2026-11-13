@@ -701,6 +701,32 @@ builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）�
 
 > **⚠️ 待办**：base 镜像 libgtk 缺符号（3.3.2-1）需镜像层修复（重烤 gtkmm224-2 含 u-gtk 改造）才能真正解除 CI 依赖；本次验证依赖拷贝改造版 libgtk（临时），**非 CI 可复现**。远端已有新镜像但本次未拉取。
 
+##### 3.3.4、CI feh stage 复现 xcbutil m4 submodule 失败——修复（2026-11-13，gitac CI 实跑复现）
+
+> **背景**：3.3.3 落地 gitclone 机制后，gitac CI（`bash buildx.sh gtk224`，用户跑）在 **feh stage** 真实失败复现，非本地猜测。CI 错误：
+> ```
+> #30 [feh 1/1] —— sh /src/w-feh/build.sh b_deps → imlib2 OK → sh /src/w-tint2/build.sh xcbutil
+> cp: can't stat '/src/../tarsrc-git/util-common-m4': No such file or directory
+> make: *** No rule to make target 'install'.  Stop.
+> == doExec FAIL: bash /src/w-tint2/build.sh xcbutil (rc=1) ==
+> ```
+
+**根因**：CI 构建上下文**不带 `compile/tarsrc-git`**（`.gitignore` 排除 + Dockerfile 只 `COPY ./src /src`）→ 容器内 `/src/../tarsrc-git` 不存在 → `gitclone` 缓存未命中（回落网络 clone，xcb-util 主仓库 OK）；但 xcbutil 里 m4 submodule 处理**无条件 sed 指向 `/src/../tarsrc-git/util-common-m4`**（原 w-tint2:118）→ `git submodule update --init` 从不存在路径拉取失败 → `test -f m4/xcb_util_common.m4` 不成立 → fallback `cp -a /src/../tarsrc-git/util-common-m4 m4` 也因源不存在报 `can't stat`（即 CI 报错行）→ `./autogen.sh` 无 m4 宏/无 configure → `make` 无 install 目标 → `doExec FAIL`。即 **3.3.3 的 submodule fallback 只考虑了本地缓存存在，没考虑 CI 无缓存**。
+
+**修复（w-tint2/build.sh xcbutil，:121-126）**：m4 缓存路径只在**存在时**才 sed 指向缓存（本地构建行为不变）；缓存不存在（CI）→ **保持原始 freedesktop URL** 走网络 `git submodule update --init`；该步失败（`git://` 在 CI 常被禁）再回落 **gitee `g-system/util-common-m4` 镜像** clone（缓存即从该源克隆，非换源）：
+```sh
+M4CACHE=${GITCACHE:-/src/../tarsrc-git}/util-common-m4
+test -d "$M4CACHE/.git" && sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^$M4CACHE^g" .gitmodules
+git submodule update --init 2>&1 | tail -1
+test -f m4/xcb_util_common.m4 || { rm -rf m4; test -d "$M4CACHE/.git" && cp -a "$M4CACHE" m4 || git clone --depth=1 https://gitee.com/g-system/util-common-m4 m4; }
+```
+
+**验证（builder-awe，2026-11-13）**：
+- **缓存路径**（默认 GITCACHE）：`sh /src/w-tint2/build.sh xcbutil` → `m4/xcb_util_common.m4` 生成 + `libxcb-util.a` 落 `/usr/local/lib` + configure/make/make install 全过（RC=0）。
+- **无缓存路径**（模拟 CI `GITCACHE=/nonexistent`）：`.gitmodules` 保持原始 `git://anongit.freedesktop.org/...` 未 sed；`git submodule update` 失败后回落 `git clone https://gitee.com/g-system/util-common-m4 m4` → `m4/xcb_util_common.m4` 生成（remote 确认 gitee g-system）。**两条路 m4 均就位**，CI 不再 `cp can't stat`。
+
+> **⚠️ 与 3.3.2/3.3.3 关系**：本修复只解决 **m4 submodule 获取**（xcbutil 的依赖宏）；feh stage 后续仍可能因其他依赖（imlib2 等）失败，但 m4 卡点已解。
+
 ## 六、xfce4 源码包收集与下载源（2026-11-13）
 
 ### 1、源码包清单与来源（`/_ext/x11base_tar_src/xfce4`）
