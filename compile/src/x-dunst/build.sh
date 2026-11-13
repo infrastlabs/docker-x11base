@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-dunst}"
 source /src/common.sh
 
 #
@@ -110,7 +111,7 @@ full)
     ;;
 b_deps)
     # 依赖 xscrnsaver(libXss.a) 缺失需自建; pango/cairo/glib/gdk-pixbuf/X11 已随 gtk2 静态栈就位
-    libxscrnsaver
+    doExec libxscrnsaver || exit 1
     ;;
 *) #compile
     oneBuild $1
