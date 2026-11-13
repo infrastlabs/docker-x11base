@@ -21,7 +21,7 @@ function st(){
   # down_catfile ${ST_URL} | tar -zx --strip 1 -C /tmp/st
   ST_VER=br-luke-st
   # https://dl.suckless.org/st/st-0.8.4.tar.gz
-  # git clone --depth=1 --branch=$ST_VER git://git.suckless.org/st /tmp/st #;
+  # git://git.suckless.org/st
   git clone --depth=1 --branch=$ST_VER https://gitee.com/g-system/fk-suckless-st /tmp/st
   log "Configuring ST..."
   cd /tmp/st #&& ./bootstrap;
