@@ -353,7 +353,6 @@ b_deps)
     oneBuild $1
     ;;          
 esac
-exit 0
 
 
 # dbg
