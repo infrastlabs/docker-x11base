@@ -181,8 +181,8 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
 
-    --build-arg COMPILE_FEH=yes
-    --build-arg COMPILE_HSETROOT=no
+    --build-arg COMPILE_FEH=no
+    --build-arg COMPILE_HSETROOT=yes
     --build-arg COMPILE_SCROT=yes
     --build-arg COMPILE_TINT2=no
     --build-arg COMPILE_XLUNCH=no
