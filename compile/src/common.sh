@@ -29,7 +29,33 @@ function down_catfile(){
   CACHE=$TARGETPATH/../.cache; mkdir -p $CACHE #移到func内; gitac/syncer.sh调用时vm内执行 会权限故障;
   url=$1
   file=${url##*/}
-  #curl -# -L -f ; -f > -s
+  # tarsrc 优先（gitee x11base-tarsrc 源码包缓存，2026-11-13）：任何步骤失败/未命中回退 curl 下载，不阻塞。
+  # ① 仓库不存在 → depth1 克隆（幂等）② 组件目录映射（TARGETPATH=xxx → *xxx/；例外走映射表）③ 目录内取包（精确名→版本模糊）
+  # ④ 全局包名兜底（find -name 唯一命中，最后防线）
+  TARSRC=${TARSRC:-/src/../tarsrc}
+  if test -n "$TARGETPATH"; then
+    (
+      test -d "$TARSRC/.git" || git clone --depth=1 https://gitee.com/infrastlabs/x11base-tarsrc "$TARSRC" >/dev/null 2>&1
+      test -d "$TARSRC/.git" || exit 0
+      comp=$(basename "$TARGETPATH")
+      # 组件目录映射表（basename 与 tarsrc 目录名不一致的例外；其余走 2a *xxx/；xxx 唯一不跨前缀多命中）
+      case "$comp" in
+        gsm)       TARSRC_COMP="$TARSRC/v-sysmonitor" ;;  # sysmonitor TARGETPATH=/usr/local/static/gsm
+        dbus-glib) TARSRC_COMP="$TARSRC/x-dbus" ;;         # dbus-glib 包在 x-dbus/ 下
+        *)         TARSRC_COMP=$(ls -d "$TARSRC"/*"$comp"/ 2>/dev/null | head -1) ;;
+      esac
+      if test -n "$TARSRC_COMP" && test -s "$TARSRC_COMP/$file"; then
+        cp "$TARSRC_COMP/$file" "$CACHE/$file"; exit 0
+      elif test -n "$TARSRC_COMP"; then
+        ver=${file#v}; ver=${ver%.tar.*}
+        hit=$(ls "$TARSRC_COMP"/*"$ver"* 2>/dev/null | head -1)
+        test -n "$hit" && cp "$hit" "$CACHE/$file" && exit 0
+      fi
+      hit=$(find "$TARSRC" -name "$file" -type f 2>/dev/null | head -1)
+      test -n "$hit" && cp "$hit" "$CACHE/$file"
+    ) >/dev/null 2>&1 || true
+  fi
+  # ② 无则源头下载
   test -s $CACHE/$file || curl -# -k -fSL $url > $CACHE/$file
   cat $CACHE/$file
 }
