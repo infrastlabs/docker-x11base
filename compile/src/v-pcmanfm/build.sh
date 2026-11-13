@@ -273,7 +273,6 @@ b_deps)
     oneBuild $1
     ;;          
 esac
-exit 0
 
 # dbg:
 # root@tenvm2:~# docker run -it --rm --privileged -v /mnt:/mnt2 infrastlabs/x11-base:builder bash
