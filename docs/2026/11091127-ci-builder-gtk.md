@@ -820,6 +820,109 @@ make -j$(nproc) -C gdk/x11 libgdk-x11.la || log "gdk x11 rc=$? (continue)"
 
 **落仓**：14 个独立 commit（每 build.sh 一 commit，agents §3.1），推送 `feat/ai-260925`（rebase 远端 3 个 `bx/cpl` 新提交后 `84316ed..6d375c4`）。
 
+#### 9.2、11.4 前（历史）build.sh 的 b_deps/full 调用 doExec 适配（2026-11-13 实施+验证，已推送）
+
+**范围**：11.4 前已存在的 build.sh（`git log --diff-filter=A --until=2026-11-04` 之前入库），其 `b_deps`/`full` 内的调用全部补 doExec 包装。共 **17 个 build.sh** + 1 处 `common.sh` 修复（18 commit）。`_ex/{fontconfig,nginx,yad}` 为独立 helper 脚本（不 source common.sh、无 b_deps/full case 分发），范围外。
+
+**改动模式（每文件）**：
+1. 入口加 `export DOEXEC_CALLER="${DOEXEC_CALLER:-<comp>}"`（被调继承调用方、顶层入口设自身名；openbox/w-tint2 已有，跳过）。
+2. `full` 内每个方法块调用 → `doExec X || exit 1`（防尾部 `exit 0` 掩盖失败）。
+3. `b_deps` 内**串行**跨组件调用 → `doExec bash /src/<other>/build.sh <comp> || exit 1`。
+4. `b_deps` 内**并行 `&` 组** → `doExec_mark "组名"` 前置 → 每条 `doExec X &` → `wait` → `doExec_check || exit 1`（doExec_mark 写组边界留痕不清，doExec_check 只读本组，见 u-gtkmm `full` 先例）。
+
+**17 文件明细**：
+
+| 文件 | 改动 |
+|---|---|
+| fluxbox | full `fluxbox` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| openbox | full 三方法块（libxrandr/pango/openbox）补 `\|\| exit 1`；b_deps 两并行组（grp1: libxrandr/pango/libcroco、grp2: librsvg）doExec_mark/&/wait/doExec_check；`STATIC=yes` 跨调用改 `doExec env STATIC=yes bash`（已有 caller） |
+| suckless | full `st`/`dwm`/`dmenu` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| u-gtk | 修 `STATIC=yes doExec`→`doExec env STATIC=yes bash`（libcroco/librsvg，前缀 env 不传子进程）；顺序 doExec（gdk-pixbuf/gtk）补 `\|\| exit 1`（已适配，本次修 bug） |
+| u-misc | full `su_exec`/`lrzsz`/`n2n`/`tinc` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| v-geany | full `geany` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| v-lxde | 仅入口 DOEXEC_CALLER（full 无调用） |
+| v-pcmanfm | full 六方法块（atk/gdk-pixbuf/gtk/libfm/menu-cache/pcmanfm）doExec+`\|\| exit 1`；b_deps 串行 libfm/menu-cache 改 doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| w-feh | full `feh` doExec+`\|\| exit 1`；b_deps 串行 imlib2 + 并行组（xcbutil/libxi）doExec_mark/check；入口 DOEXEC_CALLER |
+| w-tint2 | full `tint2` 补 `\|\| exit 1`；b_deps 串行 imlib2/libcroco + 并行组（librsvg/xcbutil/libxi）doExec_mark/check（已有 caller） |
+| x-dropbear | full `libxcrypt`/`dropbear` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| x-pulseaudio | full `pulseaudio` doExec+`\|\| exit 1`；b_deps 三并行组（grp1 libogg、grp2 opus+flac+vorbis、grp3 libsndfile）doExec_mark/check；入口 DOEXEC_CALLER |
+| x-tigervnc | full 八方法块（gnutls/libxfont2/libfontenc/libtasn1/libxshmfence/tigervnc/xkb/xkbcomp）doExec+`\|\| exit 1`；b_deps+b_tiger 两并行组 doExec_mark/check；入口 DOEXEC_CALLER |
+| x-x11vnc | full 三方法块（libvncserver/libxtst/x11vnc）doExec+`\|\| exit 1`；b_deps 并行组（libvncserver/libxtst + w-tint2 libxi 跨调用）doExec_mark/check；入口 DOEXEC_CALLER |
+| x-xrdp | full 三方法块（libxrandr/fdkaac/xrdp）doExec+`\|\| exit 1`；b_deps 并行组（libxrandr/fdkaac）doExec_mark/check；入口 DOEXEC_CALLER |
+| xcompmgr | full `Xdamage`/`xcompmgr` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+| xperp | full `perp` doExec+`\|\| exit 1`；入口 DOEXEC_CALLER |
+
+**关键坑（2026-11-13 实测，勿再踩）**：
+- **`doExec_mark` 目录 bug（common.sh 已修）**：`doExec_mark` 写 `$LOGS/doExec/$caller/_exec_result.txt`，但原实现只 `mkdir -p $LOGS`（**不建 `doExec/$caller` 子目录**）→ 当并发组边界先于首个 `doExec` 执行时写失败（`can't create ..._exec_result.txt: nonexistent directory`）。u-gtkmm 未踩因 `full` 先 `doExec gtkmm` 已建目录；本次 11.4- 文件 `doExec_mark` 为 case 分支首句才暴露。修复：`mkdir -p $LOGS/doExec/${DOEXEC_CALLER:-default}`。
+- **`STATIC=yes doExec` 前缀 env 不传子进程**（同 9.1 dash 前缀 env 坑）：u-gtk/openbox 原 `STATIC=yes doExec /src/w-tint2/build.sh libcroco &` 不生效 → 改 `doExec env STATIC=yes bash ...`。
+
+**验证（builder-pav 实跑，AGENTS §3 判据）**：
+- **doExec_mark/check 并行机制合成测试**：组 A（true/echo，全成功）`doExec_check` 返回 0；组 B（true + `false`，一个失败）`doExec_check` 返回 1（捕获 `rc=1`）；`_exec_result.txt` 含正确 `# MARK` 组边界 + 逐条 `rc|cmd` 记录。
+- **x-xrdp b_deps 实跑**：`doExec bash /src/x-xrdp/build.sh libxrandr` 并行分发正常，`doExec` 捕获 libxrandr 真实 `rc=2` 写入 `_exec_result.txt`（`2|bash ... libxrandr`）；构建失败为容器无网络/缺 xrdp 依赖的**环境限制**（CI 有网络），非接线问题。
+- **17 build.sh + common.sh 语法**：`sh -n` 全通过。
+
+**落仓**：18 个独立 commit（common.sh 1 + 17 build.sh，每文件一 commit，agents §3.1），推送 `feat/ai-260925`（`ecdb9d1..23f06a2`，ahead 18/behind 0 无 rebase，工作树干净）。
+
+#### 9.3、doExec / oneBuild 日志文件名记录方式对比（2026-11-13 分析，未落地）
+
+**背景**：排查 doExec 日志文件名生成行（`common.sh`）时，对比 oneBuild 侧如何记录，确认优化范围。
+
+**两边记录方式**：
+
+| 位置 | 记录行 | 入参 | 是否需清洗 |
+|---|---|---|---|
+| `doExec` | `local lf=$elog/$(echo "$cmd $args" \| sed 's^[ /]^_^g').log` | `$cmd $args`（含 `bash /src/...` 路径、`env VAR=x`、`=` 等） | **需要**（现状字符集窄） |
+| `oneBuild` | `export logfile=$LOGS/oneBuild-$1.log` | `$1` = 方法块名（`libxrandr`/`pango`/`imlib2`/`gdk-pixbuf`…，简单标识符） | **不需要**（无特殊字符） |
+
+**关键差异**：
+1. **oneBuild 的 `$1` 是简单方法块名**——不含空格/`/`/引号/glob 元字符，`oneBuild-` 前缀直接可用，**无需清洗**。
+2. **oneBuild 已内部改调 `doExec "$1"`**（方案A）：真正构建日志落 `$DOEXEC_LOG`（= doExec 的 `$lf`，`$LOGS/doExec/<caller>/<方法块名>.log`）；`logfile`（`$LOGS/oneBuild-$1.log`）只是失败 tail 的 **fallback**（`${DOEXEC_LOG:-$logfile}`）。
+3. doExec 的入参 `$cmd $args` 才暴露清洗问题：`$args` 是 `$@` 用 IFS 拼的，**引号已被调用方 shell 解析剥掉**（`doExec sh -c 'STR'` 到 doExec 内 `STR` 已拆成多参数，无引号残留），实际字符集 ≈ `[A-Za-z0-9_.=-/  ]`。
+
+**现状 doExec 问题**（`local lf=...` 行）：
+- 只替换 `空格` 和 `/`，其余 shell/glob 特殊字符（`* ? [ ]`、`& | ; < > $ ( ) { } # ! \``、`=`、`:`、`"`）留在文件名。
+- `local lf=...` **未加双引号**：`$(...)` 结果会 field-split + glob 展开，入参含 `*`/`?`/`[ ]` 时可能被替换/拆分。
+- 入参带长 URL 时文件名可超 NAME_MAX(255)。
+
+**优化建议（推荐，未落地）**：
+```sh
+local lf=$elog/$(printf '%s' "$cmd $args" | sed 's/[^A-Za-z0-9_.=-]/_/g; s/__*/_/g; s/^_//; s/_$//' | cut -c1-120).log
+```
+- `[^A-Za-z0-9_.=-]` → `_`：保留字母数字、`_`、`.`、`-`、`=`（`env STATIC=yes` 可读），其余（含空格、`/`、`*?[]`、`&|;$`、引号）全换 `_`；`bash /src/xxx` → `bash__src_xxx`（路径层级仍可辨）。
+- `s/__*/_/g` 压缩连续 `_`、`s/^_//;s/_$//` 去首尾 → 无 glob/field-split 风险。
+- `cut -c1-120` 防超长（URL 场景）。
+- `local lf="..."` **加双引号**（防御性，唯一必须加的）。
+
+**结论**：只需优化 doExec 一行，oneBuild 完全不受影响；对 oneBuild 传 `doExec "$1"` 时 `$args` 空、`$cmd`=方法块名，清洗幂等无副作用（`[^A-Za-z0-9_.=-]` 不命中任何字符）。状态：**分析未落地**，待用户拍板后实施。
+
+> **订正（2026-11-13，已实施）**：用户拍板采纳方案，且 **`=` 也替换**（白名单不含 `=`）。最终落地 `common.sh` doExec：
+> `local lf=$elog/$(printf '%s' "$cmd $args" | sed 's/[^A-Za-z0-9_.-]/_/g; s/__*/_/g; s/^_//; s/_$//' | cut -c1-120).log`
+> 实测（builder-pav）：`bash /src/x-xrdp/build.sh libxrandr`→`bash_src_x-xrdp_build.sh_libxrandr.log`、`env STATIC=yes bash /src/w-tint2/build.sh libcroco`→`env_STATIC_yes_bash_src_w-tint2_build.sh_libcroco.log`（`=`→`_`）、`echo ok`→`echo_ok.log`；`sh -n` 通过。oneBuild 侧不动（`$1` 方法块名清洗幂等）。
+
+#### 9.4、STATIC=yes 机制分析与冗余（2026-11-13 讨论，未落地）
+
+**背景**：用户质疑「整个项目都是静态构建，为何 libcroco/librsvg 还要区分 `STATIC=yes`？」。核查后确认该开关**不是「组件是否静态」**，而是这两个库的**产物模式**开关；且现状存在**历史冗余**。
+
+**开关控制（w-tint2/build.sh libcroco/librsvg）**：
+
+| 行为 | 默认（无 `STATIC`） | `STATIC=yes` |
+|---|---|---|
+| LDFLAGS | 覆盖成 `-Wl,--as-needed -Wl,--strip-all`（**去 `-static`**） | 不覆盖（保留 common.sh `-static`） |
+| configure | `--enable-static`（默认连 `.so` 一起装） | `--enable-static --disable-shared`（**只出 `.a`**） |
+| 辅助可执行 | 动态链（能跑） | 静态链（补 `LIBS+= -lz -llzma -lbz2 -lm`）/ 剔除（librsvg 剔 `bin_PROGRAMS`/`SUBDIRS`、`--enable-introspection=no`） |
+| 装后 | 留 `.so` | `rm -f libcroco-0.6.so*` / `rm -f librsvg-2.so*` |
+
+**为什么全静态项目还需要它（不能全局 `-static` 一刀切）**——构建静态库时生成的**辅助可执行必须能运行**：
+- libcroco `csslint-0.6`：静态链 libxml2.a 时 zlib/lzma/bzip2/m 传递依赖**不自动链** → `undefined reference to deflateEnd/gzopen/lzma_code` → `make install` 失败（w-tint2/build.sh:20-22 实锤）。
+- librsvg `rsvg-convert`/`GISCAN`：需 `libgdk_pixbuf-2.0.a`（Alpine **无 gdk-pixbuf-static 包**）→ 链失败（:90-92 实锤）。
+→ 全局 `-static` 会把辅助工具也强制静态链而挂；`STATIC=yes` 靠「剔工具（librsvg）+ 补传递依赖（libcroco）」绕开，默认模式靠「去 `-static` 让工具动态链」绕开。**这是「静态项目里编静态库」的固有矛盾。**
+
+**为什么还要清 `.so`**：configure 默认 `--enable-shared --enable-static` 同时装 `.a`+`.so`；静态消费方（tint2/openbox）pkg-config `-lcroco-0.6` **优先链 `.so`** → `attempted static link of dynamic object`（:75 实锤）。`STATIC=yes` 用 `--disable-shared`+`rm .so` 防此。
+
+**现状冗余**：`STATIC=yes` 调用只有指向 w-tint2 一家（libcroco/librsvg），3 消费方 / 6 处：u-gtk(:354/358)、openbox(:402/406)、w-xlunch(:195/196)。但 **w-tint2 自身 b_deps 用默认**（:339/341，出 `.a`+`.so`），消费方再 `STATIC=yes` **重编一次**（只出 `.a`、清 `.so`）→ **同一 `.a` 编两次、`.so` 装了又被清**。历史遗留（早期 tint2 可能动态构建，:299 有 `.so` ldd；openbox 等纯静态消费方加入后为其加 `STATIC=yes`）。
+
+**可统一方案（未落地）**：w-tint2 b_deps 也直接 `STATIC=yes`（一次只出 `.a`、清 `.so`），消费方不再重编。现状「能跑就没动」。**待用户拍板**：统一 or 维持现状。
+
 ## 三、gtkmm224（抽取：原 2.7）
 
 ### 1、gtkmm 栈构建验证（2026-11-11，基于 `alpine-builder-gtk224-test` 镜像）
