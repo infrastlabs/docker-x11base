@@ -8,6 +8,11 @@ echo "${DOCKER_REGISTRY_PW_infrastSubUser2}" |docker login --username=${DOCKER_R
 repoHub=docker.io
 echo "${DOCKER_REGISTRY_PW_dockerhub}" |docker login --username=${DOCKER_REGISTRY_USER_dockerhub} --password-stdin $repoHub
 
+# tarsrc 源码包仓库（gitee）：depth1 提前克隆到 compile/tarsrc/（=$(dirname $0)/tarsrc，与 down_catfile 默认 /src/../tarsrc 同址）。
+# down_catfile（common.sh）会按需再 clone（幂等）；此处提前备好供容器 /src/../tarsrc 复用。
+_TS=$(dirname "$0")/tarsrc
+test -d "$_TS/.git" || git clone --depth=1 https://gitee.com/infrastlabs/x11base-tarsrc "$_TS" 2>&1 | tail -1 || true
+
 function build_rootfs(){
     dockerfile=/tmp/Dockefile.rootfs
     cat > $dockerfile<<EOF
@@ -175,11 +180,11 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
 
-    --build-arg COMPILE_FEH=no
-    --build-arg COMPILE_HSETROOT=no
-    --build-arg COMPILE_SCROT=no
-    --build-arg COMPILE_TINT2=no
-    --build-arg COMPILE_XLUNCH=no
+    --build-arg COMPILE_FEH=yes
+    --build-arg COMPILE_HSETROOT=yes
+    --build-arg COMPILE_SCROT=yes
+    --build-arg COMPILE_TINT2=yes
+    --build-arg COMPILE_XLUNCH=yes
 
     --build-arg COMPILE_XBINDKEYS=no
     --build-arg COMPILE_XRANDR=no
