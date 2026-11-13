@@ -345,22 +345,22 @@ full)
     echo "emp";
     ;;
 b_deps)
-    doExec apkdeps   # u-gtk 的 apkdeps 放最前: 含 gtk-doc(gtkdocize), 供组1 libcroco autogen.sh 用
-    doExec /src/openbox/build.sh apkdeps   # openbox 依赖(静态库链); 不动
+    doExec apkdeps || exit 1   # u-gtk 的 apkdeps 放最前: 含 gtk-doc(gtkdocize), 供组1 libcroco autogen.sh 用
+    doExec /src/openbox/build.sh apkdeps || exit 1   # openbox 依赖(静态库链); 不动
     doExec_mark "group1: pango libxrandr Xdamage libcroco"   # 组边界: 留痕不清, check 只读本组
     doExec /src/openbox/build.sh pango & ##needed by gtk
     doExec /src/openbox/build.sh libxrandr & #same: x-xrdp/build.sh
     doExec /src/xcompmgr/build.sh Xdamage &
-    STATIC=yes doExec /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
+    doExec env STATIC=yes bash /src/w-tint2/build.sh libcroco & #librsvg 前置，复用 w-tint2 脚本
     wait
     doExec_check || exit 1   # 并发组1 错误码识别: 任一失败即退出
     doExec_mark "group2: librsvg atk"   # 组边界: 留痕不清, check 只读本组
-    STATIC=yes doExec /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
+    doExec env STATIC=yes bash /src/w-tint2/build.sh librsvg & #librsvg > libcroco；STATIC=yes 只出 .a
     doExec /src/u-gtk/build.sh atk & #needed by gtk
     wait
     doExec_check || exit 1   # 并发组2 错误码识别
-    doExec /src/u-gtk/build.sh gdk-pixbuf #needs librsvg (svg loader)
-    doExec /src/u-gtk/build.sh gtk
+    doExec /src/u-gtk/build.sh gdk-pixbuf || exit 1 #needs librsvg (svg loader)
+    doExec /src/u-gtk/build.sh gtk || exit 1
 
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
