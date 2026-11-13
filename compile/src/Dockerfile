@@ -394,6 +394,10 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/v-xfce4/build.sh thunar; \
   sh /src/v-xfce4/build.sh ristretto; \
   \
+  test -x /usr/local/static/thunar/bin/thunar || { echo "XFCE4 FAIL: thunar not built"; exit 1; }; \
+  test -x /usr/local/static/ristretto/bin/ristretto || { echo "XFCE4 FAIL: ristretto not built"; exit 1; }; \
+  test -x $TARGETPATH/bin/xfce4-display-settings || { echo "XFCE4 FAIL: xfce4-display-settings not built"; exit 1; }; \
+  \
   find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |sort;
 
 # Build geany
