@@ -297,7 +297,8 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/w-feh/build.sh b_deps; \
   sh /src/w-feh/build.sh feh; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |sort; \
+  test -x ${TARGETPATH}/bin/feh || exit 1
 
 
 # Build hsetroot (imlib 应用, 壁纸设置)
@@ -320,7 +321,8 @@ RUN mkdir -p $TARGETPATH; \
   test "yes" != "$COMPILE_SCROT" && exit 0 || echo doMake; \
   sh /src/w-scrot/build.sh b_deps; \
   sh /src/w-scrot/build.sh scrot; \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |sort; \
+  test -x ${TARGETPATH}/bin/scrot || exit 1
 
 # Build tint2
 FROM base AS tint2
@@ -334,7 +336,8 @@ RUN mkdir -p $TARGETPATH; \
   sh /src/w-tint2/build.sh b_deps; \
   sh /src/w-tint2/build.sh tint2; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |sort; \
+  test -x ${TARGETPATH}/bin/tint2 || exit 1
 
 # Build xlunch
 FROM base AS xlunch
@@ -377,7 +380,8 @@ RUN mkdir -p $TARGETPATH; \
   bash /src/v-pcmanfm/build.sh b_deps; \
   bash /src/v-pcmanfm/build.sh pcmanfm; \
   \
-  find ${TARGETPATH} -type f |sort;
+  find ${TARGETPATH} -type f |sort; \
+  test -x ${TARGETPATH}/bin/pcmanfm || exit 1
 
 # Build xfce4 (xfce4settings/thunar/ristretto; GTK2, 共享 xfce 库栈)
 # b_deps: ensure_gtk_libs(最新 gtk2) + dbus/dbus-glib + xfce 库栈(util/conf/ui/exo/garcon) + libexif
