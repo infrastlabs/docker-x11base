@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-xrdp}"
 source /src/common.sh
 
 # Define software download URLs.
@@ -206,14 +207,16 @@ cache)
     down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    libxrandr
-    fdkaac
-    xrdp
+    doExec libxrandr || exit 1
+    doExec fdkaac || exit 1
+    doExec xrdp || exit 1
     ;;
 b_deps)
-    bash /src/x-xrdp/build.sh libxrandr &
-    bash /src/x-xrdp/build.sh fdkaac &
+    doExec_mark "x-xrdp b_deps grp"
+    doExec bash /src/x-xrdp/build.sh libxrandr &
+    doExec bash /src/x-xrdp/build.sh fdkaac &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
