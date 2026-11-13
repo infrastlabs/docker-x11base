@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-geany}"
 source /src/common.sh
 
 #
@@ -19,7 +20,7 @@ function geany(){
         tar xzf /tmp/geany-1.34.0.tar.gz -C /tmp --strip-components=1
       else
         rm -rf /tmp/geany
-        git clone --depth=1 --branch=1.34.0 $GITHUB/geany/geany /tmp/geany
+        gitclone https://gitee.com/g-system/fk-geany /tmp/geany --branch=1.34.0
       fi
     fi
     cd /tmp/geany
@@ -42,13 +43,27 @@ function geany(){
     LIBS0="-lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
     # 注意：geany 主程序用 --tag=CC 链接（src/Makefile.am geany_LINK），libtool 的 -static 只选 .a
     # 不转发给驱动 → 产物仍是动态。故 make 只负责出 objects + libgeany.a，geany 二进制作直接静态链接。
-    make -j$(nproc) \
+    # 2026-11-14 再修: make 默认 all 会用 geany_LINK(libtool) 链 geany 二进制, libtool 处理 LIBS 里
+    #   -lrsvg-2(有 .la) 时展开/重排破坏 --start-group 循环 → rsvg_handle_* undefined(#36 geany CI 踩)。
+    #   改 make 只编 main.o(geany_SOURCES=main.c)+libgeany.la 不链二进制(geany_OBJECTS 是变量名非目标),
+    #   geany 二进制由下方 xx-clang++ -static 直接链(已验证成功)。
+    # CI 干净树: libgeany.la 依赖 ../scintilla/libscintilla.la + src/tagmanager/libtagmanager.la,
+    #   libtagmanager.la 又依赖 ../ctags/libctags.la——必须按 ctags→scintilla→tagmanager→src 顺序先编子目录
+    #   (make -C src 单独跑在干净树报 "No rule to make target '.../libscintilla.la'"/'tagmanager/libtagmanager.la'/'ctags/libctags.la', 见 5.1①)。
+    make -j$(nproc) -C ctags libctags.la \
+      || { log "GEANY ctags build FAILED"; exit 1; }
+    make -j$(nproc) -C scintilla libscintilla.la \
+      || { log "GEANY scintilla build FAILED"; exit 1; }
+    make -j$(nproc) -C src/tagmanager libtagmanager.la \
+      || { log "GEANY tagmanager build FAILED"; exit 1; }
+    make -j$(nproc) -C src main.o libgeany.la \
       GTK_LIBS="" GTHREAD_LIBS="" \
-      LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 $LIBS0 -Wl,--end-group" \
       || { log "GEANY build FAILED"; exit 1; }
 
   log "Install GEANY (data + lib)..."
-    make install 2>&1 > /dev/null || { log "GEANY install FAILED"; exit 1; }
+    # 2026-11-14: make install 默认依赖 all(含 geany 二进制), libtool geany_LINK 链 bin 仍踩 loader undefined;
+    #   改 install-data 只装数据/库(不装 bin_PROGRAMS), geany 二进制由下方 xx-clang++ -static 手动链。
+    make install-data 2>&1 > /dev/null || { log "GEANY install FAILED"; exit 1; }
 
   log "Static-link geany binary (direct, xx-clang++ -static)..."
     # 静态 libgcc：-lgcc_s 只有 .so，-static 下需 libgcc.a；补一个 libgcc_s.a（copy libgcc.a）兜底。
@@ -57,6 +72,7 @@ function geany(){
       cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
     fi
     cd /tmp/geany/src
+    mkdir -p $TARGETPATH/bin
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/geany main.o .libs/libgeany.a \
       -Wl,--start-group -lXinerama -lXfixes -lXrandr -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 $LIBS0 -Wl,--end-group \
       -lintl || { log "GEANY static-link FAILED"; exit 1; }
@@ -70,7 +86,7 @@ case "$1" in
 cache)
     ;;
 full)
-    geany
+    doExec geany || exit 1
     ;;
 b_deps)
     # GTK2 静态库已在 builder（builder-obox，alpine-builder-gtk224-2）齐备（见 u-gtk/v-pcmanfm b_deps）
