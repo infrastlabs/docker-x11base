@@ -187,10 +187,10 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     --build-arg COMPILE_TINT2=yes
     --build-arg COMPILE_XLUNCH=yes
 
-    --build-arg COMPILE_XBINDKEYS=no
-    --build-arg COMPILE_XRANDR=no
-    --build-arg COMPILE_DUNST=no
-    --build-arg COMPILE_ROFI=no
+    --build-arg COMPILE_XBINDKEYS=yes
+    --build-arg COMPILE_XRANDR=yes
+    --build-arg COMPILE_DUNST=yes
+    --build-arg COMPILE_ROFI=yes
     --build-arg COMPILE_PULSE=yes
     --build-arg COMPILE_PASYSTRAY=yes
     --build-arg COMPILE_PAVUCONTROL=yes
