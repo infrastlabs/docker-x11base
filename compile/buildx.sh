@@ -160,8 +160,9 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     # plat="--platform linux/arm64" #pulse-arm-dbg
     plat="--platform linux/amd64" #dbg
     
-    compile="alpine-compile"
+    compile="alpine-compile-2"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
+    compile="alpine-compile" ########V2 TEST, AVOID DBG
     args="--provenance=false"
     # full yes x9: 5h,9min,44s
     # 11-04 后新增/调整项 CI 开关（默认不启用，需显式 --build-arg COMPILE_*=yes 才建）
