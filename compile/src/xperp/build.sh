@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-xperp}"
 source /src/common.sh
 
 #
@@ -7,7 +8,7 @@ source /src/common.sh
 #
 function perp(){
   log "Downloading perp..."
-  git clone https://gitee.com/infrastlabs/fk-perp /tmp/fk-perp
+  gitclone https://gitee.com/infrastlabs/fk-perp /tmp/fk-perp
   cd /tmp/fk-perp
 
   log "Compiling perp..."
@@ -33,7 +34,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    perp
+    doExec perp || exit 1
     ;;
 *) #compile
     oneBuild $1
