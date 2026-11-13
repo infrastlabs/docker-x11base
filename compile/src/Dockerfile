@@ -554,7 +554,8 @@ RUN \
   # clear old
   # rm -rf /rootfs${STATIC}/misc; \
   \
-  find /rootfs${STATIC} -type f |sort |wc
+  find /rootfs${STATIC} -type f |sort |wc; \
+  du -sh /rootfs${STATIC}/*
 
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tigervnc
@@ -572,11 +573,11 @@ RUN \
 # COPY --from=perp ${STATIC} /rootfs${STATIC}
 # COPY --from=misc ${STATIC} /rootfs${STATIC}
 # 
-# COPY --from=feh ${STATIC} /rootfs${STATIC}
-# COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
-# COPY --from=scrot ${STATIC} /rootfs${STATIC}
-# COPY --from=tint2 ${STATIC} /rootfs${STATIC}
-# COPY --from=xlunch ${STATIC} /rootfs${STATIC}
+COPY --from=feh ${STATIC} /rootfs${STATIC}
+COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
+COPY --from=scrot ${STATIC} /rootfs${STATIC}
+COPY --from=tint2 ${STATIC} /rootfs${STATIC}
+COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tint2
 # 
@@ -591,7 +592,7 @@ COPY --from=sysmonitor ${STATIC} /rootfs${STATIC}
 # 
 COPY --from=lxde ${STATIC} /rootfs${STATIC}
 COPY --from=pcmanfm ${STATIC} /rootfs${STATIC}
-# COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
+COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
 COPY --from=geany ${STATIC} /rootfs${STATIC}
 COPY --from=engrampa ${STATIC} /rootfs${STATIC}
 COPY --from=gpicview ${STATIC} /rootfs${STATIC}
