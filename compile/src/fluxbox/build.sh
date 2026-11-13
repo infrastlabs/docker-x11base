@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-fluxbox}"
 source /src/common.sh
 
 #
@@ -68,7 +69,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    fluxbox
+    doExec fluxbox || exit 1
     ;;
 *) #compile
     oneBuild $1
