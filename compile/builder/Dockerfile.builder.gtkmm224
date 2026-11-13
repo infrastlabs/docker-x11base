@@ -3,9 +3,8 @@ ARG REPO=
 FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
 # FROM infrastlabs/x11-base:builder AS base
   ARG TARGETPLATFORM
-  ENV \
-    CACHE=/usr/local/static/.cache \
-    DOEXEC_CALLER=u-gtkmm
+  ENV CACHE=/usr/local/static/.cache
+    
   RUN apk update; apk add icu-static icu-dev libjpeg-turbo-static jpeg-dev;
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
   COPY ./src /src
@@ -21,7 +20,8 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   RUN bash /src/u-gtkmm/build.sh full
   # imlib2 框架级图片库: 5 个 w-* 应用(feh/scrot/hsetroot/tint2/xlunch)共用; 直接调 w-xlunch 定制构建(内置 PNG/SVG/JPEG loader 嵌入),
   # 避免各 w-* stage 重复下载+编译(~4次/镜像); 产物 /usr/local/lib/libImlib2.a
-  RUN bash /src/w-xlunch/build.sh imlib2; \
+  RUN export DOEXEC_CALLER=u-gtkmm; \
+    bash /src/w-xlunch/build.sh imlib2; \
     # 缓存复用前提: 保留 /tmp/gtk + /tmp/gtkmm-src + /tmp/imlib2 源树(增量 .o/config.status, 同 gtk 复用)与 .cache 下载缓存,
     # /usr/lib/*.a 成品绝对保留(§5.2 gtk2 .a 禁清); 只清可清中间产物: apk 包缓存 / 构建日志 / 坏(0字节)下载缓存.
     rm -rf /var/cache/apk/* /root/.cache; \
