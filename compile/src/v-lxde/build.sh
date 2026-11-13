@@ -37,7 +37,9 @@ function lxappearance(){
     ex1="-lfontconfig -lgio-2.0 -lcairo   -lXdamage "
     LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
-  make LDFLAGS="-static " LIBS="-lXinerama -lXfixes -lXrandr $LIBS0" 2>&1
+  make LDFLAGS="$LDFLAGS" \
+    LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
+    || { log "LXAPPEARANCE build FAILED"; exit 1; }
 
   log "Install LXAPPEARANCE..."
   # make;
