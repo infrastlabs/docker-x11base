@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-pulseaudio}"
 source /src/common.sh
 
 # _xiph[ogg,flac,vorbis,opus],libsndfile
@@ -50,8 +51,8 @@ function libogg(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   branch="--branch=v1.3.5"
-  repo=$GITHUB/xiph/ogg
-  rm -rf /tmp/libogg; git clone --depth=1 $branch $repo /tmp/libogg
+  repo=https://gitee.com/g-system/fk-xiph-ogg #$GITHUB/xiph/ogg
+  rm -rf /tmp/libogg; gitclone $repo /tmp/libogg $branch
   log "Configuring libOgg..."
   (
       cd /tmp/libogg
@@ -69,8 +70,8 @@ function libflac(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   branch="--branch=1.3.4"
-  repo=$GITHUB/xiph/flac
-  rm -rf /tmp/libflac; git clone --depth=1 $branch $repo /tmp/libflac
+  repo=https://gitee.com/g-system/fk-xiph-flac #$GITHUB/xiph/flac
+  rm -rf /tmp/libflac; gitclone $repo /tmp/libflac $branch
   log "Configuring libFLAC..."
   (
       cd /tmp/libflac
@@ -88,8 +89,8 @@ function libvorbis(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   branch="--branch=v1.3.7"
-  repo=$GITHUB/xiph/vorbis
-  rm -rf /tmp/libvorbis; git clone --depth=1 $branch $repo /tmp/libvorbis
+  repo=https://gitee.com/g-system/fk-xiph-vorbis #$GITHUB/xiph/vorbis
+  rm -rf /tmp/libvorbis; gitclone $repo /tmp/libvorbis $branch
   log "Configuring libVorbis..."
   (
       cd /tmp/libvorbis
@@ -107,8 +108,8 @@ function libopus(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   branch="--branch=v1.3.1"
-  repo=$GITHUB/xiph/opus
-  rm -rf /tmp/libopus; git clone --depth=1 $branch $repo /tmp/libopus
+  repo=https://gitee.com/g-system/fk-xiph-opus #$GITHUB/xiph/opus
+  rm -rf /tmp/libopus; gitclone $repo /tmp/libopus $branch
   log "Configuring libOpus..."
   (
       cd /tmp/libopus
@@ -128,8 +129,8 @@ function libsndfile(){
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   branch="--branch=1.0.31"
-  repo=$GITHUB/libsndfile/libsndfile
-  rm -rf /tmp/libsndfile; git clone --depth=1 $branch $repo /tmp/libsndfile
+  repo=https://gitee.com/g-system/fk-libsndfile #$GITHUB/libsndfile/libsndfile
+  rm -rf /tmp/libsndfile; gitclone $repo /tmp/libsndfile $branch
   log "Configuring libSndfile..."
   (
       cd /tmp/libsndfile
@@ -156,7 +157,7 @@ function pulseaudio(){
   PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
   branch="--branch=$PULSEAUDIO_VER"
   # --depth=1 ##./git-version-gen .tarball-version
-  git clone $branch https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio #;
+  gitclone https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio $branch #;
   log "Configuring PULSEAUDIO..."
   cd /tmp/pulseaudio #&& ./bootstrap;
   # ./configure  --enable-static --prefix=$TARGETPATH
@@ -181,7 +182,7 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    pulseaudio
+    doExec pulseaudio || exit 1
     ;;
     # dep1="-logg -lopus -lsndfile  -lFLAC -lvorbis -lvorbisenc"
     # 尝试重编译deps ogg> [opus]flac,vorbis> sndfile  (ref: docs/core/pulse05.md)
@@ -191,14 +192,20 @@ full)
       # vorbis/enc-v137 https://hub.yzuu.cf/xiph/vorbis #432, Ogg Vorbis audio format Jul 11, 1999+
       # libsndfile-v1.0.31 https://hub.yzuu.cf/libsndfile/libsndfile #1.3k, A C library for reading and writing sound files Jan 18, 2004+
 b_deps) #TODO1
-    bash /src/x-pulseaudio/build.sh libogg &
+    doExec_mark "x-pulseaudio b_deps grp1"
+    doExec bash /src/x-pulseaudio/build.sh libogg &
     wait
-    bash /src/x-pulseaudio/build.sh libopus &
-    bash /src/x-pulseaudio/build.sh libflac &
-    bash /src/x-pulseaudio/build.sh libvorbis &
+    doExec_check || exit 1
+    doExec_mark "x-pulseaudio b_deps grp2"
+    doExec bash /src/x-pulseaudio/build.sh libopus &
+    doExec bash /src/x-pulseaudio/build.sh libflac &
+    doExec bash /src/x-pulseaudio/build.sh libvorbis &
     wait
-    bash /src/x-pulseaudio/build.sh libsndfile &
+    doExec_check || exit 1
+    doExec_mark "x-pulseaudio b_deps grp3"
+    doExec bash /src/x-pulseaudio/build.sh libsndfile &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
