@@ -5,6 +5,9 @@
 .idea
 .vscode
 
+# 源码包缓存仓库（gitee x11base-tarsrc 克隆，构建时自动产生，勿入仓）
+/compile/tarsrc/
+
 *.vswp
 #*.docx
 /pkgs/down
