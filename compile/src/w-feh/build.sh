@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-feh}"
 source /src/common.sh
 
 FEH_VER=0.8.4
@@ -50,17 +51,17 @@ cache)
     # down_catfile ${IMLIB2_URL} > /dev/null
     ;;
 full)
-    # imlib2
-    feh
+    doExec feh || exit 1
     ;;
 b_deps)
     # jpeg 静态库+头（内置 jpeg loader 依赖）；先于 w-xlunch imlib2（其内置段编 jpeg.o 需 jpeglib.h）
     apk add libjpeg-turbo-static jpeg-dev
-    bash /src/w-xlunch/build.sh imlib2 #imlib2-1.7.4.tar.g@sourceforge
-    # 
-    bash /src/w-tint2/build.sh xcbutil & ##need?
-    bash /src/w-tint2/build.sh libxi &
+    doExec bash /src/w-xlunch/build.sh imlib2 || exit 1 #imlib2-1.7.4.tar.g@sourceforge
+    doExec_mark "w-feh b_deps grp"
+    doExec bash /src/w-tint2/build.sh xcbutil & ##need?
+    doExec bash /src/w-tint2/build.sh libxi &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
