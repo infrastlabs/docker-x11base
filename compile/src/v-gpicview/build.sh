@@ -82,12 +82,14 @@ function gpicview(){
     cd src
     # gtk 静态链全传递依赖 + X 扩展（gdk-x11 需 Xrandr/Xcomposite/Xdamage/Xfixes/Xcursor/Xinerama）
     # + libjpeg(configure 必需) + librsvg/croco/xml2(gdk_pixbuf 静态 io-svg.c.o 强制拉入)
+    # 过滤缺库的 -lzstd -ltiff（gdk-pixbuf 非必需 io；同 w-feh 套路，避免 cannot find -lzstd）
+    GTK_LIBS=$(pkg-config --static --libs gtk+-2.0 | tr ' ' '\n' | grep -vE '^-l(zstd|tiff)$' | tr '\n' ' ')
     xx-clang -static -Wl,--strip-all -o gpicview \
       gpicview-gpicview.o gpicview-image-list.o gpicview-main-win.o gpicview-image-view.o \
       gpicview-working-area.o gpicview-ptk-menu.o gpicview-file-dlgs.o gpicview-jpeg-tran.o \
       gpicview-tran-supp.o gpicview-pref.o gpicview-jhead.o gpicview-exif.o gpicview-jpgfile.o \
       -Wl,--start-group \
-      $(pkg-config --static --libs gtk+-2.0) \
+      $GTK_LIBS \
       -lXrandr -lXcomposite -lXdamage -lXfixes -lXcursor -lXinerama \
       -ljpeg -lrsvg-2 -lcroco-0.6 -lxml2 -llzma \
       -Wl,--end-group >/tmp/gpv-link.log 2>&1 \
