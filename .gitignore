@@ -12,3 +12,4 @@
 #*.docx
 /pkgs/down
 .github/workflows/.ws
+/compile/tarsrc-git/
