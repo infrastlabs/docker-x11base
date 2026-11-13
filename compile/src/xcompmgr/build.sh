@@ -63,8 +63,8 @@ cache)
     # down_catfile ${FDKAAC_URL} > /dev/null
     ;;
 full)
-    Xdamage
-    xcompmgr
+    doExec Xdamage || exit 1
+    doExec xcompmgr || exit 1
     ;;
 *) #compile
     oneBuild $1
