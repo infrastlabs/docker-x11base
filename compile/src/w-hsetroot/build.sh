@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-w-hsetroot}"
 export TARGETPATH=${TARGETPATH:-/usr/local/static/hsetroot}
 source /src/common.sh
 
