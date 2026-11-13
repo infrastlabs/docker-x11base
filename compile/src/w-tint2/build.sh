@@ -118,9 +118,12 @@ function xcbutil(){
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
   apk add util-macros libtool automake autoconf #ubt: xorg-macros
-  sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^/src/../tarsrc-git/util-common-m4^g" .gitmodules
+  # 2026-11-13: m4 submodule 缓存仅在本地(tarsrc-git)存在时指向缓存; CI 构建上下文无 tarsrc-git(仅 COPY src)
+  # → 不 sed 保持原始 freedesktop URL 走网络 submodule update; 失败再回落 gitee g-system 镜像(缓存即从该源克隆)
+  M4CACHE=${GITCACHE:-/src/../tarsrc-git}/util-common-m4
+  test -d "$M4CACHE/.git" && sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^$M4CACHE^g" .gitmodules
   git submodule update --init 2>&1 | tail -1
-  test -f m4/xcb_util_common.m4 || { rm -rf m4; cp -a /src/../tarsrc-git/util-common-m4 m4; }
+  test -f m4/xcb_util_common.m4 || { rm -rf m4; test -d "$M4CACHE/.git" && cp -a "$M4CACHE" m4 || git clone --depth=1 https://gitee.com/g-system/util-common-m4 m4; }
   ./autogen.sh 
   #  
   # cd /mnt2/_deps/xcb__util/
