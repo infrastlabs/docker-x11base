@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-v-ibus}"
 source /src/common.sh
 
 # v-ibus: IBus 输入法栈静态构建（方案 B panel + 方案 A2 im 模块源）
@@ -373,13 +374,13 @@ cache)
   # 离线源：host 预下载 ibus 源到 .ibus-deps -> 拷入容器 /src/v-ibus/
   ;;
 full)
-  deps
-  librime
-  ibus
-  panel
-  x11
-  ibus-rime
-  setup
+  doExec deps || exit 1
+  doExec librime || exit 1
+  doExec ibus || exit 1
+  doExec panel || exit 1
+  doExec x11 || exit 1
+  doExec ibus-rime || exit 1
+  doExec setup || exit 1
   ;;
 ibus)
   ibus
