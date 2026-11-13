@@ -38,7 +38,7 @@ function atk(){ ##@meson
 }
 
 # meson build>> clone: gi-docgen [by meson_py slow..; meson两个文件未找到docgen信息]
-function gdk-pixbuf(){ ##@meson
+function gdk_pixbuf(){ ##@meson
   # apk update; apk add shared-mime-info
 
   log "Downloading gdk-pixbuf..."
@@ -359,7 +359,7 @@ b_deps)
     doExec /src/u-gtk/build.sh atk & #needed by gtk
     wait
     doExec_check || exit 1   # 并发组2 错误码识别
-    doExec /src/u-gtk/build.sh gdk-pixbuf || exit 1 #needs librsvg (svg loader)
+    doExec /src/u-gtk/build.sh gdk_pixbuf || exit 1 #needs librsvg (svg loader)
     doExec /src/u-gtk/build.sh gtk || exit 1
 
     # view
