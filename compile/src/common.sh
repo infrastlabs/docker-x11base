@@ -131,7 +131,7 @@ function doExec(){
 # doExec_mark: 写并发组边界标记（结果文件只增不清 -> 留痕；MARK 之后为本组记录）。
 function doExec_mark(){
   : ${TARGETPATH:=/tmp}
-  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS/doExec/${DOEXEC_CALLER:-default}
   echo "# MARK $*" >> $LOGS/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
 }
 
