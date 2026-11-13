@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export DOEXEC_CALLER="${DOEXEC_CALLER:-x-x11vnc}"
 source /src/common.sh
 
 # Define software download URLs.
@@ -134,15 +135,17 @@ cache)
     # down_catfile ${X11VNC_URL} > /dev/null
     ;;
 full)
-    libvncserver
-    libxtst
-    x11vnc
+    doExec libvncserver || exit 1
+    doExec libxtst || exit 1
+    doExec x11vnc || exit 1
     ;;
 b_deps)
-    bash /src/x-x11vnc/build.sh libvncserver &
-    bash /src/x-x11vnc/build.sh libxtst &
-    bash /src/w-tint2/build.sh libxi &
+    doExec_mark "x-x11vnc b_deps grp"
+    doExec bash /src/x-x11vnc/build.sh libvncserver &
+    doExec bash /src/x-x11vnc/build.sh libxtst &
+    doExec bash /src/w-tint2/build.sh libxi &
     wait
+    doExec_check || exit 1
     ;;
 *) #compile
     oneBuild $1
