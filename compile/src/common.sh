@@ -114,7 +114,7 @@ function doExec(){
   LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
   local elog=$LOGS/doExec/$caller; mkdir -p $elog
   [ -f "$cmd" ] && cmd="bash $cmd"
-  local lf=$elog/$(echo "$cmd $args" | sed 's^[ /]^_^g').log
+  local lf=$elog/$(printf '%s' "$cmd $args" | sed 's/[^A-Za-z0-9_.-]/_/g; s/__*/_/g; s/^_//; s/_$//' | cut -c1-120).log
   export DOEXEC_LOG=$lf   # 供 oneBuild 失败 tail 到本 doExec 实际日志
   local rcfile=$(mktemp $elog/.rc.XXXXXX)
   # 实时: 子 shell 输出流经 tee(全量落日志) + 白名单 grep(高信号行回显); rcfile 捕获 $cmd 真实退出码.
