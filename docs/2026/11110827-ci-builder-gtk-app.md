@@ -1049,3 +1049,43 @@ function down_catfile(){
 
 - **判据**：`down_catfile` 写入 `$CACHE/$file`（`$TARGETPATH/../.cache`）后，与 tarsrc 内对应包 `cmp` 逐字节比对；gsm/dbus-glib 走 **case 映射表**命中，xfce4/gpicview 走 `*)` 2a 通配命中。tarsrc 31 包 13 目录**无重名**（find 兜底唯一命中安全）。
 - 命令替换取二进制会剥尾部换行致 `wc -c` 偏小，**判据以 `cmp` 为准**（勿用 `wc -c` 对包大小）。
+
+### 5、gitclone 网络抖动与源码快照缓存（2026-11-13）
+
+#### 5.1、xcbutil m4 submodule 修复：CI 无 tarsrc-git 缓存（已推送 `18d9ee6`）
+
+> 详版见五章 3.3.4；本节为六章"源码获取/网络"专题衔接，记录 gitclone 机制在 **CI 无缓存**场景的坑与修复。
+
+**根因**：CI 构建上下文**不带 `compile/tarsrc-git`**（`.gitignore` 排除 + Dockerfile 只 `COPY ./src /src`）→ 容器内 `/src/../tarsrc-git` 不存在。`gitclone` 缓存未命中回落网络（common.sh:77-78，安全），**但** `w-tint2/build.sh` xcbutil 的 m4 submodule 处理原**无条件 `sed` `.gitmodules` 指向 `/src/../tarsrc-git/util-common-m4`** → CI 下 `git submodule update --init` 从不存在路径拉取失败 → fallback `cp -a` 也因源不存在报 `cp: can't stat '/src/../tarsrc-git/util-common-m4'` → `./autogen.sh` 无 m4 宏/无 configure → `make` 无 install 目标 → feh stage `doExec FAIL`。
+
+**修复（w-tint2/build.sh xcbutil :121-126）**：
+```sh
+M4CACHE=${GITCACHE:-/src/../tarsrc-git}/util-common-m4
+test -d "$M4CACHE/.git" && sed -i "s^git://anongit.freedesktop.org/xcb/util-common-m4.git^$M4CACHE^g" .gitmodules
+git submodule update --init 2>&1 | tail -1
+test -f m4/xcb_util_common.m4 || { rm -rf m4; test -d "$M4CACHE/.git" && cp -a "$M4CACHE" m4 || git clone --depth=1 https://gitee.com/g-system/util-common-m4 m4; }
+```
+- 缓存**存在才 sed** 指向缓存（本地构建行为不变）；无缓存（CI）→ 保持原始 `git://anongit.freedesktop.org/xcb/util-common-m4.git` 走网络 submodule；失败回落 **gitee `g-system/util-common-m4` 镜像**（缓存即从该源克隆，**非换源**）。
+
+**验证（builder-awe，2026-11-13）**：
+- 缓存路径：`xcbutil` 全过 → `m4/xcb_util_common.m4` + `libxcb-util.a` 落 `/usr/local/lib`；
+- 无缓存路径（`GITCACHE=/nonexistent` 模拟 CI）：`.gitmodules` 保持原始 URL 未 sed → gitee 克隆 m4 就位（remote 确认 gitee g-system）。
+
+**结论**：`grep tarsrc-git compile/src/` 仅剩 w-tint2 一处（已修）；其余 `gitclone` 用法均已回落网络。**CI 下 feh/libcroco/librsvg/libxi/libfm/menu-cache/pcmanfm 主仓库 clone 走 gitee 网络**——gitee 波动是剩余唯一网络风险。
+
+#### 5.2、gitclone 打 tar.gz 快照缓存方案（针对 gh/gitee 网络抖动，2026-11-13 细化，待实施）
+
+**问题**：5.1 修复后，CI 无 `tarsrc-git` → 各组件 gitclone 回落网络（gitee/github）；gitee 间歇 `Connection reset by peer` / 慢（fk-libfm 338s）仍致 b_deps 依赖未就位。需让 CI 也能"免网络"命中源码缓存。
+
+**方案（用户 2026-11-13 细化，gitclone 方法内）**：
+1. **克隆成功之后**：把代码目录打一个压缩包 `xxx-ver.tar.gz` 放 `TARSRC` 目录下的 `./_cache_repo/` 下；
+2. **克隆之前**：检查如上一条对应的包已有则**直接复用之（解压），跳过克隆**。
+
+**细化**：
+- **命名**：`<repo>-<ver>.tar.gz`（`repo`=URL 末段 `_repo`，`ver`=`--branch` 版本或默认分支；如 `fk-tint2-16.1.tar.gz`）。
+- **路径**：`$TARSRC/_cache_repo/`（`TARSRC=${TARSRC:-/src/../tarsrc}`，gitee `infrastlabs/x11base-tarsrc` 源码包仓库克隆，common.sh:35）。
+- **与现有 `GITCACHE`（tarsrc-git）关系**：`GITCACHE`（tarsrc-git）保留 `.git` 供 submodule（xcbutil m4 等），**本地**构建用；tar.gz 快照**无 `.git`**（纯源码，体积小），适合作 **CI 免网络缓存**。
+- **优先级**：`GITCACHE` 缓存（含 `.git`，本地）> tar.gz 快照（`_cache_repo/`）> 网络 clone（未命中，不换源）。
+- **随仓推送（待拍板）**：`_cache_repo/` 若随 tarsrc commit 推送 → CI 拉 tarsrc 一次即带全部源码快照，彻底免网络；代价是 tarsrc 仓库体积增大（各 `xxx-ver.tar.gz` 累加）。不随仓则仅本地命中（CI 仍回落网络）。
+
+**⚠️ 待拍板**：① `_cache_repo/` 是否随 tarsrc 仓库推送（影响 CI 免网络可用性 vs 仓库体积）；② tar.gz 解压后是否同样登记 `safe.directory`（快照无 `.git`，不涉 submodule，大概率不需要）；③ 与 `down_catfile`（tarsrc 源码包，六章 4.x）的边界：down_catfile 管 tarball 下载缓存、gitclone 管 git 仓库源码，二者独立，`_cache_repo/` 与 `$TARSRC/<组件>/` 分置不冲突。
