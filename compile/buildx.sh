@@ -265,11 +265,11 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_PERP=no
     --build-arg COMPILE_MISC=no
 
-    --build-arg COMPILE_FEH=no
     --build-arg COMPILE_HSETROOT=yes
     --build-arg COMPILE_SCROT=yes
-    --build-arg COMPILE_TINT2=no
-    --build-arg COMPILE_XLUNCH=no
+    --build-arg COMPILE_TINT2=yes
+    --build-arg COMPILE_FEH=yes
+    --build-arg COMPILE_XLUNCH=yes
 
     --build-arg COMPILE_XBINDKEYS=no
     --build-arg COMPILE_XRANDR=yes
@@ -282,7 +282,7 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     
     --build-arg COMPILE_LXDE=yes
     --build-arg COMPILE_PCMANFM=yes
-    --build-arg COMPILE_XFCE4=no
+    --build-arg COMPILE_XFCE4=yes
     --build-arg COMPILE_GEANY=yes
     --build-arg COMPILE_ENGRAMPA=yes
     --build-arg COMPILE_GPICVIEW=yes
