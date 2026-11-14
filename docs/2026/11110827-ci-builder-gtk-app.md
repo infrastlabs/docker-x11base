@@ -1052,7 +1052,7 @@ function down_catfile(){
 
 ### 5、gitclone 网络抖动与源码快照缓存（2026-11-13）
 
-#### 5.1、xcbutil m4 submodule 修复：CI 无 tarsrc-git 缓存（已推送 `18d9ee6`）
+#### 5.1、xcbutil m4 submodule 修复：CI 无 tarsrc-git 缓存（已推送 `18d9ee6`→`8231040`）
 
 > 详版见五章 3.3.4；本节为六章"源码获取/网络"专题衔接，记录 gitclone 机制在 **CI 无缓存**场景的坑与修复。
 
@@ -1073,10 +1073,16 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 - gitee `g-system/util-common-m4` 与宿主缓存 `tarsrc-git/util-common-m4` 同名（`_repo=util-common-m4`）→ **GITCACHE 命中**；CI 无缓存回落 tar.gz 快照/网络 gitee 克隆。
 - **原方案（sed+cp，见五章 3.3.4）已废弃**：sed 指向缓存路径 + submodule update + cp fallback——但 submodule update 走 `git://`（CI 常被禁）且 xcb-util `autogen.sh` 会因 m4 uninitialized 再 exit 1，故改 gitclone 预热 + 移除 submodule 跟踪更可控。
 
-**验证（builder-awe，2026-11-13）**：
-- **缓存路径**（GITCACHE 命中）：`xcbutil` 全过——m4 gitclone 缓存命中（origin gitee g-system）、`./autogen.sh` 生成 Makefile/config.status/configure、CCLD 链接、libtool install `libxcb-util.a` 落 `/usr/local/lib`（RC=0）。
-- **tar.gz 复用路径**（`GITCACHE=/nonexistent`+预置快照）：`gitclone tar.gz hit` → 解压还原 `.git`+`configure.ac`（含 `.git` 快照）。
-- 网络 clone→打 tar.gz 路径：gitee 当前抖动未实测（环境问题），逻辑已代码确认（`test -d .git`→`tar czf`）。
+**验证（builder-awe，2026-11-13，照 Dockerfile 调用：`bash /src/w-tint2/build.sh xcbutil`）**：
+
+| 验证路径 | 命令/前置 | 结果 |
+|---|---|---|
+| ① 缓存路径（GITCACHE 命中） | `bash /src/w-tint2/build.sh xcbutil` | ✅ `m4` gitclone 缓存命中（origin gitee g-system）；`./autogen.sh` 生成 Makefile/config.status/configure；CCLD 链接 `libxcb-util.la`；libtool install `libxcb-util.a` → `/usr/local/lib`（RC=0） |
+| ② tar.gz 复用路径 | `GITCACHE=/nonexistent` + 预置 `<repo>-default.tar.gz` | ✅ `gitclone tar.gz hit` → 解压还原 `.git` + `configure.ac`（含 `.git` 快照） |
+| ③ 网络 clone→打 tar.gz | `GITCACHE=/nonexistent` + 空 `_cache_repo` | ⚠️ **未实测**（builder-awe 到 gitee 当前抖动卡 `Cloning into...`，环境问题非代码）；逻辑已代码确认（`test -d .git`→`tar czf`），留待 CI 复现 |
+
+**产物确认**：`/usr/local/lib/libxcb-util.a`（静态链）＋ `/usr/local/lib/pkgconfig/xcb-{atom,aux,event,util}.pc`。
+**坑（首跑踩到）**：`./autogen.sh` 因 m4 gitlink 与独立克隆 HEAD 不一致报 `uninitialized` exit 1（`make` 报 `No targets specified and no makefile found`）——须先移除父仓库 m4 submodule 跟踪（见上）。
 
 **结论**：`grep tarsrc-git compile/src/` 仅剩 w-tint2 一处（已修）；其余 `gitclone` 用法均已回落网络。**CI 下 feh/libcroco/librsvg/libxi/libfm/menu-cache/pcmanfm 主仓库 clone 走 gitee 网络**——gitee 波动是剩余唯一网络风险。
 
@@ -1095,3 +1101,18 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 - **②safe.directory 全局 `*`（用户拍板）**：`git config --global --add safe.directory '*'`（git≥2.35.2 支持通配；容器内可信环境，**免仓库粒度逐个登记**——实测 root 跑宿主 uid=1000 的仓库不再报 dubious ownership，git status 正常）。
 - **优先级**：`GITCACHE` 缓存（含 `.git`，本地）> tar.gz 快照（`_cache_repo/`，含 `.git`）> 网络 clone（未命中，不换源）。
 - **③边界（解释，用户未看懂处）**：`down_catfile`（六章 4.x）管 **tarball 源码包**（如 `Thunar-1.6.3.tar.bz2`，下载缓存到 `$TARGETPATH/../.cache`）；`gitclone`（本节 5.2）管 **git 仓库源码**（如 `fk-tint2`，快照到 `$TARSRC/_cache_repo/`）。二者是**两种不同形态的源码缓存**——tarball（解压即用，无 git）与 git 仓库（含 `.git`，可 git 操作/后续 submodule）——**用途不同、目录不同（`$TARSRC/<组件>/` vs `$TARSRC/_cache_repo/`）、互不干扰、无重叠**。简单说：down_catfile 是"压缩源码包"、gitclone 是"git 仓库快照"，各管各的，不冲突。
+
+**落地 commit（2026-11-14 推送 `5af7464..8231040`）**：
+
+| commit | 文件 | 内容 |
+|---|---|---|
+| `6338b3f` | docs/.../11110827-ci-builder-gtk-app.md | 六章 5 订正（m4 gitclone 预热 + tar.gz 快照方案 + 拍板） |
+| `18d7905` | compile/src/common.sh | gitclone 打 tar.gz 快照（ver=br值无则default、含.git、只存不推、safe.dir 全局*） |
+| `8231040` | compile/src/w-tint2/build.sh | xcbutil m4 改 gitclone 预热 + submodule 跟踪移除 |
+
+**验证总结（2026-11-14 复核）**：
+- 5.1 缓存路径：xcbutil 全过（autogen→configure→make→install，`libxcb-util.a` 落 `/usr/local/lib`）；
+- 5.2 tar.gz 复用路径：`gitclone tar.gz hit` → 解压还原 `.git`+源码（含 `.git` 快照，git status 正常）；
+- 5.2 网络 clone→打 tar.gz：**待 CI 实测**（builder-awe 到 gitee 抖动未跑通，逻辑已代码确认）。
+
+**待办**：① 网络 clone→打 tar.gz 路径实测（gitee 通时 / CI 复现）；② `_cache_repo/` 手动推送时机由用户定（只存不推）；③ 用最新代码（含 `8231040`）重跑 CI 验证四空组件真正构建通过。
