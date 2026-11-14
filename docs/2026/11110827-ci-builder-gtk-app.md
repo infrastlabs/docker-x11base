@@ -1117,3 +1117,22 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 - 5.2 网络 clone→打 tar.gz：**待 CI 实测**（builder-awe 到 gitee 抖动未跑通，逻辑已代码确认）。
 
 **待办**：① 网络 clone→打 tar.gz 路径实测（gitee 通时 / CI 复现）；② `_cache_repo/` 手动推送时机由用户定（只存不推）；③ 用最新代码（含 `8231040`）重跑 CI 验证四空组件真正构建通过。
+
+#### 5.3、预下载脚本入口 `cache_repo`（buildx.sh，2026-11-14 用户拍板）
+
+**需求**：构建前预下载 gitclone 依赖快照——遍历 `compile/src/` 下 build.sh 的 gitclone 调用点，批量解析、批量打包到 `tarsrc/_cache_repo/`；按脚本路径目录提前设置组件前缀（comp=目录名，如 `w-tint2`）。
+
+**入口（buildx.sh case 新增，`cache_repo` / `cache_tarsrc`）**：
+- `bash buildx.sh cache_repo`：预下载（实跑，2026-11-14 验证 `new=52 skip=0 fail=0`，52 个快照生成）；
+- `bash buildx.sh cache_tarsrc`：**预留，暂未实现**（后续：tarsrc 源码包仓库按需克隆/更新）。
+
+**cache_repo 实现要点（buildx.sh，函数 `cache_repo` + `cache_repo_resolve`）**：
+1. **遍历**：`$(dirname "$0")/src/*/build.sh`（33 个），`comp`=目录名（如 `w-tint2`）——**按路径目录提前设置组件前缀**，无需 TARGETPATH。
+2. **解析 gitclone 调用（awk）**：合并 `\` 续行；`match(line, /(^|[;])[[:space:]]*gitclone[[:space:]]+/)` 定位（**兼容 `rm -rf ...; gitclone` 同前缀形态**，w-tint2/u-gtk 曾因此漏解析——行首 `sub` 只认 `gitclone` 开头，前导空白致 awk `split` 产生空 `a[1]`）；`FNR` 记行号（单文件）；截断 `||` 尾随（w-hsetroot 续行后接 `|| { ... }`）、去行内注释/引号；输出 `start|url|dir|branch` 三字段。
+3. **变量 resolve（`cache_repo_resolve`）**：`$VAR` 用**调用点前最后一次字面赋值**（`sed -n "1,line" | grep -E "^[[:space:]]*(export[[:space:]]+)?VAR=" | tail -1`）——**关键**：u-gtk/x-pulseaudio 同一变量被多次赋值（`branch=`/`repo=` 多段），必须取调用点前最近一次，否则错位（x-pulseaudio 曾解析到 libsndfile）。处理：去行内注释 ` #...`（x-pulseaudio `repo=...#$GITHUB/...`）、`${VAR:-default}` 参数展开（u-gtk `MURRINE_GIT`）、`$GITHUB` 未定义默认 `https://github.com`、迭代展开（`--branch=$LXTASK_VER`→`--branch=master`）；`branch` 未定义 → `default`（与 gitclone 实际一致）。
+4. **打包**：`<comp>.<repo>-<ver>.tar.gz`（点分隔规则同 5.2）；`GITCACHE`(tarsrc-git 含 `.git`) 优先 `cp -a`，否则网络 `git clone --depth=1`；`tar czf` 含 `.git`（同 gitclone 快照）；已有快照 skip；产物只存不推。
+5. **验证**（2026-11-14 实跑，模拟 `$0` 树 + `GITCACHE=tarsrc-git`）：52 快照全生成，0 fail；含 `w-tint2.fk-tint2-16.1.tar.gz`（GITCACHE 命中）、`w-tint2.fk-xcb__util-2.40.21.tar.gz`（repo 名含 `__`）、`u-gtk.fk-murrine-default.tar.gz`（`${VAR:-default}` 展开）、`x-pulseaudio.fk-xiph-ogg-v1.3.5.tar.gz`（`repo=`/`branch=` 多段错位修复后正确）、`x-dropbear.fk-libxcrypt-v4.4.28.tar.gz`（`--branch=v$LIBXCRYPT_VER`）。
+
+**TARSRC 克隆优化（buildx.sh 顶部，2026-11-14 用户拍板）**：
+- **完整克隆（非 depth1）**：用户明确"TARSRC 不要深度1 完整克隆"——完整历史才能 `ff-only` pull；
+- **已有则 pull 非克隆**：`test -d "$_TS/.git"` → 旧 shallow 先 `git fetch --unshallow` 补全，再 `git pull --ff-only`（同步 gitee 最新源码包 + `_cache_repo/` 快照）；无则 `git clone` 完整克隆。
