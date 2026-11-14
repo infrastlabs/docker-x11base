@@ -17,6 +17,7 @@
   - 2、镜像二次分析（2.1 远端更新/编译结果 + 2.2 三失败 gpicview/engrampa/lxappearance 日志与修复，2026-11-13）
   - 3、镜像三次分析（3.1 远端又更新/4 空组件 feh/scrot/tint2/pcmanfm 根因，2026-11-13）
   - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl + 4.3 UPX 干扰与 gdk-pixbuf svg loader 机制，2026-11-14）
+  - 5、二次复现 gtk2+lxtask 链接流程（5.1 八步跑通+双 -u 链接修复原理 + 5.1.x 注意项/踩坑，2026-11-14）
 - 六、xfce4 源码包收集与下载源（2026-11-13）
   - 1、源码包清单与来源（/_ext/x11base_tar_src/xfce4）
   - 2、全仓下载/克隆源统计（compile/ 下，gitee=已处理）
@@ -933,7 +934,39 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 3. 确认 `libstaticpixbufloader-svg.a` 经 `included_loaders_deps` 真正链进 `libgdk_pixbuf-2.0.a`
    （判定标准：`svg_fill` 非 0）。
 
-## 六、xfce4 源码包收集与下载源（2026-11-13）
+### 5、二次复现：gtk224 镜像容器手动编译 gtk2（u-gtk gdk_pixbuf）+ lxtask 至截图验证（2026-11-14，用户拍板：按历史手动方式）
+
+> **订正（2026-11-14）**：4.3.4 的待确认项本轮全部落地——CI 已重建 base（远端 pull 的 `alpine-builder-gtk224-2` 自带 `libgdk_pixbuf-2.0.a`=1060610B、`_gdk_pixbuf__svg_fill_vtable` 已定义，Nov 13 构建含 svg loader）；但 **u-gtk 最新修复（Requires.private 补全 + `--default-library=static` + introspection 禁用）未烤入该镜像**，且各应用链接缺「svg 注册方强制拉入」环节。本 5.1 记录二次复现的完整链接流程与踩坑。
+
+#### 5.1、总体链接流程（8 步跑通，验证截图用户确认图标正常）
+
+| 步 | 内容 | 命令/要点 |
+|---|---|---|
+| ① | 拉取 base 镜像 | `docker pull registry.cn-shenzhen.aliyuncs.com/infrastlabs/x11-base:alpine-builder-gtk224-2`（本地曾被我误 prune 删除；远端 Nov 13 版库已含 svg_fill_vtable） |
+| ② | 起容器（像 awe 跑法） | `docker run -d --name builder-svg --network host -e CACHE=/usr/local/static/.cache -v /_ext:/_ext --entrypoint bash <img> -c 'while :; do sleep 3600; done'` |
+| ③ | **`/src` 换软链**（关键坑） | 镜像内 `/src` 是烘焙真实目录（旧脚本）；必须 `rm -rf /src && ln -s /_ext/.../compile/src /src`，否则用旧 u-gtk build.sh → 链 `.so` + 无 Requires.private → `cr_*`（libcroco）undefined |
+| ④ | 增量跑 gdk_pixbuf | `cd /src/u-gtk && CONSOLE_LOG=no bash build.sh gdk_pixbuf` → build 主库 `libgdk_pixbuf-2.0.a`=1060650B（`svg_fill=11`）编出；**install 的工具（query-loaders/csource）链接失败是已知坑**（AGENTS 三章 3），主库已备 |
+| ⑤ | **lxtask 链接**（双 `-u` 强制拉入，核心修复） | `TARGETPATH=/usr/local/static/lxtask CONSOLE_LOG=no bash /src/v-lxde/build.sh lxtask`；v-lxde/build.sh LIBS0 加 `-Wl,-u,_gdk_pixbuf__svg_fill_vtable -Wl,-u,gdk_pixbuf_new_from_file`（详见 5.1.1） |
+| ⑥ | 部署验证环境（**rootfs-dbg 默认桌面**） | rootfs-dbg 镜像**不带自定义命令**重起容器（默认 entrypoint `.core-init + /entry.sh` 拉起 Xvnc `:10` + fluxbox + tint2 + headless 主题配置）；`apk add scrot thunar` |
+| ⑦ | headless 用户实跑 | `su -s /bin/bash headless -c "DISPLAY=:10 /usr/local/static/lxtask/bin/lxtask &"` → 日志**空（无 Unrecognized 警告）** |
+| ⑧ | 截图验收 | `DISPLAY=:10 scrot /tmp/rd-compare.png` → 用户确认「lxtask 图标正常」（`docs/img/tmp/gtk2-svg/v2_rootfs-dbg-default-desktop.png`） |
+
+##### 5.1.1、lxtask 链接修复的原理（双 `-u`）
+
+- **现象**：gdk_pixbuf 库里 svg loader（`io-svg.c.o`）已编入（`T _gdk_pixbuf__svg_fill_vtable`）、注册方 `gdk-pixbuf-io.c.o` 也 `U` 引用它，但 lxtask 运行时仍 `Unrecognized image file format`。
+- **根因**：静态链接**按需拉取**——lxtask 未直接引用 `gdk-pixbuf-io.c.o` 的符号（图标走 `gtk_icon_theme_load_icon`→gtk 库间接路径），ld 不拉入注册方 → 内置 loader 数组里没有 svg → svg loader 就算链入也不注册。
+- **`-u _gdk_pixbuf__svg_fill_vtable` 单独不够**（只拉 `io-svg.c.o`，注册方仍缺，实测仍报错）；**`--whole-archive` 也不行**（拉入 `io-jpeg/io-png` 引来 libjpeg 链式 undefined，实测 make 失败）。
+- **正解**：双 `-u` —— `-Wl,-u,_gdk_pixbuf__svg_fill_vtable`（svg loader）+ `-Wl,-u,gdk_pixbuf_new_from_file`（注册方 `gdk-pixbuf-io.c.o`，其 U 引用 svg_fill → 自动链 `io-svg.c.o`）→ 完成注册。
+
+##### 5.1.2、注意项 / 踩过的坑（本流程新增）
+
+1. **image 内 `/src` 是烘焙目录不是软链**（AGENTS 原记 `/src` 是容器态软链、镜像缺失——builder-svg 实测镜像里是**真实目录**）：必须 `rm -rf /src && ln -s 宿主 /src`，否则 u-gtk 走旧脚本（`--default-library=both` 链 `.so` + `Requires.private` 未补）→ `cr_*`/`R_X86_64_TPOFF32` 链接失败。
+2. **docker exec stdout 时好时坏 + `docker cp` mount 报 `no space left`**（daemon 层 mount 故障，宿主 `df` 实际有余，非磁盘满）：统一用**容器内写 `/_ext/tmp`**（777；rootfs-dbg 系写 `/_ext` 需容器内 `sudo -n` 提权）通道拿日志/产物；命令**一条 exec 一个动作**，多命令链/管道易截断。
+3. **`pkill -f "xxx"` 会杀自身命令行**（sudo sh -c 里同理）→ 用 `[x]xx` 字面量技巧避免自杀。
+4. **验证必须 headless 用户 + 默认桌面**：rootfs-dbg 重起容器**不带自定义命令**（否则破坏 entrypoint 链路，主题/图标配置拉不起来）；`HOME=/home/headless` 才有 Greybird/Papirus（root 用户跑 = 主题错 + 图标打叉，对照组 `v2_lxtask-about-261114.png`）。
+5. **AI Alpine 容器无 Papirus 图标/无 Xvnc**：svg 解码测试用自建 `svgtest.c` + 简单 `test.svg`，别找图标样例。
+6. **窗口名中文**（如 lxtask"任务管理器"）：`xdotool search --name "Task Manager"` 找不到，用 `.`/`.*` 遍历 + `getwindowname` 过滤。
+7. 判成功**别信 oneBuild 的 `err 0, pass`**（沿用 AGENTS 三章 3）：兜底 `xx-verify --static` + `grep -c "undefined reference"` + 实跑截图人工确认。
 
 ### 1、源码包清单与来源（`/_ext/x11base_tar_src/xfce4`）
 
