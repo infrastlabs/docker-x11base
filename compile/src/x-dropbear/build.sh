@@ -16,7 +16,7 @@ LIBXCRYPT_ALL="yescrypt,gost_yescrypt,scrypt,bcrypt,bcrypt_y,bcrypt_a,bcrypt_x,s
 function libxcrypt(){
   log "Downloading LIBXCRYPT..."
   rm -rf $LIBXCRYPT_DIR
-  git clone --depth=1 --branch=v$LIBXCRYPT_VER https://gitee.com/g-system/fk-libxcrypt $LIBXCRYPT_DIR
+  gitclone https://gitee.com/g-system/fk-libxcrypt $LIBXCRYPT_DIR --branch=v$LIBXCRYPT_VER
   cd $LIBXCRYPT_DIR
   # crypt-hashes.h 不在 git 源码树（INCLUDE_* 无默认值），须从 hashes.conf 生成
   perl build-aux/scripts/gen-crypt-hashes-h lib/hashes.conf "$LIBXCRYPT_ALL" > lib/crypt-hashes.h
@@ -42,7 +42,7 @@ function dropbear(){
   #  master 2037
   #  DROPBEAR_2024.86 2031
   #  DROPBEAR_2022.83 1863
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-dropbear /tmp/dropbear #;
+  gitclone https://gitee.com/g-system/fk-dropbear /tmp/dropbear $branch #;
   log "Configuring DROPBEAR..."
   cd /tmp/dropbear #&& ./bootstrap;
   # configure 检测 crypt 需要 libcrypt.a 可见（放 LDFLAGS 实测可过）；
