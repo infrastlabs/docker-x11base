@@ -1136,3 +1136,19 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 **TARSRC 克隆优化（buildx.sh 顶部，2026-11-14 用户拍板）**：
 - **完整克隆（非 depth1）**：用户明确"TARSRC 不要深度1 完整克隆"——完整历史才能 `ff-only` pull；
 - **已有则 pull 非克隆**：`test -d "$_TS/.git"` → 旧 shallow 先 `git fetch --unshallow` 补全，再 `git pull --ff-only`（同步 gitee 最新源码包 + `_cache_repo/` 快照）；无则 `git clone` 完整克隆。
+
+#### 5.4、gitclone / down_catfile 增量缓存日志（cachesrc_log，2026-11-14 用户拍板）
+
+**需求**：gitclone 入口 + down_catfile 入口各做增量日志，记录到 `/usr/local/static/.logs/cachesrc/`（同目录、**不同文件**），每次调用一行，标记 `时间|组件|包|大小|缓存命中|...` 详细明细。
+
+**实现（common.sh `cachesrc_log`）**：
+- **通用函数**：`cachesrc_log <文件名> <字段...>` —— 追加 `/usr/local/static/.logs/cachesrc/<文件名>.log`，`时间|字段|...`（`printf` 循环 `|` 连接，字段含空格不破坏）；增量 `>>` 追加不清空。
+- **调用点**：
+  - `gitclone`（common.sh）：写 `gitclone.log`，**包=快照名 `<comp>.<repo>-<ver>`**、大小=tar.gz 字节(B)/GITCACHE 目录 du(KB)；`hit=GITCACHE|tarsrc|network|network-fail`；字段 `组件|包|大小|hit|ver|url|耗时ms|目标dir`；
+  - `down_catfile`（common.sh）：写 `downcatfile.log`，**包=源码包文件名**、大小=字节(B)；`hit=tarsrc|tarsrc-fuzzy|tarsrc-find|curl|curl-fail`；字段 `组件|包|大小|hit|ver|url|耗时ms|源路径`。
+- **关键细节**：
+  - 耗时：`_t0=$(date +%s)` 起，各分支结束 `_ms=$(( ($(date +%s)-_t0)*1000 ))`（秒级精度）；
+  - **down_catfile 防重复**：tarsrc 命中在**子 shell `( )` 内**记录并 `exit 0`；父 shell 末尾用 `_curl_ran` 区分"真 curl 下载"才写 curl/curl-fail 行（tarsrc 命中后 CACHE 已有文件不 curl，不重复记）；
+  - 网络失败语义保留：gitclone 网络 clone 失败 `_clone_rc` 非零 → 记 `network-fail` 并 `return $_clone_rc`（原 `&&` 假返回非零行为不变）；
+  - comp 列：gitclone 用 `_comp`（`*xxx/` 匹配带前缀，如 `w-tint2`）；down_catfile 用 `$TARGETPATH` basename（`default` 兜底）。
+- **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 写入，comp 前缀正确（`w-tint2|w-tint2.fk-tint2-16.1|4652K|GITCACHE|16.1|...|1000|/tmp/gtv`），tar.gz 命中/tarsrc 命中/curl-fail/network-fail 各分支行正确，大小/耗时明细齐全。
