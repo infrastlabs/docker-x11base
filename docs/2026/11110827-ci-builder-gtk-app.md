@@ -17,7 +17,7 @@
   - 2、镜像二次分析（2.1 远端更新/编译结果 + 2.2 三失败 gpicview/engrampa/lxappearance 日志与修复，2026-11-13）
   - 3、镜像三次分析（3.1 远端又更新/4 空组件 feh/scrot/tint2/pcmanfm 根因，2026-11-13）
   - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl + 4.3 UPX 干扰与 gdk-pixbuf svg loader 机制，2026-11-14）
-  - 5、二次复现 gtk2+lxtask 链接流程（5.1 八步跑通+双 -u 链接修复原理 + 5.1.x 注意项/踩坑，2026-11-14）
+  - 5、二次复现 gtk2+lxtask 链接流程（5.1 八步跑通+双 -u 链接修复原理 + 5.1.x 注意项/踩坑 + 5.2.x 相关问答：-u 注册与库层/应用层边界，2026-11-14）
 - 六、xfce4 源码包收集与下载源（2026-11-13）→ 已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（2026-11-14）
 
 ## 四、应用调试（抽取：原 3.4 + 3.5）
@@ -962,6 +962,48 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 5. **AI Alpine 容器无 Papirus 图标/无 Xvnc**：svg 解码测试用自建 `svgtest.c` + 简单 `test.svg`，别找图标样例。
 6. **窗口名中文**（如 lxtask"任务管理器"）：`xdotool search --name "Task Manager"` 找不到，用 `.`/`.*` 遍历 + `getwindowname` 过滤。
 7. 判成功**别信 oneBuild 的 `err 0, pass`**（沿用 AGENTS 三章 3）：兜底 `xx-verify --static` + `grep -c "undefined reference"` + 实跑截图人工确认。
+
+#### 5.2、相关问答：svg loader 的 `-u` 注册与库层/应用层边界（2026-11-14）
+
+##### 5.2.1、Q：双 `-u` 是干嘛的？（为什么 lxtask 要加、其他 gtk2 应用没加）
+
+**答**：`-Wl,-u,SYMBOL` = 告诉链接器「该符号必须被解析」，强制从静态库拉出**定义它的对象**：
+
+| 符号 | 拉出的对象 | 作用 |
+|---|---|---|
+| `-u _gdk_pixbuf__svg_fill_vtable` | `io-svg.c.o` | svg loader 本体 |
+| `-u gdk_pixbuf_new_from_file` | `gdk-pixbuf-io.c.o`（注册方） | 它 U 引用 svg_fill → 自动链 io-svg.c.o → svg 进内置 loader 数组 |
+
+静态库是**按需拉取**——ld 只拉「被引用了的 .o」。lxtask 图标走 `gtk_icon_theme_load_icon`→gtk 库间接路径，**不直接引用 `gdk-pixbuf-io.c.o` 的符号** → 注册方不被拉入 → 库里 svg 编了也没注册 → 运行时 `Unrecognized image file format`。
+
+##### 5.2.2、Q：必须应用层处理吗？u-gtk（库层）那边不行？
+
+**答**：必须应用层（链接层）。u-gtk 库层只能保证「loader 编进 `.a`」（已做到，`included_loaders_deps` 链入 io-svg.c.o），但**拉入注册方是链接时行为**，库层无法强制「gdk-pixbuf-io.c.o 必被拉」：
+
+- 真在库层解决 = 改 gdk-pixbuf 源码把 svg 注册挪进**必然被引用的 .o**（如 gdk-pixbuf.c.o）——侵入式改造，成本高、影响全库。
+- AGENTS 四章「gdk-pixbuf 图标坑」本就是这结论：**静态下 loader 是独立 `.a`，要图标必须静态链 loader（应用侧）或自解码**——「应用层处理」是既定做法。
+
+##### 5.2.3、Q：最初手动编译时也是在应用层吗？当时怎么搞定的？
+
+**答**：最初**没有 -u**。回 `11051758-v-oth-impl01.md:697`：
+
+> 第 4 轮：`io-svg.c.o` **被静态模块注册拉入**，需 `rsvg_handle_new/...` → 加 `-lrsvg-2 -lcroco-0.6 -lxml2 -llzma`
+
+当时能出图标的应用（dunst/engrampa）**直接调用 gdk_pixbuf IO API**（`gdk_pixbuf_new_from_file` 加载缩略图/图像）→ **自然拉入 `gdk-pixbuf-io.c.o`（注册方）** → svg 自动注册，无 -u。lxtask 恰恰不走这条路（纯 `gtk_icon_theme`）→ 打叉 → 才需要 -u 补救。
+
+##### 5.2.4、Q：其他 gtk2 应用（geany 等）构建参数要调吗？
+
+**答**：判断法——**谁直接引用 gdk_pixbuf IO 符号，谁不需要 -u；谁走 `gtk_icon_theme` 间接路径，谁需要**：
+
+| 应用 | rsvg/croco（现有） | 双 `-u`（现有） | 判断 |
+|---|---|---|---|
+| lxtask（v-lxde） | ✅ | ✅ | 已修（实测） |
+| geany（43 行） | ✅ 有 | ❌ 无 | 文本编辑器，图标走 gtk_icon_theme → **大概率要 -u** |
+| pcmanfm（184 行） | ✅ 有 | ❌ 无 | 缩略图直接调 gdk_pixbuf → **可能自然拉入，不用 -u** |
+| lxappearance（39 行） | ❌ 无 | ❌ 无 | 图标预览走 gtk_icon_theme → 大概率要，且还缺 rsvg/croco |
+| engrampa/gpicview/ibus/pavucontrol/sysmonitor/xfce4/pasystray | 参差 | 大部分无 | 同风险，视是否直接调 gdk_pixbuf IO |
+
+**确认方式**：grep 各应用源码 `gdk_pixbuf_new_from_file`（或编译后 `strings <bin> | grep org.w3c.svg.static` 查 io-svg.c.o 特征）。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
