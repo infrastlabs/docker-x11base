@@ -52,7 +52,7 @@ function libogg(){
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   branch="--branch=v1.3.5"
   repo=https://gitee.com/g-system/fk-xiph-ogg #$GITHUB/xiph/ogg
-  rm -rf /tmp/libogg; git clone --depth=1 $branch $repo /tmp/libogg
+  rm -rf /tmp/libogg; gitclone $repo /tmp/libogg $branch
   log "Configuring libOgg..."
   (
       cd /tmp/libogg
@@ -71,7 +71,7 @@ function libflac(){
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   branch="--branch=1.3.4"
   repo=https://gitee.com/g-system/fk-xiph-flac #$GITHUB/xiph/flac
-  rm -rf /tmp/libflac; git clone --depth=1 $branch $repo /tmp/libflac
+  rm -rf /tmp/libflac; gitclone $repo /tmp/libflac $branch
   log "Configuring libFLAC..."
   (
       cd /tmp/libflac
@@ -90,7 +90,7 @@ function libvorbis(){
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   branch="--branch=v1.3.7"
   repo=https://gitee.com/g-system/fk-xiph-vorbis #$GITHUB/xiph/vorbis
-  rm -rf /tmp/libvorbis; git clone --depth=1 $branch $repo /tmp/libvorbis
+  rm -rf /tmp/libvorbis; gitclone $repo /tmp/libvorbis $branch
   log "Configuring libVorbis..."
   (
       cd /tmp/libvorbis
@@ -109,7 +109,7 @@ function libopus(){
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   branch="--branch=v1.3.1"
   repo=https://gitee.com/g-system/fk-xiph-opus #$GITHUB/xiph/opus
-  rm -rf /tmp/libopus; git clone --depth=1 $branch $repo /tmp/libopus
+  rm -rf /tmp/libopus; gitclone $repo /tmp/libopus $branch
   log "Configuring libOpus..."
   (
       cd /tmp/libopus
@@ -130,7 +130,7 @@ function libsndfile(){
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   branch="--branch=1.0.31"
   repo=https://gitee.com/g-system/fk-libsndfile #$GITHUB/libsndfile/libsndfile
-  rm -rf /tmp/libsndfile; git clone --depth=1 $branch $repo /tmp/libsndfile
+  rm -rf /tmp/libsndfile; gitclone $repo /tmp/libsndfile $branch
   log "Configuring libSndfile..."
   (
       cd /tmp/libsndfile
@@ -157,7 +157,7 @@ function pulseaudio(){
   PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
   branch="--branch=$PULSEAUDIO_VER"
   # --depth=1 ##./git-version-gen .tarball-version
-  git clone $branch https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio #;
+  gitclone https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio $branch #;
   log "Configuring PULSEAUDIO..."
   cd /tmp/pulseaudio #&& ./bootstrap;
   # ./configure  --enable-static --prefix=$TARGETPATH
