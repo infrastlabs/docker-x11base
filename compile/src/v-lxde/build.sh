@@ -36,7 +36,8 @@ function lxappearance(){
     # -lXdamage注释也会用到;
     #  -lfm -lfm-gtk -lmenu-cache 
     ex1="-lfontconfig -lgio-2.0 -lcairo   -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    # 2026-11-14: lxappearance 补 -lrsvg-2 -lcroco-0.6（图标预览走 gdk_pixbuf 内置 svg loader，缺则 svg 图标解码失败；u-gtk 方案A 库层根治后无需 -u）
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
   make LDFLAGS="$LDFLAGS" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
