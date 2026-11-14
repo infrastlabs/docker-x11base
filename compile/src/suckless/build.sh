@@ -22,7 +22,7 @@ function st(){
   ST_VER=br-luke-st
   # https://dl.suckless.org/st/st-0.8.4.tar.gz
   # git://git.suckless.org/st
-  git clone --depth=1 --branch=$ST_VER https://gitee.com/g-system/fk-suckless-st /tmp/st
+  gitclone https://gitee.com/g-system/fk-suckless-st /tmp/st --branch=$ST_VER
   log "Configuring ST..."
   cd /tmp/st #&& ./bootstrap;
 
@@ -63,7 +63,7 @@ DWM_VER=6.2
 function dwm(){
   log "Downloading DWM..."
   rm -rf /tmp/dwm; # mkdir -p /tmp/st
-  git clone --depth=1 --branch=$DWM_VER git://git.suckless.org/dwm /tmp/dwm #;
+  gitclone git://git.suckless.org/dwm /tmp/dwm --branch=$DWM_VER #;
   log "Configuring DWM..."
   cd /tmp/dwm #&& ./bootstrap;
 
@@ -106,7 +106,7 @@ DMENU_VER=5.0
 function dmenu(){
   log "Downloading DMENU..."
   rm -rf /tmp/dmenu; # mkdir -p /tmp/st
-  git clone --depth=1 --branch=$DMENU_VER git://git.suckless.org/dmenu /tmp/dmenu #;
+  gitclone git://git.suckless.org/dmenu /tmp/dmenu --branch=$DMENU_VER #;
   log "Configuring DMENU..."
   cd /tmp/dmenu #&& ./bootstrap;
 
