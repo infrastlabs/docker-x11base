@@ -70,7 +70,10 @@ function libfm(){
     ./configure; 
 
   log "Compiling libfm..."
-  make
+  # 2026-11-14: 方案A(自动注册)后 gdk_pixbuf loader(io-png/jpeg/svg + gdk-pixbuf-io 的 g_module_*)整链拉入,
+  #   libfm-gtk 链接报 undefined(g_module_*/jpeg_*/png_*/rsvg_*)——make LIBS 补依赖(libfm 取 libs 非 --static 不展开 pc private);
+  #   CI pcmanfm stage 已踩; 选 b(用户拍板): libfm 链接单点补
+  make LDFLAGS="$LDFLAGS" LIBS=" -lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma"
 
   log "Installing libfm..."
   make install
