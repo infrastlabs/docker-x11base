@@ -77,7 +77,7 @@ function xrdp(){
   log "Downloading XRDP..."
   # down_catfile ${XRDP_URL} | tar -zx --strip 1 -C /tmp/xrdp
   rm -rf /tmp/xrdp;
-  git clone -b sam-custom --depth=1 https://gitee.com/g-system/fk-xrdp /tmp/xrdp
+  gitclone https://gitee.com/g-system/fk-xrdp /tmp/xrdp --branch=sam-custom
 
   log "Configuring XRDP..."
   cd /tmp/xrdp && ./bootstrap;
