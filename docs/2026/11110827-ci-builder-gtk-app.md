@@ -1112,10 +1112,10 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 | engrampa（v-engrampa） | RC=0 | 1 | `v3_engrampa.png`（已推） | ✅ 用户确认 |
 | gpicview（v-gpicview） | RC=0 | 1 | `v3_gpicview-{jpg,png,svg}.png`（三格式分别打开） | ✅ 用户确认三格式 OK |
 | pcmanfm（v-pcmanfm） | RC=0（先 b_deps） | 1 | `v3_pcmanfm.png`（已推） | ✅ 用户确认 |
-| **xfce4 三件**（thunar/ristretto/display-settings） | RC=0 | 全 1 | `v3_thunar/ristretto/display-settings.png`（已推） | ✅ 已推（待核验） |
+| **xfce4 三件**（thunar/ristretto/display-settings） | RC=0 | 全 1 | `v3_thunar/ristretto/display-settings.png`（已推） | ✅ 用户确认 |
 | lxappearance（v-lxde） | RC=0（补 rsvg/croco） | 1 | — | ⏳ 运行 rc=1（dbus session/machine-id/ui 数据已配齐仍静默退出，疑 rootfs 环境能力，暂记） |
 
-> **订正（2026-11-14 收尾）**：批量 7 项中 lxtask/engrampa/pcmanfm/gpicview 用户确认正常；gpicview 三格式（jpg/png/svg）均 ok（svg = 方案 A loader 直接证）。xfce4 三件已推待核验；lxappearance 编译+svg 通过、运行待环境（dbus 会话能力）。
+> **订正（2026-11-14 收尾）**：批量 7 项中 lxtask/engrampa/pcmanfm/gpicview/xfce4 三件用户确认正常（gpicview 三格式 jpg/png/svg 均 ok，svg = 方案 A loader 直接证）；lxappearance 编译+svg 通过、运行待环境（dbus 会话能力）。
 
 **坑/修正（本批新增）**：
 
