@@ -49,6 +49,30 @@ function gdk_pixbuf(){ ##@meson
   cd /tmp/gdk-pixbuf
   log "Patching gdk-pixbuf (builtin svg loader)..."
     patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
+    # 2026-11-14 方案A：库层 svg 注册根治——注册函数导出 + get_type 必然调用（patch hunk 行号不稳，内联 python 修缮，不依赖补丁格式）
+    python3 - <<'PYEOF'
+import re
+def p(fn, old, new):
+    f = fn; s = open(f).read()
+    assert s.count(old) == 1, (fn, old[:40], s.count(old))
+    open(f, 'w').write(s.replace(old, new))
+# 1) io.c: 导出 init_builtin + 幂等 guard
+p('gdk-pixbuf/gdk-pixbuf-io.c',
+  'static void\ngdk_pixbuf_io_init_builtin (void)\n{',
+  'void\ngdk_pixbuf_io_init_builtin (void)\n{\n  static gboolean inited = FALSE;\n  if (inited) return;\n  inited = TRUE;')
+# 2) io.h: 声明
+p('gdk-pixbuf/gdk-pixbuf-io.h',
+  'G_END_DECLS',
+  'void gdk_pixbuf_io_init_builtin (void);\nG_END_DECLS')
+# 3) gdk-pixbuf.c: include io.h + get_type 时调用注册
+p('gdk-pixbuf/gdk-pixbuf.c',
+  '#include "gdk-pixbuf-private.h"',
+  '#include "gdk-pixbuf-private.h"\n#include "gdk-pixbuf-io.h"')
+p('gdk-pixbuf/gdk-pixbuf.c',
+  'G_IMPLEMENT_INTERFACE (G_TYPE_LOADABLE_ICON, gdk_pixbuf_loadable_icon_iface_init))',
+  'G_IMPLEMENT_INTERFACE (G_TYPE_LOADABLE_ICON, gdk_pixbuf_loadable_icon_iface_init)\n                         gdk_pixbuf_io_init_builtin ();)')
+print("reg-A applied")
+PYEOF
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
     # ./configure; 
