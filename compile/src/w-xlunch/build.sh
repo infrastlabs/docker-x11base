@@ -154,7 +154,7 @@ function xlunch(){
   # down_catfile ${XLUNCH_URL} | tar -zx --strip 1 -C /tmp/xlunch
   # branch="--branch=$XLUNCH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/xlunch
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-xlunch /tmp/xlunch #;
+  gitclone https://gitee.com/g-system/fk-xlunch /tmp/xlunch $branch #;
   log "Configuring XLUNCH..."
   cd /tmp/xlunch #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
