@@ -63,19 +63,52 @@ function libfm(){
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
     # export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
 
-    # 
+    #
     ##./autogen.sh: line 45: intltoolize: not found  ##1.3.2也不行
-    # ./autogen.sh 
+    # ./autogen.sh
     bash autogen.sh #错误同上
-    ./configure; 
+    # 2026-11-14: --disable-shared --enable-static——libtool 链 libfm-gtk.so 时报
+    #   undefined reference to g_module_open: 方案A 后 gdk_pixbuf 的 loader(io-png/jpeg/svg)整链拉入需 g_module_*,
+    #   但 gdk-pixbuf-2.0.la 不存在(meson 只产 .a), libtool 无法从 .la 的 dependency_libs 拿到 gmodule
+    #   → make LIBS 补的 -lgmodule-2.0 只对 automake 主链接行生效, 不进 libtool .so 的 $deplibs → .so 必 undefined。
+    #   库只被静态消费(pcmanfm cp libfm.a/libfm-gtk.a), 直接不产 .so 从源头消掉该链接阶段;
+    #   make LIBS 补库仍保留(libfm-pref-apps 等可执行文件链接仍需要)。
+    ./configure --disable-shared --enable-static;
 
   log "Compiling libfm..."
-  make
+  # 2026-11-14: 方案A(自动注册)后 gdk_pixbuf loader(io-png/jpeg/svg + gdk-pixbuf-io 的 g_module_*)整链拉入,
+  #   libfm-gtk 链接报 undefined(g_module_*/jpeg_*/png_*/rsvg_*)——make LIBS 补依赖(libfm 取 libs 非 --static 不展开 pc private);
+  #   CI pcmanfm stage 已踩; 选 b(用户拍板): libfm 链接单点补。
+  #   (2026-11-14 再修: --disable-shared 后 make 不再链 libfm-gtk.so, 但 libfm-pref-apps 等 bin_PROGRAMS
+  #   动态链 libgtk-x11-2.0.so(apk menu-cache-dev 只有 .so) 仍报 g_module_open——非核心工具, -k 容忍;
+  #   库已产出在 .libs/, make install 会因工具失败中断, 改手动 cp .a 到 /usr/local/lib。)
+  make -k LDFLAGS="$LDFLAGS" LIBS=" -lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma" \
+    bin_PROGRAMS= pkglib_LTLIBRARIES= 2>&1 \
+    || log "make libfm warn (非核心工具 libfm-pref-apps 失败可容忍, 静态库已产出)"
 
   log "Installing libfm..."
-  make install
+  # make install 因 libfm-pref-apps(工具)失败会中断 src/ 段 → .a 未装; 手动从 .libs/ 拷(静态库已生成)
+  cp -a src/.libs/libfm.a src/.libs/libfm-gtk.a src/.libs/libfm-extra.a /usr/local/lib/ \
+    || log "manual libfm .a copy warn"
+  make install bin_PROGRAMS= >/dev/null 2>&1 || log "make install warn (工具失败可容忍, .a 已手动装)"
+  # 2026-11-15 补: make install 因 bin_PROGRAMS(libfm-pref-apps/lxshortcut)失败中断 → 头文件只装了 fm-actions.h;
+  #   手动平铺拷全部源码头文件到 /usr/local/include/libfm-1.0/(libfm 头互 include 为平铺式 "fm-xxx.h", 无子目录路径)。
+  mkdir -p /usr/local/include/libfm-1.0
+  find /tmp/libfm/src -name "*.h" -exec cp -f {} /usr/local/include/libfm-1.0/ \; \
+    || log "manual libfm headers copy warn (平铺拷贝)"
+  # 2026-11-15 补: make install 中断 → pkg-config .pc 也没装(menu_cache/pcmanfm 的 configure 需 libfm-extra.pc/libfm.pc)——手动拷(prefix=/usr/local 与落点一致)
+  mkdir -p /usr/local/lib/pkgconfig
+  cp -f /tmp/libfm/libfm.pc /tmp/libfm/libfm-extra.pc /tmp/libfm/libfm-gtk.pc /usr/local/lib/pkgconfig/ \
+    || log "manual libfm .pc copy warn"
 
   \cp -a /usr/local/lib/libfm.a /usr/local/lib/libfm-gtk.a /usr/lib/ ##拷贝两个静态库到/usr/lib
+
+  # 2026-11-14: menu_cache 段编不过——menu-tags.h:22 include <libfm/fm-extra.h>;
+  #   libfm 头文件平铺在 /usr/local/include/libfm-1.0/(libfm-extra.pc Cflags=-I/usr/local/include),
+  #   无 libfm/ 子目录; 建软链让 libfm/fm-extra.h 可解析(否则 menu_cache 编译 fatal error)。
+  #   依赖: libfm 头文件必须先就位(install-pkgincludeHEADERS 由 make install 或手动)。
+  mkdir -p /usr/include && ln -sfn /usr/local/include/libfm-1.0 /usr/include/libfm
+  ls -la /usr/include/libfm/fm-extra.h /usr/include/libfm/fm-version.h /usr/include/libfm/fm-xml-file.h
 }
 
 # lxde/menu-cache
