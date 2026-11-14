@@ -1125,6 +1125,7 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 - ④ **lxappearance 依赖 dbus session**：无 session bus 时自动 spawn `dbus-launch`——alpine `dbus` 包**不含 dbus-launch**（在 `dbus-x11`），缺则 `Failed to execute child process "dbus-launch"` rc=1；且需 machine-id（`dbus-uuidgen --ensure=/var/lib/dbus/machine-id`）。
 - ⑤ gpicview 依赖由 `pkg-config --static --libs gtk+-2.0` 提供 png/jpeg（文件无字面量 -lpng，勿误判需补）。
 
+**nostat 补充**
 **执行方式**（沿用 AGENTS 3.1 新增规则）：多步容器命令写 `/_ext/tmp/svg/t_xxx.sh` → 容器内 `bash <脚本>` 执行，结果写 `/_ext/tmp/svg/` + DONE 标记；环境读取问题（exec stdout 吞、docker cp mount ENOSPC）均绕开。
 
 ##### 5.3.4、CI 全自动路径缺口与修复（2026-11-14，buildx gtk224 / pcmanfm stage 暴露）
@@ -1139,7 +1140,7 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 - 修复：`u-gtk/build.sh` gdk_pixbuf 尾部兜底（`/usr/local/lib` 无库时 `cp build/gdk-pixbuf/libgdk_pixbuf-2.0.a`）→ 尾部 `cp /usr/lib` 成功。
 - 验证：模拟 CI 干净环境（删库重跑）→ RC=0；CI 复跑 `err 0, pass` + 继续 gtk ✅。
 
-**② 下游（libfm 等中间库）链 gdk_pixbuf undefined loader 依赖（本次，用户拍板选 1 上游根治）**
+**② 下游（libfm 等中间库）链 gdk_pixbuf undefined loader 依赖（先试选 1 无效 → 改选 b 落地）**
 - 现象：`#30 pcmanfm` 的 libfm：`libfm-gtk.la` 链接 `libgdk_pixbuf-2.0.a` → undefined `g_module_open/symbol/error`、`jpeg_*`、`png_*`、`rsvg_*` → `cp: can't stat /usr/local/lib/libfm.a` → pcmanfm configure "C compiler cannot create executables"。
 - 根因：**方案 A 后 gdk-pixbuf-io/io-png/io-jpeg/io-svg 被整链拉入**（5.3.1.4 预测的影响点）→ 链接方需 `-lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma`；**gdk_pixbuf 的传递依赖未传播**（`gdk-pixbuf-2.0.pc` 的 `Libs.private` 不含 loader 依赖）→ 每个下游（libfm、menu_cache…）都要自己补，易漏。
 - **方案（验证后改选 b 落地）**：先试选 1（`gdk-pixbuf-2.0.pc` Libs.private 补全）——验证发现 **不生效**：pc 的 `Requires.private` 本已声明全部依赖（meson 自动），但 **libfm 取 libs 用非 --static**（`pkg-config --libs` 不展开 private）→ 上游补 pc 救不了。**改选 b（用户拍板）**：`v-pcmanfm/build.sh` 的 `libfm()` make 补 `LIBS="-lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma"`（`33d7baa`），验证 RC=0 undefined=0；u-gtk 的 Libs.private 补丁已回退。
