@@ -587,18 +587,18 @@ RUN \
 # COPY --from=perp ${STATIC} /rootfs${STATIC}
 # COPY --from=misc ${STATIC} /rootfs${STATIC}
 # 
-COPY --from=feh ${STATIC} /rootfs${STATIC}
 COPY --from=hsetroot ${STATIC} /rootfs${STATIC}
 COPY --from=scrot ${STATIC} /rootfs${STATIC}
 COPY --from=tint2 ${STATIC} /rootfs${STATIC}
+COPY --from=feh ${STATIC} /rootfs${STATIC}
 COPY --from=xlunch ${STATIC} /rootfs${STATIC}
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tint2
 # 
-# COPY --from=xbindkeys ${STATIC} /rootfs${STATIC}
-# COPY --from=xrandr ${STATIC} /rootfs${STATIC}
-# COPY --from=dunst ${STATIC} /rootfs${STATIC}
-# COPY --from=rofi ${STATIC} /rootfs${STATIC}
+COPY --from=xbindkeys ${STATIC} /rootfs${STATIC}
+COPY --from=xrandr ${STATIC} /rootfs${STATIC}
+COPY --from=dunst ${STATIC} /rootfs${STATIC}
+COPY --from=rofi ${STATIC} /rootfs${STATIC}
 COPY --from=pulseaudio ${STATIC} /rootfs${STATIC}
 COPY --from=pasystray ${STATIC} /rootfs${STATIC}
 COPY --from=pavucontrol ${STATIC} /rootfs${STATIC}
