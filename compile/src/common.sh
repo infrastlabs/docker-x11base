@@ -85,8 +85,8 @@ cachesrc_log(){
   _ts=$(date '+%Y-%m-%d %H:%M:%S')
   _c=$1; _p=$2; _s=$3; _h=$4; _v=$5; _u=$6; _m=$7; _d=$8
   mkdir -p "$(dirname "$_clog")" 2>/dev/null || true
-  # 表头（仅首行，用户 2026-11-14：每列标注含义，免看不懂）
-  test -s "$_clog" || echo '时间|组件|包|大小|缓存命中|耗时|来源|ver|url|路径' >> "$_clog"
+  # 表头（仅首行，用户 2026-11-14：每列标注含义，免看不懂；ver 放包后）
+  test -s "$_clog" || echo '时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径' >> "$_clog"
   # 缓存命中列：统一 CACHE/MISS/FAIL 直观状态；来源列保留原标识细节
   case "$_h" in
     gitcache|tarsrc) _st=CACHE ;;
@@ -94,7 +94,7 @@ cachesrc_log(){
     net-fail)        _st=FAIL ;;
     *)               _st="$_h" ;;
   esac
-  echo "$_ts|$_c|$_p|$_s|$_st|${_m}ms|$_h|$_v|$_u|$_d" >> "$_clog"
+  echo "$_ts|$_c|$_p|$_v|$_s|$_st|${_m}ms|$_h|$_u|$_d" >> "$_clog"
 }
 # _now_ms: 单调时钟毫秒（/proc/uptime 秒.小数*1000；busybox date 无 %N 故不用 date，保证快速命中耗时也真实记录）
 _now_ms(){ awk '{printf "%d",$1*1000}' /proc/uptime 2>/dev/null || echo 0; }
