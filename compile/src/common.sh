@@ -74,14 +74,27 @@ function down_catfile(){
   cat $CACHE/$file
 }
 # cachesrc_log: gitclone/down_catfile 缓存与下载明细日志（用户 2026-11-14）——增量追加 /usr/local/static/.logs/cachesrc/<文件名>.log，每次调用一行。
-# 格式: 时间|字段|...   （字段由调用方传：组件|包|大小|缓存命中|ver|url|耗时ms|路径，详细明细；hit 统一小写=gitcache|tarsrc|net|net-fail）
-# 调用: cachesrc_log <文件名> <字段...>  增量>>追加不清空；同目录不同文件（gitclone / downcatfile 各一）。
+# 格式（2026-11-14 用户：加表头每列标注、第5列 CACHE/MISS/FAIL、耗时第6列 xxxms）:
+#   时间|组件|包|大小|缓存命中|耗时|来源|ver|url|路径
+#   缓存命中: CACHE(命中,gitcache/tarsrc) | MISS(网络下载 net) | FAIL(网络失败 net-fail)；来源=原标识 gitcache|tarsrc|net|net-fail（保留细节）
+#   耗时=真实毫秒(带 ms 后缀)；字段由调用方传 8 参：组件|包|大小|hit|ver|url|耗时ms|路径（内部重排+转换）。
+# 调用: cachesrc_log <文件名> <组件> <包> <大小> <hit> <ver> <url> <耗时ms> <路径>  增量>>追加不清空；首行写表头；同目录不同文件（gitclone / downcatfile 各一）。
 cachesrc_log(){
   _clog=/usr/local/static/.logs/cachesrc/$1.log
   shift
   _ts=$(date '+%Y-%m-%d %H:%M:%S')
+  _c=$1; _p=$2; _s=$3; _h=$4; _v=$5; _u=$6; _m=$7; _d=$8
   mkdir -p "$(dirname "$_clog")" 2>/dev/null || true
-  { printf '%s' "$_ts"; for _f in "$@"; do printf '|%s' "$_f"; done; printf '\n'; } >> "$_clog"
+  # 表头（仅首行，用户 2026-11-14：每列标注含义，免看不懂）
+  test -s "$_clog" || echo '时间|组件|包|大小|缓存命中|耗时|来源|ver|url|路径' >> "$_clog"
+  # 缓存命中列：统一 CACHE/MISS/FAIL 直观状态；来源列保留原标识细节
+  case "$_h" in
+    gitcache|tarsrc) _st=CACHE ;;
+    net)             _st=MISS ;;
+    net-fail)        _st=FAIL ;;
+    *)               _st="$_h" ;;
+  esac
+  echo "$_ts|$_c|$_p|$_s|$_st|${_m}ms|$_h|$_v|$_u|$_d" >> "$_clog"
 }
 # _now_ms: 单调时钟毫秒（/proc/uptime 秒.小数*1000；busybox date 无 %N 故不用 date，保证快速命中耗时也真实记录）
 _now_ms(){ awk '{printf "%d",$1*1000}' /proc/uptime 2>/dev/null || echo 0; }
