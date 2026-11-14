@@ -21,7 +21,7 @@ function libvncserver(){
   log "Downloading LIBVNCSERVER..."
   # down_catfile ${LIBVNCSERVER_URL} | tar -zx --strip 1 -C /tmp/libvncserver #| tar -xJ
   rm -rf /tmp/libvncserver
-  git clone --depth=1 --branch=LibVNCServer-0.9.13 https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver
+  gitclone https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver --branch=LibVNCServer-0.9.13
   log "Configuring LIBVNCSERVER..."
   cd /tmp/libvncserver
   # https://metaso.cn/search-v2/8706590420608032769
@@ -54,7 +54,7 @@ function libxtst(){
   log "Downloading LIBXTST..."
   rm -rf /tmp/libxtst
   # down_catfile ${LIBXTST_URL} | tar -zx --strip 1 -C /tmp/libxtst #| tar -xJ
-  git clone --depth=1 --branch=libXtst-1.2.3 https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst
+  gitclone https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst --branch=libXtst-1.2.3
   log "Configuring LIBXTST..."
   cd /tmp/libxtst && autoreconf -fiv && ./configure --enable-static
   log "Compiling LIBXTST..."
@@ -79,7 +79,7 @@ function x11vnc(){
   log "Downloading X11VNC..."
   rm -rf /tmp/x11vnc; mkdir -p /tmp/x11vnc
   # down_catfile ${X11VNC_URL} | tar -zx --strip 1 -C /tmp/x11vnc
-  git clone --depth=1 --branch=fix-152 https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc
+  gitclone https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc --branch=fix-152
 
   log "Configuring X11VNC..."
   cd /tmp/x11vnc;
