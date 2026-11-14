@@ -1127,6 +1127,23 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 
 **执行方式**（沿用 AGENTS 3.1 新增规则）：多步容器命令写 `/_ext/tmp/svg/t_xxx.sh` → 容器内 `bash <脚本>` 执行，结果写 `/_ext/tmp/svg/` + DONE 标记；环境读取问题（exec stdout 吞、docker cp mount ENOSPC）均绕开。
 
+##### 5.3.4、CI 全自动路径缺口与修复（2026-11-14，buildx gtk224 / pcmanfm stage 暴露）
+
+**背景**：方案 A 在手动验证（builder-svg + rootfs-dbg）全绿，但 **CI 全自动**跑出两个缺口（手动验证时环境铺好/应用 LIBS 齐，未覆盖到；CI 干净环境暴露）。
+
+> **订正/复盘（2026-11-14）**：手动验证的应用（lxtask/geany/pcmanfm/gpicview/xfce4）build.sh LIBS 恰好全带 -ljpeg/-lpng/-lrsvg-2 → 全绿；但 **libfm 等中间库**（链接靠 configure/Makefile，未显式带）在 CI 干净环境暴露缺依赖。5.3.1.4 已预测"loader 全拉入→依赖增加"，正式踩到。
+
+**① gdk_pixbuf `ninja install` 工具链接失败 → 主库不落地 → b_deps exit 1**（已修，`e086d7e`）
+- 现象：`#12 gdk_pixbuf` 12× `clang-12: error`（query-loaders/csource 工具首次链接报错）→ `/usr/local/lib/libgdk_pixbuf-2.0.a: No such file` → `cp: can't stat` → `doExec FAIL rc=1` → `b_deps exit 1`。
+- 根因：install 的工具目标失败使 `ninja install` 中止，主库（build/ 已编出）不落地；build.sh 尾部 `cp /usr/local/lib` 依赖 install 成功。
+- 修复：`u-gtk/build.sh` gdk_pixbuf 尾部兜底（`/usr/local/lib` 无库时 `cp build/gdk-pixbuf/libgdk_pixbuf-2.0.a`）→ 尾部 `cp /usr/lib` 成功。
+- 验证：模拟 CI 干净环境（删库重跑）→ RC=0；CI 复跑 `err 0, pass` + 继续 gtk ✅。
+
+**② 下游（libfm 等中间库）链 gdk_pixbuf undefined loader 依赖（本次，用户拍板选 1 上游根治）**
+- 现象：`#30 pcmanfm` 的 libfm：`libfm-gtk.la` 链接 `libgdk_pixbuf-2.0.a` → undefined `g_module_open/symbol/error`、`jpeg_*`、`png_*`、`rsvg_*` → `cp: can't stat /usr/local/lib/libfm.a` → pcmanfm configure "C compiler cannot create executables"。
+- 根因：**方案 A 后 gdk-pixbuf-io/io-png/io-jpeg/io-svg 被整链拉入**（5.3.1.4 预测的影响点）→ 链接方需 `-lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma`；**gdk_pixbuf 的传递依赖未传播**（`gdk-pixbuf-2.0.pc` 的 `Libs.private` 不含 loader 依赖）→ 每个下游（libfm、menu_cache…）都要自己补，易漏。
+- **方案（用户拍板选 1）**：`u-gtk/build.sh` 给 `gdk-pixbuf-2.0.pc` 的 **`Libs.private` 补全** loader 依赖 → 用 `pkg-config --static` 的下游自动带（libfm 不动）。备选 2（libfm 单点 make LIBS）已改未验，弃用。
+
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
 > **去向**：本章已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（保留原章节序号与层级，含 `### 1~5`、`#### 4.x/5.x`，2026-11-14）。本文件仅存一~五章；对应内容见新文档。
