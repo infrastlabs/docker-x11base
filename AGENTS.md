@@ -117,6 +117,10 @@
 - **容器内编译调试 `/src`（2026-11-14 补充）**：构建容器内 `/src` **软链 → 宿主 `/_ext/.../compile/src`**
   （实时反映宿主改动，改脚本无需 `docker cp`）；镜像烘焙的 `/src` 是**旧真实目录**，
   须 `rm -rf /src && ln -s 宿主compile/src /src` 重建（否则用旧脚本，修复不生效）。
+- **复杂容器命令用脚本文件化（2026-11-14 追加，用户拍板）**：多步骤/易出错的容器命令
+  **写成 `/_ext/tmp/svg/t_xx.sh`（宿主），容器内 `docker exec <c> bash /_ext/tmp/svg/t_xx.sh` 执行**，
+  结果写回 `/_ext/tmp/svg/`（脚本内重定向 + 末尾 `DONE` 标记，宿主导读）；
+  避开单条 exec 长命令/拼接被丢、stdout 被吞等坑（本模式实测稳定）。
 
 ### 3.2、TARGETPATH：本地调试与 CI 构建两个入口（2026-11-08 补，pavucontrol 教训）
 
