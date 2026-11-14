@@ -1149,7 +1149,7 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
   - **耗时**：真实毫秒带 `ms` 后缀（第6列）；
   - **来源**：原标识 `gitcache|tarsrc|net|net-fail`（保留细节，独立一列）。
 - **调用点**：
-  - `gitclone`（common.sh）：写 `gitclone.log`，**包=快照名 `<comp>.<repo>-<ver>`**、大小=tar.gz 字节(B)/GITCACHE 目录 du(KB)；
+  - `gitclone`（common.sh）：写 `gitclone.log`，**包=快照名 `<comp>.<repo>-<ver>.tar.gz`（带后缀，用户 2026-11-14）**、大小=tar.gz 字节(B)/GITCACHE 目录 du(KB)；
   - `down_catfile`（common.sh）：写 `downcatfile.log`，**包=源码包文件名**、大小=字节(B)；`tarsrc-fuzzy/tarsrc-find` 合并为 tarsrc。
 - **关键细节**：
   - 耗时：`_t0=$(_now_ms)` 起（**`/proc/uptime` 单调时钟毫秒**——busybox `date` 无 `%N`/`%3N`，秒级精度致快速命中耗时恒 0，用户 2026-11-14 要求记录真实耗时），各分支结束 `_ms=$(( $(_now_ms)-_t0 ))`；
