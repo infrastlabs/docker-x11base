@@ -101,8 +101,10 @@ _now_ms(){ awk '{printf "%d",$1*1000}' /proc/uptime 2>/dev/null || echo 0; }
 # gitclone: 优先本地缓存 clone（tarsrc-git，宿主预克隆 gitee 仓库）；未命中回落网络 clone（不换源）。
 # 命中时 cp 保留 .git（xcbutil 等需 git submodule update --init）；submodule 本身的本地缓存由调用方 sed 指向。
 # 2026-11-13: 解决 CI gitee clone 抖动（Connection reset / 慢）致 b_deps 依赖未就位。
-# 2026-11-13: ②tar.gz 快照缓存（TARSRC/_cache_repo/，针对 gh/gitee 网络抖动）——网络 clone 成功打 <comp>-<repo>-<ver>.tar.gz（含.git，只存不推，用户手动推 tarsrc）；
+# 2026-11-13: ②tar.gz 快照缓存（TARSRC/_cache_repo/，针对 gh/gitee 网络抖动）——网络 clone 成功打 <comp>-<repo>-<ver>.tar.gz（只存不推，用户手动推 tarsrc）；
 #   克隆前检查快照已有则解压复用跳过 clone；ver=--branch 值（去 --branch=），无则 default。优先级 GITCACHE(含.git) > tar.gz 快照 > 网络 clone。
+# 2026-11-14: 快照只打 .git（docs 5.5）——shallow clone 的 .git 已是 zlib 压缩对象、工作树是未压缩原始文件，整目录打包≈存两份；
+#   只打 .git 省 ~50%。解包后 .git 直接落 $_dir（与包内目录名解耦，修掉 5.2 的解包路径错配），再 git checkout -f 恢复工作树。
 # 2026-11-14: 包名加组件前缀 _comp（归类标识）——按 TARGETPATH basename 匹配 /src 下 *xxx/ 组件目录（参考 down_catfile TARSRC 匹配），
 #   case 映射处理 basename 与目录名不一致（gsm→v-sysmonitor、dbus-glib→x-dbus）；TARGETPATH 空则 default。
 # safe.directory 全局 '*'（免仓库粒度逐个登记，容器内可信；git>=2.35.2 支持通配）。
@@ -135,11 +137,14 @@ gitclone() {
     log "gitclone cached: $_repo"
     return 0
   fi
-  # ②tar.gz 快照复用（解压，含 .git；克隆前检查已有则跳过 clone）
+  # ②tar.gz 快照复用（2026-11-14 起包内仅 .git；解包到 $_dir 后 checkout 恢复工作树）
   if test -s "$_gz"; then
-    rm -rf "$_dir"; mkdir -p "$(dirname "$_dir")"
-    tar xzf "$_gz" -C "$(dirname "$_dir")"
+    rm -rf "$_dir"; mkdir -p "$_dir"
+    tar xzf "$_gz" -C "$_dir" 2>/dev/null || { log "gitclone snapshot extract fail: $_gz"; return 1; }
+    # 包内顶层必须是 .git（旧整目录快照顶层是 cache_repo_tmp_$$，解包错配 → 显式失败不吞）
+    test -d "$_dir/.git" || { log "gitclone snapshot not .git-only (legacy?): $_gz"; return 1; }
     git config --global --add safe.directory '*' 2>/dev/null || true
+    git -C "$_dir" checkout -f >/dev/null 2>&1 || { log "gitclone snapshot checkout fail: $_gz"; return 1; }
     _ms=$(( $(_now_ms)-_t0 )); _size=$(stat -c%s "$_gz" 2>/dev/null)B
     cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" tarsrc "$_ver" "$_url" "$_ms" "$_dir"
     log "gitclone tar.gz hit: $_comp.$_repo-$_ver"
@@ -150,10 +155,10 @@ gitclone() {
   if test -n "$_br"; then git clone --depth=1 "$_br" "$_url" "$_dir" || _clone_rc=$?
   else git clone --depth=1 "$_url" "$_dir" || _clone_rc=$?; fi
   _ms=$(( $(_now_ms)-_t0 ))
-  # 克隆成功后打 tar.gz 快照（含.git；只存不推，用户手动推送 tarsrc）
+  # 克隆成功后打 tar.gz 快照（2026-11-14 起仅 .git，docs 5.5；只存不推，用户手动推送 tarsrc）
   if test -d "$_dir/.git"; then
     mkdir -p "$(dirname "$_gz")"
-    tar czf "$_gz" -C "$(dirname "$_dir")" "$(basename "$_dir")"
+    tar czf "$_gz" -C "$_dir" .git
     _size=$(stat -c%s "$_gz" 2>/dev/null)B
     cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" net "$_ver" "$_url" "$_ms" "$_dir"
   else
