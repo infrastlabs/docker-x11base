@@ -21,7 +21,7 @@ source /src/common.sh
 function deps_glog(){
   log "Downloading glog 0.6.0..."
   if [ ! -d /tmp/glog-0.6.0 ]; then
-    git clone --depth=1 --branch=v0.6.0 $GITHUB/google/glog /tmp/glog-0.6.0
+    gitclone $GITHUB/google/glog /tmp/glog-0.6.0 --branch=v0.6.0
   fi
   cd /tmp/glog-0.6.0
   log "CMake glog (static)..."
@@ -39,7 +39,7 @@ function deps_glog(){
 function deps_leveldb(){
   log "Downloading leveldb 1.20..."
   if [ ! -d /tmp/leveldb-1.20 ]; then
-    git clone --depth=1 --branch=v1.20 $GITHUB/google/leveldb /tmp/leveldb-1.20
+    gitclone $GITHUB/google/leveldb /tmp/leveldb-1.20 --branch=v1.20
   fi
   cd /tmp/leveldb-1.20
   log "Make leveldb (static archive, xx-clang++)..."
@@ -54,7 +54,7 @@ function deps_leveldb(){
 function deps_yaml(){
   log "Downloading yaml-cpp 0.8.0..."
   if [ ! -d /tmp/yaml-cpp-0.8.0 ]; then
-    git clone --depth=1 --branch=0.8.0 $GITHUB/jbeder/yaml-cpp /tmp/yaml-cpp-0.8.0
+    gitclone $GITHUB/jbeder/yaml-cpp /tmp/yaml-cpp-0.8.0 --branch=0.8.0
   fi
   cd /tmp/yaml-cpp-0.8.0
   log "CMake yaml-cpp (static)..."
@@ -72,7 +72,7 @@ function deps_yaml(){
 function deps_marisa(){
   log "Downloading marisa-trie 0.2.6..."
   if [ ! -d /tmp/marisa-trie-0.2.6 ]; then
-    git clone --depth=1 --branch=v0.2.6 $GITHUB/s-yata/marisa-trie /tmp/marisa-trie-0.2.6
+    gitclone $GITHUB/s-yata/marisa-trie /tmp/marisa-trie-0.2.6 --branch=v0.2.6
   fi
   cd /tmp/marisa-trie-0.2.6
   log "Autoreconf + configure marisa..."
@@ -86,7 +86,7 @@ function deps_marisa(){
 function deps_opencc(){
   log "Downloading OpenCC 1.1.9..."
   if [ ! -d /tmp/OpenCC-ver.1.1.9 ]; then
-    git clone --depth=1 --branch=ver.1.1.9 $GITHUB/BYVoid/OpenCC /tmp/OpenCC-ver.1.1.9
+    gitclone $GITHUB/BYVoid/OpenCC /tmp/OpenCC-ver.1.1.9 --branch=ver.1.1.9
   fi
   cd /tmp/OpenCC-ver.1.1.9
   log "CMake OpenCC (static, 内含 marisa)..."
@@ -115,7 +115,7 @@ function deps(){
 function librime(){
   log "Downloading librime 1.9.0..."
   if [ ! -d /tmp/librime-1.9.0 ]; then
-    git clone --depth=1 --branch=1.9.0 $GITHUB/rime/librime /tmp/librime-1.9.0
+    gitclone $GITHUB/rime/librime /tmp/librime-1.9.0 --branch=1.9.0
   fi
   cd /tmp/librime-1.9.0
   log "CMake librime (static, xx-clang)..."
@@ -143,7 +143,7 @@ function ibus(){
       rm -rf /tmp/ibus; mkdir -p /tmp/ibus
       tar xzf /src/v-ibus/ibus-1.5.35.tar.gz -C /tmp/ibus --strip-components=1
     else
-      git clone --depth=1 --branch=1.5.35 $GITHUB/ibus/ibus /tmp/ibus
+      gitclone $GITHUB/ibus/ibus /tmp/ibus --branch=1.5.35
     fi
   fi
   cd /tmp/ibus
@@ -298,7 +298,7 @@ function panel(){
 function ibus_rime(){
   log "Downloading ibus-rime 1.6.1..."
   if [ ! -d /tmp/ibus-rime-1.6.1 ]; then
-    git clone --depth=1 --branch=1.6.1 $GITHUB/rime/ibus-rime /tmp/ibus-rime-1.6.1
+    gitclone $GITHUB/rime/ibus-rime /tmp/ibus-rime-1.6.1 --branch=1.6.1
   fi
   cd /tmp/ibus-rime-1.6.1
 
