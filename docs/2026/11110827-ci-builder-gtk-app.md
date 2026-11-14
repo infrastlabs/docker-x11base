@@ -16,7 +16,7 @@
   - 1、镜像 alpine-compile-2-dbg 核查（回复原文）
   - 2、镜像二次分析（2.1 远端更新/编译结果 + 2.2 三失败 gpicview/engrampa/lxappearance 日志与修复，2026-11-13）
   - 3、镜像三次分析（3.1 远端又更新/4 空组件 feh/scrot/tint2/pcmanfm 根因，2026-11-13）
-  - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl，2026-11-14）
+  - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl + 4.3 UPX 干扰与 gdk-pixbuf svg loader 机制，2026-11-14）
 - 六、xfce4 源码包收集与下载源（2026-11-13）
   - 1、源码包清单与来源（/_ext/x11base_tar_src/xfce4）
   - 2、全仓下载/克隆源统计（compile/ 下，gitee=已处理）
@@ -883,6 +883,55 @@ find /usr/share/icons/Papirus* -name '*.svg' | wc -l   # 0
 4. **修复方向**：改 `compile/src/u-gtk/build.sh` 的 gdk-pixbuf 构建参数为
    `-Dbuiltin_loaders=png,jpeg,svg` 并链 `librsvg-2.a` + `libcroco-0.6.a`
    （即 `builder-awe` 那套，`11051758:150-154`），**不能**手工往 `.a` 打补丁（AGENTS 五章 2）。
+
+#### 4.3、图标打叉排查续：UPX 干扰、取原文件法与 gdk-pixbuf svg loader 机制（2026-11-14）
+
+##### 4.3.1、UPX 压缩干扰静态分析
+
+rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780  41.02%`。后果是静态分析全部失真：
+
+- `strings` / `grep -a` 对 `pixbuf`/`rsvg`/`croco`/`icon_theme` **全 0 命中**（原文件实际有 `pixbuf=24`、`gdk_pixbuf=8`、`rsvg=5`）
+- `readelf -s` 无符号表（stripped）同样失效（`NEEDED` 查询返回空，误判"无动态依赖"）
+- **取原文件法**：`docker run --entrypoint sh alpine-compile-2-dbg -c 'cat /rootfs/usr/local/static/lxde/bin/lxtask' > /tmp/lxtask.orig`
+  取未压缩版（13468584B，与 `upx -d` 后一致）再分析。
+
+##### 4.3.2、原文件证据（lxtask / geany 一致）
+
+| 检查 | 结果 |
+|---|---|
+| gdk-pixbuf 内置 loader 源文件 | 仅 `io-jpeg.c` + `io-png.c` |
+| `io-svg.c` | **无** |
+| `svg_fill`（对应 `_gdk_pixbuf__svg_fill_vtable`） | **0** |
+| `croco` | **0** |
+
+原文件（未 upx）实跑同样报 `Unrecognized image file format`（`lxtask.orig:897`）→ **排除 UPX 是根因**。
+
+##### 4.3.3、上游 gdk-pixbuf meson 机制（划清修法边界）
+
+`u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch` 已做三处：`loaders['svg']`（`sources: io-svg.c`、`enabled: true`）、
+`meson_options.txt` choices 加 `svg`、顶层 `loaders_deps += librsvg_dep`（`required: false`）。
+
+上游 `gdk-pixbuf/meson.build`（实测 `/tmp/gdk-pixbuf/gdk-pixbuf/meson.build`）：
+
+- **第 162 行自动生成 `-DINCLUDE_<name>`**（`cflag_for_included_loader = ['-DINCLUDE_@0@'.format(name)]`）→
+  `io-svg.c` 与 `gdk-pixbuf-io.c` 里的 `#ifdef INCLUDE_svg` 会被满足，**无需在 patch 手加**
+  （本轮试过手加 `-DINCLUDE_svg`，确认与上游重复，已回滚）。
+- svg loader 编成**独立静态库** `libstaticpixbufloader-svg.a`（`static_library('staticpixbufloader-@0@')`），
+  经 `included_loaders_deps += declare_dependency(link_with: mod)` 链进主库。
+- 与 AGENTS「gdk-pixbuf 图标坑」同源：**loader 是独立 `.a`，必须真正链进产物**，否则符号不落地。
+
+##### 4.3.4、待确认（本轮未验证）
+
+- `alpine-compile-2-dbg` 内 `/rootfs/usr/lib/`、`/rootfs/usr/local/lib/` **均无 `libgdk_pixbuf*`**，
+  也无 `gdk-pixbuf-2.0.pc` → 疑 CI 未跑 `u-gtk`，lxtask 实际链的 gdk-pixbuf 来源待定。
+- 若 CI base 不含 u-gtk 产物，则 svg loader 不可能进产物（与 4.3.2 现象一致）。
+
+##### 4.3.5、修复方向（用户指定只改 `u-gtk/`）
+
+1. 确认 `u-gtk/build.sh` 的 `meson build` **无 `build/` 残留复用旧 `builtin_loaders`**（meson 不自动 reconfigure）；
+2. 确认 librsvg 的 `.pc` 可达（`PKG_CONFIG_PATH` 已前置，`build.sh:8`），否则 `required: false` 静默跳过；
+3. 确认 `libstaticpixbufloader-svg.a` 经 `included_loaders_deps` 真正链进 `libgdk_pixbuf-2.0.a`
+   （判定标准：`svg_fill` 非 0）。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）
 
