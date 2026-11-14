@@ -9,7 +9,7 @@ function Xdamage(){
   # curl -# -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C /tmp/Xdamage
   # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/Xdamage
   # repo=https://hub.nuaa.cf/cubanismo/libXdamage
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-lib-xdamage /tmp/Xdamage
+  gitclone https://gitee.com/g-system/fk-lib-xdamage /tmp/Xdamage $branch
   cd /tmp/Xdamage
     ./autogen.sh 
     ./configure; 
@@ -35,7 +35,7 @@ function xcompmgr(){
   rm -rf /tmp/xcompmgr; # mkdir -p /tmp/xcompmgr
   # down_catfile ${XCOMPMGR_URL} | tar -zx --strip 1 -C /tmp/xcompmgr
   # branch="--branch=$XCOMPMGR_VER"
-  git clone --depth=1 $branch https://gitee.com/g-system/fk-xcompmgr /tmp/xcompmgr #;
+  gitclone https://gitee.com/g-system/fk-xcompmgr /tmp/xcompmgr $branch #;
   log "Configuring XCOMPMGR..."
   cd /tmp/xcompmgr #&& ./bootstrap;
     bash autogen.sh
