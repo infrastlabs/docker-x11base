@@ -1099,7 +1099,30 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 | **去 -u lxtask**（方案 A 关键）| 编译 RC=0，`org.w3c.svg.static`=1（svg loader **自动进，应用无需 -u**）|
 
 **影响**：`v-lxde/build.sh` lxtask 已回退原 LIBS0（去掉双 -u，保留 `-lrsvg-2 -lcroco-0.6`）；CI 重建 gtk224-2（烤新 u-gtk）后，**各 gtk2 应用（geany/pcmanfm/lxappearance…）理论上均无需 -u**（`-lrsvg-2 -lcroco-0.6` 及缺的 `-lpng` 需保留/补齐），后续逐个回归。
-> ⚠️ 遗留：rootfs-dbg 实跑截图验证受容器读取通道限制未完成（机制链与产物已闭环，见 5.1 已实跑截图正常为 -u 版）。
+> **订正（2026-11-14 收尾）**：遗留①已闭环——rootfs-dbg **默认桌面**（重起容器、默认 entrypoint 拉起 Xvnc :10+fluxbox+tint2+headless 主题）实跑**方案 A 版（去 -u）lxtask**，About 截图用户确认图标正常（`v3_lxtask-about-schemeA.png`）。库 A 改造经 multi-app 验证（5.3.3）均 `org.w3c.svg.static=1` 生效。
+
+##### 5.3.3、gtk2 应用批量验证进展（2026-11-14 第二天，批量检查修正）
+
+**范围**（用户拍板）：非 gtkmm（pavucontrol/gnome-system-monitor）、非 pasystray、非 w-xxx（imlib2）、非 ibus 的其余 gtk2 应用，逐个编译验证+实跑截图。
+
+| 应用 | 编译 RC | `org.w3c.svg.static` | 实跑截图 | 状态 |
+|---|---|---|---|---|
+| lxtask（v-lxde） | RC=0（先 -u 后去 -u） | 1 | `v3_lxtask-about-schemeA.png`（rootfs-dbg 默认桌面） | ✅ 用户确认图标正常 |
+| geany（v-geany） | RC=0（142s，去 -u） | 1 | `v3_geany-main/about.png`（已推） | ✅ 待用户核验 |
+| engrampa（v-engrampa） | RC=0 | 1 | `v3_engrampa.png`（已推） | ✅ 待核验（见坑②③） |
+| gpicview（v-gpicview） | RC=0 | 1 | shot 正常（未推，待汇总） | ✅ 待核验 |
+| lxappearance（v-lxde） | RC=0（补 rsvg/croco） | 1 | ⏳ 卡 dbus-launch（见坑④） | ⏳ |
+| pcmanfm（v-pcmanfm） | RC=1 → b_deps 重编中 | — | — | ⏳ 缺 libfm 静态库（见坑①） |
+
+**坑/修正（本批新增）**：
+
+- ① **pcmanfm 必须先 `b_deps`**（libfm/menu_cache/libfm-gtk 前置库）再 `pcmanfm`——直接跑 configure 报 `cannot find -lmenu-cache -lfm -lfm-gtk`（conftest 链接失败 → "C compiler cannot create executables"）。
+- ② **engrampa 缺 GSettings schema**：`make install-data` 未装 `share/glib-2.0/schemas/` → 运行时 `GLib-GIO-ERROR: Settings schema 'org.mate.engrampa.listing' is not installed` 崩溃。修：build.sh install 后 `cp data/org.mate.engrampa.gschema.xml` 到 `$TARGETPATH/share/glib-2.0/schemas/`（613c874）；运行时设 `XDG_DATA_DIRS=$TARGETPATH/share:/usr/share` + `glib-compile-schemas` 该目录。残余 xfconf gsettings 后端动态加载警告（非致命，静态不支持动态 loader）。
+- ③ 静态应用数据目录（schema）不在 GLib 默认 `XDG_DATA_DIRS`（/usr/local/share:/usr/share）→ 运行时需显式 `XDG_DATA_DIRS` 或并入 rootfs 系统路径。
+- ④ **lxappearance 依赖 dbus session**：无 session bus 时自动 spawn `dbus-launch`——alpine `dbus` 包**不含 dbus-launch**（在 `dbus-x11`），缺则 `Failed to execute child process "dbus-launch"` rc=1；且需 machine-id（`dbus-uuidgen --ensure=/var/lib/dbus/machine-id`）。
+- ⑤ gpicview 依赖由 `pkg-config --static --libs gtk+-2.0` 提供 png/jpeg（文件无字面量 -lpng，勿误判需补）。
+
+**执行方式**（沿用 AGENTS 3.1 新增规则）：多步容器命令写 `/_ext/tmp/svg/t_xxx.sh` → 容器内 `bash <脚本>` 执行，结果写 `/_ext/tmp/svg/` + DONE 标记；环境读取问题（exec stdout 吞、docker cp mount ENOSPC）均绕开。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
