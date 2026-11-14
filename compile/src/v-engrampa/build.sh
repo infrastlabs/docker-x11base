@@ -99,6 +99,10 @@ function engrampa(){
 
   log "Install ENGRAMPA data..."
   make install-data 2>&1 || log "make install-data warn (data not critical)"
+  # 2026-11-14: 补装 GSettings schema（make install-data 未装 share/glib-2.0/schemas→运行时 org.mate.engrampa.listing 缺失崩溃）;
+  #   运行时 GLib 按 XDG_DATA_DIRS 搜 schema（默认 /usr/local/share:/usr/share 不含 $TARGETPATH/share, 启动需含之）
+  mkdir -p $TARGETPATH/share/glib-2.0/schemas
+  cp -f /tmp/engrampa/data/org.mate.engrampa.gschema.xml $TARGETPATH/share/glib-2.0/schemas/ 2>/dev/null || log "schema copy warn"
 
   ls -lh $TARGETPATH/bin/engrampa
   xx-verify --static $TARGETPATH/bin/engrampa || { log "ENGRAMPA xx-verify FAILED"; exit 1; }
