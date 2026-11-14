@@ -73,6 +73,7 @@ gitclone() {
   _repo=${_url##*/}
   _ver=${_br#--branch=}; test -n "$_ver" || _ver=default
   # 组件前缀（2026-11-14）：TARGETPATH basename → /src 下 *xxx/ 目录（如 tint2→w-tint2）；case 映射复用 down_catfile；TARGETPATH 空→default
+  # 包名 <comp>.<repo>-<ver>.tar.gz（comp 与 repo 用点连接，repo-ver 用 -，边界清晰）
   _comp=""
   test -n "$TARGETPATH" && {
     _comp=$(basename "$TARGETPATH")
@@ -83,7 +84,7 @@ gitclone() {
     esac
   }
   test -n "$_comp" || _comp=default
-  _gz=${TARSRC:-/src/../tarsrc}/_cache_repo/$_comp-$_repo-$_ver.tar.gz
+  _gz=${TARSRC:-/src/../tarsrc}/_cache_repo/$_comp.$_repo-$_ver.tar.gz
   _cache=${GITCACHE:-/src/../tarsrc-git}/$_repo
   if test -d "$_cache/.git"; then
     rm -rf "$_dir"; cp -a "$_cache" "$_dir"
@@ -97,7 +98,7 @@ gitclone() {
     rm -rf "$_dir"; mkdir -p "$(dirname "$_dir")"
     tar xzf "$_gz" -C "$(dirname "$_dir")"
     git config --global --add safe.directory '*' 2>/dev/null || true
-    log "gitclone tar.gz hit: $_comp-$_repo-$_ver"
+    log "gitclone tar.gz hit: $_comp.$_repo-$_ver"
     return 0
   fi
   # ③网络 clone（未命中，不换源）
