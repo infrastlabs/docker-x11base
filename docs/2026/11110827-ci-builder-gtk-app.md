@@ -18,12 +18,7 @@
   - 3、镜像三次分析（3.1 远端又更新/4 空组件 feh/scrot/tint2/pcmanfm 根因，2026-11-13）
   - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl + 4.3 UPX 干扰与 gdk-pixbuf svg loader 机制，2026-11-14）
   - 5、二次复现 gtk2+lxtask 链接流程（5.1 八步跑通+双 -u 链接修复原理 + 5.1.x 注意项/踩坑，2026-11-14）
-- 六、xfce4 源码包收集与下载源（2026-11-13，**已拆出** → `docs/2026/11130827-ci-builder-tarsrc.md`，2026-11-14）
-  - 1、源码包清单与来源（/_ext/x11base_tar_src/xfce4）
-  - 2、全仓下载/克隆源统计（compile/ 下，gitee=已处理）
-  - 3、源码包下载落地清单（组件目录+大小汇总）
-  - 4、tarsrc 仓库接入方案（4.1 方案分析 + 4.2 实施落地，2026-11-13）
-  - 5、gitclone 网络抖动与源码快照缓存（5.1 xcbutil 修复 + 5.2 tar.gz 快照方案 + 5.3 cache_repo 入口 + 5.4 cachesrc_log 日志 + 5.5 快照只打 .git，2026-11-13~14）
+- 六、xfce4 源码包收集与下载源（2026-11-13）→ 已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（2026-11-14）
 
 ## 四、应用调试（抽取：原 3.4 + 3.5）
 
@@ -968,4 +963,6 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 6. **窗口名中文**（如 lxtask"任务管理器"）：`xdotool search --name "Task Manager"` 找不到，用 `.`/`.*` 遍历 + `getwindowname` 过滤。
 7. 判成功**别信 oneBuild 的 `err 0, pass`**（沿用 AGENTS 三章 3）：兜底 `xx-verify --static` + `grep -c "undefined reference"` + 实跑截图人工确认。
 
-> **去向（2026-11-14）**：原六章「xfce4 源码包收集与下载源」全章拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（保留 `## 六、` 章节序号与 `### 1~5`/`#### 4.x/5.x` 层级），本文档聚焦 gtk 应用与 CI 分析。
+## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
+
+> **去向**：本章已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（保留原章节序号与层级，含 `### 1~5`、`#### 4.x/5.x`，2026-11-14）。本文件仅存一~五章；对应内容见新文档。
