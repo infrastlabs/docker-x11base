@@ -251,11 +251,11 @@ jobs:
             # .github/workflows/.ws/pkgs/misc-*.tar.gz
             # .github/workflows/.ws/pkgs/3rd-*.tar.gz
             # 
-            # .github/workflows/.ws/pkgs/feh-*.tar.gz
-            # .github/workflows/.ws/pkgs/hsetroot-*.tar.gz
-            # .github/workflows/.ws/pkgs/scrot-*.tar.gz
-            # .github/workflows/.ws/pkgs/xlunch-*.tar.gz
-            # .github/workflows/.ws/pkgs/tint2-*.tar.gz
+            .github/workflows/.ws/pkgs/hsetroot-*.tar.gz
+            .github/workflows/.ws/pkgs/scrot-*.tar.gz
+            .github/workflows/.ws/pkgs/tint2-*.tar.gz
+            .github/workflows/.ws/pkgs/feh-*.tar.gz
+            .github/workflows/.ws/pkgs/xlunch-*.tar.gz
             # 
             # .github/workflows/.ws/pkgs/xbindkeys-*.tar.gz
             # .github/workflows/.ws/pkgs/xrandr-*.tar.gz
@@ -269,8 +269,8 @@ jobs:
             .github/workflows/.ws/pkgs/pcmanfm-*.tar.gz
             .github/workflows/.ws/pkgs/xfce4-*.tar.gz
             .github/workflows/.ws/pkgs/geany-*.tar.gz
-            # .github/workflows/.ws/pkgs/engrampa-*.tar.gz
-            # .github/workflows/.ws/pkgs/gpicview-*.tar.gz
+            .github/workflows/.ws/pkgs/engrampa-*.tar.gz
+            .github/workflows/.ws/pkgs/gpicview-*.tar.gz
             # .github/workflows/.ws/pkgs/dbus-*.tar.gz
             # .github/workflows/.ws/pkgs/ibus-*.tar.gz
             
