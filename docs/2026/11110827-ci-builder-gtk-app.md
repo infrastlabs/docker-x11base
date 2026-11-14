@@ -1143,8 +1143,8 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 
 **实现（common.sh `cachesrc_log`）**：
 - **通用函数**：`cachesrc_log <文件名> <组件> <包> <大小> <hit> <ver> <url> <耗时ms> <路径>` —— 追加 `/usr/local/static/.logs/cachesrc/<文件名>.log`；**首行写表头**（用户 2026-11-14：每列标注含义，免看不懂）；增量 `>>` 追加不清空。
-- **输出格式（10 列，用户拍板：表头 + 第5列 CACHE/MISS/FAIL + 耗时第6列 xxxms）**：
-  `时间|组件|包|大小|缓存命中|耗时|来源|ver|url|路径`
+- **输出格式（10 列，用户拍板：表头 + 第5列 CACHE/MISS/FAIL + 耗时第6列 xxxms + ver 放包后）**：
+  `时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径`
   - **缓存命中**：`CACHE`（gitcache/tarsrc 命中）`|MISS`（net 网络下载）`|FAIL`（net-fail 网络失败）；
   - **耗时**：真实毫秒带 `ms` 后缀（第6列）；
   - **来源**：原标识 `gitcache|tarsrc|net|net-fail`（保留细节，独立一列）。
@@ -1156,4 +1156,4 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
   - **down_catfile 防重复**：tarsrc 命中在**子 shell `( )` 内**记录并 `exit 0`；父 shell 末尾用 `_curl_ran` 区分"真 curl 下载"才写 net/net-fail 行（tarsrc 命中后 CACHE 已有文件不 curl，不重复记）；
   - 网络失败语义保留：gitclone 网络 clone 失败 `_clone_rc` 非零 → 记 `net-fail` 并 `return $_clone_rc`（原 `&&` 假返回非零行为不变）；
   - comp 列：gitclone 用 `_comp`（`*xxx/` 匹配带前缀，如 `w-tint2`）；down_catfile 用 `$TARGETPATH` basename（`default` 兜底）。
-- **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 首行表头 `时间|组件|包|大小|缓存命中|耗时|来源|ver|url|路径`，数据行（`...|4652K|CACHE|50ms|gitcache|16.1|...`），net→MISS / net-fail→FAIL / tarsrc→CACHE 各映射正确，大小/耗时明细齐全。
+- **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 首行表头 `时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径`，数据行（`...|16.1|4652K|CACHE|50ms|gitcache|...`，ver 放包后），net→MISS / net-fail→FAIL / tarsrc→CACHE 各映射正确，大小/耗时明细齐全。
