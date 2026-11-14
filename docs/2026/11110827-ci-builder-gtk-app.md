@@ -1144,11 +1144,11 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 **实现（common.sh `cachesrc_log`）**：
 - **通用函数**：`cachesrc_log <文件名> <字段...>` —— 追加 `/usr/local/static/.logs/cachesrc/<文件名>.log`，`时间|字段|...`（`printf` 循环 `|` 连接，字段含空格不破坏）；增量 `>>` 追加不清空。
 - **调用点**：
-  - `gitclone`（common.sh）：写 `gitclone.log`，**包=快照名 `<comp>.<repo>-<ver>`**、大小=tar.gz 字节(B)/GITCACHE 目录 du(KB)；`hit=GITCACHE|tarsrc|network|network-fail`；字段 `组件|包|大小|hit|ver|url|耗时ms|目标dir`；
-  - `down_catfile`（common.sh）：写 `downcatfile.log`，**包=源码包文件名**、大小=字节(B)；`hit=tarsrc|tarsrc-fuzzy|tarsrc-find|curl|curl-fail`；字段 `组件|包|大小|hit|ver|url|耗时ms|源路径`。
+  - `gitclone`（common.sh）：写 `gitclone.log`，**包=快照名 `<comp>.<repo>-<ver>`**、大小=tar.gz 字节(B)/GITCACHE 目录 du(KB)；`hit=gitcache|tarsrc|net|net-fail`（统一小写）；字段 `组件|包|大小|hit|ver|url|耗时ms|目标dir`；
+  - `down_catfile`（common.sh）：写 `downcatfile.log`，**包=源码包文件名**、大小=字节(B)；`hit=tarsrc|net|net-fail`（tarsrc-fuzzy/tarsrc-find 合并为 tarsrc）；字段 `组件|包|大小|hit|ver|url|耗时ms|源路径`。
 - **关键细节**：
-  - 耗时：`_t0=$(date +%s)` 起，各分支结束 `_ms=$(( ($(date +%s)-_t0)*1000 ))`（秒级精度）；
-  - **down_catfile 防重复**：tarsrc 命中在**子 shell `( )` 内**记录并 `exit 0`；父 shell 末尾用 `_curl_ran` 区分"真 curl 下载"才写 curl/curl-fail 行（tarsrc 命中后 CACHE 已有文件不 curl，不重复记）；
-  - 网络失败语义保留：gitclone 网络 clone 失败 `_clone_rc` 非零 → 记 `network-fail` 并 `return $_clone_rc`（原 `&&` 假返回非零行为不变）；
+  - 耗时：`_t0=$(_now_ms)` 起（**`/proc/uptime` 单调时钟毫秒**——busybox `date` 无 `%N`/`%3N`，秒级精度致快速命中耗时恒 0，用户 2026-11-14 要求记录真实耗时），各分支结束 `_ms=$(( $(_now_ms)-_t0 ))`；
+  - **down_catfile 防重复**：tarsrc 命中在**子 shell `( )` 内**记录并 `exit 0`；父 shell 末尾用 `_curl_ran` 区分"真 curl 下载"才写 net/net-fail 行（tarsrc 命中后 CACHE 已有文件不 curl，不重复记）；
+  - 网络失败语义保留：gitclone 网络 clone 失败 `_clone_rc` 非零 → 记 `net-fail` 并 `return $_clone_rc`（原 `&&` 假返回非零行为不变）；
   - comp 列：gitclone 用 `_comp`（`*xxx/` 匹配带前缀，如 `w-tint2`）；down_catfile 用 `$TARGETPATH` basename（`default` 兜底）。
-- **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 写入，comp 前缀正确（`w-tint2|w-tint2.fk-tint2-16.1|4652K|GITCACHE|16.1|...|1000|/tmp/gtv`），tar.gz 命中/tarsrc 命中/curl-fail/network-fail 各分支行正确，大小/耗时明细齐全。
+- **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 写入，comp 前缀正确，**hit 统一小写 `gitcache` + 真实毫秒耗时**（`w-tint2|w-tint2.fk-tint2-16.1|4652K|gitcache|16.1|...|50|/tmp/gtv`），tar.gz 命中/tarsrc 命中/net-fail 各分支行正确，大小/耗时明细齐全。
