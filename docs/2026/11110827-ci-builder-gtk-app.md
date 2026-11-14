@@ -1142,7 +1142,7 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 **② 下游（libfm 等中间库）链 gdk_pixbuf undefined loader 依赖（本次，用户拍板选 1 上游根治）**
 - 现象：`#30 pcmanfm` 的 libfm：`libfm-gtk.la` 链接 `libgdk_pixbuf-2.0.a` → undefined `g_module_open/symbol/error`、`jpeg_*`、`png_*`、`rsvg_*` → `cp: can't stat /usr/local/lib/libfm.a` → pcmanfm configure "C compiler cannot create executables"。
 - 根因：**方案 A 后 gdk-pixbuf-io/io-png/io-jpeg/io-svg 被整链拉入**（5.3.1.4 预测的影响点）→ 链接方需 `-lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma`；**gdk_pixbuf 的传递依赖未传播**（`gdk-pixbuf-2.0.pc` 的 `Libs.private` 不含 loader 依赖）→ 每个下游（libfm、menu_cache…）都要自己补，易漏。
-- **方案（用户拍板选 1）**：`u-gtk/build.sh` 给 `gdk-pixbuf-2.0.pc` 的 **`Libs.private` 补全** loader 依赖 → 用 `pkg-config --static` 的下游自动带（libfm 不动）。备选 2（libfm 单点 make LIBS）已改未验，弃用。
+- **方案（验证后改选 b 落地）**：先试选 1（`gdk-pixbuf-2.0.pc` Libs.private 补全）——验证发现 **不生效**：pc 的 `Requires.private` 本已声明全部依赖（meson 自动），但 **libfm 取 libs 用非 --static**（`pkg-config --libs` 不展开 private）→ 上游补 pc 救不了。**改选 b（用户拍板）**：`v-pcmanfm/build.sh` 的 `libfm()` make 补 `LIBS="-lgmodule-2.0 -ljpeg -lpng -lrsvg-2 -lcroco-0.6 -lxml2 -llzma"`（`33d7baa`），验证 RC=0 undefined=0；u-gtk 的 Libs.private 补丁已回退。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
