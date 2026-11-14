@@ -1095,7 +1095,7 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
 2. **克隆之前**：检查对应包已有则**直接复用之（解压），跳过克隆**。
 
 **细化（用户拍板 2026-11-13）**：
-- **命名**：`<comp>-<repo>-<ver>.tar.gz`；**`comp`**=组件前缀（归类标识，2026-11-14）；**`ver` = `--branch` 值去 `--branch=` 前缀，无则 `default`**（用户拍板）；`repo`=URL 末段 `_repo`（如 `w-tint2-fk-tint2-16.1.tar.gz`、`w-feh-fk-feh-default.tar.gz`）。
+- **命名**：`<comp>.<repo>-<ver>.tar.gz`（**comp 与 repo 用点连接**，repo-ver 用 `-`，边界清晰，用户 2026-11-14 拍板）；**`comp`**=组件前缀（归类标识，2026-11-14）；**`ver` = `--branch` 值去 `--branch=` 前缀，无则 `default`**（用户拍板）；`repo`=URL 末段 `_repo`（如 `w-tint2.fk-tint2-16.1.tar.gz`、`w-feh.fk-feh-default.tar.gz`）。
 - **comp 确定规则（2026-11-14）**：按 `TARGETPATH` basename 匹配 `/src` 下 `*xxx/` 组件目录——`find "$(readlink -f /src)" -maxdepth 1 -name "*$comp"`（`readlink` 解析软链，兼容 builder 软链 / CI 真实目录；**busybox ash 对变量内通配符不重新 glob，故不用 `ls -d *"$comp"/`**）；case 映射处理 basename 与目录名不一致（**`gsm→v-sysmonitor`、`dbus-glib→x-dbus`**，复用 down_catfile）；`TARGETPATH` 空 → `default`。
 - **路径**：`$TARSRC/_cache_repo/`（`TARSRC=${TARSRC:-/src/../tarsrc}`，gitee `infrastlabs/x11base-tarsrc` 源码包仓库克隆，common.sh:35）。
 - **①只存不推（用户拍板）**：gitclone 只**本地打包**，**不自动推送**；`_cache_repo/` 由用户**手动管理推送**（何时推 tarsrc、推哪些，用户定）。
