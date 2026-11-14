@@ -284,7 +284,7 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_PCMANFM=no
     --build-arg COMPILE_XFCE4=no
     --build-arg COMPILE_GEANY=yes
-    --build-arg COMPILE_ENGRAMPA=yes
+    --build-arg COMPILE_ENGRAMPA=no
     --build-arg COMPILE_GPICVIEW=yes
     --build-arg COMPILE_DBUS=no
     --build-arg COMPILE_IBUS=no
