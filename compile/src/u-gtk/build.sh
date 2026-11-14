@@ -102,7 +102,13 @@ PYEOF
     touch build/docs/gdk-pixbuf-query-loaders.1
     # make install
     ninja -C build install
-  
+  # 2026-11-14: ninja install 的 query-loaders/csource 工具链接失败会中止(照 AGENTS 三章3)——主库其实已编出(build/), 但 install 失败则 /usr/local/lib 无新库;
+  #   CI 全自动路径(round buildx gtk224 b_deps)即此处暴露: ls/cp 找不到 .a → doExec FAIL → b_deps exit 1。
+  #   兜底: 主库未落地时从 build/ 手动 cp(留意 base 镜像 /usr/local/lib 若有旧库也应覆盖)。
+  if [ ! -f /usr/local/lib/libgdk_pixbuf-2.0.a ]; then
+    ls -lh build/gdk-pixbuf/libgdk_pixbuf-2.0.a 2>&1
+    cp -f build/gdk-pixbuf/libgdk_pixbuf-2.0.a /usr/local/lib/ || { log "GDKPIXBUF LIB CP FAILED"; exit 1; }
+  fi
   ls -lh /usr/local/lib/libgdk_pixbuf-2.0.a #hand: 1016.6K> build.sh_ver2.40.0_hand: 807.2K
   cp /usr/local/lib/libgdk_pixbuf-2.0.a /usr/lib/ #1016.4K @alpine's_ver_2.42.8
   # cp ./build/gdk-pixbuf/libgdk_pixbuf-2.0.a
