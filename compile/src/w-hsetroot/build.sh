@@ -24,7 +24,7 @@ function hsetroot(){
   else
     rm -rf $HSR_SRC
     # github tag 在此环境挂死; 用 gitee 镜像(g-system/fk-hsetroot, master = himdel 1.0.5 代码, 含 -root)
-    git clone --depth=1 https://gitee.com/g-system/fk-hsetroot $HSR_SRC \
+    gitclone https://gitee.com/g-system/fk-hsetroot $HSR_SRC \
       || { log "hsetroot source download FAILED"; exit 1; }
   fi
 
