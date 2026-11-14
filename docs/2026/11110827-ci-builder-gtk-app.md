@@ -1034,6 +1034,54 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 
 **确认方式**：grep 各应用源码 `gdk_pixbuf_new_from_file`（或编译后 `strings <bin> | grep org.w3c.svg.static` 查 io-svg.c.o 特征）。
 
+#### 5.3、库层根治方案：svg 注册挪入必然被引用的 .o（2026-11-14）
+
+##### 5.3.1、方案分析（库层解决 vs 应用层 -u，用户要求细化）
+
+###### 5.3.1.1、现有机制与 -u 的由来
+
+- svg loader 注册逻辑在 `gdk-pixbuf-io.c`（patch 改的 module/try_module/load_one_builtin_module 三处），编成 `gdk-pixbuf-io.c.o`。
+- 应用（如 lxtask）走 `gtk_icon_theme_load_icon` 间接路径，**不引用 `gdk-pixbuf-io.c.o` 的符号** → ld 按需拉取不拉它 → 注册不执行 → `-u gdk_pixbuf_new_from_file` 在应用侧强制拉入补救（见 5.2.2）。
+
+###### 5.3.1.2、方案 A（推荐）：注册挪进"必然被引用的 .o"
+
+改法（u-gtk patch 加 3 处）：
+
+1. `gdk-pixbuf-io.c`：把内置 loader 注册逻辑抽成**非 static** 导出函数 `gdk_pixbuf_register_builtin_loaders(void)`（现有逻辑原样包一层），头文件（gdk-pixbuf-private.h）声明；
+2. `gdk-pixbuf.c`：在 `gdk_pixbuf_get_type()`（**GTK 首次用 pixbuf 必调的类型注册**）里调用 `gdk_pixbuf_register_builtin_loaders()`；
+3. 注册时机安全：get_type 发生在任何 `gdk_pixbuf_new_from_file` 之前 ✓。
+
+**链接自动成立**：应用（GTK 内部）必然引用 `gdk_pixbuf_get_type`（gdk-pixbuf.c.o）→ 拉入 gdk-pixbuf.c.o → U 引用注册函数 → 拉入 gdk-pixbuf-io.c.o → U 引用 io-svg/io-png/io-jpeg fill_vtable → **三个 loader 全拉入** + rsvg/png/jpeg 库解析。**应用无需 -u**。
+
+方案 B（constructor 变体）：`gdk-pixbuf.c.o` 加 `__attribute__((constructor))` 做注册——前提同样是该 .o 被拉入，可作 A 的加固（不依赖 get_type 调用链）。
+
+###### 5.3.1.3、实现成本
+
+| 项 | 工作量 |
+|---|---|
+| patch 改动 | u-gtk patch +3 处（io.c 导出 / c.c 调用 / 头声明），机制简单 |
+| 重编 | `u-gtk build.sh gdk_pixbuf` 1 次 + CI 重烤 gtk224-2 镜像（耗时主要在 CI） |
+| 应用回归 | **全部 v-\* 重编 + xx-verify + 图标实跑**（N 个） |
+
+###### 5.3.1.4、对现有应用的影响 / 调整点（关键）
+
+| 应用 | 现状 | 库层改造后 | 依赖检查 |
+|---|---|---|---|
+| 全部 v-\* | 需加/已加 -u | **去掉 -u**（或保留需确认注册幂等） | `-lrsvg-2 -lcroco-0.6 -lpng -ljpeg` **实测已全含**（8 应用；gpicview 唯一缺 `-lpng` 需补） |
+| lxtask | 双 -u 已修 | 去 -u，回归 | ✓ |
+| **新增影响点** | — | gdk-pixbuf-io.c.o 被拉入 → **png/jpeg loader 也进所有应用** | 二进制略大（几~几十 KB）；`-lpng/-ljpeg` 基本具备 |
+
+###### 5.3.1.5、权衡结论
+
+- **库层（A）**：实现成本**中等**（patch 小），**根治**（新 gtk2 应用免记 -u）；但需**全量应用重编回归** + gpicview 补 `-lpng` + 镜像重烤。
+- **应用层（现状 -u）**：每应用 1 行（lxtask 已做），无库改动/重烤；代价是**每个新 gtk2 应用都要记得加 -u**。
+- 风险点：库层后 `gdk-pixbuf-io.c.o` 必被拉，若某应用靠"不拉它"规避过 png/jpeg 符号冲突会暴露（概率低，依赖已实测齐备）。
+- **用户拍板（2026-11-14）**：按方案 A 开工。
+
+##### 5.3.2、实施与验证结果（2026-11-14，实现后回填）
+
+> 待补充：patch 落地 → gdk_pixbuf 重编 → 验证 svg 注册（去 -u 后 lxtask/geany 编译测试）→ 结果。
+
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
 > **去向**：本章已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（保留原章节序号与层级，含 `### 1~5`、`#### 4.x/5.x`，2026-11-14）。本文件仅存一~五章；对应内容见新文档。
