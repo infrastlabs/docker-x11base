@@ -77,7 +77,7 @@ cache_repo(){
       elif test -n "$_br"; then git clone --depth=1 "$_br" "$_url" "$_tmp" 2>&1 | tail -1
       else git clone --depth=1 "$_url" "$_tmp" 2>&1 | tail -1; fi
       if test -d "$_tmp/.git"; then
-        tar czf "$_gz" -C /tmp "$(basename "$_tmp")"
+        tar czf "$_gz" -C "$_tmp" .git   # 2026-11-14 起仅 .git（docs 5.5）：包内顶层固定 .git，与临时目录名解耦；gitclone 解包后 checkout 恢复工作树
         echo "  new: $comp.$_repo-$_ver"; _new=$((_new+1))
       else echo "  !! [$comp] clone fail: $_url"; _fail=$((_fail+1)); fi
     done < "$_calls"
