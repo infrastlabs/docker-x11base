@@ -968,6 +968,8 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 6. **窗口名中文**（如 lxtask"任务管理器"）：`xdotool search --name "Task Manager"` 找不到，用 `.`/`.*` 遍历 + `getwindowname` 过滤。
 7. 判成功**别信 oneBuild 的 `err 0, pass`**（沿用 AGENTS 三章 3）：兜底 `xx-verify --static` + `grep -c "undefined reference"` + 实跑截图人工确认。
 
+## 六、xfce4 源码包收集与下载源（2026-11-13）
+
 ### 1、源码包清单与来源（`/_ext/x11base_tar_src/xfce4`）
 
 **背景**：CI 跑 xfce4 stage 失败——`TARBALL EXTRACT FAILED: Thunar-1.6.3` / `libexif-0.6.23`（`.cache` 无 tarball、下载源不可达）。翻本地缓存确认：解压源码**有编译污染**（`/tmp/xfce-build` 262 个 `.o` + 已生成 Makefile），不能当干净源码；**干净源码包 = 原始 tarball**。
