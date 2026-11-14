@@ -68,7 +68,10 @@ function lxtask(){
     # -lXdamage注释也会用到;
     #  -lfm -lfm-gtk -lmenu-cache 
     ex1="-lfontconfig -lgio-2.0 -lcairo   -lXdamage "
-    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
+    # 2026-11-14: 静态链接按需拉取问题——svg loader(io-svg.c.o) 编入库但注册方 gdk-pixbuf-io.c.o(U 引用 _gdk_pixbuf__svg_fill_vtable) 未被 lxtask 引用就不拉入→SVG 图标"Unrecognized image file format"(打叉)。
+    #   -u _gdk_pixbuf__svg_fill_vtable 只拉 io-svg.c.o 仍不注册(验证过); 再加 -u gdk_pixbuf_new_from_file 强制拉入注册方 gdk-pixbuf-io.c.o → 其 U 引用 svg_fill → 自动链 io-svg.c.o 完成注册。
+    #   不用 --whole-archive(拉入 io-jpeg/io-png 引来 libjpeg 链式 undefined, 验证过失败)。
+    LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -Wl,-u,_gdk_pixbuf__svg_fill_vtable -Wl,-u,gdk_pixbuf_new_from_file -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
   make LDFLAGS="$LDFLAGS" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
