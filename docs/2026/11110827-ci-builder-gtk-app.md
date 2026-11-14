@@ -20,6 +20,8 @@
   - 1、源码包清单与来源（/_ext/x11base_tar_src/xfce4）
   - 2、全仓下载/克隆源统计（compile/ 下，gitee=已处理）
   - 3、源码包下载落地清单（组件目录+大小汇总）
+  - 4、tarsrc 仓库接入方案（4.1 方案分析 + 4.2 实施落地，2026-11-13）
+  - 5、gitclone 网络抖动与源码快照缓存（5.1 xcbutil 修复 + 5.2 tar.gz 快照方案 + 5.3 cache_repo 入口 + 5.4 cachesrc_log 日志 + 5.5 快照只打 .git，2026-11-13~14）
 
 ## 四、应用调试（抽取：原 3.4 + 3.5）
 
@@ -1157,3 +1159,46 @@ test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失
   - 网络失败语义保留：gitclone 网络 clone 失败 `_clone_rc` 非零 → 记 `net-fail` 并 `return $_clone_rc`（原 `&&` 假返回非零行为不变）；
   - comp 列：gitclone 用 `_comp`（`*xxx/` 匹配带前缀，如 `w-tint2`）；down_catfile 用 `$TARGETPATH` basename（`default` 兜底）。
 - **验证**（2026-11-14）：宿主模拟 + `builder-awe` 容器真实路径——`/usr/local/static/.logs/cachesrc/gitclone.log` 首行表头 `时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径`，数据行（`...|16.1|4652K|CACHE|50ms|gitcache|...`，ver 放包后），net→MISS / net-fail→FAIL / tarsrc→CACHE 各映射正确，大小/耗时明细齐全。
+
+#### 5.5、快照只打 `.git`（2026-11-14 用户拍板，取代 5.2 的整目录打包）
+
+**背景**：5.2 的 tar.gz 快照当前把**整个克隆目录**（工作树 + `.git`）一起打包（`common.sh` `tar czf "$_gz" -C "$(dirname "$_dir")" "$(basename "$_dir")"`）。用户 2026-11-14 提出：**工作目录之后可以再检出，只打 `.git` 包不是更小吗？** → 实测确认，并作为 5.2 快照格式的取代方案。
+
+##### 5.5.1、体积收益：实测省约一半
+
+`gitclone` 用 `git clone --depth=1`（shallow）——仓库只有 1 个 commit，`.git` 里的 blob 对象**已是 zlib 压缩**的，而工作树文件是**未压缩原始文件**；两者内容几乎相同（shallow 仅一份版本）→ 整目录打包 ≈ **存了两份**。
+
+实测（3 个代表快照，`tar czf` 整目录 vs `tar czf -C <dir> .git`）：
+
+| 快照 | 工作树 | 整目录 tgz | 仅 `.git` tgz | 差异 |
+|---|---|---|---|---|
+| v-ibus.ibus-1.5.35 | 15.1MB | 3.68MB | 1.78MB | **-51.5%** |
+| w-tint2.fk-tint2-16.1 | 4.6MB | 1.07MB | 0.54MB | **-49.3%** |
+| x-x11vnc.fk-libvnc-x11vnc-fix-152 | 8.8MB | 3.44MB | 1.75MB | **-48.9%** |
+
+52 个快照全量重打预计省 20~30MB。
+
+##### 5.5.2、解包侧必须配套改（否则工作树为空）
+
+只打 `.git` 后，解包出的 `$_dir` 里**只有 `.git`，没有源码文件**。必须在 `gitclone` 解包后自动恢复工作树，保持对外契约"`$_dir` 解包即可用"：
+
+```sh
+mkdir -p "$_dir"; tar xzf "$_gz" -C "$_dir"
+git -C "$_dir" checkout -f      # 按 HEAD 恢复工作树
+```
+
+**submodule 无影响**：`git clone --depth=1` 不带 `--recurse-submodules`，快照里 submodule 目录本就是空的，只打 `.git` 不丢东西。
+
+##### 5.5.3、顺带修掉解包路径错配 bug（5.2 引入的现存问题）
+
+**现状 bug**：`cache_repo` 预下载用临时目录 `_tmp=/tmp/cache_repo_tmp_$$`（`buildx.sh:45`）打包 → **包内第一层目录名 = 该临时名**（如 `cache_repo_tmp_1028876`）。而 `gitclone` 解包 `tar xzf "$_gz" -C "$(dirname "$_dir")"` **假设包内顶层名 == `$_dir` 名**；实际调用方 `_dir` 是固定路径（`/tmp/ibus`、`/tmp/libogg` 等，`v-ibus/build.sh:146`、`x-pulseaudio/build.sh:55`），与 `cache_repo_tmp_*` 完全不同 →
+
+- 源码全落到 `/tmp/cache_repo_tmp_1028876/`（残留无用）；
+- `$_dir`（`/tmp/ibus`）**不存在**；
+- 但 `gitclone` 照样 `return 0`、日志打 `gitclone tar.gz hit` → **错误被吞**，下游 `cd /tmp/ibus` 失败却查不到根因。
+
+即：**当前 52 个整目录快照一旦在 gitclone 命中，实际是坏的**。
+
+**为何只打 `.git` 顺带修好**：打包改 `tar czf "$_gz" -C "$_dir" .git` → 包内第一层固定为 `.git`（**不再含临时目录名这个变量**）；解包 `tar xzf "$_gz" -C "$_dir"` 直接落到 `$_dir/.git`，与包内目录名彻底解耦 → 放错目录的可能性消失。
+
+##### 5.5.4、落仓改动明细
