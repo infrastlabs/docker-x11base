@@ -111,6 +111,9 @@
   否则同号重起报 "Another server is already running"。
 - **docker exec 输出被吞**：脚本输出重定向到文件，单独一次 exec `cat`；或用
   `nohup bash -c '... > /tmp/x.log 2>&1 &'` 再轮询 log。探针/临时文件放 `/tmp`，别落仓库。
+- **容器→宿主文件中转（2026-11-14 用户拍板，强制遵守）**：容器写宿主文件**统一用 `sudo` 写 `/_ext/tmp/` 中转**
+  （宿主 `/_ext/tmp` 为 777），宿主导读；**写失败就一直重试（拆成一条命令一个动作循环跑）**；
+  **禁止 `docker export` 容器**（重、用户明确禁止）；`docker cp` 在本机 mount 故障（ENOSPC）也不可用。
 
 ### 3.2、TARGETPATH：本地调试与 CI 构建两个入口（2026-11-08 补，pavucontrol 教训）
 
