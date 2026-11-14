@@ -52,8 +52,16 @@ function gdk_pixbuf(){ ##@meson
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #同atk
     # ./autogen.sh 
     # ./configure; 
+    # 2026-11-14: 补全 librsvg-2.0.pc 的 Requires.private（w-tint2 编的 .pc 为空）——否则 meson dependency('librsvg-2.0')
+    #   静态链接测试 undefined reference（pango_cairo_*/Fc*/xml*）→ 判 NOT FOUND → svg loader 缺失（图标打叉根因）
+    for pc in /usr/local/lib/pkgconfig/librsvg-2.0.pc /usr/lib/pkgconfig/librsvg-2.0.pc; do
+      test -f "$pc" && sed -i 's/^Requires\.private:.*/Requires.private: pangocairo fontconfig libxml-2.0 libcroco-0.6/' "$pc" && echo "fixed: $pc"
+    done
     # meson build
-    meson build  --default-library=both -Dbuiltin_loaders=png,jpeg,svg #both static; svg必须进builtin(patch默认value=['png','jpeg']不含svg, 否则编成独立libpixbufloader-svg.so动态loader, 静态应用用不上)
+    # 2026-11-14: --default-library=both 链 libgdk_pixbuf-2.0.so 时把 non-PIC 的 libcairo.a/librsvg-2.a(w-tint2 STATIC=yes)塞入 →
+    #   "relocation R_X86_64_TPOFF32/PC32 can not be used when making a shared object" → 链接失败(oneBuild 吞错, 产物仍是旧 .a 无 svg)。
+    #   静态应用只需 .a → 改 static 只产 .a(不链 .so, 绕过 non-PIC 重定位检查), svg loader 才能进产物。
+    meson build  --default-library=static -Dbuiltin_loaders=png,jpeg,svg -Dintrospection=disabled #static only .a; 2026-11-14: introspection 禁用——否则 GdkPixbuf-2.0 临时二进制链新 .a 缺 librsvg 依赖→ninja cannot make progress→install 没跑
 
   log "Compiling gdk-pixbuf..."
     # 去除xsltproc;
