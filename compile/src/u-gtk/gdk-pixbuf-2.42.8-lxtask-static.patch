@@ -280,7 +280,7 @@ index fe4bfaa..1a71c78 100644
  # Loader dependencies
  enabled_loaders = []
  loaders_deps = []
-+librsvg_dep = dependency('librsvg-2.0', required: false)
++librsvg_dep = dependency('librsvg-2.0', required: false, static: true)
 +if librsvg_dep.found()
 +  loaders_deps += librsvg_dep
 +endif
