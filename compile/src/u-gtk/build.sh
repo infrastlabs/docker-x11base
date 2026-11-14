@@ -14,7 +14,7 @@ function atk(){ ##@meson
   branch="--branch=ATK_2_35_1" #ATK_2_36_0  [2.35.1@ubt2004; 2.36.0@alpine315]
   branch="--branch=ATK_2_36_0"
   # 源码源切到 gitee 镜像: GNOME/atk 仓库已归档消失(github 404), 改由 g-system/fk-atk 提供 (tag ATK_2_36_0)
-  rm -rf /tmp/atk; git clone --depth=1 $branch https://gitee.com/g-system/fk-atk /tmp/atk
+  rm -rf /tmp/atk; gitclone https://gitee.com/g-system/fk-atk /tmp/atk $branch
   cd /tmp/atk
     # [44/53] Linking static target atk/libatk-1.0.a
     # [45/53] Linking target atk/libatk-1.0.so.0.23510.1 ##err attempted static link of dynamic object '/usr/lib/libglib-2.0.so'
@@ -45,7 +45,7 @@ function gdk_pixbuf(){ ##@meson
   branch="--branch=2.40.0" #2.42.8 [2.40.0@ubt2004; 2.42.8@alpine315]
   branch="--branch=2.42.8"
   # 源码源切到 gitee 镜像 g-system/fk-gdk-pixbuf (tag 2.42.8 镜像内已确认)
-  rm -rf /tmp/gdk-pixbuf; git clone --depth=1 $branch https://gitee.com/g-system/fk-gdk-pixbuf /tmp/gdk-pixbuf
+  rm -rf /tmp/gdk-pixbuf; gitclone https://gitee.com/g-system/fk-gdk-pixbuf /tmp/gdk-pixbuf $branch
   cd /tmp/gdk-pixbuf
   log "Patching gdk-pixbuf (builtin svg loader)..."
     patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
@@ -171,7 +171,7 @@ function gtk(){
   else
     log "Fresh clone gtk (no usable cache)"
     # 源码源切到 gitee 镜像 g-system/fk-gtk (tag 2.24.33 镜像内已确认; 默认分支 main 为 gtk4, 必须按 tag 拉)
-    rm -rf "$GTK"; git clone --depth=1 $branch https://gitee.com/g-system/fk-gtk "$GTK"
+    rm -rf "$GTK"; gitclone https://gitee.com/g-system/fk-gtk "$GTK" $branch
     cd "$GTK"
   fi
   mkdir -p "$STATEDIR"  # fresh clone 的 rm -rf 会删掉 .u-gtk-state, clone 后重建; 增量则幂等
@@ -270,7 +270,7 @@ function gtk(){
       log "Reuse /tmp/murrine (incremental)"
       ( cd /tmp/murrine && unset LDFLAGS; make -j$(nproc) )
     else
-      rm -rf /tmp/murrine; git clone --depth=1 "$MURRINE_GIT" /tmp/murrine
+      rm -rf /tmp/murrine; gitclone "$MURRINE_GIT" /tmp/murrine
       ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
     fi
     [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
