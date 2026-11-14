@@ -8,7 +8,7 @@ source /src/common.sh
 #
 function perp(){
   log "Downloading perp..."
-  git clone https://gitee.com/infrastlabs/fk-perp /tmp/fk-perp
+  gitclone https://gitee.com/infrastlabs/fk-perp /tmp/fk-perp
   cd /tmp/fk-perp
 
   log "Compiling perp..."
