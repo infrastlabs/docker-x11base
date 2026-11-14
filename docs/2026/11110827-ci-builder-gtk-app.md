@@ -839,6 +839,51 @@ find /usr/share/icons/Papirus* -name '*.svg' | wc -l   # 0
 
 同一 awe 编译的 engrampa 在 hdmi 容器（**glibc / Ubuntu 22.04**）显示 Papirus 彩色图标（`11051758` §5 实测：14 彩色图标行、特征色 (54,172,163)/(192,54,48)/(57,116,225)）；alpine headless 用户跑同样通过（`11051758:193-197`）。障碍是 **gdk_pixbuf 的 svg builtin loader（编译侧）+ 运行时图标/主题资源与 gtkrc（部署侧）**，与 musl/glibc 无关。
 
+##### 4.2.5、订正与实测（2026-11-14，rootfs-dbg 按原 CMD 起容器复现）
+
+> **订正（2026-11-14）**：4.2.2 的"原因 B/C（镜像无 `/usr/share/icons`、无主题、无 gtkrc）"是在
+> **`alpine-compile-2-dbg` 的 `/rootfs/` 树**上判断的，**对 rootfs-dbg 运行态不成立**。用户指出
+> rootfs-dbg 的主题/图标/配置由入口准备好——实测确认。本节为起容器实测结果。
+
+**入口链路（`rootfs/src/Dockerfile`，`bash buildx.sh rootfs`）**：
+
+- `CMD ["bash","-c","test -f /rootfs/.core-init-lock || bash /rootfs/.core-init; exec /entry.sh"]`
+- `/rootfs/.core-init`（141B）：`cp -a /rootfs/files1/* /` → `cp -a /rootfs/files2/* /` →
+  `cp -a /rootfs/res_ubt_share/* /` → `bash /xconf.sh core`
+- 资源来自 `res_ubt_share`（`FROM ...ubuntu---22.04` stage COPY）：**Papirus 15041 个 SVG**（0 PNG）、
+  `Papirus-Bunsen-*`、Greybird/Greybird-compact/Greybird-dark、wqy 字体、locale。
+- 实测容器 `rootfs-dbg-x`（`VNC_OFFSET=311`，`START_SESSION=startfluxbox`）：
+  `/usr/share/icons/` 有 Papirus、`/usr/share/themes/Greybird*` 齐全，`Xvnc -ac :311` + fluxbox 已起。
+
+**"找不到图标"实测复现（lxtask / geany，2026-11-14）**：
+
+```sh
+(lxtask:532): Gtk-WARNING **: Error loading theme icon 'application-exit' for stock: Unrecognized image file format
+```
+
+- Papirus 全 SVG（`7119 svg / 1 theme / 1 cache`，**0 png**）；目标图标
+  `Papirus/16x16/actions/application-exit.svg` 存在。
+- **rootfs-dbg 里的产物被 UPX 压缩**（`upx -l`：`13468584 -> 5524780  41.02%`）→
+  `strings`/`grep -a` 全部 0 命中（`pixbuf`/`rsvg`/`icon_theme` 全 0），**静态分析失真**；
+  `readelf -s` 无符号（stripped）同样失效。
+- 按用户指示从 **`alpine-compile-2-dbg` 取未压缩原文件**（13468584B，与 `upx -d` 一致）带入容器分析：
+  - `strings` 出的 gdk-pixbuf 源文件只有 **`io-jpeg.c` + `io-png.c`**，**无 `io-svg.c`**
+  - `svg_fill=0`、`croco=0`（对比 `11051758:152`：awe 版 `nm` 见 `U _gdk_pixbuf__svg_fill_vtable`）
+  - 即 CI 产物 gdk-pixbuf 的 **`builtin_loaders=png,jpeg`（缺 svg）**；lxtask、geany 一致。
+- 排除 UPX 因素：原文件运行同样报 `Unrecognized image file format`（`lxtask.orig:897`）。
+- 同二进制在 rootfs-dbg（有 Papirus/Greybird）与 `alpine-compile-2-dbg` 行为一致 →
+  **资源侧无问题，是编译侧 gdk-pixbuf 无 svg loader**。
+
+**结论（推翻 4.2.2 的原因 B/C，确认原因 A）**：
+
+1. **根因 = 原因 A**：CI（`alpine-compile-2-dbg`）链的 gdk-pixbuf **只有 png/jpeg 内置 loader**，
+   解不了 Papirus 的纯 SVG → 菜单项/关于窗口图标全部打叉。
+2. 原因 B/C（资源、gtkrc）**不是问题**——镜像入口已备好 Papirus + Greybird。
+3. 与 4.2.2 的原因 A 一致，且与 musl 无关（同二进制在 glibc 容器同样缺 svg loader）。
+4. **修复方向**：改 `compile/src/u-gtk/build.sh` 的 gdk-pixbuf 构建参数为
+   `-Dbuiltin_loaders=png,jpeg,svg` 并链 `librsvg-2.a` + `libcroco-0.6.a`
+   （即 `builder-awe` 那套，`11051758:150-154`），**不能**手工往 `.a` 打补丁（AGENTS 五章 2）。
+
 ## 六、xfce4 源码包收集与下载源（2026-11-13）
 
 ### 1、源码包清单与来源（`/_ext/x11base_tar_src/xfce4`）
