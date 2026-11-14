@@ -12,10 +12,11 @@
   - 5、xfce4 构建最终结果（thunar / ristretto / display-settings 均验证通过，5.1-5.2，2026-11-12）
   - 6、pasystray 构建收口（照 Dockerfile 调用方式，6.1-6.4，2026-11-12）
   - 7、lxtask + pcmanfm 构建收口（照 Dockerfile 调用方式，7.1-7.4，2026-11-12）
-- 五、CI实跑验证（2026-11-12~13）
+- 五、CI实跑验证（2026-11-12~14）
   - 1、镜像 alpine-compile-2-dbg 核查（回复原文）
   - 2、镜像二次分析（2.1 远端更新/编译结果 + 2.2 三失败 gpicview/engrampa/lxappearance 日志与修复，2026-11-13）
   - 3、镜像三次分析（3.1 远端又更新/4 空组件 feh/scrot/tint2/pcmanfm 根因，2026-11-13）
+  - 4、镜像四次分析与 rootfs 图标排查（4.1 远端再更新/7 组件全过/scrot+pcmanfm 修复/cachesrc CI 生效/xrandr-dunst COPY 注释 + 4.2 图标找不到三原因与三件套/非 musl，2026-11-14）
 - 六、xfce4 源码包收集与下载源（2026-11-13）
   - 1、源码包清单与来源（/_ext/x11base_tar_src/xfce4）
   - 2、全仓下载/克隆源统计（compile/ 下，gitee=已处理）
@@ -728,6 +729,115 @@ test -f m4/xcb_util_common.m4 || { rm -rf m4; test -d "$M4CACHE/.git" && cp -a "
 - **无缓存路径**（模拟 CI `GITCACHE=/nonexistent`）：`.gitmodules` 保持原始 `git://anongit.freedesktop.org/...` 未 sed；`git submodule update` 失败后回落 `git clone https://gitee.com/g-system/util-common-m4 m4` → `m4/xcb_util_common.m4` 生成（remote 确认 gitee g-system）。**两条路 m4 均就位**，CI 不再 `cp can't stat`。
 
 > **⚠️ 与 3.3.2/3.3.3 关系**：本修复只解决 **m4 submodule 获取**（xcbutil 的依赖宏）；feh stage 后续仍可能因其他依赖（imlib2 等）失败，但 m4 卡点已解。
+
+### 4、镜像四次分析与 rootfs 图标排查（2026-11-14）
+
+#### 4.1、alpine-compile-2-dbg 镜像四次分析（2026-11-14，本次远端又更新）
+
+##### 4.1.1、远端更新确认
+
+| 项 | 三次分析（11-13） | 本次（11-14） |
+|---|---|---|
+| RepoDigest | `sha256:180783c48e60...` | **`sha256:e3382bfef70e...`** |
+| Image ID | `48517084f2e1` | **`8608e2df11f1`** |
+| BUILDDATE | 2026-11-13_03:11:19 | **2026-11-14_01:48:16** |
+
+`docker pull` 返回 `Downloaded newer image`；label `github.com.infrastlabs.docker-x11base.builtdate = 2026-11-14_01:48:16`。
+
+##### 4.1.2、本次构建范围与结果（产物 mtime 判定，2026-11-14 01:48~01:52，约 4 分钟）
+
+**7 个组件成功**，静态链接**全部通过**（`readelf -d` 无 NEEDED = 静态）：
+
+| 组件 | 大小 | mtime |
+|---|---|---|
+| hsetroot / hsr-outputs | 2.3M / 1.0M | 01:48:53 |
+| gpicview | 13.0M | 01:49:13 |
+| scrot | 2.5M | 01:50:34 |
+| engrampa | 13.4M | 01:50:35 |
+| geany | 15.3M | 01:51:31 |
+| pcmanfm | 13.7M | 01:52:28 |
+| lxde（lxappearance + lxtask） | 36.4M / 12.8M | doExec 有日志（产物 mtime 为 tar 包内时间） |
+
+doExec 日志目录 8 个：`u-gtk`/`v-engrampa`/`v-geany`/`v-gpicview`/`v-lxde`/`v-pcmanfm`/`w-hsetroot`/`w-scrot`，与上表 7 组件 + u-gtk 依赖一致。
+
+##### 4.1.3、对比三次分析的 4 空组件：真正修复 2 个，另 2 个是"基础镜像残留"假象
+
+| 上次空组件 | 上次根因 | 本次 |
+|---|---|---|
+| **scrot** | 缺 autoconf-archive（autoreconf 失败） | ✅ **本次构建成功**（2.5M 静态，mtime 01:50:34） |
+| **pcmanfm** | menu-cache clone 断连 | ✅ **本次构建成功**（13.7M 静态，mtime 01:52:28） |
+| feh | gitee clone 断连 | ⚠️ 产物 mtime **2026-02-06** = 基础镜像残留；本次开关 `COMPILE_FEH=no` |
+| tint2 | xcb-util 缺失 | ⚠️ 产物 mtime **2023-12-30** = 基础镜像残留；本次 `COMPILE_TINT2=no` |
+
+##### 4.1.4、cachesrc 快照机制在 CI 真实生效（docs 六章 5.4 的产物）
+
+镜像内 `/rootfs/usr/local/static/.logs/cachesrc/` 两日志时间戳与 BUILDDATE 吻合：
+
+- `gitclone.log`：`2026-11-14 01:49:01|v-engrampa|v-engrampa.fk-engrampa-v1.14.1.tar.gz|v1.14.1|4111144B|MISS|8680ms|net|https://gitee.com/g-system/fk-engrampa` → gitee clone **成功**（三次分析里 feh 同源 clone 是 `Recv failure: Connection reset by peer`）。
+- `downcatfile.log`：`gpicview|0.2.5|...|165106B|CACHE|0ms|tarsrc|...` → **tarsrc 命中 0 毫秒**。
+
+##### 4.1.5、xrandr / dunst / rofi 无产物根因（非构建失败）
+
+`buildx.sh` 传 `COMPILE_XRANDR=yes`/`COMPILE_DUNST=yes`、Dockerfile 两处 `ARG` 默认也是 `yes`、stage 内 `test "yes" != "$COMPILE_XRANDR" && exit 0` 逻辑通过，但**最终镜像无 xrandr/dunst 目录**（TARGETPATH 分别为 `/usr/local/static/xrandr`、`/usr/local/static/dunst`）。
+
+根因：**`compile/src/Dockerfile:599-601` 的三行 COPY 被注释**：
+
+```dockerfile
+# COPY --from=xrandr ${STATIC} /rootfs${STATIC}
+# COPY --from=dunst ${STATIC} /rootfs${STATIC}
+# COPY --from=rofi ${STATIC} /rootfs${STATIC}
+```
+
+→ stage 会构建，但产物**不进最终镜像**。
+
+##### 4.1.6、产物来源分层（避免误判"本次成功"）
+
+- **本次构建**（mtime 2026-11-14）：hsetroot、gpicview、scrot、engrampa、geany、pcmanfm、lxde。
+- **基础镜像残留**（mtime 2023-12-02 ~ 2026-02-06）：feh(2026-02-06)、tint2(2023-12-30)、lxde 部分(2023-12-30)、fluxbox(2023-12-02)、openbox(2024-04-08) 等。
+- **开关关闭**（空目录，COPY 空 stage）：gsm、pasystray、pavucontrol、xfce4。
+- **`temp1`**：common.sh 默认 TARGETPATH 残留目录。
+
+#### 4.2、rootfs-dbg 运行"rsvg 已有效但找不到图标"排查（2026-11-14）
+
+##### 4.2.1、现象与前提
+
+rootfs-dbg 里跑 GTK2 静态应用，判断 librsvg 已生效，但仍提示找不到图标。历史同类验证记录：`docs/2026/11051758-v-oth-impl01.md` 五章（hdmi 容器 `docker-hdmi-desktop-desktop-1`，Ubuntu 22.04 + TigerVNC 1.13.1，Greybird + Papirus 效果图）。
+
+##### 4.2.2、三原因（镜像内实测，缺一不可）
+
+**原因 A：CI 编译的二进制没有 librsvg 符号（关键，推翻了"rsvg 已有效"的前提）**
+
+```sh
+readelf -s /rootfs/usr/local/static/engrampa/bin/engrampa | grep -i rsvg     # 0 个
+readelf -s ... | grep svg_fill                                              # 0 个
+```
+
+Papirus 是**纯 SVG 图标集**（历史实测 509 svg / 0 png），无 SVG 解码器就解不了。历史结论（`11051758:150-155`）：必须在 `builder-awe` 编——awe 的 `/usr/local/lib/libgdk_pixbuf-2.0.a` 是 meson `-Dbuiltin_loaders=png,jpeg,svg`（`nm` 见 `U _gdk_pixbuf__svg_fill_vtable`），配 `librsvg-2.a`(2.40.21) + `libcroco-0.6.a`；**alpine 系统包 gdk_pixbuf 无 svg builtin，产物照样不显示**。
+
+**原因 B：镜像里没有图标/主题资源**
+
+```sh
+ls /usr/share/icons/    # No such file or directory
+ls /usr/share/themes/   # No such file or directory
+find /usr/share/icons/Papirus* -name '*.svg' | wc -l   # 0
+```
+
+**原因 C：无 gtkrc 设 `gtk-icon-theme-name`** → GTK 落默认 hicolor（历史：Greybird 的 `gtk-2.0/gtkrc` 无 `gtk-icon-theme-name`，`11051758:157-158`）。
+
+##### 4.2.3、解决三件套（历史已实测通过）
+
+1. **二进制必须是 awe 编译版**（内含 svg loader + librsvg）；
+2. **资源到位**：`/usr/share/icons/Papirus` + `/usr/share/themes/Greybird`，运行带 `GTK_DATA_PREFIX=/usr`；
+3. **`GTK2_RC_FILES=/tmp/greybird-papirus.gtkrc`**，内容：
+   ```
+   gtk-theme-name = "Greybird"
+   gtk-icon-theme-name = "Papirus"
+   ```
+   另需 `HOME=<可写>`（icon cache 可写）+ `DISPLAY=:NNN`。
+
+##### 4.2.4、结论：不是 musl 环境问题
+
+同一 awe 编译的 engrampa 在 hdmi 容器（**glibc / Ubuntu 22.04**）显示 Papirus 彩色图标（`11051758` §5 实测：14 彩色图标行、特征色 (54,172,163)/(192,54,48)/(57,116,225)）；alpine headless 用户跑同样通过（`11051758:193-197`）。障碍是 **gdk_pixbuf 的 svg builtin loader（编译侧）+ 运行时图标/主题资源与 gtkrc（部署侧）**，与 musl/glibc 无关。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）
 
