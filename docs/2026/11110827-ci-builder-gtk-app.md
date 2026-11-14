@@ -1201,4 +1201,30 @@ git -C "$_dir" checkout -f      # 按 HEAD 恢复工作树
 
 **为何只打 `.git` 顺带修好**：打包改 `tar czf "$_gz" -C "$_dir" .git` → 包内第一层固定为 `.git`（**不再含临时目录名这个变量**）；解包 `tar xzf "$_gz" -C "$_dir"` 直接落到 `$_dir/.git`，与包内目录名彻底解耦 → 放错目录的可能性消失。
 
-##### 5.5.4、落仓改动明细
+##### 5.5.4、落仓改动明细（2026-11-14 已实施，已推送 `feat/ai-260925`）
+
+| 文件 | 改动 | commit |
+|---|---|---|
+| `compile/src/common.sh` | `gitclone` 快照打包 `tar czf "$_gz" -C "$_dir" .git`（原 `-C "$(dirname "$_dir")" "$(basename "$_dir")"`）；解包 `rm -rf "$_dir"; mkdir -p "$_dir"; tar xzf "$_gz" -C "$_dir"` + `git -C "$_dir" checkout -f` 恢复工作树；**旧整目录格式显式 `return 1`**（`snapshot not .git-only (legacy?)`，不再吞错） | `fcb04cf` |
+| `compile/buildx.sh` | `cache_repo` 打包 `tar czf "$_gz" -C "$_tmp" .git`（原 `-C /tmp "$(basename "$_tmp")"`） | `b0dba12` |
+
+**52 快照转换结果**（`_cache_repo/`，直接从原包 `.git` 目录重打，无损）：
+
+| 项 | 转换前（整目录） | 转换后（仅 `.git`） |
+|---|---|---|
+| 总大小 | 127784 KB | **63808 KB**（**-50.1%**）|
+| 包数 | 52 | 52 |
+| 包内顶层 | `cache_repo_tmp_$$`（临时名） | `.git`（固定） |
+
+**原整目录格式备份**（用户 2026-11-14 要求保留）：`/_ext/x11base_tar_src/_cache_repo_legacy/`，52 个包、127768 KB，顶层仍为 `cache_repo_tmp_1028876`；与 `_cache_repo/` 名称集合一致（`diff` 空）。
+
+**验证（2026-11-14，受控实测，`fk-feh` + `file://` shallow clone）**：
+
+| 场景 | 结果 |
+|---|---|
+| 新格式快照命中 → 解包 + checkout | ✅ `$_dir/.git` 存在，工作树恢复 7 个顶层源码文件（AUTHORS / ChangeLog / config.mk / COPYING / examples…）|
+| `gitclone` 网络 clone 成功后打包 | ✅ 包内顶层**唯一**为 `.git` |
+| 旧整目录格式快照命中 | ✅ 显式报 `gitclone snapshot not .git-only (legacy?)` + `return 1`（错误不再被吞）|
+| 52 快照抽样无损核对 | ✅ `.git/objects` pack 文件数 新=2 / 原=2（fluxbox、v-ibus）|
+
+> 注：宿主直跑时 `/usr/local/static/.logs/cachesrc/` 无创建权限致 `cachesrc_log` 重定向报错（`common.sh:89`）——容器内该目录存在，`mkdir -p`（`common.sh:87`）正常，非代码问题。
