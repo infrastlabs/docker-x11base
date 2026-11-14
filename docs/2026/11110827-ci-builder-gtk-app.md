@@ -1078,9 +1078,28 @@ rootfs-dbg 里的产物**被 UPX 压缩过**：`upx -l` 报 `13468584 -> 5524780
 - 风险点：库层后 `gdk-pixbuf-io.c.o` 必被拉，若某应用靠"不拉它"规避过 png/jpeg 符号冲突会暴露（概率低，依赖已实测齐备）。
 - **用户拍板（2026-11-14）**：按方案 A 开工。
 
-##### 5.3.2、实施与验证结果（2026-11-14，实现后回填）
+##### 5.3.2、实施与验证结果（2026-11-14）
 
-> 待补充：patch 落地 → gdk_pixbuf 重编 → 验证 svg 注册（去 -u 后 lxtask/geany 编译测试）→ 结果。
+**实现**（三处源码改动，走 `u-gtk/build.sh gdk_pixbuf` 统一入口；patch 后**内联 python3** 修缮——patch hunk 方案多轮格式失败后弃用）：
+
+1. `gdk-pixbuf-io.c`：`static void gdk_pixbuf_io_init_builtin` → **导出** `void` + 幂等 guard（`static gboolean inited`，防 `gdk_pixbuf_io_init` 重复注册）；
+2. `gdk-pixbuf-io.h`：`G_END_DECLS` 前加 `void gdk_pixbuf_io_init_builtin (void);`;
+3. `gdk-pixbuf.c`：include `gdk-pixbuf-io.h` + `G_DEFINE_TYPE_WITH_CODE` 的 code 参数里追加 `gdk_pixbuf_io_init_builtin ();`（**get_type 必然执行**）。
+
+**踩坑（patch 落地）**：补丁 hunk 反复出格式问题——`@@` 计数不匹配、行尾 `\` 被当续行（malformed）、`index ..0000000` 被当新文件、hunk 间缺空行、**misordered hunks**（新 hunk 行号逆序）、多 hunk 同文件**新行号 offset**（hunk1 +1 行后 hunk2 新行号要 +1）、**dry-run rc=0 但 fuzz 错位未实际应用**（gdk-pixbuf.c 的 G_DEFINE hunk 就是此例）→ **弃用 patch hunk，改 build.sh 内联 python**（assert 校验 + 精确替换，稳定可维护）。
+
+**验证结果**：
+
+| 项 | 结果 |
+|---|---|
+| build.sh gdk_pixbuf | RC=0，主库 `libgdk_pixbuf-2.0.a`=1060160B（安装工具仍链接失败为已知坑，主库已备并手动装 `/usr/local/lib`+`/usr/lib`） |
+| 注册函数导出 | nm：`T gdk_pixbuf_io_init_builtin` + `b gdk_pixbuf_io_init_builtin.inited`（guard）|
+| 注册链自动成立 | nm：`gdk-pixbuf.c.o` **`U` 引用 `gdk_pixbuf_io_init_builtin`** → 应用拉 gdk-pixbuf.c.o 即自动拉注册方 gdk-pixbuf-io.c.o → io-svg.c.o |
+| svg loader | nm：`T _gdk_pixbuf__svg_fill_vtable` = 1 |
+| **去 -u lxtask**（方案 A 关键）| 编译 RC=0，`org.w3c.svg.static`=1（svg loader **自动进，应用无需 -u**）|
+
+**影响**：`v-lxde/build.sh` lxtask 已回退原 LIBS0（去掉双 -u，保留 `-lrsvg-2 -lcroco-0.6`）；CI 重建 gtk224-2（烤新 u-gtk）后，**各 gtk2 应用（geany/pcmanfm/lxappearance…）理论上均无需 -u**（`-lrsvg-2 -lcroco-0.6` 及缺的 `-lpng` 需保留/补齐），后续逐个回归。
+> ⚠️ 遗留：rootfs-dbg 实跑截图验证受容器读取通道限制未完成（机制链与产物已闭环，见 5.1 已实跑截图正常为 -u 版）。
 
 ## 六、xfce4 源码包收集与下载源（2026-11-13）【已拆出】
 
