@@ -62,15 +62,28 @@ function down_catfile(){
 # gitclone: 优先本地缓存 clone（tarsrc-git，宿主预克隆 gitee 仓库）；未命中回落网络 clone（不换源）。
 # 命中时 cp 保留 .git（xcbutil 等需 git submodule update --init）；submodule 本身的本地缓存由调用方 sed 指向。
 # 2026-11-13: 解决 CI gitee clone 抖动（Connection reset / 慢）致 b_deps 依赖未就位。
-# 2026-11-13: ②tar.gz 快照缓存（TARSRC/_cache_repo/，针对 gh/gitee 网络抖动）——网络 clone 成功打 <repo>-<ver>.tar.gz（含.git，只存不推，用户手动推 tarsrc）；
+# 2026-11-13: ②tar.gz 快照缓存（TARSRC/_cache_repo/，针对 gh/gitee 网络抖动）——网络 clone 成功打 <comp>-<repo>-<ver>.tar.gz（含.git，只存不推，用户手动推 tarsrc）；
 #   克隆前检查快照已有则解压复用跳过 clone；ver=--branch 值（去 --branch=），无则 default。优先级 GITCACHE(含.git) > tar.gz 快照 > 网络 clone。
+# 2026-11-14: 包名加组件前缀 _comp（归类标识）——按 TARGETPATH basename 匹配 /src 下 *xxx/ 组件目录（参考 down_catfile TARSRC 匹配），
+#   case 映射处理 basename 与目录名不一致（gsm→v-sysmonitor、dbus-glib→x-dbus）；TARGETPATH 空则 default。
 # safe.directory 全局 '*'（免仓库粒度逐个登记，容器内可信；git>=2.35.2 支持通配）。
 # 调用: gitclone <url> <dir> [branch]   branch 为空="" 则默认分支。
 gitclone() {
   _url=$1; _dir=$2; _br=${3:-}
   _repo=${_url##*/}
   _ver=${_br#--branch=}; test -n "$_ver" || _ver=default
-  _gz=${TARSRC:-/src/../tarsrc}/_cache_repo/$_repo-$_ver.tar.gz
+  # 组件前缀（2026-11-14）：TARGETPATH basename → /src 下 *xxx/ 目录（如 tint2→w-tint2）；case 映射复用 down_catfile；TARGETPATH 空→default
+  _comp=""
+  test -n "$TARGETPATH" && {
+    _comp=$(basename "$TARGETPATH")
+    case "$_comp" in
+      gsm)       _comp=v-sysmonitor ;;
+      dbus-glib) _comp=x-dbus ;;
+      *)         _comp=$(find "$(readlink -f /src 2>/dev/null)" -maxdepth 1 -type d -name "*$_comp" 2>/dev/null | head -1 | sed 's|.*/||') ;;
+    esac
+  }
+  test -n "$_comp" || _comp=default
+  _gz=${TARSRC:-/src/../tarsrc}/_cache_repo/$_comp-$_repo-$_ver.tar.gz
   _cache=${GITCACHE:-/src/../tarsrc-git}/$_repo
   if test -d "$_cache/.git"; then
     rm -rf "$_dir"; cp -a "$_cache" "$_dir"
@@ -84,7 +97,7 @@ gitclone() {
     rm -rf "$_dir"; mkdir -p "$(dirname "$_dir")"
     tar xzf "$_gz" -C "$(dirname "$_dir")"
     git config --global --add safe.directory '*' 2>/dev/null || true
-    log "gitclone tar.gz hit: $_repo-$_ver"
+    log "gitclone tar.gz hit: $_comp-$_repo-$_ver"
     return 0
   fi
   # ③网络 clone（未命中，不换源）
