@@ -131,7 +131,7 @@ gitclone() {
     # 缓存 .git owner 是宿主 uid, 容器 root 跑 git 会报 dubious ownership (feh 曾中招) → 全局登记豁免
     git config --global --add safe.directory '*' 2>/dev/null || true
     _ms=$(( $(_now_ms)-_t0 )); _size=$(du -sk "$_dir" 2>/dev/null | cut -f1)K
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" gitcache "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" gitcache "$_ver" "$_url" "$_ms" "$_dir"
     log "gitclone cached: $_repo"
     return 0
   fi
@@ -141,7 +141,7 @@ gitclone() {
     tar xzf "$_gz" -C "$(dirname "$_dir")"
     git config --global --add safe.directory '*' 2>/dev/null || true
     _ms=$(( $(_now_ms)-_t0 )); _size=$(stat -c%s "$_gz" 2>/dev/null)B
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" tarsrc "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" tarsrc "$_ver" "$_url" "$_ms" "$_dir"
     log "gitclone tar.gz hit: $_comp.$_repo-$_ver"
     return 0
   fi
@@ -155,9 +155,9 @@ gitclone() {
     mkdir -p "$(dirname "$_gz")"
     tar czf "$_gz" -C "$(dirname "$_dir")" "$(basename "$_dir")"
     _size=$(stat -c%s "$_gz" 2>/dev/null)B
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" net "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" net "$_ver" "$_url" "$_ms" "$_dir"
   else
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" 0B net-fail "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" 0B net-fail "$_ver" "$_url" "$_ms" "$_dir"
   fi
   test $_clone_rc -eq 0 || return $_clone_rc
 }
