@@ -27,7 +27,7 @@ git config --global --get http.sslVerify >/dev/null 2>&1 || git config --global 
 # rm -rf $LOGS; #avoid deleted @batch-mode
 function down_catfile(){
   CACHE=$TARGETPATH/../.cache; mkdir -p $CACHE #移到func内; gitac/syncer.sh调用时vm内执行 会权限故障;
-  _t0=$(date +%s)
+  _t0=$(_now_ms)
   url=$1
   file=${url##*/}
   comp=${TARGETPATH:+$(basename "$TARGETPATH")}; test -n "$comp" || comp=default
@@ -47,34 +47,34 @@ function down_catfile(){
         dbus-glib) TARSRC_COMP="$TARSRC/x-dbus" ;;         # dbus-glib 包在 x-dbus/ 下
         *)         TARSRC_COMP=$(ls -d "$TARSRC"/*"$comp"/ 2>/dev/null | head -1) ;;
       esac
-      _ms=$(( ($(date +%s)-_t0)*1000 ))
+      _ms=$(( $(_now_ms)-_t0 ))
       if test -n "$TARSRC_COMP" && test -s "$TARSRC_COMP/$file"; then
         cp "$TARSRC_COMP/$file" "$CACHE/$file"
         cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc "$ver" "$url" "$_ms" "$TARSRC_COMP/$file"
         exit 0
       elif test -n "$TARSRC_COMP"; then
         hit=$(ls "$TARSRC_COMP"/*"$ver"* 2>/dev/null | head -1)
-        test -n "$hit" && { cp "$hit" "$CACHE/$file"; cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc-fuzzy "$ver" "$url" "$_ms" "$hit"; exit 0; }
+        test -n "$hit" && { cp "$hit" "$CACHE/$file"; cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc "$ver" "$url" "$_ms" "$hit"; exit 0; }
       fi
       hit=$(find "$TARSRC" -name "$file" -type f 2>/dev/null | head -1)
-      test -n "$hit" && { cp "$hit" "$CACHE/$file"; cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc-find "$ver" "$url" "$_ms" "$hit"; }
+      test -n "$hit" && { cp "$hit" "$CACHE/$file"; cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc "$ver" "$url" "$_ms" "$hit"; }
     ) >/dev/null 2>&1 || true
   fi
   # ② 无则源头下载（tarsrc 命中后 CACHE 已有则不 curl；_curl_ran 区分真 curl 以记日志）
   _curl_ran=0
   test -s $CACHE/$file || { curl -# -k -fSL $url > $CACHE/$file; _curl_ran=1; }
-  _ms=$(( ($(date +%s)-_t0)*1000 ))
+  _ms=$(( $(_now_ms)-_t0 ))
   if test $_curl_ran -eq 1; then
     if test -s "$CACHE/$file"; then
-      cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" curl "$ver" "$url" "$_ms" "$CACHE/$file"
+      cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" net "$ver" "$url" "$_ms" "$CACHE/$file"
     else
-      cachesrc_log downcatfile "$comp" "$file" 0B curl-fail "$ver" "$url" "$_ms" "$CACHE/$file"
+      cachesrc_log downcatfile "$comp" "$file" 0B net-fail "$ver" "$url" "$_ms" "$CACHE/$file"
     fi
   fi
   cat $CACHE/$file
 }
 # cachesrc_log: gitclone/down_catfile 缓存与下载明细日志（用户 2026-11-14）——增量追加 /usr/local/static/.logs/cachesrc/<文件名>.log，每次调用一行。
-# 格式: 时间|字段|...   （字段由调用方传：组件|包|大小|缓存命中|ver|url|耗时ms|路径，详细明细；hit=GITCACHE|tarsrc|tarsrc-fuzzy|tarsrc-find|network|network-fail|curl|curl-fail）
+# 格式: 时间|字段|...   （字段由调用方传：组件|包|大小|缓存命中|ver|url|耗时ms|路径，详细明细；hit 统一小写=gitcache|tarsrc|net|net-fail）
 # 调用: cachesrc_log <文件名> <字段...>  增量>>追加不清空；同目录不同文件（gitclone / downcatfile 各一）。
 cachesrc_log(){
   _clog=/usr/local/static/.logs/cachesrc/$1.log
@@ -83,6 +83,8 @@ cachesrc_log(){
   mkdir -p "$(dirname "$_clog")" 2>/dev/null || true
   { printf '%s' "$_ts"; for _f in "$@"; do printf '|%s' "$_f"; done; printf '\n'; } >> "$_clog"
 }
+# _now_ms: 单调时钟毫秒（/proc/uptime 秒.小数*1000；busybox date 无 %N 故不用 date，保证快速命中耗时也真实记录）
+_now_ms(){ awk '{printf "%d",$1*1000}' /proc/uptime 2>/dev/null || echo 0; }
 # gitclone: 优先本地缓存 clone（tarsrc-git，宿主预克隆 gitee 仓库）；未命中回落网络 clone（不换源）。
 # 命中时 cp 保留 .git（xcbutil 等需 git submodule update --init）；submodule 本身的本地缓存由调用方 sed 指向。
 # 2026-11-13: 解决 CI gitee clone 抖动（Connection reset / 慢）致 b_deps 依赖未就位。
@@ -94,7 +96,7 @@ cachesrc_log(){
 # 调用: gitclone <url> <dir> [branch]   branch 为空="" 则默认分支。
 gitclone() {
   _url=$1; _dir=$2; _br=${3:-}
-  _t0=$(date +%s)
+  _t0=$(_now_ms)
   _repo=${_url##*/}
   _ver=${_br#--branch=}; test -n "$_ver" || _ver=default
   # 组件前缀（2026-11-14）：TARGETPATH basename → /src 下 *xxx/ 目录（如 tint2→w-tint2）；case 映射复用 down_catfile；TARGETPATH 空→default
@@ -115,8 +117,8 @@ gitclone() {
     rm -rf "$_dir"; cp -a "$_cache" "$_dir"
     # 缓存 .git owner 是宿主 uid, 容器 root 跑 git 会报 dubious ownership (feh 曾中招) → 全局登记豁免
     git config --global --add safe.directory '*' 2>/dev/null || true
-    _ms=$(( ($(date +%s)-_t0)*1000 )); _size=$(du -sk "$_dir" 2>/dev/null | cut -f1)K
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" GITCACHE "$_ver" "$_url" "$_ms" "$_dir"
+    _ms=$(( $(_now_ms)-_t0 )); _size=$(du -sk "$_dir" 2>/dev/null | cut -f1)K
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" gitcache "$_ver" "$_url" "$_ms" "$_dir"
     log "gitclone cached: $_repo"
     return 0
   fi
@@ -125,7 +127,7 @@ gitclone() {
     rm -rf "$_dir"; mkdir -p "$(dirname "$_dir")"
     tar xzf "$_gz" -C "$(dirname "$_dir")"
     git config --global --add safe.directory '*' 2>/dev/null || true
-    _ms=$(( ($(date +%s)-_t0)*1000 )); _size=$(stat -c%s "$_gz" 2>/dev/null)B
+    _ms=$(( $(_now_ms)-_t0 )); _size=$(stat -c%s "$_gz" 2>/dev/null)B
     cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" tarsrc "$_ver" "$_url" "$_ms" "$_dir"
     log "gitclone tar.gz hit: $_comp.$_repo-$_ver"
     return 0
@@ -134,15 +136,15 @@ gitclone() {
   _clone_rc=0
   if test -n "$_br"; then git clone --depth=1 "$_br" "$_url" "$_dir" || _clone_rc=$?
   else git clone --depth=1 "$_url" "$_dir" || _clone_rc=$?; fi
-  _ms=$(( ($(date +%s)-_t0)*1000 ))
+  _ms=$(( $(_now_ms)-_t0 ))
   # 克隆成功后打 tar.gz 快照（含.git；只存不推，用户手动推送 tarsrc）
   if test -d "$_dir/.git"; then
     mkdir -p "$(dirname "$_gz")"
     tar czf "$_gz" -C "$(dirname "$_dir")" "$(basename "$_dir")"
     _size=$(stat -c%s "$_gz" 2>/dev/null)B
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" network "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" "$_size" net "$_ver" "$_url" "$_ms" "$_dir"
   else
-    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" 0B network-fail "$_ver" "$_url" "$_ms" "$_dir"
+    cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver" 0B net-fail "$_ver" "$_url" "$_ms" "$_dir"
   fi
   test $_clone_rc -eq 0 || return $_clone_rc
 }
