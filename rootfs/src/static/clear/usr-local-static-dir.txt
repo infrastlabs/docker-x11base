@@ -1,6 +1,6 @@
 # # root@deb1013:/usr/local/static# find /usr/local/static/ -maxdepth 3 -type d |sort
 /usr/local/static/.cache
-/usr/local/static/.logs
+# /usr/local/static/.logs
 # /usr/local/static/dropbear
 # /usr/local/static/dropbear/bin
 # /usr/local/static/dropbear/sbin
@@ -132,7 +132,7 @@
 # /usr/local/static/lxde/lib/pkgconfig
 # /usr/local/static/lxde/share
 # /usr/local/static/lxde/share/applications
-/usr/local/static/lxde/share/locale
+# /usr/local/static/lxde/share/locale
 # /usr/local/static/lxde/share/lxappearance
 # /usr/local/static/lxde/share/man
 
@@ -145,7 +145,7 @@
 # /usr/local/static/tigervnc
 # /usr/local/static/xrdp
 # /usr/local/static/fluxbox
-#/usr/local/static/openbox
+# /usr/local/static/openbox
 # /usr/local/static/pulseaudio
 # /usr/local/static/suckless
 # /usr/local/static/xcompmgr
@@ -153,7 +153,18 @@
 #/usr/local/static/tint2
 #/usr/local/static/xlunch
 # /usr/local/static/lxde
-/usr/local/static/pcmanfm
+# /usr/local/static/pcmanfm
 # cmisc
 /usr/local/static/misc/share
+
+### 261116; xfce4-disp-settings@static/xfce4
+/usr/local/static/xfce
+/usr/local/static/thunar
+/usr/local/static/ristretto
+/usr/local/static/exif
+/usr/local/static/feh
+/usr/local/static/hsetroot
+/usr/local/static/xlunch
+/usr/local/static/temp1
+# /usr/local/static/temp1
 
