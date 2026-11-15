@@ -88,30 +88,20 @@ PYEOF
     meson build  --default-library=static -Dbuiltin_loaders=png,jpeg,svg -Dintrospection=disabled #static only .a; 2026-11-14: introspection 禁用——否则 GdkPixbuf-2.0 临时二进制链新 .a 缺 librsvg 依赖→ninja cannot make progress→install 没跑
 
   log "Compiling gdk-pixbuf..."
-    # 去除xsltproc;
-    dst=/usr/bin/xsltproc
-    mv $dst ${dst}00
-    touch $dst; chmod +x $dst
-    echo -e "!/bin/bash\n echo 123" > $dst
+    # 2026-11-15 源头修（不再 ninja 全量 + install）：
+    #   builtin 之外的 loader，meson 会当共享模块(libpixbufloader-*.so)链接；每条 .so 都把
+    #   libgdk_pixbuf-2.0.a + libstaticpixbufloader-*.a + librsvg-2.a + libcairo.a/libintl.a/libxml2.a
+    #   整链拉进 -shared → non-PIC(cairo/intl) → "relocation R_X86_64_TPOFF32/PC32 can not be used
+    #   when making a shared object" → 12 连败(error 刷屏, 原 oneBuild 吞成 err 0,pass + install 兜底 cp
+    #   均治标)。我们只需主静态库(含 png/jpeg/svg builtin loader, ar 自证 io-svg.c.o ∈ .a) →
+    #   只编该 ninja 目标即可绕开一切 .so 链接与 query-loaders/csource 工具。
+    ninja -C build gdk-pixbuf/libgdk_pixbuf-2.0.a || { log "GDKPIXBUF NINJA FAILED"; exit 1; }
 
-    # make
-    ninja -C build
-
-  log "Installing gdk-pixbuf..."
-    touch build/docs/gdk-pixbuf-csource.1
-    touch build/docs/gdk-pixbuf-query-loaders.1
-    # make install
-    ninja -C build install
-  # 2026-11-14: ninja install 的 query-loaders/csource 工具链接失败会中止(照 AGENTS 三章3)——主库其实已编出(build/), 但 install 失败则 /usr/local/lib 无新库;
-  #   CI 全自动路径(round buildx gtk224 b_deps)即此处暴露: ls/cp 找不到 .a → doExec FAIL → b_deps exit 1。
-  #   兜底: 主库未落地时从 build/ 手动 cp(留意 base 镜像 /usr/local/lib 若有旧库也应覆盖)。
-  if [ ! -f /usr/local/lib/libgdk_pixbuf-2.0.a ]; then
-    ls -lh build/gdk-pixbuf/libgdk_pixbuf-2.0.a 2>&1
+  log "Installing gdk-pixbuf (manual .a cp)..."
+    # 头文件/.pc 沿用 apk gdk-pixbuf-dev 既有，下游 pkg-config gdk-pixbuf-2.0 → -L/usr/lib → 命中本 .a
     cp -f build/gdk-pixbuf/libgdk_pixbuf-2.0.a /usr/local/lib/ || { log "GDKPIXBUF LIB CP FAILED"; exit 1; }
-  fi
-  ls -lh /usr/local/lib/libgdk_pixbuf-2.0.a #hand: 1016.6K> build.sh_ver2.40.0_hand: 807.2K
-  cp /usr/local/lib/libgdk_pixbuf-2.0.a /usr/lib/ #1016.4K @alpine's_ver_2.42.8
-  # cp ./build/gdk-pixbuf/libgdk_pixbuf-2.0.a
+    ls -lh /usr/local/lib/libgdk_pixbuf-2.0.a #hand: 1016.6K> build.sh_ver2.40.0_hand: 807.2K
+    cp -f /usr/local/lib/libgdk_pixbuf-2.0.a /usr/lib/ #1016.4K @alpine's_ver_2.42.8
 }
 
 # You must have automake 1.7.x, 1,10.x, 1.11.x, 1.12.x, 1.13.x, 1.14.x
