@@ -145,7 +145,22 @@ function c_gtkmm(){
   cd /tmp/gtkmm-src/gtkmm-2.24.5
   mkcfg
   ./configure --enable-static --disable-shared --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
+  # 2026-11-15: 方案 A(u-gtk 库层 png/jpeg/svg loader 编入 libgdk_pixbuf-2.0.a)后,
+  #   gdkmm 构建期工具 tools/extra_defs_gen/generate_extra_defs 链接 $(GTKMM_LIBS)
+  #   (configure 取 pkg-config 非 static, 不展开 Requires.private → 缺 loader 依赖)
+  #   → 链 libgdk_pixbuf-2.0.a 时 io-png/io-jpeg/io-svg 整链拉入
+  #   → undefined png_read_end/jpeg_*/rsvg_* (CI gtkmm224 buildx 实测, 报 png_read_end@@PNG16_0)。
+  #   make 覆盖 GTKMM_LIBS: 保留 configure 同款模块集(非 static), 追加 loader 依赖
+  #   (-lpng16/-ljpeg/-lrsvg-2 等, 顺序在 -lgdk_pixbuf-2.0 之后, 提供方在后)
+  #   → generate_extra_defs 链接齐依赖; 同时 libgtkmm-2.4.la dependency_libs 也带(下游 gtk2 应用有益)。
+  #   注: 不用整包 pkg-config --static(会展开出无 .a 的库如 cups/Xi → cannot find -l)。
+  #   2026-11-16: -ljpeg 改绝对路径 /usr/lib/libjpeg.a——generate_extra_defs 是动态链模式(LDFLAGS 无 -static),
+  #     ld -ljpeg 优先 libjpeg.so(带版本符号 @@LIBJPEG_8.0), CI 实测 io-jpeg.c.o undefined jpeg_input_complete@@LIBJPEG_8.0;
+  #     .a 无版本符号天然规避(本地 libtool -v 模拟 RC=0; 后面 librsvg.la 展开的 -ljpeg 会被 --as-needed 丢弃)。
+  local GTKMM_LIBS_BASE="$(pkg-config --libs atkmm-1.6 giomm-2.4 pangomm-1.4 gtk+-2.0 gtk+-unix-print-2.0)"
+  local GTKMM_LIBS_EXTRA="-lpng16 /usr/lib/libjpeg.a -lz -llzma -lzstd -lgmodule-2.0 -lrsvg-2 -lcroco-0.6 -lxml2"
+  make -j${PARALLEL_JOBS:-$(nproc)} GTKMM_LIBS="$GTKMM_LIBS_BASE $GTKMM_LIBS_EXTRA"
+  make install GTKMM_LIBS="$GTKMM_LIBS_BASE $GTKMM_LIBS_EXTRA"
   [ -f /usr/lib/libgtkmm-2.4.a ] || cp "$(find . -name libgtkmm-2.4.a 2>/dev/null | head -1)" /usr/lib/
   [ -f /usr/lib/libgdkmm-2.4.a ] || cp "$(find . -name libgdkmm-2.4.a 2>/dev/null | head -1)" /usr/lib/
 }
