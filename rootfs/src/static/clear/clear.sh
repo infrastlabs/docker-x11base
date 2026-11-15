@@ -22,6 +22,10 @@ upx -V
 #     |-- [ 15M]  frps
 #     `-- [ 24K]  tini
 find /rootfs/usr/local/static -type f |grep -E "/sbin/|/bin/" |grep -v "/3rd/bin/upx" |sort |while read one; do
+  # 只 upx ELF 二进制；脚本(shebang #!)跳过——UPX --shell 压 bash/sh 脚本运行会坏(genentries 报 can: command not found)
+  # 纯 bash 内置判文件头魔数(零外部命令, 不依赖 file/od): read -N4 读前4字节, = \177ELF 才是 ELF
+  magic=""; IFS= read -r -N4 magic < "$one" 2>/dev/null || true
+  test "$magic" = "$(printf '\177ELF')" || { echo -e "\n[skip script] $one"; continue; }
   echo -e "\n[upx] $one"
   du -sh $one
   upx -7 $one > /dev/null 2>&1 #-7: ref webhookd
