@@ -45,13 +45,14 @@ RUN apt.sh \
   greybird-gtk-theme \
   fonts-dejavu fonts-wqy-microhei language-pack-gnome-zh-hans; \
   \
-  ls -lh /usr/share/fonts; find /usr/share/fonts |sort; \
+  ls -lh /usr/share/fonts; find /usr/share/fonts |sort |wc; \
   rm -f /usr/share/backgrounds/greybird.svg;
 
 # split papirus-icon-theme: none@1604,1404
 # bunsen-papirus-icon-theme> papirus-icon-theme; ERR: 14.04 16.04 1804?
 RUN echo a.123; \
   apt.sh \
+  shared-mime-info \
   papirus-icon-theme; \
   \
   # 清理ubt自带图标, keep项: hicolor 
@@ -87,6 +88,8 @@ FROM scratch AS res
   COPY --from=ubt /etc/locale.gen /etc/locale.gen
   COPY --from=ubt /etc/default/locale /etc/default/locale
   #COPY --from=ubt /usr/share/
+  # 261117-mime
+  COPY --from=ubt /usr/share/mime /usr/share/mime
 
 
 ##FROM.ARG: must @top
@@ -217,7 +220,7 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
     # curl -k -O -fSL >> wget
     cd /rootfs/usr/local/webhookd/static; \
     file=v1.3.0.tar.gz; wget --no-check-certificate https://gitee.com/infrastlabs/fk-webhookd/releases/download/v22.08.18/$file; \
-    find |sort; \
+    find |sort |wc; \
     bash down_vnc.sh; rm -f $file; \
     \
     # test -s /rootfs/usr/local/webhookd/webhookd || exit 1; \
@@ -281,7 +284,9 @@ RUN apk add --no-cache \
   bash curl wget \
   sed grep gawk findutils sudo tree unzip procps htop \
   expect shadow \
-  jq sysstat lame iproute2-ss net-tools; \
+  jq sysstat lame iproute2-ss net-tools \
+  # shared-mime-info \
+  ; \
   chmod u+s /bin/ping;
 # fontconfig>> ttf-dejavu
 # RUN apk add --no-cache \
@@ -292,6 +297,8 @@ RUN apk add --no-cache \
 COPY --from=files1 /rootfs /rootfs/files1
 COPY --from=files2 /rootfs /rootfs/files2
 COPY --from=res / /rootfs/res_ubt_share
+# 261115: 带 base 构建标记(NOCACHE.gtk=<时间>)进部署镜像，便于对应当时 base
+COPY --from=bin2 /tmp/NOCACHE /tmp/
 
 ENV \
   TERM=xterm \
