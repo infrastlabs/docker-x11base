@@ -1,6 +1,7 @@
 ARG REPO=
 ARG VER=20.04
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 
 # TOOD origin-hub's sync to ${REPO}
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--ubuntu---${VER}
