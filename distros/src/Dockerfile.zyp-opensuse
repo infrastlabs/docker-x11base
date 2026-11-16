@@ -1,6 +1,7 @@
 ARG REPO=
 ARG VER=15.5
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 
 # FROM opensuse/leap:${VER}
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:opensuse--leap---${VER}
