@@ -30,6 +30,7 @@ function doBuildx(){
     compile="alpine-compile"; flux=rootfs #fluxbox
     plat="$PLAT0" #,linux/arm
     # plat="--platform linux/amd64" #dbg
+    test ! -z "$ENV_PLAT" && plat=$ENV_PLAT;
     test "$plat" != "$PLAT0" && compile="${compile}-dbg"
     test "$plat" != "$PLAT0" && img="${img}-dbg"
     test "$plat" != "$PLAT0" && cimg="${cimg}-dbg"
@@ -70,13 +71,14 @@ function doBuildx(){
         docker tag ${repo1}armsr-armv8-openwrt-23.05 $dst-arm64; docker push $dst-arm64
         docker tag ${repo1}arm_cortex-a9_vfpv3-d16-openwrt-23.05 $dst-arm; docker push $dst-arm
     fi
-    
+    test -z "$ENV_ROOTFS" && ENV_ROOTFS=rootfs; local rootfs=$ENV_ROOTFS
     args="""
     --provenance=false 
     --build-arg COMPILE_IMG=$compile
     --build-arg REPO=$repo/
     --build-arg TYPE=$type
     --build-arg VER=$dver
+    --build-arg ROOTFS=$rootfs
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
     """
       # export REPO_ALI=registry.cn-shenzhen.aliyuncs.com
