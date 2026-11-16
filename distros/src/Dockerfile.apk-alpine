@@ -1,7 +1,8 @@
 # - FromAsCasing: 'as' and 'FROM' keywords' casing do not match (line 2)
 ARG REPO=
 ARG VER=3.19
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 
 ## ref kube-cmd/src/Dockerfile
 # FROM alpine:3.13.12
