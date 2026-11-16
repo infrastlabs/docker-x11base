@@ -209,7 +209,7 @@ RUN rm -rf /rootfs; mkdir -p /rootfs${TARGETPATH}/bin /rootfs${TARGETPATH}/share
 # validate
 RUN du -sh /rootfs; \
   /rootfs/usr/bin/Xvnc -version; \
-  find /rootfs -type f |sort
+  find /rootfs -type f |grep -E "/bin|/sbin" |sort |head -3
 
 # deb12
 RUN apt.sh \
