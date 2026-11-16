@@ -1,0 +1,3 @@
+# 2026-11-16: 排除 tarsrc/.git（112M）——容器内 /tarsrc 只需 README.md(仓库标识)+_cache_repo+组件包；
+# down_catfile 已改按 $TARSRC/README.md 识别 tarsrc（common.sh:41），故排除 .git 不影响命中。
+tarsrc/.git
