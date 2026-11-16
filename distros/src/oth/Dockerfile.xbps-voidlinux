@@ -1,6 +1,7 @@
 ARG REPO=
 # ARG VER=39
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 # FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:void-linux--void-glibc-busybox---latest
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:void-linux--void-glibc-full---latest
 RUN \

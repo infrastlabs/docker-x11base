@@ -1,6 +1,7 @@
 ARG REPO=
 ARG VER=1.36.1
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--busybox---${VER}
 # # sed grep gawk bash; curl wget
 # RUN apk add --no-cache \

@@ -1,6 +1,7 @@
 ARG REPO=
 ARG VER=23.05
-FROM ${REPO}infrastlabs/x11-base:rootfs AS rootfs
+ARG ROOTFS=rootfs
+FROM ${REPO}infrastlabs/x11-base:${ROOTFS} AS rootfs
 # BUILDPLATFORM、TARGETOS、TARGETARCH、TARGETPLATFORM四个变量是BuildKit提供的全局变量,
 #  分别表示构建镜像所在平台、操作系统、架构、构建镜像的目标平台
 
