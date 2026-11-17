@@ -140,6 +140,17 @@ function gnome_system_monitor(){
     # 磁盘 tab 卡顿修复 patch（两分支统一应用；.gsm 源码亦不含，见 2026-11-08）
     git apply /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null \
       || patch -p1 < /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null || true
+    # 2026-11-17: tab 顺序调整（System 移最后 + 枚举顺序一致）+ 默认激活 Processes（强制 current_tab + CLAMP 边界修复，见 docs/2026/11170850-selected-app-use.md 1.2）
+    git apply /src/v-sysmonitor/gsm-tab-order.patch 2>/dev/null \
+      || patch -p1 < /src/v-sysmonitor/gsm-tab-order.patch 2>/dev/null || true
+    # 2026-11-18: 退出 segfault + 配置不生效修复（cb_app_delete 先停 timeout/置 quitting 标志，cb_timeout/cb_update_disks 防护；见 docs/2026/11170850-selected-app-use.md 1.4）
+    git apply /src/v-sysmonitor/gsm-exit-crash.patch 2>/dev/null \
+      || patch -p1 < /src/v-sysmonitor/gsm-exit-crash.patch 2>/dev/null || true
+    # 2026-11-18: 列配置持久化修复（destroy 期间 columns-changed 连发→save_tree_state 把递减/空 columns_order
+    # 写入覆盖已存顺序→重开回默认；cb_columns_changed/cb_disk_columns_changed 加 gsm_procman_quitting 守卫；
+    # 列显隐 field_toggled 的 set_visible 不触发 columns-changed→手动发信号持久化）
+    git apply /src/v-sysmonitor/gsm-column-persist.patch 2>/dev/null \
+      || patch -p1 < /src/v-sysmonitor/gsm-column-persist.patch 2>/dev/null || true
 
   log "Configuring GSM (GTK2, static only)..."
     ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm >/tmp/gsm-cfg.log 2>&1 || true
@@ -206,10 +217,12 @@ cache)
     # down_catfile $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz > /dev/null
     ;;
 full)
-    doExec build_gtop
-    doExec build_wnck
-    doExec build_startup_notification
-    doExec gnome_system_monitor
+    # 显式 || exit 1: 不依赖 set -e 隐式捕获——doExec 返回 rc, 任一失败立即退出
+    # (尾部 exit 0 仅在所有 doExec 成功时到达; set -e 关掉/调用上下文变化也不掩盖)
+    doExec build_gtop || exit 1
+    doExec build_wnck || exit 1
+    doExec build_startup_notification || exit 1
+    doExec gnome_system_monitor || exit 1
     ;;
 b_deps)
     # 静态库依赖检查

@@ -1,4 +1,4 @@
-diff -ruN a/configure b/configure
+diff --git a/configure b/configure
 --- a/configure	2026-11-06 01:22:31.190347741 +0800
 +++ b/configure	2026-11-06 01:22:31.210347843 +0800
 @@ -16811,12 +16811,12 @@
@@ -51,7 +51,7 @@ diff -ruN a/configure b/configure
  
  $PROCMAN_PKG_ERRORS
  
-diff -ruN a/configure.in b/configure.in
+diff --git a/configure.in b/configure.in
 --- a/configure.in	2026-11-06 01:22:31.190347741 +0800
 +++ b/configure.in	2026-11-06 01:22:31.210347843 +0800
 @@ -37,7 +37,7 @@
@@ -73,10 +73,11 @@ diff -ruN a/configure.in b/configure.in
  GETTEXT_PACKAGE=gnome-system-monitor
  AC_SUBST(GETTEXT_PACKAGE)
  AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE",
-diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
---- a/src/gconf-shim.h	1970-01-01 08:00:00.000000000 +0800
+diff --git a/src/gconf-shim.h b/src/gconf-shim.h
+new file mode 100644
+--- /dev/null	1970-01-01 08:00:00.000000000 +0800
 +++ b/src/gconf-shim.h	2026-11-06 01:22:31.222347904 +0800
-@@ -0,0 +1,525 @@
+@@ -0,0 +1,598 @@
 +/* gconf-shim.h
 + *
 + * Minimal GConf-compatible shim backed by GKeyFile, replacing libgconf
@@ -141,13 +142,28 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +  guint id;
 +} GConfNotify;
 +
++static void
++gconf_shim_notify_list_free (gpointer data)
++{
++  GSList *list = (GSList*)data;
++  GSList *it;
++  for (it = list; it; it = it->next)
++    g_free (it->data); /* GConfNotify* */
++  g_slist_free (list);
++}
++
 +struct GConfClient {
 +  GKeyFile *kf;
 +  gchar *file;
 +  GHashTable *values; /* gchar* key -> GConfValue* */
 +  GHashTable *notify; /* gchar* key -> GSList* of GConfNotify* */
 +  guint next_id;
++  gboolean dirty; /* 2026-11-18: 脏标记；set 只置脏，写盘交给 sync/autosave/atexit */
 +};
++
++/* 2026-11-18: 跨 TU 共享的全局单例（inline 函数内 static 会每个 .cpp 各一份 → 数据分裂/配置互相覆盖）。
++ * 定义在 procman.cpp（含 main），此处仅 extern 声明。 */
++extern GConfClient *gsm_gconf_shim_client;
 +
 +/* ---- internal helpers ---- */
 +
@@ -208,6 +224,9 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +{
 +  if (!g_file_test (c->file, G_FILE_TEST_EXISTS))
 +    return;
++  /* 2026-11-18: 修重开尺寸恢复——GKeyFile c->kf 从未从磁盘加载，values 恒空 → get_int 恒 0。
++   * 首次启动(无 ini)仍走默认；有 ini 时把内容装入 kf 再遍历。 */
++  g_key_file_load_from_file (c->kf, c->file, G_KEY_FILE_NONE, NULL);
 +  gsize len = 0;
 +  GError *err = NULL;
 +  gchar **groups = g_key_file_get_groups (c->kf, &len);
@@ -261,9 +280,14 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +  g_strfreev (groups);
 +}
 +
++/* 2026-11-18: 原 persist 每次 set 都全量 remove_group+遍历+save_to_file，
++ * gsm 退出时 procman_save_config 连发 46 项 set → 46 次全量写盘 → 关闭卡顿 ~2.5s。
++ * 改：set 只置脏(O(1))，写盘统一由 sync / 2s autosave / atexit 触发。 */
 +static void
-+gconf_shim_persist (GConfClient *c)
++gconf_shim_save (GConfClient *c)
 +{
++  if (!c || !c->dirty)
++    return;
 +  g_key_file_remove_group (c->kf, "procman", NULL);
 +  GHashTableIter iter;
 +  gpointer key, val;
@@ -298,6 +322,28 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +  g_mkdir_with_parents (dir, 0755);
 +  g_free (dir);
 +  g_key_file_save_to_file (c->kf, c->file, NULL);
++  c->dirty = FALSE;
++}
++
++static void
++gconf_shim_persist (GConfClient *c)
++{
++  if (c)
++    c->dirty = TRUE;
++}
++
++static gboolean
++gconf_shim_autosave (gpointer data)
++{
++  gconf_shim_save ((GConfClient*)data);
++  return TRUE;
++}
++
++/* atexit 兜底：正常退出把脏数据落盘，不依赖调用方是否调 suggest_sync */
++static void
++gconf_shim_exit_save (void)
++{
++  gconf_shim_save (gsm_gconf_shim_client);
 +}
 +
 +static void
@@ -310,33 +356,43 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +  GConfEntry entry;
 +  entry.key = (gchar*)key;
 +  entry.value = gconf_shim_clone_value (stored);
-+  for (GSList *it = list; it; it = it->next) {
++  GSList *copy = g_slist_copy (list);
++  for (GSList *it = copy; it; it = it->next) {
 +    GConfNotify *n = (GConfNotify*)it->data;
 +    n->cb (c, n->id, &entry, n->user_data);
 +  }
++  g_slist_free (copy);
 +  gconf_shim_free_value (entry.value);
 +}
 +
 +/* ---- public API ---- */
 +
++/* 2026-11-18: 单例必须跨 TU 共享。
++ * 原实现 inline 函数内 `static GConfClient *instance`：shim 经 procman.h 被
++ * 16 个 .cpp 包含 → 每个 TU 各一份 instance（各自 g_new0 + 各自 load），
++ * persist 又全量重写同一文件 → 后写的 TU 抹掉先写的项（width/height 被列宽覆盖）。
++ * 改 g_private（按固定 id 全局索引）后所有 TU 共享同一实例。 */
 +inline GConfClient *
 +gconf_client_get_default (void)
 +{
-+  static GConfClient *instance = NULL;
-+  if (!instance) {
-+    instance = (GConfClient*)g_new0 (GConfClient, 1);
-+    instance->kf = g_key_file_new ();
-+    instance->file = g_build_filename (g_get_user_config_dir (),
-+                                       "gnome-system-monitor",
-+                                       "procman.ini", NULL);
-+    instance->values = g_hash_table_new_full (g_str_hash, g_str_equal,
-+                                              g_free, (GDestroyNotify)gconf_shim_free_value);
-+    instance->notify = g_hash_table_new_full (g_str_hash, g_str_equal,
-+                                              g_free, (GDestroyNotify)g_slist_free);
-+    instance->next_id = 1;
-+    gconf_shim_load (instance);
++  GConfClient *c = gsm_gconf_shim_client;
++  if (!c) {
++    c = (GConfClient*)g_new0 (GConfClient, 1);
++    c->kf = g_key_file_new ();
++    c->file = g_build_filename (g_get_user_config_dir (),
++                               "gnome-system-monitor",
++                               "procman.ini", NULL);
++    c->values = g_hash_table_new_full (g_str_hash, g_str_equal,
++                                      g_free, (GDestroyNotify)gconf_shim_free_value);
++    c->notify = g_hash_table_new_full (g_str_hash, g_str_equal,
++                                       g_free, (GDestroyNotify)gconf_shim_notify_list_free);
++    c->next_id = 1;
++    gconf_shim_load (c);
++    gsm_gconf_shim_client = c;
++    atexit (gconf_shim_exit_save);
++    g_timeout_add_seconds (2, gconf_shim_autosave, c);
 +  }
-+  return instance;
++  return c;
 +}
 +
 +inline void
@@ -357,7 +413,7 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +{
 +  (void)err;
 +  if (client)
-+    gconf_shim_persist (client);
++    gconf_shim_save (client); /* 2026-11-18: sync = 真正写盘（set 只置脏） */
 +}
 +
 +inline gboolean
@@ -523,8 +579,14 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +  n->user_data = user_data;
 +  n->id = client->next_id++;
 +  GSList *list = (GSList*)g_hash_table_lookup (client->notify, (gpointer)key);
-+  list = g_slist_append (list, n);
-+  g_hash_table_insert (client->notify, g_strdup (key), list);
++  if (list) {
++    /* 同 key 二次 add：g_slist_append 就地扩展链表，头节点仍被表引用；
++       不得再 insert（否则 value_destroy 会 free 旧节点 → 链表留悬挂指针） */
++    g_slist_append (list, n);
++  } else {
++    list = g_slist_append (NULL, n);
++    g_hash_table_insert (client->notify, g_strdup (key), list);
++  }
 +  return n->id;
 +}
 +
@@ -533,6 +595,8 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +{
 +  if (!client || !cnxn_id)
 +    return;
++  gchar *found_key = NULL;
++  GSList *new_list = NULL;
 +  GHashTableIter iter;
 +  gpointer key, val;
 +  g_hash_table_iter_init (&iter, client->notify);
@@ -547,15 +611,25 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +        else
 +          list = it->next;
 +        g_free (n);
-+        g_free (it);
-+        if (list)
-+          g_hash_table_replace (client->notify, g_strdup ((gchar*)key), list);
-+        else
-+          g_hash_table_remove (client->notify, (gpointer)key);
-+        return;
++        /* it 是 g_slist_append 分配（glib g_slice 分配器），必须用 g_slist_free1
++           释放（g_free=musl free 会把 g_slice slab 对象当 mallocng chunk → get_meta 崩溃） */
++        g_slist_free1 (it);
++        found_key = g_strdup ((gchar*)key);
++        new_list = list;
++        break;
 +      }
 +      prev = it;
 +    }
++    if (found_key)
++      break;
++  }
++  if (found_key) {
++    /* GLib 禁止迭代中修改哈希表；steal 旧值绕过 value_destroy（旧节点已手动摘除/释放） */
++    g_hash_table_steal (client->notify, found_key);
++    if (new_list)
++      g_hash_table_insert (client->notify, found_key, new_list);
++    else
++      g_free (found_key);
 +  }
 +}
 +
@@ -602,7 +676,7 @@ diff -ruN a/src/gconf-shim.h b/src/gconf-shim.h
 +#endif
 +
 +#endif /* _PROCMAN_GCONF_SHIM_H_ */
-diff -ruN a/src/openfiles.cpp b/src/openfiles.cpp
+diff --git a/src/openfiles.cpp b/src/openfiles.cpp
 --- a/src/openfiles.cpp	2026-11-06 01:22:31.206347823 +0800
 +++ b/src/openfiles.cpp	2026-11-06 01:22:31.222347904 +0800
 @@ -67,7 +67,7 @@
@@ -614,18 +688,64 @@ diff -ruN a/src/openfiles.cpp b/src/openfiles.cpp
  		goto failsafe;
  
  	if (res) freeaddrinfo(res);
-diff -ruN a/src/procman.cpp b/src/procman.cpp
+diff --git a/src/procman.cpp b/src/procman.cpp
 --- a/src/procman.cpp	2026-11-06 01:22:31.206347823 +0800
 +++ b/src/procman.cpp	2026-11-06 01:22:31.222347904 +0800
-@@ -31,7 +31,7 @@
+@@ -31,7 +31,8 @@
  #include <gtk/gtk.h>
  #include <gdk/gdkx.h>
  #include <bacon-message-connection.h>
 -#include <gconf/gconf-client.h>
 +#include "gconf-shim.h"
++GConfClient *gsm_gconf_shim_client = NULL; /* 2026-11-18: gconf shim 全局单例，跨 TU 共享 */
  #include <glibtop.h>
  #include <glibtop/close.h>
  #include <glibtop/loadavg.h>
+@@ -548,23 +548,35 @@
+ procman_save_config (ProcData *data)
+ {
+ 	GConfClient *client = data->client;
+-	gint width, height;
++	gint width = data->config.width, height = data->config.height;
+ 
+ 	g_assert(data);
+-		
+-	procman_save_tree_state (data->client, data->tree, "/apps/procman/proctree");
+-	procman_save_tree_state (data->client, data->disk_list, "/apps/procman/disktreenew");
+-		
+-	gdk_drawable_get_size (gtk_widget_get_window (data->app), &width, &height);
++	if (!client)
++		return;
++
++	/* 2026-11-18: 窗口尺寸/当前 tab 先落盘。原顺序先存列宽，随后
++	   gdk_drawable_get_size(gtk_widget_get_window(app)) 在窗口已销毁时返回 NULL
++	   → 直接 segfault(139)，width/height/current_tab 永不写入 ini（改配置重开失效）。 */
++	gconf_client_set_int (client, "/apps/procman/width", width, NULL);
++	gconf_client_set_int (client, "/apps/procman/height", height, NULL);
++	gconf_client_set_int (client, "/apps/procman/current_tab", data->config.current_tab, NULL);
++
++	{
++		GdkWindow *win = gtk_widget_get_window (data->app);
++		if (win)
++			gdk_drawable_get_size (win, &width, &height);
++	}
+ 	data->config.width = width;
+ 	data->config.height = height;
+-	
+ 	gconf_client_set_int (client, "/apps/procman/width", data->config.width, NULL);
+ 	gconf_client_set_int (client, "/apps/procman/height", data->config.height, NULL);	
+ 	gconf_client_set_int (client, "/apps/procman/current_tab", data->config.current_tab, NULL);
+ 
++	if (data->tree)
++		procman_save_tree_state (data->client, data->tree, "/apps/procman/proctree");
++	if (data->disk_list)
++		procman_save_tree_state (data->client, data->disk_list, "/apps/procman/disktreenew");
++
+ 	gconf_client_suggest_sync (client, NULL);
+-	
+ 
+-	
+ }
 @@ -723,8 +723,6 @@
  	gtk_window_set_default_icon_name ("utilities-system-monitor");
  	g_set_application_name(_("System Monitor"));
@@ -635,7 +755,7 @@ diff -ruN a/src/procman.cpp b/src/procman.cpp
  	client = gconf_client_get_default ();
  	gconf_client_add_dir(client, "/apps/procman", GCONF_CLIENT_PRELOAD_NONE, NULL);
  
-diff -ruN a/src/procman.h b/src/procman.h
+diff --git a/src/procman.h b/src/procman.h
 --- a/src/procman.h	2026-11-06 01:22:31.206347823 +0800
 +++ b/src/procman.h	2026-11-06 01:22:31.222347904 +0800
 @@ -24,7 +24,7 @@
@@ -647,7 +767,7 @@ diff -ruN a/src/procman.h b/src/procman.h
  #include <glibtop/cpu.h>
  
  #include <time.h>
-diff -ruN a/src/smooth_refresh.cpp b/src/smooth_refresh.cpp
+diff --git a/src/smooth_refresh.cpp b/src/smooth_refresh.cpp
 --- a/src/smooth_refresh.cpp	2026-11-06 01:22:31.206347823 +0800
 +++ b/src/smooth_refresh.cpp	2026-11-06 01:22:31.222347904 +0800
 @@ -4,7 +4,7 @@
@@ -659,7 +779,7 @@ diff -ruN a/src/smooth_refresh.cpp b/src/smooth_refresh.cpp
  #include <glibtop.h>
  #include <glibtop/proctime.h>
  #include <glibtop/cpu.h>
-diff -ruN a/src/smooth_refresh.h b/src/smooth_refresh.h
+diff --git a/src/smooth_refresh.h b/src/smooth_refresh.h
 --- a/src/smooth_refresh.h	2026-11-06 01:22:31.206347823 +0800
 +++ b/src/smooth_refresh.h	2026-11-06 01:22:31.222347904 +0800
 @@ -2,7 +2,7 @@

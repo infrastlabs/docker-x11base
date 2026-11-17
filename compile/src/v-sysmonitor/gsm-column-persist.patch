@@ -1,0 +1,36 @@
+--- a/src/proctable.cpp
++++ b/src/proctable.cpp
+@@ -89,6 +89,10 @@
+ cb_columns_changed(GtkTreeView *treeview, gpointer user_data)
+ {
+ 	ProcData * const procdata = static_cast<ProcData*>(user_data);
++	/* 2026-11-18: destroy 期间列逐个拆除→columns-changed 连发, 若此时 save_tree_state 会把
++	 * 递减/空 columns_order 写入覆盖已存顺序→重开回默认。guard by gsm_procman_quitting。 */
++	if (gsm_procman_quitting)
++		return;
+ 
+ 	procman_save_tree_state(procdata->client,
+ 				GTK_WIDGET(treeview),
+--- a/src/disks.cpp
++++ b/src/disks.cpp
+@@ -250,6 +250,9 @@
+ cb_disk_columns_changed(GtkTreeView *treeview, gpointer user_data)
+ {
+ 	ProcData * const procdata = static_cast<ProcData*>(user_data);
++	/* 2026-11-18: 同 proctable cb_columns_changed——destroy 期间连发写空, guard by quitting。 */
++	if (gsm_procman_quitting)
++		return;
+ 
+ 	procman_save_tree_state(procdata->client,
+ 				GTK_WIDGET(treeview),
+--- a/src/procdialogs.cpp
++++ b/src/procdialogs.cpp
+@@ -383,6 +383,8 @@
+ 	
+ 	gtk_list_store_set (GTK_LIST_STORE (model), &iter, 0, !toggled, -1);
+ 	gtk_tree_view_column_set_visible (column, !toggled);
++	/* 2026-11-18: set_visible 不触发 columns-changed → 列显隐改动不落盘; 手动发信号走既有 save_tree_state */
++	g_signal_emit_by_name (gtk_tree_view_column_get_tree_view (column), "columns-changed");
+ 	
+ 	gtk_tree_path_free (path);
+ 

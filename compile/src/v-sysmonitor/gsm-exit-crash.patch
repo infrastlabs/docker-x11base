@@ -1,0 +1,152 @@
+--- a/src/procman.h
++++ b/src/procman.h
+@@ -37,6 +37,11 @@
+ struct ProcData;
+ struct LoadGraph;
+ 
++
++/* 2026-11-18: 全局"退出中"标志（跨 TU）。WM 直接销毁主窗口时 ProcData 可能
++   已释放，刷新回调必须先查这个标志，不能先解引用 procdata。 */
++extern gboolean gsm_procman_quitting;
++
+ #include "smooth_refresh.h"
+ #include "prettytable.h"
+ 
+@@ -204,4 +204,5 @@
+ 	guint		timeout;
+ 	guint		disk_timeout;
++	gboolean	quitting;
+ 
+ 	PrettyTable	pretty_table;
+--- a/src/procman.cpp
++++ b/src/procman.cpp
+@@ -57,3 +57,4 @@ ProcData::ProcData()
+     timeout(0),
+     disk_timeout(0),
++    quitting(FALSE),
+     cpu_total_time(1),
+ 
+--- a/src/callbacks.h
++++ b/src/callbacks.h
+@@ -39,6 +39,8 @@
+ 
+ void		cb_app_exit (GtkAction *action, gpointer data);
+ gboolean	cb_app_delete (GtkWidget *window, GdkEventAny *event, gpointer data);
++gboolean	cb_app_configure (GtkWidget *widget, GdkEventConfigure *event, gpointer data);
++void		gsm_procman_app_destroyed (GtkWidget *widget);
+ 
+ void		cb_end_process_button_pressed (GtkButton *button, gpointer data);
+ void		cb_logout (GtkButton *button, gpointer data);
+--- a/src/callbacks.cpp
++++ b/src/callbacks.cpp
+@@ -197,11 +197,15 @@
+ {
+ 	ProcData * const procdata = static_cast<ProcData*>(data);
+ 
+-	procman_save_config (procdata);
++	/* 2026-11-18: 退出防护——先置 quitting 标志 + 停定时刷新，防析构/退出时
++	   cb_timeout/cb_update_disks 访问已销毁 tree/disk_list（segfault）；
++	   再 save_config（此时 widget 仍有效，列配置正确写入，修复配置不生效） */
++	procdata->quitting = TRUE;
+ 	if (procdata->timeout)
+ 		g_source_remove (procdata->timeout);
+ 	if (procdata->disk_timeout)
+ 		g_source_remove (procdata->disk_timeout);
++	procman_save_config (procdata);
+ 
+ 	gtk_main_quit ();
+ 
+@@ -329,14 +333,43 @@
+ 	cb_change_current_page (nb, num, data);
+ }
+ 
++gboolean gsm_procman_quitting = FALSE;
++
++gboolean
++cb_app_configure (GtkWidget *widget, GdkEventConfigure *event, gpointer data)
++{
++	(void)widget;
++	ProcData * const procdata = static_cast<ProcData*>(data);
++
++	if (!procdata || !event)
++		return FALSE;
++	if (procdata->client) {
++		gconf_client_set_int (procdata->client, "/apps/procman/width", event->width, NULL);
++		gconf_client_set_int (procdata->client, "/apps/procman/height", event->height, NULL);
++	}
++	return FALSE;
++}
++
+ void
++gsm_procman_app_destroyed (GtkWidget *widget)
++{
++	(void)widget;
++	gsm_procman_quitting = TRUE;
++	gtk_main_quit ();
++}
++
++void
+ cb_change_current_page (GtkNotebook *nb, gint num, gpointer data)
+ {
+ 	ProcData * const procdata = static_cast<ProcData*>(data);
+ 
+ 	procdata->config.current_tab = num;
+ 
++	/* 2026-11-18: 切 tab 立即写 current_tab（原来只在退出时写） */
++	if (procdata->client)
++		gconf_client_set_int (procdata->client, "/apps/procman/current_tab", num, NULL);
+ 
++
+ 	if (num == PROCMAN_TAB_PROCESSES) {
+ 
+ 		cb_timeout (procdata);
+@@ -410,6 +443,12 @@
+ 	ProcData * const procdata = static_cast<ProcData*>(data);
+ 	guint new_interval;
+ 
++	/* 2026-11-18: 退出/析构中不再刷新进程列表（防访问已销毁 tree）；
++	   先查全局标志——WM 直接销毁主窗口时 procdata 可能已释放，不能先解引用 */
++	if (gsm_procman_quitting)
++		return FALSE;
++	if (procdata->quitting)
++		return FALSE;
+ 	proctable_update_all (procdata);
+ 
+ 	if (procdata->smooth_refresh->get(new_interval))
+--- a/src/disks.cpp
++++ b/src/disks.cpp
+@@ -220,6 +220,12 @@
+ {
+ 	ProcData *const procdata = static_cast<ProcData*>(data);
+ 
++	/* 2026-11-18: 退出/析构中不再刷新磁盘列表（防访问已销毁 disk_list） */
++	if (gsm_procman_quitting)
++		return 0;
++	if (procdata->quitting)
++		return 0;
++
+ 	GtkListStore *list;
+ 	glibtop_mountentry * entries;
+ 	glibtop_mountlist mountlist;
+--- a/src/interface.cpp
++++ b/src/interface.cpp
+@@ -714,6 +714,19 @@
+                           G_CALLBACK (cb_app_delete),
+                           procdata);
+ 
++	/* 2026-11-18: 主窗口尺寸变化实时落盘 width/height。原来只在退出时写，
++	   WM 直接销毁窗口时退出保存不执行 → 改窗口大小重开失效。 */
++	g_signal_connect (G_OBJECT (app), "configure-event",
++                          G_CALLBACK (cb_app_configure),
++                           procdata);
++
++	/* 2026-11-18: WM（openbox 等）销毁主窗口时只置全局标志 + 退出主循环，
++	   不解引用 procdata（此时可能已释放）；刷新回调见 gsm_procman_quitting 即停，
++	   避免访问已销毁 widget 触发 X BadWindow → gdk 默认错误处理 exit(1)。 */
++	g_signal_connect (G_OBJECT (app), "destroy",
++                          G_CALLBACK (gsm_procman_app_destroyed),
++                           NULL);
++
+ 
+ 	/* create the statusbar */
+ 	procdata->statusbar = gtk_statusbar_new();
