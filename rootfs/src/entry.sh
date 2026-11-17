@@ -61,7 +61,7 @@ function oneVnc(){
     dest=/etc/perp/$xn-de; mkdir -p $dest
     # exec startfluxbox > /dev/null 2>\&1
     # source /.env2; 
-    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS |sort; source /.env; sleep 1; exec \$START_SESSION\"^g" > $dest/rc.main
+    cat /etc/perp/tpl-rc.main |sed "s^_CMD_^exec gosu headless bash -c \"$envcmd; $decmd; env |grep -v PASS |sort; source /.env; sleep 1; export DBUS_SESSION_BUS_ADDRESS=\$(gosu headless dbus-daemon --session --fork --print-address 2>/dev/null); exec \$START_SESSION\"^g" > $dest/rc.main
 
 
     # XRDP /etc/xrdp/xrdp.ini
@@ -261,6 +261,11 @@ chmod +x /etc/perp/**/rc.*
 file=/usr/bin/sv; rm -f $file;
 cat /usr/bin/psv.sh > $file;
 chmod +x $file;
+
+# dunst D-Bus 服务激活：service 文件入 dbus 扫描目录（$dsvc），notify-send 发 Notify 时自动拉起 dunst（2.2.5/2.2.7）
+dsvc=/usr/share/dbus-1/services/; mkdir -p $dsvc
+cp -f /usr/local/static/dunst/share/dbus-1/services/*.service $dsvc 2>/dev/null
+ls $dsvc 2>/dev/null |head -3
 
 # bash-5.2# echo $PS1  ##@openwrt
 # \s-\v\$
