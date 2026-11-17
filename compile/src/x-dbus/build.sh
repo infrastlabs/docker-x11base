@@ -12,6 +12,7 @@ source /src/common.sh
 #
 # 产物（/usr/local/static/dbus/）：
 #   bin/dbus-daemon        静态（xx-clang -static，--version 可跑，session bus 实测通过）
+#   bin/dbus-send          静态（xx-clang -static，--help 可跑；通知发送端 + dunstctl 运行期依赖，见 dbus_send()）
 #   lib/libdbus-1.a        静态库（239 dbus_ 符号）
 #   lib/libdbus-internal.a 内部库（dbus-daemon 静态链用，非公共 API）
 #   lib/pkgconfig/dbus-1.pc
@@ -119,6 +120,39 @@ function dbus(){
     ls -lh $TARGETPATH/bin/dbus-daemon $TARGETPATH/lib/libdbus-1.a
 }
 
+# dbus-send：dbus 自带 CLI 发送工具（tools/dbus-send.c），静态链 libdbus-1.a。
+# 用途：① 通知发送端（发 org.freedesktop.Notifications.Notify）；② 解锁 dunstctl——其是 shell 脚本，
+#   运行期 command -v dbus-send 硬依赖（无则 die）。产物 bin/dbus-send。
+# 依赖 dbus() 先跑（/tmp/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
+# 链接对象：tools/dbus-print-message.o + dbus-send.o + tool-common.o（tools/Makefile am_dbus_send_OBJECTS）；
+#   静态链要点同 dbus-daemon——xx-clang -static 手工链（libtool 不认 LDFLAGS=-static）。
+#   私有依赖同 libdbus-1.a：-lexpat -lpthread -ldl -lm（dbus-1.pc Libs.private 已补，见 dbus()）。
+function dbus_send(){
+  # 调用方须预置 TARGETPATH=/usr/local/static/dbus（同 dbus()）
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/dbus}
+  cd /tmp/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
+  test -f dbus/.libs/libdbus-1.a || { log "libdbus-1.a missing, run dbus() first"; exit 1; }
+
+  log "Build dbus-send objects (tools/*.o)..."
+    make -j$(nproc) tools/dbus-print-message.o tools/dbus-send.o tools/tool-common.o \
+     >/tmp/dbus-send-make.log 2>&1 || true
+    test -f tools/dbus-send.o && test -f tools/dbus-print-message.o && test -f tools/tool-common.o \
+     || { log "dbus-send objects MISSING"; tail -20 /tmp/dbus-send-make.log; exit 1; }
+
+  log "Static-link dbus-send (xx-clang -static, 手工)..."
+    mkdir -p $TARGETPATH/bin
+    xx-clang -static -Wl,--strip-all -o $TARGETPATH/bin/dbus-send \
+     tools/dbus-print-message.o tools/dbus-send.o tools/tool-common.o \
+     dbus/.libs/libdbus-1.a -lexpat -lpthread -ldl -lm \
+     || { log "dbus-send static-link FAILED"; exit 1; }
+
+  log "Verify dbus-send..."
+    file $TARGETPATH/bin/dbus-send | grep -q "statically linked" || { log "dbus-send not static"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/dbus-send || { log "dbus-send xx-verify FAILED"; exit 1; }
+    $TARGETPATH/bin/dbus-send --help >/dev/null 2>&1 || { log "dbus-send run FAILED"; exit 1; }
+    ls -lh $TARGETPATH/bin/dbus-send
+}
+
 # dbus-glib-0.112：GLib 绑定（libdbus-glib-1.a），供 gsm/ristretto/xfce4-settings 静态链。
 # 依赖 libdbus-1.a（/usr/local/static/dbus）+ glib/gobject/gio>=2.40（u-gtk 静态树）。
 # configure PKG_CHECK_MODULES(DBUS) 用 pkg-config --libs dbus-1（非 --static）→ 需 dbus-1.pc 的
@@ -169,6 +203,9 @@ cache)
     ;;
 full)
     doExec dbus || exit 1
+    ;;
+full-send)
+    doExec dbus_send || exit 1
     ;;
 full-glib)
     doExec dbus_glib || exit 1
