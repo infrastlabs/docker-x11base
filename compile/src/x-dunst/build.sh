@@ -98,10 +98,38 @@ dunst(){
   xx-verify --static $TARGETPATH/bin/dunst || { log "DUNST xx-verify FAILED"; exit 1; }
 }
 
+# notify-send：通知发送端（最小 GDBus 直发，非 libnotify）——源码 /src/x-dunst/notify-send.c。
+# 与 dunst 配套（同目录部署 /usr/local/static/dunst/bin/notify-send），但**独立程序**：
+#   只走 D-Bus 发 org.freedesktop.Notifications.Notify，不链 dunst 任何库、不用 gdk-pixbuf。
+# 为什么不用 libnotify：0.8.9 硬依赖 gio-unix-2.0.a（静态栈缺、无 glib 源码）；且主库 shared_library
+#   （meson 需 patch static）。GDBus 直发只需 gio+glib（已证可链），且原生能编 a{sv}（dbus-send 不能）。
+# 依赖（pkg-config --static --libs）：gio-2.0 glib-2.0 gobject-2.0（含 gmodule/pcre/ffi/mount/blkid，
+#   -L/lib 取 libz.a）；--start-group 解静态循环依赖（AGENTS 坑）。产物 bin/notify-send。
+function notify_send(){
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/dunst}
+  mkdir -p $TARGETPATH/bin
+  CFLAGS=$(pkg-config --cflags gio-2.0 glib-2.0 gobject-2.0 | tr ' ' '\n' | sort -u | tr '\n' ' ')
+  LIBS=$(pkg-config --static --libs gio-2.0 glib-2.0 gobject-2.0 | tr ' ' '\n' | sort -u | tr '\n' ' ')
+
+  log "Compiling notify-send (GDBus, static)..."
+    xx-clang -static -Wl,--strip-all -o $TARGETPATH/bin/notify-send $CFLAGS \
+      /src/x-dunst/notify-send.c -Wl,--start-group $LIBS -Wl,--end-group \
+      || { log "notify-send compile FAILED"; exit 1; }
+
+  log "Verify notify-send..."
+    file $TARGETPATH/bin/notify-send | grep -q "statically linked" || { log "notify-send not static"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/notify-send || { log "notify-send xx-verify FAILED"; exit 1; }
+    $TARGETPATH/bin/notify-send --help >/dev/null 2>&1 || { log "notify-send run FAILED"; exit 1; }
+    ls -lh $TARGETPATH/bin/notify-send
+}
+
 case "$1" in
 cache)
     ;;
 full)
+    ;;
+notify_send)
+    doExec notify_send || exit 1
     ;;
 b_deps)
     # 依赖 xscrnsaver(libXss.a) 缺失需自建; pango/cairo/glib/gdk-pixbuf/X11 已随 gtk2 静态栈就位
