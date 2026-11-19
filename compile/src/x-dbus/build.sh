@@ -153,6 +153,37 @@ function dbus_send(){
     ls -lh $TARGETPATH/bin/dbus-send
 }
 
+# dbus-launch：dbus 自带 bus 启动辅助（tools/dbus-launch.c，C 程序非脚本），
+# 用途：启动 dbus-daemon 并输出 DBUS_SESSION_BUS_ADDRESS（`eval $(dbus-launch --sh-syntax)`），
+#   会话/脚本/调试常用（entry.sh 亦引用 dbus-launch）。产物 bin/dbus-launch。
+# 依赖 dbus() 先跑（/tmp/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
+# 链接对象：tools/dbus-launch.o（tools/Makefile am_dbus_launch_OBJECTS）；静态链同 dbus-daemon——
+#   xx-clang -static 手工链，私有依赖 -lexpat -lpthread -ldl -lm。
+function dbus_launch(){
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/dbus}
+  cd /tmp/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
+  test -f dbus/.libs/libdbus-1.a || { log "libdbus-1.a missing, run dbus() first"; exit 1; }
+
+  log "Build dbus-launch objects (tools/*.o)..."
+    make -j$(nproc) tools/dbus_launch-dbus-launch.o tools/dbus_launch-dbus-launch-x11.o tools/dbus_launch-tool-common.o \
+     >/tmp/dbus-launch-make.log 2>&1 || true
+    test -f tools/dbus_launch-dbus-launch.o \
+     || { log "dbus_launch-dbus-launch.o MISSING"; tail -20 /tmp/dbus-launch-make.log; exit 1; }
+
+  log "Static-link dbus-launch (xx-clang -static, 手工)..."
+    mkdir -p $TARGETPATH/bin
+    xx-clang -static -Wl,--strip-all -o $TARGETPATH/bin/dbus-launch \
+      tools/dbus_launch-dbus-launch.o tools/dbus_launch-dbus-launch-x11.o tools/dbus_launch-tool-common.o \
+      dbus/.libs/libdbus-1.a -lX11 -lxcb -lXau -lXdmcp -lexpat -lpthread -ldl -lm \
+      || { log "dbus-launch static-link FAILED"; exit 1; }
+
+  log "Verify dbus-launch..."
+    file $TARGETPATH/bin/dbus-launch | grep -q "statically linked" || { log "dbus-launch not static"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/dbus-launch || { log "dbus-launch xx-verify FAILED"; exit 1; }
+    $TARGETPATH/bin/dbus-launch --version >/dev/null 2>&1 || { log "dbus-launch run FAILED"; exit 1; }
+    ls -lh $TARGETPATH/bin/dbus-launch
+}
+
 # dbus-glib-0.112：GLib 绑定（libdbus-glib-1.a），供 gsm/ristretto/xfce4-settings 静态链。
 # 依赖 libdbus-1.a（/usr/local/static/dbus）+ glib/gobject/gio>=2.40（u-gtk 静态树）。
 # configure PKG_CHECK_MODULES(DBUS) 用 pkg-config --libs dbus-1（非 --static）→ 需 dbus-1.pc 的
@@ -206,6 +237,9 @@ full)
     ;;
 full-send)
     doExec dbus_send || exit 1
+    ;;
+dbus-launch)
+    doExec dbus_launch || exit 1
     ;;
 full-glib)
     doExec dbus_glib || exit 1
