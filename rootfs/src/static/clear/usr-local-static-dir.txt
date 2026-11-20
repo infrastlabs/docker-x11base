@@ -132,7 +132,7 @@
 # /usr/local/static/lxde/lib/pkgconfig
 # /usr/local/static/lxde/share
 # /usr/local/static/lxde/share/applications
-/usr/local/static/lxde/share/locale
+# /usr/local/static/lxde/share/locale
 # /usr/local/static/lxde/share/lxappearance
 # /usr/local/static/lxde/share/man
 
