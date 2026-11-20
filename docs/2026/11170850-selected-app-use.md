@@ -1198,3 +1198,5 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 **结论**：1.2 核查出的 6 个有中文 mo 组件，5 个已中文可用（本小节），1 个暂缓（ibus，输入法引擎范围大）；加上已完成三组件（1.1/1.3），除 ibus 外全部可无 XDG 原生中文。
 
 **验证环境改动（非仓库文件）**：rootfs-zh-verify（Alpine 3.13 musl）已装 `musl-locales build-base musl-dev` + 复制 `zh_CN.UTF-8` locale 数据（仅验证用；构建产物/真机无需）。临时容器：`builder-gsm-zh`（basemm 基座，gsm 构建用，待清理）、`builder-g224`（gtk224 基座）、`rootfs-zh-verify`（验证，保留备用）。后续待办：ibus（暂缓）中文处理；临时容器清理提示。
+
+**第二批截图（gpicview/gsm/xfce4-settings/thunar/ristretto）已推送**（`bbdce9f4`，`docs/img/tmp/locale-zh/`，5 张）：`v2_gpicview.png` / `v2_gnome-system-monitor.png` / `v2_xfce4-display-settings.png` / `v2_thunar.png` / `v2_ristretto.png`——headless 用户 + 无 XDG + `LANG=zh_CN.UTF-8`，Xvnc `:10`，窗口标题均中文（图像查看器 / 系统监视器 / 显示 / 文件系统 - 文件管理器 / pic.png - 图片查看器）。ristretto 打开需图片参数，用 gpicview 自带 PNG（`share/gpicview/object-rotate-left.png`）复制到 `/tmp/pic.png`。**图片单独提交**（不含 build.sh，与 1.4 截图同目录命名 v2_ 前缀）。
