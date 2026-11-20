@@ -215,7 +215,7 @@ function pcmanfm(){
     # -lXdamage注释也会用到;
     ex1="-lfontconfig -lgio-2.0 -lcairo    -lfm -lfm-gtk -lXdamage "
     LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
-    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH --localedir=/usr/share/locale
+    LIBS="$LIBS0" ./configure --prefix=$TARGETPATH --localedir=$TARGETPATH/share/locale
 
   log "Compiling PCMANFM..."
     # # x86_64-alpine-linux-musl/bin/ld: cannot find -lXdamage
@@ -239,6 +239,17 @@ function pcmanfm(){
   log "Install PCMANFM..."
     # make;
     make install 2>&1 > /dev/null
+
+  log "Install PCMANFM locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/pcmanfm/po ]; then
+      for p in /tmp/pcmanfm/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/pcmanfm.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/pcmanfm/po/*.po | wc -l) langs"
+    fi
 
   # view
   ls -lh $TARGETPATH/bin/pcmanfm
