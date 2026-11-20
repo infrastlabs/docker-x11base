@@ -64,6 +64,17 @@ function engrampa(){
     patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-eng-settings-schema.patch" || { log "ENG-SETTINGS-SCHEMA PATCH FAILED"; exit 1; }
   fi
 
+  # apply null-schema-source patch: fr-window.c 直接 g_settings_schema_source_get_default()+lookup() 在
+  #   无 XDG_DATA_DIRS(默认源 NULL) 时断言崩溃——这是绕过 eng_settings_new 的唯一漏网点(2026-11-20 实跑发现)。
+  #   守卫: schema_source NULL → caja_schema=NULL, 跳过 Caja 集成(settings_caja 后续均有 if 守卫);
+  #   产物仍自足 $TARGETPATH 内 schema(可迁移), 无需装系统默认路径。
+  if grep -q "schema_source ? g_settings_schema_source_lookup" /tmp/engrampa/src/fr-window.c; then
+    log "null-schema-source patch already applied"
+  else
+    log "Apply null-schema-source patch..."
+    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-null-schema-source.patch" || { log "NULL-SCHEMA-SOURCE PATCH FAILED"; exit 1; }
+  fi
+
   log "Configuring ENGRAMPA..."
   cd /tmp/engrampa
   ./autogen.sh
@@ -80,7 +91,7 @@ EOF
     --enable-static --disable-shared \
     --disable-caja-actions \
     --disable-packagekit \
-    --localedir=/usr/share/locale \
+    --localedir=$TARGETPATH/share/locale \
     CPPFLAGS="-include /tmp/engrampa/eng_schema_dir.h"
 
   # ref pcmanfm/lxtask 式 GTK2 静态链
@@ -115,6 +126,17 @@ EOF
     mkdir -p $TARGETPATH/share/glib-2.0/schemas
     cp -f /tmp/engrampa/data/org.mate.engrampa.gschema.xml $TARGETPATH/share/glib-2.0/schemas/ 2>/dev/null || log "schema copy warn"
     glib-compile-schemas $TARGETPATH/share/glib-2.0/schemas 2>/dev/null || log "glib-compile-schemas warn"
+
+  log "Install ENGRAMPA locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/engrampa/po ]; then
+      for p in /tmp/engrampa/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/engrampa.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/engrampa/po/*.po | wc -l) langs"
+    fi
 
   ls -lh $TARGETPATH/bin/engrampa
   xx-verify --static $TARGETPATH/bin/engrampa || { log "ENGRAMPA xx-verify FAILED"; exit 1; }

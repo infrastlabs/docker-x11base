@@ -1,0 +1,11 @@
+--- a/src/fr-window.c
++++ b/src/fr-window.c
+@@ -5464,7 +5464,7 @@
+ 	window->priv->settings_dialogs = eng_settings_new (ENGRAMPA_SCHEMA_DIALOGS);
+ 
+ 	schema_source = g_settings_schema_source_get_default ();
+-	caja_schema = g_settings_schema_source_lookup (schema_source, CAJA_SCHEMA, FALSE);
++	caja_schema = schema_source ? g_settings_schema_source_lookup (schema_source, CAJA_SCHEMA, FALSE) : NULL;
+ 	if (caja_schema) {
+ 		window->priv->settings_caja = eng_settings_new (CAJA_SCHEMA);
+ 		g_settings_schema_unref (caja_schema);
