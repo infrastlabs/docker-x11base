@@ -1174,3 +1174,25 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 - **ibus**：`v-ibus/build.sh` 是 **bash-only**（busybox sh 解析失败 line297）→ 用 `bash` 调用；暂缓。
 - **补片格式**：autotools 硬编码用 `patch -p1`（engrampa）或 `git apply`（pcmanfm，须字节精确）；改 prefix 后**清 `.o` 重编**（AGENTS 3.2）。
 - **判成功别信 `oneBuild`**：`xx-verify --static` + 实跑兜底。
+
+#### 1.6、其余中文组件落地与验证（gpicview/gsm/xfce4-settings/thunar/ristretto）（2026-11-20）
+
+1.5 思路已全部落地并验证（**ibus 暂缓**）。统一模式确认：产物自足 `.mo` 装 `$TARGETPATH/share/locale`，无 XDG + headless 用户实跑标题中文。
+
+| 组件 | 改法 | 验证标题（`_NET_WM_NAME`） | commit |
+|---|---|---|---|
+| gpicview | `PACKAGE_LOCALE_DIR=$(prefix)/share/locale` 本已编入正确，补 msgfmt `.mo` | **图像查看器** | `e99ec182` |
+| gsm | `--prefix=/usr/local/static/gsm` 本已编入正确，补 msgfmt `.mo` | **系统监视器** | `4a4f195a` |
+| xfce4-settings | `--disable-nls`→`--enable-nls` + `localedir=$TARGETPATH` + msgfmt | **显示** | `446b75c8` |
+| thunar | `localedir=$PREFIX` + `PACKAGE_LOCALE_DIR=$PREFIX` + msgfmt | **文件系统 - 文件管理器** | `446b75c8` |
+| ristretto | `localedir=$PREFIX` + msgfmt | **pic.png - 图片查看器** | `446b75c8` |
+
+三二进制均 `xx-verify --static` OK（statically linked, stripped），`.mo` 与 LOCALEDIR 编入路径均已核对。
+
+**遇到并解决的问题**：
+
+- **thunar `.mo` 大小写 domain**（子任务修复，build.sh `257-261`）：thunar `GETTEXT_PACKAGE="Thunar"`（**大写 T**，config.h），`xfce_textdomain(GETTEXT_PACKAGE)` 查 `Thunar.mo`；只输出小写 `thunar.mo` 时 gettext 找不到 → 标题英文。修复：msgfmt 输出 **`Thunar.mo`** + `cp` 保小写兼容。用最小 gettext 探针验证（`bindtextdomain("Thunar")` 无 `Thunar.mo`→英，补→中）。
+- **rootfs 无 zh_CN locale 数据**（验证环境，非产物缺陷）：rootfs-zh-verify 为 Alpine 3.13（musl），`musl-locales` 包**不含 zh_CN.UTF-8**（仅到 sv_SE）→ `setlocale` 失败 → gettext 全回退英文。补齐：`apk add musl-locales build-base musl-dev` + 复制 `/usr/share/i18n/locales/musl/en_US.UTF-8 → zh_CN.UTF-8`（musl 按名加载）。注意：**验证环境需 zh_CN locale 数据，构建产物无需**——真机发行版自带。
+- **窗口标题抓取**：`xwininfo -root -children` 抓到 Gtk 辅助小窗口（程序名 fallback），应改 `xprop -root _NET_CLIENT_LIST` + 逐窗口 `_NET_WM_NAME` 精确抓主窗口标题。
+
+**结论**：1.2 核查出的 6 个有中文 mo 组件，5 个已中文可用（本小节），1 个暂缓（ibus，输入法引擎范围大）；加上已完成三组件（1.1/1.3），除 ibus 外全部可无 XDG 原生中文。
