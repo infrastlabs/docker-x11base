@@ -18,7 +18,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=30 #PORT_VNC=21081 PORT_SSH=21022 PORT_RDP=21089
-      - START_SESSION=${DESK:-startfluxbox} #startfluxbox openbox-session
+      - START_SESSION=${DESK:-openbox-session} #openbox-session startfluxbox awesome xfce4-session
       # - SSH_PASS=headless
       # - VNC_PASS=headless
       # - VNC_PASS_RO=View123
@@ -40,7 +40,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=31
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes:
@@ -58,7 +58,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=32
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
@@ -76,7 +76,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=33
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
@@ -94,7 +94,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=34 #PORT_VNC=24081 PORT_SSH=24022  PORT_RDP=24089
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
     volumes: 
       - /_ext:/_ext
       - /opt:/opt
@@ -110,7 +110,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=35
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
     volumes: 
       - /_ext:/_ext
       - /opt:/opt
@@ -126,7 +126,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=36
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
     volumes: 
       - /_ext:/_ext
       - /opt:/opt
@@ -142,7 +142,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=37
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
     volumes: 
       - /_ext:/_ext
       - /opt:/opt
@@ -158,7 +158,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=38
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai      
     volumes: 
@@ -176,7 +176,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=39
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
