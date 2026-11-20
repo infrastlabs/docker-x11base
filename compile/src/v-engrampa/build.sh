@@ -80,7 +80,7 @@ EOF
     --enable-static --disable-shared \
     --disable-caja-actions \
     --disable-packagekit \
-    --localedir=/usr/share/locale \
+    --localedir=$TARGETPATH/share/locale \
     CPPFLAGS="-include /tmp/engrampa/eng_schema_dir.h"
 
   # ref pcmanfm/lxtask 式 GTK2 静态链
@@ -115,6 +115,17 @@ EOF
     mkdir -p $TARGETPATH/share/glib-2.0/schemas
     cp -f /tmp/engrampa/data/org.mate.engrampa.gschema.xml $TARGETPATH/share/glib-2.0/schemas/ 2>/dev/null || log "schema copy warn"
     glib-compile-schemas $TARGETPATH/share/glib-2.0/schemas 2>/dev/null || log "glib-compile-schemas warn"
+
+  log "Install ENGRAMPA locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/engrampa/po ]; then
+      for p in /tmp/engrampa/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/engrampa.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/engrampa/po/*.po | wc -l) langs"
+    fi
 
   ls -lh $TARGETPATH/bin/engrampa
   xx-verify --static $TARGETPATH/bin/engrampa || { log "ENGRAMPA xx-verify FAILED"; exit 1; }
