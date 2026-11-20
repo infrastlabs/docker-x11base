@@ -1106,6 +1106,13 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 
 **对比**：三者与 geany（靠 `$TARGETPATH/share/locale` 自带 `.mo`，无需补片）机制不同；geany/pavucontrol/pasystray 中文显示另有记录（见对应组件文档）。
 
+**lxtask 部署期中文失效根因与修复（2026-11-20）**：
+
+- **现象**：CI 重建 rootfs-dbg 后，其他组件中文显示有，lxtask 仍英文。
+- **根因**：rootfs 构建清理脚本 `clear.sh`（`rootfs/src/static/clear/clear.sh`）按 `usr-local-static-dir.txt` **非注释行 `rm -rf /rootfs/$one`**；清单 **`/usr/local/static/lxde/share/locale`** 为非注释 → 整个 lxde/share/locale 被删 → **lxtask.mo 被剔** → 中文英文。这是旧方案（lxtask 走系统 `/usr/share/locale`，无自足 `.mo`）遗留的清理清单，lxtask 改 `$TARGETPATH/share/locale` 自足后**清单未同步**。
+- **证据**：镜像 `lxde/share/` 无 `locale` 目录（对比 `gpicview/share/locale/*/*.mo` 正常）；构建日志 `lxtask.log:668` "locales installed: 64 langs"（仅 po 计数）；本地实测 msgfmt 对 64 个 po 全部成功（含 `zh_CN.mo` 3450B，warn=0）；clear.sh 清单 135 行为删除点。
+- **修复**：`usr-local-static-dir.txt` 135 行**注释**（`# /usr/local/static/lxde/share/locale`，与 pcmanfm 的 locale 保留方式一致）——commit `66c2573c`。重建 rootfs-dbg 后 lxtask.mo 保留、中文生效。
+
 #### 1.2、README 验证表其他组件多语言/中文 mo 核查（2026-11-20）
 
 用 git clone 源码 + 上游 tarball **实测** `po/zh_CN.po`（非猜测），结论：README 验证表其余组件中，**6 个涉及多语言且有中文 mo**，**11 个无 `po/`、无中文 mo**（不涉及本地化）。
