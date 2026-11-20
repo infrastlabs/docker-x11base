@@ -86,7 +86,7 @@ function xfce4settings(){
   log "Configure..."
   cd $SRC
   ./configure --prefix=$TARGETPATH --enable-static --disable-shared \
-    --disable-nls --disable-gtk-doc --disable-libnotify \
+    --enable-nls --disable-gtk-doc --disable-libnotify \
     LDFLAGS="$LDFLAGS" \
     PKG_CONFIG_PATH="/usr/local/static/xfce/lib/pkgconfig:/usr/local/static/dbus/lib/pkgconfig:/usr/local/static/dbus-glib/lib/pkgconfig" \
     || { log "CONFIGURE FAILED"; exit 1; }
@@ -101,8 +101,8 @@ function xfce4settings(){
   #          dialogs/display-settings dialogs/appearance-settings dialogs/keyboard-settings \
   #          dialogs/mime-settings dialogs/mouse-settings dialogs/accessibility-settings; do
   for d in dialogs/display-settings; do
-    make -C $d clean localedir=/usr/share/locale >/dev/null 2>&1 || true
-    make -C $d localedir=/usr/share/locale $OBJS 2>&1 || log "make $d objects FAILED (need .o for manual link)"
+    make -C $d clean localedir=$TARGETPATH/share/locale >/dev/null 2>&1 || true
+    make -C $d localedir=$TARGETPATH/share/locale $OBJS 2>&1 || log "make $d objects FAILED (need .o for manual link)"
   done
 
   log "Static-link 1 binary (xx-clang -static)..."
@@ -146,6 +146,17 @@ function xfce4settings(){
   # link_bin dialogs/mouse-settings xfce4-mouse-settings xfce4_mouse_settings-main.o
   # link_bin dialogs/accessibility-settings xfce4-accessibility-settings xfce4_accessibility_settings-main.o
   # link_bin dialogs/accessibility-settings xfce4-find-cursor xfce4_find_cursor-find-cursor.o
+
+  log "Install XFCE4SETTINGS locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d $SRC/po ]; then
+      for p in $SRC/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/xfce4-settings.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls $SRC/po/*.po | wc -l) langs"
+    fi
 
   log "Verify (xx-verify --static)..."
   # 其余 9 个二进制 verify 屏蔽（注释保留不删，需要时取消注释）：
@@ -213,13 +224,13 @@ function thunar(){
   make -C thunarx 2>&1 || { log "THUNARX BUILD FAILED"; exit 1; }
 
   log "Make thunar (localedir=/usr/share/locale；CCLD 动态链 libICE.la 缺失可容错，只用 .o)..."
-  make -C thunar clean localedir=/usr/share/locale >/dev/null 2>&1 || true
-  make -C thunar localedir=/usr/share/locale 2>&1 || log "make thunar CCLD failed (expected, objects built)"
+  make -C thunar clean localedir=$PREFIX/share/locale >/dev/null 2>&1 || true
+  make -C thunar localedir=$PREFIX/share/locale 2>&1 || log "make thunar CCLD failed (expected, objects built)"
 
   log "Build UCA plugin objects (static 内链)..."
   UCA_OBJS=""
   UCA_CFLAGS="-DHAVE_CONFIG_H -DTHUNARX_STATIC_UCA -I$SRC -I$SRC/plugins \
-    -DBINDIR=\"/usr/bin\" -DPACKAGE_LOCALE_DIR=\"/usr/share/locale\" -DDATADIR=\"/usr/share\" \
+    -DBINDIR=\"/usr/bin\" -DPACKAGE_LOCALE_DIR=\"$PREFIX/share/locale\" -DDATADIR=\"/usr/share\" \
     $(PKG_CONFIG_PATH="$PKGCONF" pkg-config --cflags exo-1 libxfce4ui-1 libxfce4util-1.0)"
   mkdir -p /tmp/thunar-uca-obj
   for f in $SRC/plugins/thunar-uca/*.c; do
@@ -237,6 +248,20 @@ function thunar(){
 
   log "Install data (desktop/pixmaps/thunar-settings script, best-effort)..."
   make -C $SRC/thunar install-data >/dev/null 2>&1 || log "thunar install-data warn"
+
+  log "Install THUNAR locale (静态 LOCALEDIR=$PREFIX/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d $SRC/po ]; then
+      for p in $SRC/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $PREFIX/share/locale/$lang/LC_MESSAGES
+        # GETTEXT_PACKAGE="Thunar"（大写 T，见 config.h）→ .mo 文件名须与 domain 匹配，
+        # 否则 gettext 找 Thunar.mo 找不到（曾只输出小写 thunar.mo → 窗口标题英文）。双输出保兼容。
+        msgfmt "$p" -o $PREFIX/share/locale/$lang/LC_MESSAGES/Thunar.mo 2>/dev/null \
+          && cp -f $PREFIX/share/locale/$lang/LC_MESSAGES/Thunar.mo $PREFIX/share/locale/$lang/LC_MESSAGES/thunar.mo \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls $SRC/po/*.po | wc -l) langs"
+    fi
 
   log "Verify..."
   xx-verify --static $PREFIX/bin/thunar || { log "THUNAR xx-verify FAILED"; exit 1; }
@@ -270,8 +295,8 @@ function ristretto(){
     || { log "RISTRETTO CONFIGURE FAILED"; exit 1; }
 
   log "Make src (localedir=/usr/share/locale；链接失败可容错——pixman/pcre 手工链才给，只用 .o)..."
-  make -C src clean localedir=/usr/share/locale >/dev/null 2>&1 || true
-  make -C src localedir=/usr/share/locale 2>&1 || log "make src CCLD failed (expected, objects built)"
+  make -C src clean localedir=$PREFIX/share/locale >/dev/null 2>&1 || true
+  make -C src localedir=$PREFIX/share/locale 2>&1 || log "make src CCLD failed (expected, objects built)"
 
   log "Static-link ristretto..."
   mkdir -p $PREFIX/bin
@@ -281,6 +306,17 @@ function ristretto(){
 
   log "Install data (desktop/icons, best-effort)..."
   make -C $SRC install-data >/dev/null 2>&1 || log "ristretto install-data warn"
+
+  log "Install RISTRETTO locale (静态 LOCALEDIR=$PREFIX/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d $SRC/po ]; then
+      for p in $SRC/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $PREFIX/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $PREFIX/share/locale/$lang/LC_MESSAGES/ristretto.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls $SRC/po/*.po | wc -l) langs"
+    fi
 
   log "Verify..."
   xx-verify --static $PREFIX/bin/ristretto || { log "RISTRETTO xx-verify FAILED"; exit 1; }
