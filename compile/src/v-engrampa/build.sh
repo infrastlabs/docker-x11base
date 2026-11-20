@@ -64,6 +64,17 @@ function engrampa(){
     patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-eng-settings-schema.patch" || { log "ENG-SETTINGS-SCHEMA PATCH FAILED"; exit 1; }
   fi
 
+  # apply null-schema-source patch: fr-window.c 直接 g_settings_schema_source_get_default()+lookup() 在
+  #   无 XDG_DATA_DIRS(默认源 NULL) 时断言崩溃——这是绕过 eng_settings_new 的唯一漏网点(2026-11-20 实跑发现)。
+  #   守卫: schema_source NULL → caja_schema=NULL, 跳过 Caja 集成(settings_caja 后续均有 if 守卫);
+  #   产物仍自足 $TARGETPATH 内 schema(可迁移), 无需装系统默认路径。
+  if grep -q "schema_source ? g_settings_schema_source_lookup" /tmp/engrampa/src/fr-window.c; then
+    log "null-schema-source patch already applied"
+  else
+    log "Apply null-schema-source patch..."
+    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-null-schema-source.patch" || { log "NULL-SCHEMA-SOURCE PATCH FAILED"; exit 1; }
+  fi
+
   log "Configuring ENGRAMPA..."
   cd /tmp/engrampa
   ./autogen.sh
