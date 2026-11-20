@@ -16,7 +16,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=21 #PORT_VNC=31081 PORT_SSH=31022 PORT_RDP=31089
-      - START_SESSION=${DESK:-startfluxbox} #startfluxbox openbox-session xfce4-session
+      - START_SESSION=${DESK:-openbox-session} #openbox-session startfluxbox awesome xfce4-session
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
@@ -34,7 +34,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=22
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
@@ -52,7 +52,7 @@ services:
     network_mode: host
     environment:
       - VNC_OFFSET=23
-      - START_SESSION=${DESK:-startfluxbox}
+      - START_SESSION=${DESK:-openbox-session}
       - L=zh_CN
       - TZ=Asia/Shanghai
     volumes: 
