@@ -62,7 +62,7 @@ function lxtask(){
   log "Configuring LXTASK..."
   cd /tmp/lxtask #&& ./bootstrap;
   ./autogen.sh
-  ./configure --prefix=$TARGETPATH --localedir=/usr/share/locale
+  ./configure --prefix=$TARGETPATH --localedir=$TARGETPATH/share/locale
   # ref pcmanfm
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
@@ -80,6 +80,17 @@ function lxtask(){
 
   log "Install LXTASK..."
   make install || { log "LXTASK install FAILED"; exit 1; }
+
+  log "Install LXTASK locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/lxtask/po ]; then
+      for p in /tmp/lxtask/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/lxtask.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/lxtask/po/*.po | wc -l) langs"
+    fi
 
   # view
   ls -lh /tmp/lxtask/
