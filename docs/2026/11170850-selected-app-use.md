@@ -1104,3 +1104,25 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 - **特例 tint2**：主程序无 po；仅配置器 `src/tint2conf/po/` 有 7 语言（bs/es/fr/hr/pl/ru/sr），**无中文**。
 
 **结论**：需中文显示处理 = 上面 6 个（gpicview/gsm/thunar/ristretto/xfce4-settings/ibus）；无需处理 = 11 个。rofi 源码树无 po（翻译可能由发行版另行打包）；tint2 配置器 po 无中文。
+
+#### 1.3、无 XDG 原生可用——engrampa schema 根因修复 + pcmanfm 验证澄清（2026-11-20）
+
+> **订正（2026-11-20）**：1.1 记 `LOCALEDIR=/usr/share/locale`（找系统 `.mo`）为**旧方案**；实际已提交的 build.sh 用 **`$TARGETPATH/share/locale`**（`--localedir` + msgfmt 装 `.mo`，产物自足可迁移、运行时**不依赖**外部路径）。三组件（lxtask/pcmanfm/engrampa）均已按此落地并推送。
+
+**① engrampa 无 XDG 崩溃根因与修复**（用户拍板"铲掉狗屎"，非"立牌子"——不靠环境变量绕过）：
+
+- **根因**（实跑定位）：崩溃点**不是** `eng_settings_new` 的 fallback（`fr-init.c:707`），而是 **`fr-window.c:5466-5467`** 直接 `g_settings_schema_source_get_default()` + `g_settings_schema_source_lookup()`——无 `XDG_DATA_DIRS` 且默认路径无 schema 时，默认源为 NULL → `lookup(NULL,...)` 断言崩溃。这是绕过 `eng_settings_new`（经 `ENG_SCHEMA_DIR` 自足源）的**唯一漏网点**。
+- **修法**：新增 `engrampa-null-schema-source.patch`，守卫 `schema_source ? lookup(...) : NULL`（`schema_source` NULL 时 `caja_schema=NULL`，跳过 Caja 集成；`settings_caja` 后续均有 `if` 守卫）。schema 保持 `$TARGETPATH/share/glib-2.0/schemas` **可迁移**，**无需**装系统默认路径（`/usr/local/share` 或 `/usr/share`）。
+- **验证**（rootfs-zh-verify，无 XDG + 无默认路径 schema）：窗口标题=**「归档管理器」**，进程 ALIVE（此前无默认路径 schema 则启动即崩溃）。
+- **提交**：`compile/src/v-engrampa/engrampa-null-schema-source.patch` + `compile/src/v-engrampa/build.sh`（幂等应用），推送 `95321ba2`（补丁、build.sh 分两 commit）。
+
+**② pcmanfm 中文验证澄清**（此前"标题不本地化 / --pref 未弹出"为**误判**，中文本就工作）：
+
+- `--pref` 是**无效选项**（`Unknown option`）；正确选项为 `--show-pref=N`（N>0）或 `--desktop-pref`。
+- `--show-pref=0` 被源码 `pcmanfm.c:390 if(show_pref > 0)` 跳过；**`--show-pref=1`** 才弹偏好设置页 0。
+- `--show-pref=1` 弹出**「偏好设置」**对话框（中文标题）→ gettext 生效；`--help` 全中文；二进制 `LOCALEDIR=/usr/local/static/pcmanfm/share/locale` 正确。
+- 主窗口标题=目录路径（如 `/`）是 pcmanfm 正常行为（标题显示当前目录），**非**本地化失败。
+- pcmanfm **无** GSettings schema（用配置文件 `~/.config/pcmanfm/`），`--show-pref` 失败与 gschema **无关**。
+- 遗留 cosmetic（不崩溃）：启动 4 个 `g_object_unref: assertion 'G_IS_OBJECT' failed`（静态构建 quirk）；`modules directory is not accessible`（无 `.so` 模块，仅影响 `--desktop` 模式）。
+
+**③ 构建坑（engrampa）**：`./autogen.sh` 内部跑**无参** configure（默认 `caja_actions=yes`）→ 报 `libcaja-extension` 未满足，但 autogen.sh 返回 0（吞错）——日志里该 configure 报错为**良性噪音**；build.sh 真正的 `./configure --disable-caja-actions` 成功。**判成功仍以 `xx-verify --static` + 实跑为准**（AGENTS 3 验证条）。
