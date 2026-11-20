@@ -1145,3 +1145,32 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 **Papirus-Bunsen-bluegrey 图标补齐机制**：该主题目录只有 `apps`/`places`（**无 `actions/`**），但 `index.theme` 写 `Inherits=Papirus,breeze,gnome,hicolor` → GTK 查找 `actions` 图标时**继承回退到 Papirus**（`/usr/share/icons/Papirus/16x16/actions/extract-archive.svg`）→ 显示正常。
 
 **结论**：GUI 应用验证/截图以 headless 用户跑（读其 gtkrc 的 Papirus 主题）；root 跑会因无配置回退不完整 `hicolor` 而图标空白。v1（root）保留作对比，v2（headless）为正确版。
+
+#### 1.5、其余中文组件改造思路（gpicview/gsm/xfce4-settings/thunar/ristretto；**ibus 暂缓**）（2026-11-20）
+
+延续 1.1 已完成三组件（pcmanfm/lxtask/engrampa）的统一模式，处理 1.2 核查出的其余**有中文 mo** 组件。**ibus 用户拍板先不做**（涉及输入法引擎 librime/x11，范围大，中文显示只是其一）。
+
+**统一原则**（同已完成三组件）：
+
+1. `LOCALEDIR` 编入 **`$TARGETPATH/share/locale`**（`--localedir`，或 configure.ac/Makefile.am 硬编码时补 patch 改 `$(localedir)`）——产物自足可迁移，运行时**无 XDG/无环境变量**即中文。
+2. `po/*.po` 用 **`msgfmt`** 转 `.mo` 装 `$TARGETPATH/share/locale/$lang/LC_MESSAGES/`（make 默认不产 `.mo`）。
+3. 验证：build.sh 改后重编 → 容器实跑窗口标题/菜单中文（无 XDG，**headless** 用户——图标主题才正确）。
+
+**各组件改法**：
+
+| 组件 | 位置 | 基准/系统 | 当前 localedir | 改法 |
+|---|---|---|---|---|
+| gpicview | `v-gpicview` | gtk224-2 / autotools | 未处理（默认 `prefix`） | configure 加 `--localedir=$TARGETPATH/share/locale` + msgfmt |
+| gsm | `v-sysmonitor` | **basemm**（gtkmm-2.4） | 未处理 | 同法 + **必须用 gtkmm 基准**（`alpine-builder-gtkmm224-2`） |
+| xfce4-settings | `v-xfce4` | gtk224-2 / autotools | `make localedir=/usr/share/locale`（**旧**） | 改 `$TARGETPATH/share/locale` + msgfmt |
+| thunar | `v-xfce4` | gtk224-2 / autotools | 同上（Dockerfile **注释未构建**） | 同上 + 先确认能构建、启用 Dockerfile stage |
+| ristretto | `v-xfce4` | gtk224-2 / autotools | 同上（**注释未构建**） | 同上 |
+| ibus（**暂缓**） | `v-ibus` | FROM dbus / bash-only | 未处理 | 加 localedir + msgfmt；范围大（输入法引擎），后续再说 |
+
+**风险 / 注意**：
+
+- **gsm**：gtkmm 组件，**禁**用 gtk224-2（AGENTS 五章 1）——必须 basemm 基准；已有多 patch（gconf/tab-order/exit-crash），localedir 需新增。
+- **v-xfce4**：三组件共享 xfce 库栈 + `b_deps`；thunar/ristretto 在 Dockerfile `399-400` **注释**（可能未完整构建/依赖缺）——先确认能构建再改。
+- **ibus**：`v-ibus/build.sh` 是 **bash-only**（busybox sh 解析失败 line297）→ 用 `bash` 调用；暂缓。
+- **补片格式**：autotools 硬编码用 `patch -p1`（engrampa）或 `git apply`（pcmanfm，须字节精确）；改 prefix 后**清 `.o` 重编**（AGENTS 3.2）。
+- **判成功别信 `oneBuild`**：`xx-verify --static` + 实跑兜底。
