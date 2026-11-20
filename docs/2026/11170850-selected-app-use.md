@@ -1126,3 +1126,22 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 - 遗留 cosmetic（不崩溃）：启动 4 个 `g_object_unref: assertion 'G_IS_OBJECT' failed`（静态构建 quirk）；`modules directory is not accessible`（无 `.so` 模块，仅影响 `--desktop` 模式）。
 
 **③ 构建坑（engrampa）**：`./autogen.sh` 内部跑**无参** configure（默认 `caja_actions=yes`）→ 报 `libcaja-extension` 未满足，但 autogen.sh 返回 0（吞错）——日志里该 configure 报错为**良性噪音**；build.sh 真正的 `./configure --disable-caja-actions` 成功。**判成功仍以 `xx-verify --static` + 实跑为准**（AGENTS 3 验证条）。
+
+#### 1.4、截图验证与图标主题配置——headless 用户 Papirus-Bunsen-bluegrey（2026-11-20）
+
+三组件中文界面截图（无 XDG、`LANG=zh_CN.UTF-8`）在 `rootfs-zh-verify` 容器 Xvnc `:10` 上完成，窗口标题均中文（lxtask「任务管理器」、pcmanfm「偏好设置」、engrampa「归档管理器」）。发现截图**用户不同 → 图标主题不同 → 图标显隐不同**：
+
+| 版本 | 截图用户 | GTK 图标主题 | 图标警告 | 文件 |
+|---|---|---|---|---|
+| v1 | **root**（无 `~/.gtkrc-2.0`） | 默认 `hicolor`（只含 `scalable`，**不完整**） | engrampa `extract-archive`、pcmanfm `media-eject` **"Could not find icon"** | `lxtask.png`/`pcmanfm.png`/`engrampa.png` |
+| v2 | **headless** | **`Papirus-Bunsen-bluegrey`**（`Inherits=Papirus` → 回退补 `actions`） | **全消失** | `v2_lxtask.png`/`v2_pcmanfm.png`/`v2_engrampa.png` |
+
+**图标主题配置位置**（GTK2 读 `~/.gtkrc-2.0`）：
+
+- **headless** 用户 `/home/headless/.gtkrc-2.0`（LXAppearance 写入，含 `gtk-icon-theme-name="Papirus-Bunsen-bluegrey"`、`gtk-theme-name="Greybird"`、`gtk-font-name="Sans 10"`、`gtk-cursor-theme-name="DMZ-White"`）。
+- **root** 用户**无**任何 `~/.gtkrc-2.0`/`.icons` → GTK 回退默认 `hicolor`。
+- 桌面（Xvnc/fluxbox/tint2）本就由 **headless** 用户启动（rootfs-dbg entrypoint）；应用验证/截图也应 **headless** 用户跑才与桌面一致、图标主题正确。
+
+**Papirus-Bunsen-bluegrey 图标补齐机制**：该主题目录只有 `apps`/`places`（**无 `actions/`**），但 `index.theme` 写 `Inherits=Papirus,breeze,gnome,hicolor` → GTK 查找 `actions` 图标时**继承回退到 Papirus**（`/usr/share/icons/Papirus/16x16/actions/extract-archive.svg`）→ 显示正常。
+
+**结论**：GUI 应用验证/截图以 headless 用户跑（读其 gtkrc 的 Papirus 主题）；root 跑会因无配置回退不完整 `hicolor` 而图标空白。v1（root）保留作对比，v2（headless）为正确版。
