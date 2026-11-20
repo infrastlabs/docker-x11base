@@ -105,6 +105,18 @@ function gpicview(){
       gpicview.desktop.in > $TARGETPATH/share/applications/gpicview.desktop
     cp gpicview.png $TARGETPATH/share/pixmaps/
     cp -r data/pixmaps $TARGETPATH/share/gpicview/ 2>/dev/null || true
+
+  log "Install GPICVIEW locale (静态 LOCALEDIR=$TARGETPATH/share/locale；src/Makefile.am PACKAGE_LOCALE_DIR=\$(prefix)/share/locale，po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d po ]; then
+      for p in po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/gpicview.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls po/*.po | wc -l) langs"
+    fi
+
     test -f $TARGETPATH/bin/gpicview || { log "installed binary MISSING"; exit 1; }
 
   log "Verify..."
