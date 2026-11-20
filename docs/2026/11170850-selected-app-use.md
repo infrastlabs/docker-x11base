@@ -12,6 +12,7 @@
   - 1、mime 数据（gdk-pixbuf 图标/格式识别）
   - 2、dbus/dunst 在 rootfs 的运行时串接
 - 三、使用说明
+  - 1、中文显示（gettext 本地化）
 
 ## 一、调整项
 
@@ -1053,4 +1054,53 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 
 ## 三、使用说明
 
-（待补充）
+### 1、中文显示（gettext 本地化）
+
+#### 1.1、pcmanfm / lxtask / engrampa（2026-11-20 补档）
+
+三者中文显示（界面本地化）由 gettext `.mo` 翻译文件决定；根因相同——编译期 `LOCALEDIR` 宏被硬编码到错误路径（不尊重 `--localedir`），`bindtextdomain` 找不到 `.mo` → 界面英文。修复统一为 `LOCALEDIR=/usr/share/locale`（找系统 `.mo`）+ 运行时 `LANG=zh_CN`，差异仅在补片位置与是否需要补片：
+
+| 组件 | 硬编码位置（根因） | 修复 | 补片 | 落点 |
+|---|---|---|---|---|
+| lxtask | 无（`src/Makefile.am:4` 本用 `$(localedir)`，尊重 `--localedir`） | configure 加 `--localedir=/usr/share/locale` | 无需补片 | `v-lxde/build.sh:65`（lxtask 函数） |
+| pcmanfm | `src/Makefile.am:7` 硬编码 `$(prefix)/$(DATADIRNAME)/locale` | 同上 + Makefile.am 改 `$(localedir)` | `pcmanfm-localedir.patch`（git apply，autogen 前） | `v-pcmanfm/build.sh:199,218` |
+| engrampa | `configure.ac:177-184` 两分支硬编码 `LOCALEDIR="${ac_default_prefix}/${DATADIRNAME}/locale"` | 同上 + configure.ac 统一改 `AC_DEFINE_UNQUOTED(LOCALEDIR, "${localedir}")` | `engrampa-1.14.1-localedir.patch`（patch -p1，须 autogen 前；autogen 重生成 configure 才生效） | `v-engrampa/build.sh:38-44,69` |
+
+**验证**（hdmi，`.mo` 放 `/usr/share/locale/zh_CN/LC_MESSAGES/` + `LANG=zh_CN`）：
+
+- lxtask 标题 =「任务管理器」。
+- pcmanfm 菜单文本行宽 zh 154–202px vs C 53–141px。
+- engrampa 标题 =「demo2.tar.gz [只读]」、菜单非bg 4423(zh) vs 3631(C)。
+
+**时间线**：engrampa 2026-11-05 完成并推送；lxtask/pcmanfm 2026-11-06 完成并推送 `20b3f28`。
+
+**关键坑**：
+
+- `TEXTDOMAINDIR` 对静态二进制无效（engrampa 实测）：gettext 工具变量，非 libintl 运行时；`bindtextdomain` 只读编译期 `LOCALEDIR`。
+- `--localedir=/usr/share/locale` 使 `make install` 把 `.mo` 装到 builder 容器 `/usr/share/locale`（非 `TARGETPATH/share/locale`）。
+- 补片格式：engrampa 用 `patch -p1`（普通 diff）；pcmanfm 用 `git apply`（须 git diff 生成字节精确，手写缺尾部空行会 `corrupt patch`）。
+
+**对比**：三者与 geany（靠 `$TARGETPATH/share/locale` 自带 `.mo`，无需补片）机制不同；geany/pavucontrol/pasystray 中文显示另有记录（见对应组件文档）。
+
+#### 1.2、README 验证表其他组件多语言/中文 mo 核查（2026-11-20）
+
+用 git clone 源码 + 上游 tarball **实测** `po/zh_CN.po`（非猜测），结论：README 验证表其余组件中，**6 个涉及多语言且有中文 mo**，**11 个无 `po/`、无中文 mo**（不涉及本地化）。
+
+**① 有中文 mo（6 个，与 pcmanfm/lxtask/engrampa 同机制——若要中文需 `--localedir=$TARGETPATH/share/locale` + 装 `.mo`）**：
+
+| 组件 | 版本 | 证据 |
+|---|---|---|
+| gpicview | 0.2.5 | `po/zh_CN.po`+`zh_TW.po`（github po 64） |
+| gsm | 2.28.2 | `po/zh_CN.po`+`zh_HK.po`+`zh_TW.po`（download.gnome.org tarball 实测） |
+| thunar | 1.6.3 | `po/zh_CN.po`+`zh_HK.po`+`zh_TW.po`（po 66） |
+| ristretto | 0.8.5 | `po/zh_CN.po`+`zh_TW.po`（po 57） |
+| xfce4-settings | 4.12.4 | `po/zh_CN.po`+`zh_HK.po`（po 68） |
+| ibus | 1.5.35 | `po/zh_CN.po`（110KB，中文最多） |
+
+**② 不涉及多语言（11 个）**：
+
+- **无 gettext 本地化（源码无 `.po`）**：scrot、feh、dunst、rofi（meson 声明 `GETTEXT_PACKAGE` 宏但源码树无 po，2.0.0 tag 实测无）、xrandr（configure.ac 无 gettext）、dbus（1.12.26 tarball `po_count=0`）。
+- **纯 C 工具无 po**：dropbear、xbindkeys、hsetroot、xlunch。
+- **特例 tint2**：主程序无 po；仅配置器 `src/tint2conf/po/` 有 7 语言（bs/es/fr/hr/pl/ru/sr），**无中文**。
+
+**结论**：需中文显示处理 = 上面 6 个（gpicview/gsm/thunar/ristretto/xfce4-settings/ibus）；无需处理 = 11 个。rofi 源码树无 po（翻译可能由发行版另行打包）；tint2 配置器 po 无中文。
