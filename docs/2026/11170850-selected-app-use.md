@@ -827,6 +827,53 @@ su headless -s /bin/sh -c 'DISPLAY=:10 DBUS_SESSION_BUS_ADDRESS=<会话bus地址
 
 **拍板**：用户 2026-11-20 决定「只存文档」（本章 3 节下），运行环境（hdmi autostart）与生产 rootfs 落点**未改**，后续按需实施。
 
+#### 3.8、订正：`--no-icon-tooltip` 上游是空转开关——根因、修复与实测（2026-11-20）
+
+> **订正（2026-11-20）**：3.7 的「应用方式」结论作废。加 `--no-icon-tooltip` **无法关闭 tooltip**，原因是开关本身在上游就是无效的。
+
+用户把 `pasystray --no-icon-tooltip` 加进生产 rootfs 的 openbox autostart 后，悬停托盘图标**仍弹信息框**（`ps -ef` 已确认参数在进程命令行上）。因此 3.7 的"加参数即可解决"不成立。
+
+**根因**：`--no-icon-tooltip` / `-t` 在 pasystray 0.8.2 **就是空转的 no-op 开关**。
+
+- `src/options.c:49-50` 把该开关（`G_OPTION_ARG_NONE`）直接绑定到 `src/options.c:33` 的 `static gboolean icon_tooltip`，而它**默认已是 `TRUE`**。
+- GLib 的 `G_OPTION_ARG_NONE` 处理器是无条件 `*bool = TRUE`，**无法表达"未传"**——所以传了 flag，`icon_tooltip` 还是 `TRUE`（等于默认值），开关根本翻不过去。
+- 于是 `src/options.c:132` 的 `settings->icon_tooltip = icon_tooltip;` 恒为 `TRUE`，`src/pulseaudio.c:105` 的 `if(mis->settings.icon_tooltip)` 永远走"设 tooltip"分支，`systray_impl.c:156` 的 `gtk_status_icon_set_tooltip_markup` 照常被调用。
+- 已抓上游 `master/src/options.c` 逐行核对：**与我们 0.8.2 源码完全一致**，属上游 bug，不是本项目构建或部署问题。
+
+**GLib 探针实测**（builder 容器内 gcc + glib-2.0 编译真跑，不靠推测）：同一程序放两个开关，A 绑 default-TRUE 变量（pasystray 现状写法）、B 绑 default-FALSE 变量（拟修复写法）。
+
+| 命令行 | A（default-TRUE 变量） | B（default-FALSE 变量） |
+| --- | --- | --- |
+| `--no-icon-tooltip --no-flag` | 1 | 1 |
+| `--no-icon-tooltip` | 1 | 0 |
+| `-t` | 1 | 0 |
+| （无参数） | 1 | 0 |
+
+A 在"传"与"不传"下都是 1 —— 与 pasystray 现状行为完全吻合；B 才是正确语义。
+
+**同时推翻上一轮的"启动环境差异"假设**：手动 `su` 起干净环境（只设 `DISPLAY/HOME/LANG`）、以及 autostart 环境，**都复现 tooltip**（悬停 19363 / 19487 字节，移开基线 11079 / 11233）。差异是测试假象，不是 autostart 环境变量（`GTK_IM_MODULE`/`XMODIFIERS`/`DBUS` 等）导致。
+
+**修复**（已落代码，未推 CI）：
+
+- 新增 `compile/src/v-pasystray/pasystray-no-icon-tooltip.patch`：新增 `static gboolean no_icon_tooltip = FALSE;`，开关改绑 `&no_icon_tooltip`，`parse_options()` 里改 `settings->icon_tooltip = !no_icon_tooltip;`。
+- `compile/src/v-pasystray/build.sh`：在 glade-types、i18n 之后应用第 3 个 patch。
+
+**全链路实跑验证**（`alpine-builder-gtkmm224-2` 起临时容器 `builder-mm224`，`/src` 软链宿主；`x-pulseaudio` 静态栈 126s、`PULSE_RC=0`，`pasystray` 10s，`xx-verify --static` 通过、`0` 个 undefined reference、patch 确认落在 `src/options.c:34/51/133`）：
+
+| 二进制 | 参数 | 悬停截图 | 移开基线 | 结论 |
+| --- | --- | --- | --- | --- |
+| CI 旧件（5733608B，`md5 20a45bfa...`，Nov 20 10:30） | `--no-icon-tooltip` | 19363 / 19487 | 11079 / 11233 | **仍有 tooltip（bug）** |
+| 修复后（14046968B，`md5 06d0d08c...`） | `--no-icon-tooltip` | **11229** | **11229** | **无 tooltip ✅** |
+| 修复后 | （不带参数） | 19541 | 11299 | 默认 tooltip 保留 ✅ |
+
+验证环境：`rootfs-dbg` 最新镜像（Digest `22c90072fa86`）容器 `rootfs-dbg-latest`，Xvnc `:10` 1024x768，tint2 托盘，托盘图标窗口 `6291459 @ (977,745) 19x19`。截图用 `scrot`，宿主无 PIL/ImageMagick，**比字节数**即能判定有无 tooltip（有 ≈19KB，无 ≈11KB）。
+
+旁证：托盘图标仍渲染、右键菜单正常弹出（截图 11299 → 31995 字节）、`share/locale/zh_CN/LC_MESSAGES/pasystray.mo` 未受影响。
+
+**产物体积**：本地全量静态链接 14046968B，CI 镜像内为 5733608B——**不用管**，CI 到 rootfs 后有 upx 压缩（用户 2026-11-20 澄清），非缺链接。
+
+**生效路径**：patch 随 CI 重建 rootfs 镜像后，生产 autostart 里已有的 `pasystray --no-icon-tooltip &`（`~/.config/openbox/autostart:73`）才真正生效；本 3.7 的 hdmi autostart 改法同理，需等 CI 新产物。
+
 ## 二、配置项
 
 ### 1、mime 数据（gdk-pixbuf 图标/格式识别）
