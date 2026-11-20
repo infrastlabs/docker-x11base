@@ -803,6 +803,30 @@ su headless -s /bin/sh -c 'DISPLAY=:10 DBUS_SESSION_BUS_ADDRESS=<会话bus地址
 - `nohup &` 后台；日志看 `/tmp/dunst.log`。
 - 「直接 dunst 不行」= 缺 DISPLAY/bus/用户不对——dunst 启动失败或没接管 `org.freedesktop.Notifications`，通知照旧丢失。
 
+#### 3.7、托盘图标悬停 tooltip 遮挡 dunst——`--no-icon-tooltip` 关闭（2026-11-20）
+
+用户反馈（2026-11-20）：鼠标悬停托盘图标跳出信息框（连接状态 tooltip），与 dunst 通知区域互相遮挡，要屏蔽并问原生有无配置项。
+
+**结论：原生有配置项**——`pasystray --no-icon-tooltip`（短参数 `-t`）关闭连接状态托盘图标 tooltip；`icon_tooltip` 默认 `TRUE`。
+
+**源码依据**（pasystray 0.8.2，`compile/tarsrc/v-pasystray/`）：
+
+- `src/options.c:33`：`static gboolean icon_tooltip = TRUE;`（默认开启）。
+- `src/options.c:49-50`：`{ "no-icon-tooltip", 't', 0, G_OPTION_ARG_NONE, &icon_tooltip, "Disable the status icon tooltip for the connected state", NULL }`。
+- `src/options.c:132`：`settings->icon_tooltip = icon_tooltip;`（仅 CLI，无 gconf 键持久化）。
+- `src/pulseaudio.c:105`：`PA_CONTEXT_READY` 时 `if(mis->settings.icon_tooltip)` → `systray_impl_set_tooltip()`（`context_info_str` 的 server 信息，`systray_impl.c:156` `gtk_status_icon_set_tooltip_markup`）；else `systray_impl_set_has_tooltip(FALSE)`。
+- 悬停框 = 连接状态 tooltip（显示 PulseAudio server 信息），正是 `--no-icon-tooltip` 关闭的对象。
+
+**实测**：hdmi 发行版系统包 `/usr/bin/pasystray --help` 含 `-t, --no-icon-tooltip`；生产静态版同源码同样支持。
+
+**应用方式**：
+
+- 运行环境（hdmi/Ubuntu）：改 `/etc/xdg/autostart/pasystray.desktop` 的 `Exec=pasystray` → `Exec=pasystray --no-icon-tooltip`，`pkill pasystray` 重启生效。
+- 生产 rootfs 静态版：启动加 `--no-icon-tooltip` 即可（同源码 0.8.2）。
+- 注：只关**连接状态** tooltip；未连接瞬态 "connecting to server..."（`systray_impl.c:114`）与下拉菜单项 tooltip 不受控制（非悬停框场景）。
+
+**拍板**：用户 2026-11-20 决定「只存文档」（本章 3 节下），运行环境（hdmi autostart）与生产 rootfs 落点**未改**，后续按需实施。
+
 ## 二、配置项
 
 ### 1、mime 数据（gdk-pixbuf 图标/格式识别）
