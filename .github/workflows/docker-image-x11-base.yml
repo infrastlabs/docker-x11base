@@ -82,7 +82,7 @@ jobs:
             # bash buildx.sh builder #gtk224 to ali's layer not supported err, re-build origin
             # bash buildx.sh gtk224 #builder-gtk224
             # bash buildx.sh gtkmm224
-            bash buildx.sh #compile
+            # bash buildx.sh #compile
             # exit 0
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
