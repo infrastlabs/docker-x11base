@@ -201,6 +201,17 @@ function gnome_system_monitor(){
     cp /tmp/gsm-build/gsm/pixmaps/side.png $TARGETPATH/share/pixmaps/gnome-system-monitor/
     cp /tmp/gsm-build/gsm/pixmaps/download.svg /tmp/gsm-build/gsm/pixmaps/upload.svg $TARGETPATH/share/pixmaps/gnome-system-monitor/ 2>/dev/null || true
 
+  log "Install GSM locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
+    if [ -d /tmp/gsm-build/gsm/po ]; then
+      for p in /tmp/gsm-build/gsm/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/gnome-system-monitor.mo 2>/dev/null \
+          || log "msgfmt warn: $lang"
+      done
+      log "locales installed: $(ls /tmp/gsm-build/gsm/po/*.po | wc -l) langs"
+    fi
+
   log "Verify GSM..."
     file $TARGETPATH/bin/gnome-system-monitor
     xx-verify --static $TARGETPATH/bin/gnome-system-monitor || { log "GSM xx-verify FAILED"; exit 1; }
