@@ -1,0 +1,27 @@
+--- a/src/options.c
++++ b/src/options.c
+@@ -31,6 +31,7 @@
+ static int volume_inc = 2;
+ static gboolean reverse_scroll = FALSE;
+ static gboolean icon_tooltip = TRUE;
++static gboolean no_icon_tooltip = FALSE;
+ static gboolean no_notify = FALSE;
+ static gboolean always_notify = FALSE;
+ static gboolean monitors = FALSE;
+@@ -47,7 +48,7 @@
+     { "reverse-scroll", 'r', 0, G_OPTION_ARG_NONE,
+         &reverse_scroll, "Reverse volume scroll direction", NULL },
+     { "no-icon-tooltip", 't', 0, G_OPTION_ARG_NONE,
+-        &icon_tooltip, "Disable the status icon tooltip for the connected state", NULL },
++        &no_icon_tooltip, "Disable the status icon tooltip for the connected state", NULL },
+     { "no-notify", 'n', 0, G_OPTION_ARG_NONE, &no_notify,
+         "Deprecated, use --notify=none instead", NULL },
+     { "always-notify", 'a', 0, G_OPTION_ARG_NONE, &always_notify,
+@@ -129,7 +130,7 @@
+     }
+
+     settings->reverse_scroll = reverse_scroll;
+-    settings->icon_tooltip = icon_tooltip;
++    settings->icon_tooltip = !no_icon_tooltip;
+
+     notify_default(settings);

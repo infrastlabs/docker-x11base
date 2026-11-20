@@ -93,6 +93,9 @@ function pasystray(){
   log "Applying i18n patch (zh_CN gettext init + _() wrap; 需在 glade-types 之后)..."
     patch -p1 -N < /src/v-pasystray/pasystray-i18n.patch 2>/dev/null || true
 
+   log "Applying no-icon-tooltip fix patch (-t/--no-icon-tooltip 原本无效，见下)..."
+    patch -p1 -N < /src/v-pasystray/pasystray-no-icon-tooltip.patch 2>/dev/null || true
+
   log "Autogen (aclocal/autoconf/autoheader/automake --add-missing)..."
     aclocal && autoconf && autoheader && automake --add-missing
 
