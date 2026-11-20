@@ -1196,3 +1196,5 @@ $N -i /usr/share/icons/Papirus/16x16/devices/input-mouse.svg "SVG图片通知" "
 - **窗口标题抓取**：`xwininfo -root -children` 抓到 Gtk 辅助小窗口（程序名 fallback），应改 `xprop -root _NET_CLIENT_LIST` + 逐窗口 `_NET_WM_NAME` 精确抓主窗口标题。
 
 **结论**：1.2 核查出的 6 个有中文 mo 组件，5 个已中文可用（本小节），1 个暂缓（ibus，输入法引擎范围大）；加上已完成三组件（1.1/1.3），除 ibus 外全部可无 XDG 原生中文。
+
+**验证环境改动（非仓库文件）**：rootfs-zh-verify（Alpine 3.13 musl）已装 `musl-locales build-base musl-dev` + 复制 `zh_CN.UTF-8` locale 数据（仅验证用；构建产物/真机无需）。临时容器：`builder-gsm-zh`（basemm 基座，gsm 构建用，待清理）、`builder-g224`（gtk224 基座）、`rootfs-zh-verify`（验证，保留备用）。后续待办：ibus（暂缓）中文处理；临时容器清理提示。
