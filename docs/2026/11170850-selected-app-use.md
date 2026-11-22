@@ -5,9 +5,16 @@
 ## 目录
 
 - 一、调整项
-  - 1、gsm 界面改造（4 tab 顺序：System 移最后 + 默认激活 Processes）
+  - 1、gsm界面改造(4tab顺序:System移最后+默认激活Processes) + 评估版本已最新
   - 2、dbus/dunst 静态版在 headless 会话的使用
-  - 3、pasystray 音量托盘通知（libnotify 静态化）
+  - 3、pasystray 音量托盘通知(libnotify静态化) + pavucontrol 评估版本已最新
+  - 4、gpicview 设置对话框报错 + 版本升级（2026-11-22）
+  - 5、pcmanfm 升级与右键菜单修复（2026-11-23）
+  - 6、geany 升级评估 + 1.37.1 升级实现与验证（2026-11-23）
+  - 7、engrampa 最新支持 GTK2 版本评估（2026-11-23）
+  - 8、XFCE 组件 最新支持 GTK2 版本评估（2026-11-23）
+  - 9、tint2/rofi/scrot 评估 + rofi 2.1.1 升级实现与验证 + imlib2 升级评估（2026-11-23）
+  - 10、feh/hsetroot/xlunch 最新版本评估（2026-11-23）
 - 二、配置项
   - 1、mime 数据（gdk-pixbuf 图标/格式识别）
   - 2、dbus/dunst 在 rootfs 的运行时串接
@@ -16,7 +23,7 @@
 
 ## 一、调整项
 
-### 1、gsm 界面改造（4 tab 顺序：System 移最后 + 默认激活 Processes）
+### 1、gsm界面改造(4tab顺序:System移最后+默认激活Processes) + 评估版本已最新
 
 #### 1.1、评估分析（2026-11-16 评估，2026-11-17 落档）
 
@@ -320,6 +327,24 @@ gtk_notebook_append_page(notebook, sysinfo_box, sysinfo_label); /* System → 3 
 
 **一句话总结**：**配置类 bug = 静态化引入（gconf-shim，已修）；关窗报错/不保存 = 2.28 原版设计局限（`delete_event` 未处理 WM 直接 destroy），静态构建放大——不能拿 hdmi 3.28.x 动态版证明「2.28.2 动态版正常」；且未实测 2.28.2 非静态包，上述基于机制推断。**
 
+#### 1.10、gsm 最新支持 GTK2 版本评估（2026-11-23）
+
+**结论**：gsm 最新支持 GTK2（gtkmm-2.4）的稳定版本 = **2.28.2**（项目当前版本，**无更高可升**）。
+
+**实测**（download.gnome.org 各版本 configure 依赖）：
+
+| 版本 | 关键依赖 | GTK 世代 |
+|---|---|---|
+| 2.28.2（项目当前，2.x 最后稳定） | `gtk+-2.0` + `gtkmm-2.4` + `libwnck-1.0` + `gconf-2.0` + `dbus-glib-1` | **GTK2 / gtkmm-2.4** |
+| 2.99.0–2.99.3（GNOME 3 过渡开发版） | `gtk+-3.0` + `gtkmm-3.0` + `libwnck-3.0` | GTK3 |
+| 3.0.0 起 | `gtk+-3.0` + `gtkmm-3.0` | GTK3 |
+
+**要点**：
+
+- 2.x 系列（最后 2.28.2）全用 GTK2/gtkmm-2.4；**2.99.x 起一次性迁 GTK3**（`configure.ac` 已确认 2.99.3 为 `gtkmm-3.0`）。
+- 中间**不存在**更高的 GTK2 版本——2.28.2 之后直接跳 GTK3，项目当前 `2.28.2` 已是**最后/最高支持 GTK2 的稳定版**。
+- 类似 geany 的 1.37.1（最后支持 GTK2）：gsm **无需升级**（已是最新 GTK2 版），后续 GTK3 版本（3.0+/40+）项目用不上。
+
 ### 2、dbus/dunst 静态版在 headless 会话的使用（2026-11-17 分析）
 
 #### 2.1、使用链路与结论
@@ -602,7 +627,89 @@ Exec=/usr/local/static/dunst/bin/dunst
 
 **结论**：新镜像 dunst（UPX 压缩 4M，含 librsvg/io-svg）**SVG+PNG 图标均渲染正常**，图标链路（2.2.6 根因）在最终产物上闭环。
 
-### 3、pasystray 音量托盘通知（2026-11-17）
+### 2.3、dbus 版本升级评估与实现（2026-11-23）
+
+#### 2.3.1、最新版本评估（2026-11-23）
+
+**结论**：项目当前 dbus **1.12.26**（2023-02-08），上游最新 **1.16.4**（2026-11-12）；1.12 系列最高 **1.12.28**。方案 C（升最新 1.16.4）需 **Meson 构建改造**（1.16 起 Autotools 移除，tarball 无 configure）。
+
+**发布时间对比**：
+
+| 版本 | 角色 | 发布时间 |
+|---|---|---|
+| 1.12.26（项目当前） | 1.12.x 老稳定 | 2023-02-08 |
+| 1.12.28 | 1.12 系列最后（项目未到） | 2023-06 |
+| 1.14.0 | 1.14.x 稳定分支（取代 1.12.x） | 2022-02-28 |
+| 1.14.10 | 1.14 末版 LTS | 2024-06 |
+| 1.16.0 | 1.16.x 新稳定（取代 1.14.x） | 2024-12-16 |
+| 1.16.2 | 1.16 点版 | 2025-02-27 |
+| 1.16.4（上游最新） | 当前稳定 | 2026-11-12 |
+
+**1.16.x 功能变化**（相对 1.12.26）：
+
+- **构建系统：Autotools 移除，Meson 推荐/默认**（Meson ≥ 0.56 + Python 3.5）——官方 1.16.x tarball 不再含 `configure`。
+- C99 编译器要求；>64 位指针平台需 C11。
+- 系统总线 socket 默认 runtime state dir（/run）。
+- 传统 activation 的 `dbus-daemon-launch-helper` setuid 权限不自动设置（需打包/手动）。
+- `pam_console`/`pam_foreground` 集成移除。
+- Linux `GetConnectionCredentials()` 支持 **ProcessFD**。
+- 系统总线从 /etc 和 /run 加载 .service 文件。
+- `close_range()` 关闭 fd / close-on-exec。
+- **Y2038 安全**：32 位平台 64 位时间戳、64 位 inode/timestamp API。
+- dbus-send 支持数组/字典/嵌套变体；AF_UNIX on Windows；大指针架构可移植性。
+
+**CVE 修复**（1.12.26 未含，1.16.4 已含）：
+
+| CVE/编号 | 类型 | 修复版本 |
+|---|---|---|
+| CVE-2023-34969 | Monitoring interface DoS | 1.12.28 / 1.14.6 |
+| CVE-2026-120749 | 系统总线 DoS（CVE-2023-34969 不完整修复） | 1.16.4 |
+| RHEL-239613 (dbus#587) | 客户端关 socket busy-loop DoS | 1.16.4 |
+| RHEL-239294 (dbus#586) | nonce-tcp 阻塞 DoS | 1.16.4 |
+| RHEL-239610/239934 | 非 Linux 平台 DoS（macOS/FreeBSD，x86_64 Linux 不直接相关） | 1.16.4 |
+
+**项目环境兼容性（用 1.16.4）**：
+
+| 维度 | 评估 | 说明 |
+|---|---|---|
+| 构建 | ⚠️ 最大障碍 | 项目 build.sh 用 Autotools `./configure`；1.16.x 无 configure → 需重写 **Meson 构建**（meson setup+ninja），静态链逻辑可保留 |
+| ABI/API | ✅ 兼容 | libdbus 公共 ABI 稳定，下游（dbus-glib/gtk2 应用）无需重编，直接换 libdbus-1.a |
+| dbus-glib | ✅ 基本兼容 | 1.16 的 dbus-1.pc（Meson 生成）需补 Libs.private（-lexpat -lpthread -ldl -lm，项目已有 sed 补丁） |
+| session bus 运行时 | ✅ 功能兼容 | 项目 headless session bus（非 systemd），1.16 的系统 bus /run、setuid helper、systemd 差异不触及 |
+| 安全收益 | ✅ 显著 | 获 CVE-2026-120749 + RHEL-239613 + CVE-2023-34969 等（当前全未含） |
+| 成本/风险 | 中 | Meson 改造 + 重新验证（session bus 起停 / dbus-send / dunst / dbus-glib） |
+
+**建议**：方案 C 升 1.16.4（最新安全），需 Meson 构建改造；build.sh 改多版本（像 dropbear），旧 1.12.26 保留。
+
+#### 2.3.2、方案C 开工实现与验证（2026-11-23）
+
+**方案 C（升最新 1.16.4）实现完成**：`x-dbus/build.sh` 改**多版本构建**（像 dropbear），默认走 `dbus_1_16_4`（Meson 静态全建），旧 1.12.26 方法保留（`dbus_1_12_26`/`dbus_send_1_12_26`/`dbus_launch_1_12_26` 可调）。
+
+**构建过程与坑**（容器 builder-g224，alpine-builder-gtk224-2）：
+
+1. **build.sh 多版本化**：保留旧 `dbus()`（1.12.26 Autotools）为 `dbus_1_12_26` 等可调；新增 `dbus_1_16_4()`；case 默认 `dbus`/`dbus-send`/`dbus-launch` → `dbus_1_16_4`。
+2. **1.16 构建系统迁移**：1.16 起 Autotools 移除（tarball 无 configure），须 **Meson**（容器已有 meson/ninja/python3）。Meson 选项名全变（`meson_options.txt`）：`x11_autolaunch`（可正确关 X11，旧 configure `--disable-x11` 无效）、`default_library` 为 Meson 内建（meson_options 不列）。
+3. **Meson 选项类型坑**：`modular_tests`/`xml_docs` 是 **feature**（enabled/disabled/auto），`user_session`/`installed_tests`/`intrusive_tests`/`tools`/`message_bus`/`traditional_activation`/`asserts`/`checks` 是 **boolean**（true/false）——首次传值错（boolean 收 `disabled` / feature 收 `false`）报「Value ... is not boolean / not one of the choices」。
+4. **expat 静态坑**：Meson 的 expat dependency 默认用 `/usr/lib/libexpat.so`（动态），与 `-Dc_link_args=-static` 冲突（attempted static link of dynamic object）→ patch meson.build 给 expat dependency 加 `static: true` 强制 libexpat.a。
+5. **ninja target 名带路径**：`bus/dbus-daemon`、`tools/dbus-send`、`tools/dbus-launch`、`dbus/libdbus-1.a`（裸名报 unknown target）。
+6. **只建产品 target 避测试程序**：`test-service` 无条件建、`launch-helper-for-tests` 因 `traditional_activation` 触发（链 glib 动态）→ ninja 只建 4 产品 target，避开测试链。
+7. **strip**：`-Dc_link_args='-static -Wl,--strip-all'` 令产物 `statically linked, stripped`（Meson 默认不 strip）。
+
+**验证结果**（容器 builder-g224）：
+
+| 项 | 结果 |
+|---|---|
+| dbus-daemon | `statically linked, stripped`（582K）；`--version` = D-Bus Message Bus Daemon **1.16.4** |
+| dbus-send | 静态（309K），xx-verify PASS |
+| dbus-launch | 静态（1.1M），xx-verify PASS |
+| libdbus-1.a | 2.0M，nm `dbus_bus_get` OK |
+| session bus 实跑 | 起 `dbus-daemon --session` 成功 + `dbus-send` ListNames 返回（org.freedesktop.DBus + :1.0） |
+| dbus-glib 下游 | dbus-glib 0.112 对 **1.16.4 libdbus-1.a** 编译成功（libdbus-glib-1.a 275K，**ABI 兼容**） |
+| 产物路径 | `/usr/local/static/dbus/bin/{dbus-daemon,dbus-send,dbus-launch,...}` + `lib/libdbus-1.a` + `lib/pkgconfig/dbus-1.pc` + `share/dbus-1/*.conf` |
+
+**总结**：方案 C 完成，dbus 1.16.4 静态构建 + 运行 + 下游 dbus-glib 全验证通过。升级获 CVE-2026-120749 + RHEL-239613 + CVE-2023-34969 等修复；构建系统改 Meson（Autotools 移除），旧 1.12.26 方法保留可回退。
+
+### 3、pasystray 音量托盘通知(libnotify静态化) + pavucontrol 评估版本已最新
 
 #### 3.1、pasystray 滚轮调音量通知：现状与方案（静态化 libnotify，2026-11-17）
 
@@ -873,6 +980,883 @@ A 在"传"与"不传"下都是 1 —— 与 pasystray 现状行为完全吻合�
 **产物体积**：本地全量静态链接 14046968B，CI 镜像内为 5733608B——**不用管**，CI 到 rootfs 后有 upx 压缩（用户 2026-11-20 澄清），非缺链接。
 
 **生效路径**：patch 随 CI 重建 rootfs 镜像后，生产 autostart 里已有的 `pasystray --no-icon-tooltip &`（`~/.config/openbox/autostart:73`）才真正生效；本 3.7 的 hdmi autostart 改法同理，需等 CI 新产物。
+
+#### 3.9、pavucontrol 最新支持 GTK2 版本评估（2026-11-23）
+
+**结论**：pavucontrol 最新支持 GTK2 的版本 = **3.0**（项目当前版本，**无更高可升**）。
+
+**实测**（gitlab.freedesktop.org/pulseaudio/pavucontrol 各 tag 查 configure.ac）：
+
+| 版本 | GTK/gtkmm 依赖 | GTK 世代 |
+|---|---|---|
+| 3.0（项目当前） | `AC_ARG_ENABLE(gtk3, --disable-gtk3)`：默认 `gtkmm-3.0 ≥ 2.99`；**`--disable-gtk3` → `gtkmm-2.4 ≥ 2.16`**（configure.ac:43-62） | **GTK2（--disable-gtk3）+ 默认 GTK3** |
+| 4.0 | `PKG_CHECK_MODULES(GUILIBS, [ gtkmm-3.0 >= 3.0 sigc++-2.0 libcanberra-gtk3 >= 0.16 ])` | **只 GTK3** |
+| 5.0 | `gtkmm-3.0 ≥ 3.22 ... json-glib-1.0` | GTK3 |
+| 6.2（上游最新） | gtkmm-3.0 | GTK3 |
+
+**要点**：
+
+- 3.0 是最后支持 GTK2 的版本：configure.ac 保留 `AC_ARG_ENABLE(gtk3, --disable-gtk3)` 双选（默认 gtk3=yes，--disable-gtk3 走 gtkmm-2.4 分支）；**4.0 起强制 GTK3**（`PKG_CHECK_MODULES(gtkmm-3.0)`，无 --disable-gtk3 / gtkmm-2.4 分支）。
+- **3.0 系列确认无更高小版本**：`git ls-remote --tags` 仅 v3.0（无 v3.0.1/v3.0.x），3.0 系列就一个版本。
+- 项目当前 `3.0` 已是**最后/最高支持 GTK2 的版本**（build.sh 注释「版本 3.0 = 最后 GTK2 版（--disable-gtk3 走 gtkmm-2.4 分支）」经源码独立确认），**无需升级**。
+- 后续版本（4.0+/5.0/6.2）全 GTK3，项目用不上。
+
+### 4、gpicview 设置对话框报错 + 版本升级（2026-11-22）
+
+#### 4.1、设置按钮点击报错——pref-dlg.ui 漏装根因与修复
+
+**症状**：gpicview 0.2.5 主界面正常（看图/翻页），点击工具栏 Preferences（设置/齿轮）报错，无法弹出配置界面。主界面不用 GtkBuilder（代码手工建窗），唯独设置对话框走 GtkBuilder + 外部 XML，所以唯独这项挂。
+
+**根因**（三方交叉验证）：`compile/src/v-gpicview/build.sh` 手装段漏装设置对话框 UI 文件 `pref-dlg.ui`。
+
+| 环节 | 证据 | 说明 |
+|---|---|---|
+| 加载点 | `pref.c` `edit_preferences()`：`gtk_builder_add_from_file(builder, PACKAGE_DATA_DIR "/gpicview/ui/pref-dlg.ui", NULL)` | GtkBuilder 从固定路径加载 UI |
+| 宏定义 | `src/Makefile.am`：`-DPACKAGE_DATA_DIR=\""$(datadir)"\"` = `$(prefix)/share` | 运行时找 `$prefix/share/gpicview/ui/pref-dlg.ui` |
+| 源码位置 | 源码树文件在 `data/pref-dlg.ui`（9687B GtkBuilder XML），非 `data/ui/` | |
+| 安装规则 | `data/Makefile.am`：`uidir=$(datadir)/gpicview/ui`、`ui_DATA=pref-dlg.ui` | 正解装到 `$prefix/share/gpicview/ui/pref-dlg.ui`，与加载点一致 |
+| 实际构建 | `build.sh` 手装段只 `cp -r data/pixmaps $TARGETPATH/share/gpicview/`，**没建 `ui/`、没拷 pref-dlg.ui** | 部署后文件不存在 |
+
+**失败链**：`gtk_builder_add_from_file` 文件不存在 → 返回 0 失败（`err` 传 NULL 未检查，静默）→ `gtk_builder_get_object(builder,"dlg")` 返回 NULL → `gtk_window_set_transient_for(NULL,parent)` GLib 断言 → 后续对 NULL 的 `g_signal_connect`/`gtk_dialog_run(NULL)` 直接崩溃。
+
+**修复思路**（最小改动，一处）：build.sh Install 段补装 UI 文件。
+
+```sh
+mkdir -p $TARGETPATH/share/gpicview/ui
+cp data/pref-dlg.ui $TARGETPATH/share/gpicview/ui/
+```
+
+**改后验证**（三步）：
+
+1. 装后文件在：`test -f $TARGETPATH/share/gpicview/ui/pref-dlg.ui`
+2. 编入路径核对：`strings $TARGETPATH/bin/gpicview | grep pref-dlg` 应含 `/usr/local/static/gpicview/share/gpicview/ui/pref-dlg.ui`
+3. 实跑（Xvnc）：启动 gpicview → 点 Preferences → 设置对话框正常弹出；勾选/改色/点"设为默认"不崩
+
+**补充**：`pref-dlg.ui` 是运行时从文件加载的 GtkBuilder XML，**不嵌入静态二进制**，必须随部署安装（与图标/主题"烘焙进库"不同——漏装一个文件就挂一个功能）。若想更稳可在 `edit_preferences()` 加 `gtk_builder_add_from_file` 返回值检查并弹错误提示，但属上游源码改动非必要；**补装文件即可根治**。
+
+#### 4.2、修复验证总结（2026-11-22）
+
+按 4.1 思路补装 pref-dlg.ui 后，builder-g224 重编（tarsrc 缓存命中，19s），产物部署 hdmi 容器 Xvnc 实跑，全链路通过。
+
+| 环节 | 结果 |
+|---|---|
+| 构建 | builder-g224，`TARGETPATH=/usr/local/static/gpicview sh /src/v-gpicview/build.sh gpicview`，19s，err 0 pass；**tarsrc 缓存命中**（`/tarsrc/v-gpicview/gpicview-0.2.5.tar.gz`，gitee x11base-tarsrc，未走 curl 下载） |
+| 产物 | `share/gpicview/ui/pref-dlg.ui`（9687B）已装；`strings` 编入 `/usr/local/static/gpicview/share/gpicview/ui/pref-dlg.ui`；`xx-verify --static` OK；`statically linked, stripped` |
+| GUI 实跑 | hdmi 容器 Xvnc `:315`，headless 用户：主窗口「图像查看器」弹出，xdotool `windowfocus` + 按 `p`（GDK_p=on_preference）→ **Preferences 对话框「首选项」弹出**（WIN 2097225，中文本地化生效） |
+| 提交 | 文档 `02f92c41`；build.sh 修复 `0197c68d`（均已推送） |
+
+**对比**：修复前点 Preferences 崩（pref-dlg.ui 缺失）；修复后正常弹出。
+
+**验证环境坑**（hdmi 容器，非产物缺陷）：
+
+- 无 `xprop`/`xdpyinfo` → 连通门改用 `xdotool getdisplaygeometry`。
+- `xdotool key --window`（XSendEvent）GTK2 忽略合成事件 → 须 `windowfocus` + `key p`（XTEST 真实按键）。
+- `pkill -f` 自匹配坑：脚本命令行含路径字样会自杀 → 用 `pkill -x` 精确名 + Xvnc 字符类（`'Xvnc :31[3-9]'`）防误杀。
+- gpicview 快捷键 `P`=on_preference（GDK_p）；Preferences 标题中文「首选项」（`.mo` 生效）。
+
+**gpicview 0.3.1 升级评估与转存地址（2026-11-23）**——上游转存 gitee，以 `gitee.com/g-system/fk-lxde-gpicview` 为准；当前 0.2.5 → 最新 0.3.1，评估升级可行性。
+
+**转存仓库**：tags 0.1.3/0.1.8/0.1.11/0.2.0~0.2.6/0.3.1；0.2.5 peeled 与 github lxde/gpicview 完全一致（同源转存），多 0.1.11；master 在 0.3.1 后 5 提交（4 翻译 + autogen.sh 适配最新 automake `7f54b7c`）。
+
+**0.2.5→0.3.1 差异**：94 文件 +5901/-4040，60+ 提交。新增功能（均正向）：Ctrl+C 剪贴板、工具栏显示/隐藏、打开最大化、缩放步长、窗口大小/位置保存、动画重启用、URI 检查+SEGV 修复、libjpeg≥7 旋转保存修复、自动放大窗口 bug 修复；移除 debian 目录/unused fullscreen.png/desktop Encoding key（无影响）；新增 man page `gpicview.1`（预生成，无构建依赖）。
+
+**升级可行性评估**：
+
+| 影响点 | 结论 |
+|---|---|
+| GTK2 构建 | 可行。configure.ac `--enable-gtk3` 不传→空→else 分支 `gtk+-2.0 >= 2.12.0`（u-gtk 2.24.33 满足）；且 src/ 零处 `ENABLE_GTK3` 引用、main-win.c:1090 有 GTK2 专属 `widget->window` → 实际 GTK2-only（GTK3 反而编不过） |
+| patch | 不再需要。`gpicview-mainwin-return.patch`（`return;`→`return FALSE`）已在 0.3.1 upstream 修复（main-win.c:375）；升级须删 patch 步骤 |
+| 数据文件 | build.sh 已手装 `data/pref-dlg.ui`（cp 版本无关）→ 0.3.1 新配置项自动带上；data/pixmaps 不变（fullscreen.png 删除是 unused） |
+| -Werror 严格 | configure.ac:31 一串 `-Werror=return-type/missing-declarations/undef/aggregate-return...` + `-D*_DISABLE_DEPRECATED`；0.2.5 已能过，0.3.1 为 upstream 稳定版应能过——静态构建（xx-clang）须实跑确认 |
+
+**需改点（若升级）**：`vers.txt` 改 `gpicview\|0.3.1\|down_catfile https://gitee.com/g-system/fk-lxde-gpicview/archive/refs/tags/0.3.1.tar.gz \| tar xz ...`；`build.sh` 版本 0.2.5→0.3.1、删 patch 步骤、订正第 19 行注释（「0.2.6/0.3.1 已 GTK3-only」→「0.3.1 实际 GTK2-only」——原注释是坑）。
+
+**结论**：升级 0.3.1 可行性成立、影响可控（正向功能增量，无新硬依赖；patch 已上游化可删）；唯一需实跑确认 0.3.1 GTK2 静态构建过 -Werror。
+
+#### 4.3、gpicview 0.3.1 升级实施与实测（2026-11-23）
+
+按 4.2 评估结论开工，0.2.5→0.3.1 升级全链路完成并实测通过，3 文件各一 commit 推送（`0d4abcf8`）。
+
+**实施改动**：
+
+| 文件 | 改动 |
+|---|---|
+| `compile/src/vers.txt` | gpicview 0.2.5→0.3.1，地址 codeload.github.com→gitee g-system/fk-lxde-gpicview archive 0.3.1.tar.gz（以 gitee 为准） |
+| `compile/src/v-gpicview/build.sh` | 版本 0.3.1；删 patch 步骤（main-win.c return FALSE 已上游化）；订正「0.3.1 GTK3-only」错注→实际 GTK2-only；源目录名兼容 `fk-lxde-gpicview-0.3.1` |
+| `docs/2026/11170850-selected-app-use.md` | 4.2 评估保存（单独 commit） |
+
+**实测（builder-g224 + hdmi Xvnc）**：
+
+| 环节 | 结果 |
+|---|---|
+| 构建 | `TARGETPATH=/usr/local/static/gpicview sh /src/v-gpicview/build.sh gpicview`，17s，err 0 pass |
+| 静态验证 | `xx-verify --static` rc=0；`file`=statically linked, stripped；`strings`=0.3.1；编入 `/usr/local/static/gpicview/share/gpicview/ui/pref-dlg.ui`；pref-dlg.ui 新版 15567B 已装；locale 63；日志 undefined reference=0 |
+| GUI 实跑 | hdmi Xvnc `:320`，headless 用户：主窗口「图像查看器」弹出（中文 .mo 生效）；按 `p` → Preferences「首选项」弹出（WIN 2097225）；进程稳定不崩 |
+| 提交 | docs `db9b3917`；vers.txt `f8f03556`；build.sh `0d4abcf8`（均已推送） |
+
+**踩坑（实跑才见）**：
+
+- gitee `archive/refs/tags/0.3.1.tar.gz` **解压目录 = `fk-lxde-gpicview-0.3.1`**（转存仓库名非 `gpicview`），build.sh 原硬编码 `gpicview-$VER` → source MISSING；已改双名兼容。
+- build.sh 原注释「0.2.6/0.3.1 已 GTK3-only」**是错的**（坑）：configure 默认 GTK2、src 零处 `ENABLE_GTK3` 使用、main-win.c:1090 有 GTK2 专属 `widget->window` → 实际 GTK2-only；已订正，勿再信。
+- GUI 定位坑：`xdotool search --classname gpicview` 返回 2 窗口（主+内部辅助），取第一个会 BadMatch → 按 4.1 经验用中文标题 `search --name "图像查看器"` 定位真主窗口。
+
+**对比**：升级后功能增量（Ctrl+C 剪贴板/工具栏开关/打开最大化/缩放步长/窗口位置保存/动画重启用/URI+SEGV 修复等），无回归（主窗口/Preferences/中文全通过）。
+
+### 5、pcmanfm 升级与右键菜单修复（2026-11-23）
+
+> 2026-11-23 用户需求：pcmanfm 三个仓库（pcmanfm / libfm / menu-cache）都升级到最新；修复右键菜单 3 个 bug；新增屏蔽侧栏 cdrom/usb 设备项。
+
+#### 5.1、需求项与现有进展（2026-11-23）
+
+**需求项（用户原话整理）**
+
+**背景**：pcmanfm 三个仓库（pcmanfm / libfm / menu-cache）都有更新版本，需升级到最新（pcmanfm 1.4.0，配套 libfm 1.4.1、menu-cache 1.1.1）。
+
+**需求列表**：
+
+| # | 需求项 | 现象/说明 |
+|---|---|---|
+| 1 | 三仓库升级到最新 | pcmanfm 1.4.0 / libfm 1.4.1 / menu-cache 1.1.1（gitee g-system 镜像已同步，tag 已确认存在） |
+| 2 | 右键空白区域菜单无中文 | 菜单全英文 |
+| 3 | 右键空白区域「属性」不弹 + 报错 | 右键空白 → 属性，属性框不弹出，报错 |
+| 4 | 右键文件「OpenWith」报错退出 | 右键文件 → OpenWith，报错导致程序直接退出 |
+| 5 | 屏蔽侧栏 cdrom/usb 设备项 | 侧栏显示 cdrom/usb 设备，当下及项目场景用不着 |
+
+**根因定位（代码级）**
+
+- **右键菜单无中文**：菜单由 libfm 构建（`fm-file-menu.c` 的 `N_()`），libfm 有自己 `GETTEXT_PACKAGE=libfm`（configure.ac:250）+ `po/zh_CN.po`（59+ 语言），`fm.c:85` `bindtextdomain("libfm", PACKAGE_LOCALE_DIR)`。build.sh 只装 pcmanfm.mo、**没装 libfm.mo** → 菜单英文。
+- **属性框不弹 + 报错**：`fm-file-properties.c:105` `UI_FILE = PACKAGE_UI_DIR"/file-prop.ui"`（1414 行 `gtk_builder_add_from_file`）；`PACKAGE_UI_DIR=$(datadir)/libfm/ui`。源码树只有 `.glade`，Makefile `.glade.ui` 转换规则生成 .ui。build.sh **没装 libfm ui/** → 部署后 file-prop.ui 缺失 → 属性框加载失败。
+- **OpenWith 报错退出**：`fm-app-chooser-dlg.c:301` `gtk_builder_add_from_file(builder, PACKAGE_UI_DIR "/app-chooser.ui")` 同样依赖 ui 文件；`on_open_with`（fm-file-menu.c:673）→ `fm_choose_app_for_mime_type` → app-chooser。ui 缺失 → 崩溃退出。
+- **屏蔽 cdrom/usb**：`fm-places-model.c` `add_volume_or_mount()`（387 行）是设备唯一入口（初始列出 + 动态 `on_volume_added`/`on_mount_added` 都经它），在该函数入口按名称/挂载点过滤（`_hide_cdrom_usb()`：名称含 cdrom/cd-rom/usb，或挂载点 `/media/cdrom`、`/media/usb` 即屏蔽）。
+
+**现有进展（2026-11-23）**
+
+**构建已完成（builder-g224，三仓库全部成功）**：
+
+| 组件 | 版本 | 产物 | 关键点 |
+|---|---|---|---|
+| libfm | 1.4.1 | libfm.a / libfm-extra.a / libfm-gtk.a | `--prefix=$TARGETPATH`（UI/LOCALE 宏编入部署路径）；UI 8 文件（file-prop.ui/app-chooser.ui 等，Makefile `.glade→.ui` 生成）；locale 60 langs（libfm.mo）；.pc Version 1.4.1 |
+| menu-cache | 1.1.1 | libmenu-cache.a | .pc Version 1.1.1（AC_INIT 1.1.1）；`--branch=1.1.1` |
+| pcmanfm | 1.4.0 | pcmanfm 13.7M（statically linked, stripped） | `--prefix=$TARGETPATH`；pcmanfm ui 5 文件；locale 54 langs；静态修复 patch 重新生成（1.4.0 上下文变） |
+
+**部署**：hdmi 容器 `/usr/local/static/pcmanfm/` 已更新（tar 中转，注意 docker exec 副作用回收坑 → setsid 打包才完整）。
+
+**状态（2026-11-23）**：✅ 全部完成——三仓库构建成功、部署 hdmi、**四问题验证通过**（详见 5.2）、代码与文档已提交推送（6 commit）。
+
+- 文档：`d0a01aa7` / `894f3d0b` / `c0e7a0ee`（5.1 需求进展 + 位置修正 + 验证更新）
+- 代码：`65a75a00`（build.sh）、`78570fd3`（libfm-hide-cdrom-usb.patch）、`bbf2afc1`（pcmanfm-staticfix.patch 重生成）
+
+#### 5.2、实现以及验证总结（2026-11-23）
+
+**实现过程**：
+
+- **三仓库版本**：libfm 1.4.1 / menu-cache 1.1.1 / pcmanfm 1.4.0（build.sh `--branch` 升级）；构建顺序 `libfm → menu_cache → pcmanfm`（build.sh `full`）。
+- **libfm 改造**：`./configure --disable-shared --enable-static --prefix=$TARGETPATH`（UI/LOCALE 宏编入部署路径，修复属性框/openwith/菜单中文）；手动装 `data/ui/*.ui`（8 文件，Makefile `.glade→.ui` 生成）+ `po/*.po` msgfmt `libfm.mo`（60 langs）+ `.pc` sed 修正回 `/usr/local` + 头平铺 + `libfm.a/libfm-gtk.a` 拷 `/usr/lib`。
+- **屏蔽 cdrom/usb**：`libfm-hide-cdrom-usb.patch`——`add_volume_or_mount()` 唯一入口加 `_hide_cdrom_usb()`（名称含 cdrom/cd-rom/usb 或挂载点 `/media/cdrom`、`/media/usb` 即屏蔽）。
+- **pcmanfm 静态修复 patch 重生成**：`pcmanfm-staticfix.patch` 1.4.0 上下文变 → 重新生成（43 行，`g_type_ensure` 强制注册 GTK 类型 + 信号 pipe 非阻塞）。
+
+**坑与破环**：
+
+- **gitclone 命中 GITCACHE 缓存只 cp -a 不 checkout --branch**（common.sh `gitclone` L147-153）→ 源码树停留旧版（1.3.2/1.1.0）。解法：宿主 `tarsrc-git/<repo>` 手动 `git fetch --tags` + `git checkout <版本>`。
+- **menu-cache 1.1.1 循环依赖**：menu-cache make 的 `menu-cache-gen` 链接需 `-lfm-extra` 实际库；libfm configure 需 `libmenu-cache.pc`。破环：先 libfm（libmenu-cache.pc 1.1.0 已存在）→ 再 menu-cache（libfm-extra.a 就位）→ 再 pcmanfm（即 build.sh `full` 顺序）。
+- **pcmanfm-staticfix.patch 旧版在 1.4.0 不适用**（src/pcmanfm.c 上下文变）→ 重新生成。
+- **docker exec 副作用回收坑**：`tar czf` 写中转文件被截断（2981898B 不完整）→ setsid 后台 + 轮询 DONE。
+- **menu-cache 1.1.1 的 AC_INIT 实际为 1.1.1**（build.sh `--branch=1.1.1` 有效，configure 后 config.h VERSION 1.1.1）；此前误判 1.1.0 是因缓存旧树。
+
+**验证总结**（Xvnc `:11` + xdotool，hdmi 容器，`LANG=zh_CN.UTF-8`）：
+
+| 问题 | 验证方法 | 结果 |
+|---|---|---|
+| 1 右键空白菜单无中文 | `LANG=zh_CN.UTF-8` 跑，右键空白→属性，属性框标题 | ✅ 标题「文件属性」（libfm 域中文生效，菜单同域→中文） |
+| 2 属性框不弹+报错 | 右键空白 → End → Return | ✅ 「File Properties」窗口弹出，不再崩溃/报错 |
+| 3 OpenWith 报错退出 | 右键文件 → OpenWith 子菜单展开/选择 | ✅ pcmanfm 存活无报错（`app-chooser.ui` 已装 + `strings` 编入路径确认；对话框精确弹出受限于无 WM 环境，核心"不退出"已验证） |
+| 4 屏蔽 cdrom/usb | patch 落 + 部署 | ✅ `add_volume_or_mount()` 唯一入口过滤 + 侧栏正常显示不崩（容器无真实光驱/USB，代码级验证） |
+
+**产物核对**：`file` statically linked, stripped；`ldd` Not a valid dynamic program；`strings` 编入 `/usr/local/static/pcmanfm/share/libfm/ui/file-prop.ui` 等路径正确；libfm.mo（60）+ pcmanfm.mo（54）。
+
+**验证环境清理**：Xvnc `:11` 用完 `pkill -f "Xvnc :11"`（带号限定防自匹配）+ 清 `/tmp/.X11-lock` `/tmp/.X11-unix/X11`；pcmanfm 进程已杀。live `:1` 会话未动。
+
+#### 5.3、OpenWith 在 rootfs 复现崩溃——根因是 rootfs 缺 libfm ui 文件（2026-11-23 落档）
+
+**发现**：5.2 的「OpenWith 不退出」验证是在 **hdmi 容器**做的（有 `app-chooser.ui`），只代表 hdmi 环境；**rootfs 镜像实际缺 libfm ui 文件**，OpenWith 会崩溃退出——本次在 rootfs-dbg 实测复现确认。
+
+##### 5.3.1、复现与根因（2026-11-23）
+
+**复现环境**：rootfs-dbg-latest 容器 `:10` Xvnc（live 会话，1024x768）+ headless 用户跑 `/usr/local/static/pcmanfm/bin/pcmanfm /tmp/pcmtest`；`/tmp/pcmtest/test.txt`（root 属，5 字节）。
+
+**复现操作**：右键 test.txt 图标（x=200-230 区，右键 `(215,345)`）→ 弹 132x190 文件菜单 → `xdotool windowfocus` 菜单 + `Down` + `Return`（菜单第一项即 Open With）→ **pcmanfm 崩溃退出**（进程 47571 消失）。
+
+**崩溃日志**（stderr）：
+
+```
+(pcmanfm:47571): Gtk-CRITICAL **: IA__gtk_dialog_set_alternative_button_order: assertion 'GTK_IS_DIALOG (dialog)' failed
+(pcmanfm:47571): Gtk-CRITICAL **: IA__gtk_label_set_text: assertion 'GTK_IS_LABEL (label)' failed
+(pcmanfm:47571): Gtk-CRITICAL **: IA__gtk_container_add: assertion 'GTK_IS_CONTAINER (container)' failed
+(pcmanfm:47571): Menu-Cache-ERROR **: failed to find menu-cached
+```
+
+**根因链**（对应 5.1 定位的 `fm-app-chooser-dlg.c:301/317`）：
+
+| 步 | 位置 | 行为 |
+|---|---|---|
+| 1 | `:301` `gtk_builder_add_from_file(PACKAGE_UI_DIR"/app-chooser.ui")` | rootfs 缺 ui → 返回 0（失败） |
+| 2 | `:302` `data->dlg = gtk_builder_get_object(builder,"dlg")` | 返回 **NULL** |
+| 3 | `:317` `gtk_dialog_set_alternative_button_order(data->dlg,...)` | 对 NULL 调用 → **Gtk-CRITICAL assertion failed**（首条日志） |
+| 4 | 后续 NULL 对象操作（label/container） | 连续 Gtk-CRITICAL |
+| 5 | `Menu-Cache-ERROR: failed to find menu-cached` | 致命错误 → **进程中止** |
+
+**环境对照（关键）**：
+
+| 环境 | app-chooser.ui | `/usr/share/libfm/ui/` | `/usr/share/applications/` | OpenWith 结果 |
+|---|---|---|---|---|
+| hdmi（`docker-hdmi-desktop-desktop-1`） | ✅ 存在（`/usr/local/static/pcmanfm/share/libfm/ui/` + `/usr/share/libfm/ui/`） | ✅ 存在 | ✅ 51 个 .desktop | 不崩（阴性对照） |
+| rootfs-dbg（`rootfs-dbg-latest`） | ❌ **不存在** | ❌ 整个目录不存在 | ⚠️ 仅 htop.desktop | **崩溃**（复现） |
+
+**为何 hdmi 不崩**：pcmanfm `strings` 确认编译 `PACKAGE_UI_DIR=/usr/local/static/pcmanfm/share/libfm/ui/`，hdmi 该路径有 `app-chooser.ui` → `gtk_builder_add_from_file` 成功 → `dlg` 非 NULL → `:317` 不崩。
+
+**为何 rootfs 崩**：rootfs 该路径（及 `/usr/share/libfm/ui/`）**整个缺失** → ui 加载失败 → `dlg` NULL → `:317` 段错误（Gtk-CRITICAL + Menu-Cache-ERROR fatal）。
+
+**修复方向**：rootfs Dockerfile res stage 需补装 libfm ui 文件（`app-chooser.ui` 等 8 个 `.ui` 到 `/usr/local/static/pcmanfm/share/libfm/ui/`，来自 libfm 构建产物 `data/ui/*.ui`）+ 至少基础 `/usr/share/applications/*.desktop`（当前仅 htop，OpenWith 应用树近乎空）。修复后 rootfs `:10` 再验证不崩。
+
+> **订正（2026-11-23）**：5.2 验证表第 3 行「OpenWith 不退出」仅对 hdmi 成立；rootfs 缺 ui 仍会崩溃，见 5.3.1。
+
+> **订正（2026-11-23 二次，判断修正）**：上判"根因=缺 app-chooser.ui"**不完整**。用户实测直接 `pcmanfm`（无参，不触 OpenWith）即崩，日志仅一条（**无 Gtk-CRITICAL**）：
+
+```
+(pcmanfm:592): Menu-Cache-ERROR **: failed to find menu-cached
+Trace/breakpoint trap (core dumped)
+```
+
+**真正主因是 menu-cache 启动级崩溃**——rootfs 缺菜单定义/缓存（`/etc/xdg/menus` 不存在），menu-cache 加载失败 `failed to find menu-cached` → 进程被 trap 中止。Gtk-CRITICAL 只是 OpenWith 触发时叠加的 ui 缺失（次因），并非启动即崩的主因；两问题并存（缺 ui + 缺菜单缓存）。
+
+**新镜像已验证修复**（`rootfs-dbg` 35775dc2b8bd，2026-11-23 拉取实测）：
+
+| 项 | 新镜像状态 | 实测 |
+|---|---|---|
+| pcmanfm 版本 | **1.4.1**（upx 压 6005228B，解压 14333320B，md5 `04cf38ac...` 与 builder-g224 一致） | `--help` 正常 |
+| ui | ✅ libfm/ui 8 文件已补（app-chooser.ui 等） | 部署后 `ls` 确认 |
+| Menu-Cache-ERROR | ✅ **不再崩** | `--desktop`/无参均无报错（仅 WARNING Templates/modules，timeout 正常终止） |
+
+新镜像改用**延迟部署**：static 组件在 `/rootfs/files1` 归档，首启 `.core-init` `cp -a` 到真实路径；静止查 `/usr/local/static` 为空是预期（非缺文件）。修复内容口径：pcmanfm 升 1.4.1（menu-cache 处理健壮化）+ ui 补齐。
+
+##### 5.3.2、菜单定义（/etc/xdg/menus）来源、静态部署与 menu-cache 默认路径改动（2026-11-23）
+
+**归属**：`/etc/xdg/menus/*.menu` 属独立系统数据包 **lxmenu-data**（hdmi `dpkg -S` 证实 `lxde-applications.menu` 归它）。纯**静态固定文件**（`dpkg -L` 清单固定：`/etc/xdg/menus/lxde-applications.menu` + `/usr/share/desktop-directories/lxde-*.directory` 数十个 + `/usr/share/lxmenu-data/`），安装是解压释放，无动态生成脚本。
+
+**内容与可移植性**：`.menu` 是 freedesktop 菜单规范 XML，内部用 `<DefaultAppDirs/>`、`<DefaultDirectoryDirs/>`、`<DefaultMergeDirs/>` **默认指令**（样板已见，无硬编码 `/usr/share` 路径）——运行时从 `XDG_DATA_DIRS`（applications/desktop-directories）与 `XDG_CONFIG_DIRS`（menus）环境变量取，因此**数据文件可整体搬到任意目录**（如 static 下）。
+
+**TARGETPATH 不管菜单文件**：TARGETPATH（`/usr/local/static/<comp>`）只决定 pcmanfm/libfm **编译产物**的 UI/locale 安装路径，`/etc/xdg/menus` 是系统级 XDG 数据（lxmenu-data 包装），两条线。rootfs 缺它是因为镜像未装/未 COPY lxmenu-data 数据。
+
+**menu-cache 查找路径机制**（源码查实，`fk-menu-cache`）：
+
+| 处 | 逻辑 |
+|---|---|
+| `menu-cache-gen/main.c:105/115/121` | `g_get_system_config_dirs()`（GLib 默认 `["/etc/xdg"]`）→ 依次试 `~/.config/menus/<file>`、`dirs[0]/menus/<file>` |
+| `libmenu-cache/menu-cache.c:1793/1836` | `getenv("XDG_CONFIG_DIRS")` 算缓存 md5；缓存写 `~/.cache/menus/<md5>` |
+
+规则：**环境变量设置了 → 优先用它；未设置 → 用 GLib 编译默认 `/etc/xdg`**。
+
+**静态部署 + 代码改默认（方案，2026-11-23 拍板）**：运行时**不**额外 export 环境变量；改 menu-cache 代码置编译期默认 static 目录，env 优先逻辑保留：
+
+| # | 文件 | 改动 |
+|---|---|---|
+| 1 | `compile/src/v-pcmanfm/build.sh` | menu-cache 构建传 `-DMENU_BASE_DIR=\"$TARGETPATH/etc/xdg\"`；构建后把 lxmenu-data 数据拷入 `$TARGETPATH/etc/xdg/menus/`、`$TARGETPATH/share/desktop-directories/`、`$TARGETPATH/share/lxmenu-data/` |
+| 2 | `fk-menu-cache/menu-cache-gen/main.c`（patch） | 默认 `dirs` = `MENU_BASE_DIR`（`XDG_CONFIG_DIRS` 有则优先环境变量） |
+| 3 | `fk-menu-cache/libmenu-cache/menu-cache.c`（patch） | `_validate_env` 为 NULL 时默认填 `MENU_BASE_DIR`（env 优先保留） |
+
+部署后 `TARGETPATH=/usr/local/static/pcmanfm`，menu-cache **默认**去 `/usr/local/static/pcmanfm/etc/xdg/menus/` 找菜单；有人设置 `XDG_CONFIG_DIRS` 则优先环境变量。**入口脚本无需 export**。
+
+##### 5.3.3、OpenWith 修复实施记录——问题定位、实现过程、验证与坑（2026-11-23）
+
+**问题定位（逐层）**：
+
+| # | 症状 | 定位结果 |
+|---|---|---|
+| 1 | pcmanfm 启动即 `Menu-Cache-ERROR: failed to find menu-cached` 崩 | rootfs 缺 `/etc/xdg/menus`（lxmenu-data 菜单定义），menu-cache 找不到菜单文件 |
+| 2 | 补了菜单定义后仍崩（`failed to find menu-cached`） | libfm 查的是 `applications.menu`（`fm-app-menu-view.c:174`），lxmenu-data 提供的是 `lxde-applications.menu`（前缀不匹配）→ 补 `applications.menu` 副本 |
+| 3 | OpenWith 触发时 `g_error("failed to find menu-cached")` 崩（`menu-cache.c:1564`） | `fork_server()` 检查 **`$libexecdir/menu-cached`**（menu-cache daemon 二进制）——libtool 产物**动态链接 glib**，rootfs 无共享库起不来；且静态部署只带 bin/share，**没带 libexec** |
+| 4 | （最终） | 静态链接 `menu-cached` + `--libexecdir=$TARGETPATH/libexec` + lxmenu-data 数据进 `$TARGETPATH/etc/xdg/menus` → 全部解决 |
+
+**实现过程（compile/src/v-pcmanfm/）**：
+
+| 文件 | 内容 |
+|---|---|
+| `menu-cache-menudir.patch`（新） | menu-cache 找菜单目录默认改为 `MENU_CONFIG_DIR` 宏（`XDG_CONFIG_DIRS` 环境变量优先，未设用宏默认）：`menu-cache.c`（默认 xdg_cfg）、`menu-cache-gen/main.c`（默认 dirs[0]） |
+| `build.sh`（menu_cache 函数） | ① patch 应用 + `sed` 把源码 `MENU_CONFIG_DIR "/etc/xdg"` 替换为 `"$TARGETPATH/etc/xdg"`（CFLAGS 传宏引号被 libtool 吃，改 sed 直改源码）② `--libexecdir=$TARGETPATH/libexec`（MENUCACHE_LIBEXECDIR 编入 static 路径）③ LDFLAGS 补 `-static`（勿覆盖 common.sh）④ make install 后 **gcc -static 手动静态链 menu-cached**（libtool 产物动态链 glib）⑤ lxmenu-data 数据解压到 `$TARGETPATH` |
+| `data/lxmenu-data.tar.gz`（新，81KB/37 文件） | lxmenu-data 固定数据压缩包（`etc/xdg/menus/*.menu` + `share/desktop-directories/*.directory`），build.sh 用时 `tar xzf` 解压（340K 原始数据适合压缩提交） |
+
+**验证工具/方法**（rootfs-dbg-latest `:10` Xvnc 桌面）：
+
+- **环境**：rootfs-dbg-latest 容器（旧容器，挂载 /_ext 可中转）；Xvnc `:10`（live，depth 16）+ tint2；`pgrep -x pcmanfm`（精确进程名，防自匹配）
+- **驱动**：`xdotool`（windowfocus/windowraise/mousemove/click/key）；OpenWith 触发 = 右键 test.txt 图标（`(215,345)` 弹 132x222 文件菜单）→ windowfocus 菜单 → `Down`+`Return`
+- **判定**：`pgrep -x pcmanfm` 存活 = 不崩；`pgrep -x menu-cached` RUNNING = daemon 被 fork 拉起；`xdotool search --name "Choose"` 出现 = OpenWith 对话框弹出；`scrot` 截图 /_ext/tmp/svg/
+- **对照**：桌面右键菜单（183x178）先验证 menu-cache 读菜单数据，再做文件 OpenWith
+
+**踩过的坑**：
+
+- **gitclone 缓存 = tarsrc-git**：`gitclone` 命中 `compile/tarsrc-git/` 缓存（`cp -a`），改缓存源码会随 cp 进构建目录 → 构建里 `git apply patch` 报"patch does not apply"（已应用）。**tarsrc-git 必须保持原版**，改动走独立 patch 文件。
+- **CFLAGS 传宏引号被 libtool 吃**：`CFLAGS="-DMENU_CONFIG_DIR=\"$path\""` 经 configure→Makefile→libtool→shell 多层，引号丢失 → `#define MENU_CONFIG_DIR /usr/local/...` → 编译报 `undeclared identifier 'usr'`。**改 sed 直改源码**（`# define MENU_CONFIG_DIR "/etc/xdg"` → `"$TARGETPATH/etc/xdg"`）。
+- **libtool 产物动态链接**：menu-cached/menu-cache-gen 经 libtool 链接默认动态，rootfs 无 glib 共享库 → `Error loading shared library libgio-2.0.so.0`。且 `-static` 在 LDFLAGS 对 libtool 无效（Makefile 用 configure 记录的旧 LDFLAGS）。**手动 `gcc -static` 重链**（`menu-cached.o + libmenu-cache.a + $(pkg-config --libs --static glib-2.0 gio-2.0)`）。
+- **LDFLAGS 覆盖 common.sh**：build.sh `export LDFLAGS` 若不带 `--static -static` 会丢 common.sh 的静态链参数（AGENTS.md 已有警告），menu-cached 因此动态链。
+- **`pkill -f "static/pcmanfm"` 自匹配杀 shell**：`bash -c` 命令行含匹配串会被误杀（AGENTS.md 经典坑，本会话多次触发）。**用 `pgrep -x pcmanfm`（精确进程名）**。
+- **残留对话框遮挡右键**：OpenWith 对话框（403x400 @ 120,316）不关会挡住文件列表右键点 → 右键落在对话框上不弹文件菜单。**先 `Escape` 关对话框再操作**。
+- **延迟部署镜像**：新 rootfs 镜像 static 组件在 `/rootfs/files1` 归档，首启 `.core-init` `cp -a` 部署；静止查 `/usr/local/static` 为空是**预期**。
+
+**验证结论**（最终）：rootfs-dbg `pcmanfm 1.4.1 + data/lxmenu-data + 静态 menu-cached` —— 启动/右键菜单（132x222）/OpenWith（"Choose Application" 403x400 弹出）**全不崩**，menu-cached daemon 正常拉起，无错误日志。
+
+##### 5.3.4、OpenWith 已装应用清单空白——问题与答复（2026-11-23）
+
+**问题（用户原话）**：`docs/img/tmp/pcmanfm-openwith/openwith-dialog.png` 他这个已装应用的清单都是空的，如果要出清单要怎么做？比方静态应用里面的 geany gpicview pcmanfm st 等。
+
+**现状分析（根因）**：
+
+- rootfs `/usr/share/applications/` 只有 `htop.desktop`：lxmenu-data 菜单 `<DefaultAppDirs/>` 从这里读 → 清单空。
+- static 组件的 `.desktop` **构建时没装**（`build.sh` 未把 `data/*.desktop` 装进 `$TARGETPATH/share/applications/`），rootfs 自然收集不到。
+
+**有 .desktop 源的组件**（builder 源码树实查 `/tmp`）：
+
+| 组件 | .desktop 源 |
+|---|---|
+| geany | `/tmp/geany/geany.desktop`（已有） |
+| pcmanfm | `data/pcmanfm.desktop` + `pcmanfm-desktop-pref.desktop` |
+| tint2 | `tint2.desktop` |
+| lxtask | `lxtask.desktop` |
+| rofi | `rofi.desktop` + `rofi-theme-selector.desktop` |
+| pasystray | `pasystray.desktop` |
+| libfm | `libfm-pref-apps.desktop` + `lxshortcut.desktop` |
+| gpicview | `gpicview.desktop.in`（需 configure 转） |
+| **st** | ❌ **无**（suckless 不做 desktop，需手工造一个 `Exec=st`） |
+
+**出清单的做法**（两步，延续 lxmenu-data 模式）：
+
+1. **各组件 build.sh 装 .desktop**：构建末尾 `cp data/*.desktop $TARGETPATH/share/applications/`（有源组件）；st 另造一个 `st.desktop`。
+2. **rootfs 部署合并**：把各 `/usr/local/static/<comp>/share/applications/*.desktop` 汇总到 `/usr/share/applications/`（Dockerfile res 或 entry 收集），menu-cache 就能列出清单；需带 `Categories=` 才能正确分到 lxmenu-data 的子菜单（Utility/Graphics/Development…）。
+
+**待办（未实施，2026-11-23 用户确认范围后动手）**：先做用户点名的 geany / pcmanfm / gpicview / st（4 个）+ 有源的一起（tint2/lxtask/rofi/pasystray）；st 手工补 `.desktop`；按文件粒度改 build.sh 并实测清单。
+
+##### 5.3.5、menu-cached 机制问答（0-3，2026-11-23）
+
+**问题**（用户原话整理）：
+0. menu-cached 作用是干嘛？运行的生命周期是什么样的？
+1. 为什么要这么设计呢？感觉反而复杂化了。pcmanfm 相关功能还有没有依赖到其他类似的程序？
+2. libexec 模式运行机制如何 / 可以手动执行它吗 / 可以后台长期运行吗？
+3. 它的功能能否合并到主程序（pcmanfm）呢？分析可行性 / 调整工作量。
+
+---
+
+**0. menu-cached 作用与生命周期**
+
+作用：菜单缓存的**守护进程**（daemon）。承担三件事（源码依据 `fk-menu-cache`）：
+
+- **生成缓存**：`regenerate_cache()` 调用 `$libexecdir/menu-cache-gen` 解析 `.menu` XML + `applications/*.desktop` → 产出二进制缓存（`menu-cached.c:216-258`）
+- **文件监控**：`GFileMonitor` 监视 `.menu`、applications 目录变化；`.desktop` 增删/改动 → 自动重建缓存并广播（`on_file_changed` → `do_reload`，`menu-cached.c:93/369`）
+- **多客户端共享**：连接者（pcmanfm/lxpanel…）通过 socket 共享同一份内存缓存
+
+生命周期：
+
+```
+pcmanfm menu_cache_lookup()
+  └─ connect_server() → UNIX socket 连接失败(ENOENT/ECONNREFUSED)
+       └─ fork_server() 拉起 menu-cached        (menu-cache.c:1747)
+       └─ 重试连接(25次×50ms) → 成功
+  └─ daemon 长驻: g_main_loop + GFileMonitor
+       ├─ 文件变化 → 重建缓存 → 通知客户端
+       └─ 客户端退出不影响 daemon(继续驻留,供下个客户端)
+```
+
+即：**按需拉起，常驻服务**，不随某个客户端退出而退出。
+
+**1. 为什么这么设计？还依赖别的类似程序吗？**
+
+设计意图（freedesktop/LXDE 体系）：menu-cache 是**系统级库**，`pcmanfm`/`lxpanel`/`lxmenu-editor` 等多个 LXDE 组件共用它。
+
+- **解析只做一次**：扫 `.menu` XML + 数千个 `.desktop` 的 I/O 很贵，daemon 内存缓存让多进程复用，而非每进程重复解析
+- **变化通知集中**：装/删软件后 `.desktop` 变 → daemon 统一感知、重建、通知所有客户端（菜单实时更新）
+- 是**"系统服务 + 瘦客户端库"**模式，同 dconf-daemon、keyring、journald
+
+感觉复杂化很正常：本项目静态单机场景只有 pcmanfm 一个客户端、文件也几乎不变，daemon 的共享/监控价值用不上，纯增加部署负担（libexec 可执行 + 静态链接）——这是 5.3.3 里折腾静态链 menu-cached 的根源。
+
+pcmanfm 还依赖的类似程序：主要是 **dbus daemon**（libfm 走 GDBus）；gvfs/gio volume monitor（U 盘/挂载，可选）。menu-cached 是其中唯一"用户级按需拉起"的。
+
+**2. libexec 模式机制 / 手动执行 / 后台常驻**
+
+- **机制**：库只认 `$libexecdir/menu-cached` 这个**文件存在即可执行**（`fork_server`，`menu-cache.c:1560-1562`）；fork+exec 后它自己 `get_socket_name()` 定 socket 路径（`g_get_user_runtime_dir()/menu-cached-<display>`，如 `/run/user/1000/menu-cached-:0`）
+- **可手动执行**：可以，直接跑它即可（自动监听 socket 等客户端）
+- **可后台长期运行**：可以，就是常驻 daemon（`g_main_loop`），`menu-cached &` / `nohup` 均可；客户端连不上才新拉，连上了复用
+
+**3. 能否合并进主程序？可行性/工作量**
+
+可以合并，**中等可行性**。关键事实：menu-cache 库本身就能读缓存文件（`read_dir/read_app` 加载 `.cache/menus/<md5>` 二进制缓存），daemon 只是"生成+监控+共享"的包装。
+
+| 项 | 分析 |
+|---|---|
+| 合并思路 | loader 去掉 `fork_server/connect_server`，改为进程内先确保缓存存在（过期/缺失时调 menu-cache-gen 或进程内直接生成）→ 读缓存文件 |
+| 好处 | 少一个可执行依赖（menu-cached）、无 daemon 部署/静态链负担、单客户端无共享损失 |
+| 代价 | ① 失去文件变化实时通知（`.desktop` 新装软件不会自动出现，需重启应用或手动刷新）② 多进程各自持缓存副本 |
+| 改动量 | menu-cache.c 的 loader 分支（约 100 行）+ 让 `menu-cache-gen` 也静态链（或生成逻辑进程内）；在 `menu-cache-menudir.patch` 基础上再加一个 patch，可控 |
+| 对本项目 | 静态镜像、文件固定 → 合并后启动时生成一次缓存即可（或预生成缓存进镜像），实时通知价值可放弃 |
+
+**结论**：若要根治"静态环境背 daemon 包袱"，合并是正解，工作量约半天到一天（改 loader + 静态 menu-cache-gen + 实测）。暂维持现状（daemon 已能正常拉起），待用户拍板是否实施。
+
+##### 5.3.6、thunar 的 OpenWith 实现机制与对比/借鉴（2026-11-23）
+
+**问题（用户原话整理）**：这块 thunar 那边的实现机制是怎么样的？两边的实现优缺点对比。另，他那边整体有哪些好的功能特性适合借鉴过来？
+
+---
+
+**1. thunar 的 OpenWith 机制（与 pcmanfm 完全不同）**
+
+用 **GIO 的 GAppInfo，完全不用 menu-cache**（thunar 1.6.18 源码 `g_app_info` 引用 62 处、`menu-cache` 0 处）：
+
+| 处 | 实现 |
+|---|---|
+| `thunar-chooser-model.c:293` | `g_app_info_get_all_for_type(content_type)` → **Recommended** 组（匹配该 mime） |
+| `thunar-chooser-model.c` 后段 | `g_app_info_get_all()` 减推荐 → **Other Applications** 组 |
+| `thunar-chooser-button.c:446/450` | 默认应用 + 全部应用（对话框下拉按钮） |
+| `thunar-file.c:2609/4271` | 双击打开时查 `g_app_info_get_default_for_type()` |
+
+底层 = `GDesktopAppInfo`：**直接扫 `XDG_DATA_DIRS/applications/*.desktop`**（按 `MimeType=` 匹配），读写 `mimeapps.list` 记默认应用。**无 daemon、无二进制缓存、无 lxmenu-data**——GIO 库自带这套。
+
+**2. 两边实现优缺点对比**
+
+| 维度 | pcmanfm（libfm + menu-cache） | thunar（GIO GAppInfo） |
+|---|---|---|
+| 应用来源 | menu-cached daemon 生成二进制缓存 → `fm_app_menu_view` 读缓存 | 每次 `g_app_info_get_all*` 直读 `.desktop` |
+| 外部依赖 | **menu-cached daemon + menu-cache-gen + lxmenu-data 数据**（三层） | **无**（GIO 内置，仅需 `.desktop` 存在） |
+| mime 匹配 | menu-cache 应用树（按 lxmenu 分类） | `get_all_for_type` 按 Content-Type 直过滤 |
+| 文件变化实时性 | ✅ daemon GFileMonitor 实时通知 | 每次查即时重扫（无缓存也就无过期） |
+| 多进程共享 | ✅ daemon 内存共享（LXDE 多组件场景有价值） | 各进程各自扫（单次成本低，无所谓） |
+| 静态部署负担 | ❌ 重（libexec 可执行 + 静态链 + 菜单数据，5.3.3 全在折腾这个） | ✅ 几乎没有 |
+| 默认应用管理 | libfm 自实现 | GAppInfo 标准 mimeapps.list |
+| UI 分组 | 树形分类（lxmenu Category） | **Recommended / Other 两组**（更直观） |
+
+**结论**：thunar 的 GAppInfo 方案**更轻、更适合静态部署**（thunar 走 XFCE 体系，应用信息交给 GIO 标准，不做 LXDE 那套 cache daemon）。pcmanfm 走 menu-cache 是同年代的 LXDE 架构选择，多进程共享价值在单机静态场景几乎为零，却带来整套 daemon 部署负担。
+
+**3. thunar 值得借鉴的功能特性**
+
+| 特性 | 说明 | 借鉴价值 |
+|---|---|---|
+| **批量重命名** | ThunarBulkRename（独立工具）：正则、替换、编号递推，支持多文件 | ⭐ 高：libfm/pcmanfm 无对应（需单独集成） |
+| **自定义动作（uca.xml）** | `~/.config/Thunar/uca.xml` 右键自定义命令 + 按 mime/文件名条件显示 | ⭐ 高：pcmanfm 无，可定制性强的核心特性 |
+| **Recommended/Other 分组** | OpenWith 对话框按 mime 推荐分组 | ⭐ 中：5.3.4 清单问题可借鉴此 UI，比应用树简单 |
+| **模板（templates-action）** | 右键"创建文档"读 `~/Templates` 目录 | 中：pcmanfm 有对应（~/Templates 警告就是它） |
+| **mimeapps 标准化** | 默认应用读写 mimeapps.list | 中：比 libfm 自实现规范 |
+| 标签页/三窗格/侧栏快捷/网络浏览(gvfs) | thunar 综合特性 | 低-中：pcmanfm 已有部分 |
+
+**落地建议**：① 短期内先按 5.3.4 补 `.desktop` 出清单（成本最低）；② 若想根治体系负担，可评估把 pcmanfm 的 OpenWith 从 menu-cache 换成 GAppInfo（借鉴 thunar Recommended/Other UI + 弃 daemon，工作量约一天，呼应 5.3.5 的合并分析）；③ 自定义动作 + 批量重命名是差异化亮点，可单独立项。
+
+### 6、geany 升级评估 + 1.37.1 升级实现与验证（2026-11-23）
+
+#### 6.1、最新支持 GTK2 版本 + 1.34.0→1.37.1 升级评估（2026-11-23）
+
+**最新支持 GTK2 版本**：Geany **1.37.1**（最后一个支持 GTK+2.24；1.38 起移除 GTK2、只 GTK3；2.0 起强制 GTK 3.24）。
+
+| 版本 | GTK 支持 |
+|---|---|
+| ≤ 1.37.1 | 支持 GTK2+GTK3（1.34 起 auto-select；1.37 起 GTK3 默认但 GTK2 仍在） |
+| **1.37.1** | **最后一个支持 GTK+2.24** |
+| 1.38（2021-10-09） | 移除 GTK+2 支持（PR#2602），只 GTK3，需 C++17 |
+| 2.0（2023-10-19） | 只 GTK3，require GTK 3.24（#3580） |
+
+**1.34.0→1.37.1 升级评估**（当前 vers.txt 用 1.34.0）：
+
+| 影响点 | 结论 |
+|---|---|
+| GTK2 构建 | 可行。1.37.1 支持 GTK2（`--enable-gtk2`），`gtk+-2.0>=2.24` 满足；**但默认 GTK3，须显式 `--enable-gtk2`**（1.34.0 是 `--enable-gtk3` 默认 no=GTK2，选项开关反转——唯一必须改的点） |
+| configure 选项 | 全兼容。vte/docs/api-docs 在 `m4/geany-vte.m4`、`geany-docutils.m4`、`geany-doxygen.m4`（1.37.1 均有），static/shared 是 libtool 标准——无需删，只加 `--enable-gtk2` |
+| 强制依赖 | 不变。gtk_modules/private 相同（`gtk+-2.0>=2.24` + glib>=2.32 + gio-2.0/gmodule-no-export + GTHREAD），无新增强制库；vte 已 disable |
+| 编译要求 | C++11（1.34.0 已含 `ax_cxx_compile_stdcxx_11.m4`，非 1.37.1 新增；1.38 才 C++17）——xx-clang++ 满足 |
+| 数据文件 | `make install-data` 自动带（1.37.1 新 filedefs/配色），版本无关 |
+| 源码 patch | 无本地 patch（v-geany 仅 build.sh，无 sed/patch）——升级无需重打 |
+| 静态链接 | 无新依赖库，LIBS0/OB_LIBS 静态组沿用；1.37.1 新符号需实测 xx-clang++ 链接（同组库大概率覆盖） |
+| 源地址 | gitee `fk-geany` 有 1.37.1（peeled `26f4813` 与 github 一致）——可改 `--branch=1.37.1` |
+
+**需改点（若升级）**：build.sh 版本 1.34.0→1.37.1、源 branch→1.37.1、configure 加 `--enable-gtk2`、注释更新（「1.34.0 最后几个 GTK2」→「1.37.1 是 GTK2 最后一版，1.38 删」）。
+
+**结论**：可行性成立，核心改动仅加 `--enable-gtk2` + 版本/源更新，无新硬依赖，数据自动带；唯一需实跑确认 xx-clang++ 静态链接（1.37.1 新符号）。
+
+**发布时间点与功能更新（1.34→1.37.1，官方 NEWS）**：
+
+**发布时间点**（git tag commit 日期）：
+
+| 版本 | 发布时间 |
+|---|---|
+| 1.34.0 | 2018-12-16 |
+| 1.34.1 | 2019-01-04 |
+| 1.35.0 | 2019-04-28 |
+| 1.36.0 | 2019-09-28 |
+| 1.37.0 | 2020-10-25 |
+| 1.37.1 | 2020-11-08 |
+
+**功能更新**：
+
+- **1.34.0**（2018-12-16，当前所用）：Auto-select GTK2/GTK3（PR#1182）；命令行 tags 按序处理；修复 Scope 高 CPU/Plugin Manager 崩溃/GTK3 滚动；go-to-symbol 路径/图标；Strip Trailing Spaces 快捷键；Scintilla 3.10.0
+- **1.34.1**（2019-01-04）：纯 bug 修复（行断行/XML 文件名 infobar/矩形选区修饰键）；翻译 uk
+- **1.35.0**（2019-04-28）：**开始同步 Universal-Ctags**（PR#1263/#2018，符号解析大幅改进）；JS/HTML/COBOL/ActionScript 符号解析改进；批量替换大幅提速；IPC socket 修复；变量类型 tooltip；Scintilla 3.10.2
+- **1.36.0**（2019-09-28）：用户 filetype 扩展名映射/最长匹配优先；socket 放 `$XDG_RUNTIME_DIR`；About 显示 GTK/GLib 版本；分数字体；Scintilla 3.10.4；**新增 Swift/Nim filetype** + Kotlin/Groovy/TypeScript 自定义
+- **1.37.0**（2020-10-25）：**Build with GTK3 by default**（GTK2 仍可选）；配置保存会话；Open/New Project 取消；Scintilla 3.21.1；**新增 BibTeX/Smalltalk filetype**；Python 默认命令可配；Windows 多项（IPC 端口可配/编程连字）
+- **1.37.1**（2020-11-08）：仅 Windows 首次启动崩溃修复（Issue#2639/PR#2645）——Linux 无功能变化
+
+**小结**：功能大跨度在 1.35→1.37（Universal-Ctags 同步/Scintilla 更新/新 filetype/分数字体/会话保存）；1.37.0→1.37.1 无功能增量（纯 Windows bugfix），1.37.1 是「最后一个含 GTK2 的发布」。升级影响：新增 filetype→filedefs 数据增加（`make install-data` 自动带）；Scintilla 更新→`libscintilla.la` 重编（build.sh 已 `make -C scintilla`）；符号解析变化在 libtagmanager。
+
+#### 6.2、geany 1.37.1 升级实施与实测（2026-11-23）
+
+按 6.1 评估结论开工，1.34.0→1.37.1 升级全链路完成并实测通过（build.sh 单独 commit `dc673d46`）。
+
+**实施改动**（`compile/src/v-geany/build.sh`）：
+
+| 项 | 改动 |
+|---|---|
+| 版本 | 1.34.0→1.37.1；源 branch→1.37.1（gitee `fk-geany`） |
+| configure | 加 `--enable-gtk2`（1.37.1 默认 GTK3，须显式走 GTK2——1.34.0 是 `--enable-gtk3` 默认 no=GTK2，选项开关反转） |
+| 注释 | 「1.34.0 最后几个 GTK2」→「1.37.1 = 最后一个支持 GTK2 的发布（1.38 起删）」 |
+| bug 修复 | 离线 tarball 分支 `tar ... -C /tmp --strip-components=1` 解包**错位**到 `/tmp/` 根（1.34.0 靠 host 手动解包 `/tmp/geany` 绕过，tarball 分支本身错位）→ 改 `-C /tmp/geany` |
+
+**实测（builder-g224 + hdmi Xvnc）**：
+
+| 环节 | 结果 |
+|---|---|
+| 构建 | `TARGETPATH=/usr/local/static/geany sh /src/v-geany/build.sh geany`，118s，err 0 pass（首跑因 tar 错位失败，修复后 118s 成功） |
+| 静态验证 | `xx-verify --static` rc=0；`file`=`statically linked, stripped`；`strings`=Geany 1.37.1；GTK2 符号（gtk+-2.0）；产物 16,141,720B |
+| 数据 | filedefs/colorschemes/geany.glade/gtkrc/filetype_extensions.conf/snippets.conf/tags/templates/ui_toolbar.xml 全齐 |
+| GUI 实跑 | hdmi Xvnc `:321`，headless 用户：主窗口「geany」弹出（3 窗口），进程稳定不崩，日志无错 |
+| 提交 | build.sh `dc673d46`（未 push，工作区干净） |
+
+**踩坑（实跑才见）**：
+
+- **tar 解包错位（原 bug）**：build.sh 离线 tarball 分支 `tar -C /tmp --strip-components=1` 把源码解到 `/tmp/` 根（`/tmp/configure.ac`/`/tmp/src`），`/tmp/geany` 空 → `cd /tmp/geany` 空树 → `make -C ctags` 失败「ctags: No such file or directory」。1.34.0 构建成功是 host 已手动解包 `/tmp/geany` 绕过；改 `-C /tmp/geany` 根治。
+- **configure 干扰行**：日志有 `gtk+-3.0 not met`（非致命探测）——实际产物走 GTK2 成功（xx-verify+strings 实测为准），`--enable-gtk2` 保留。
+
+**对比**：1.37.1 为 GTK2 最后一版，升级后功能增量（Universal-Ctags 同步/新 filetype/Scientilla 3.21.1/分数字体/会话保存），无回归（主窗口+不崩+数据齐全）。
+
+### 7、engrampa 最新支持 GTK2 版本评估（2026-11-23）
+
+#### 7.1、最新支持 GTK2 版本评估--1.14.1已最新（2026-11-23）
+
+**结论**：engrampa 最新支持 GTK2 的版本 = **1.14.1**（项目当前版本，**无更高可升**）。
+
+**实测**（gitee g-system/fk-engrampa clone 查 configure.ac）：
+
+| 版本 | GTK 依赖 | GTK 世代 |
+|---|---|---|
+| 1.14.1（项目当前） | `--with-gtk=2.0\|3.0`，**默认 2.0**（configure.ac:36-43） | **GTK2（默认）+ 可选 GTK3** |
+| 1.15.0 / 1.15.1 | `PKG_CHECK_MODULES(GTK, [gtk+-3.0])` | **只 GTK3** |
+| 1.16.0 起 | `gtk+-3.0` | GTK3 |
+
+**要点**：
+
+- 1.14.1 是最后支持 GTK2 的版本：configure.ac 保留 `--with-gtk=2.0|3.0` 双选（默认 2.0）；**1.15.0 起强制 GTK3**（`gtk+-3.0`，无 --with-gtk 选项）。
+- 项目当前 `1.14.1` 已是**最后/最高支持 GTK2 的版本**（build.sh 注释「GTK2 最后一版 1.14.1」经源码独立确认），**无需升级**。
+- 后续版本（1.15.0+ / v1.28.5）全 GTK3，项目用不上。
+
+### 8、XFCE 组件 最新支持 GTK2 版本评估（2026-11-23）
+
+#### 8.1、thunar/ristretto/xfce4-settings 最新支持 GTK2 版本评估（2026-11-23）
+
+**结论**：三个 XFCE 组件最后支持 GTK2 的版本如下（实证自各版本源码 `configure.ac.in` 的 `XDT_CHECK_PACKAGE([GTK], [gtk+-2.0])`）：
+
+| 组件 | **最后 GTK2 版本** | tag 日期 | 下一版（dev） | 下一版 GTK | GTK2 依赖要求 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| **thunar** | **1.6.18** | 2019-11-09 | 1.7.0 | gtk+-3.0 (≥3.20) | gtk+-2.0 ≥ 2.24.0 |
+| **ristretto** | **0.8.5** | 2019-07-17 | 0.10.0 | gtk+-3.0 (≥3.22) | gtk+-2.0 ≥ 2.20.0 |
+| **xfce4-settings** | **4.12.4** | 2018-06-20 | 4.13.0 | gtk+-3.0 (≥3.20) | gtk+-2.0 ≥ 2.20.0 |
+
+**实测方法**：
+
+- 源用 github `xfce-mirror/{thunar,ristretto,xfce4-settings}` tag（需按各自前缀过滤，避免 `archive/*` tag 污染）；`git ls-remote --tags` 枚举全部版本。
+- 每个版本抓 `configure.ac.in` 看 `XDT_CHECK_PACKAGE([GTK], [gtk+-2.0\|gtk+-3.0])`（注意：XFCE 源码树用 **`configure.ac.in`**，`configure.ac` 是 autogen 生成物、raw 抓取 404）。
+- tag 日期用浅克隆 `git clone --depth 1 --branch <tag>` + `git log -1 --format=%cs`。
+
+**要点**：
+
+- **thunar**：1.6.x 为 GTK2 系列，**1.6.18 是末版**（`gtk+-2.0 ≥ 2.24`）；**1.7.0 起全部 gtk+-3.0**（含 1.7.x/1.8.x）。
+- **ristretto**：**0.8.5 是 GTK2 末版**（`gtk+-2.0 ≥ 2.20`）；之后**直接跳 0.10.0**（无 0.9.x 稳定版），0.10.0 起 GTK3（≥3.22）。
+- **xfce4-settings**：**4.12.4 是 GTK2 末版**（`gtk+-2.0 ≥ 2.20`）；**4.13.x（dev 系列）已是 GTK3**（≥3.20），非 GTK2 过渡。**4.12.x 小版本枚举 4.12.0–4.12.4 无更高**，4.12.4 已确认最高。
+- 三个迁移点都在 XFCE 4.13/4.14 开发周期内，与 **XFCE 4.14（2019-08，GTK3 迁移大版本）**时间线吻合。
+
+#### 8.2、thunar 1.6.3→1.6.18 升级实现与验证（2026-11-23）
+
+**结论**：thunar 从 1.6.3（2013-05-05）升到 **1.6.18**（2019-11-09，GTK2 最后版），**构建成功**（静态链 14.98MB + xx-verify pass），已部署 hdmi，GUI 启动实测通过（Xfconf/thumbnailer 正常）。
+
+**升级改动**（`compile/src/v-xfce4/build.sh` thunar()）：
+
+- **版本**：`local VER=1.6.3` → `1.6.18`；log `"thunar 1.6.3 static verified"` → `"thunar 1.6.18 static verified"`。
+- **移除 2 个已失效 configure 选项**：`--disable-startup-notification --disable-gtk-doc`——**1.6.18 已移除这两个特性**（`configure.ac`/`configure` 无 `AC_ARG_ENABLE`/选项引用，源码无 startup-notification 引用；仅剩 `--disable-exif/notifications/gudev/tpa-plugin/wallpaper-plugin/apr-plugin/sbr-plugin` 7 个仍支持）。未知 `--disable-*` 会被 autoconf 静默忽略，但为干净移除。
+- **patch 兼容**：`thunar-static-dbus.patch` / `thunar-static-uca.patch` 在 1.6.18 **干净应用**（`git apply --check` rc=0）——2013 context 仍匹配 2019 源码，无需 fuzz/更新。UCA 入口点（`thunar_extension_initialize/list_types/shutdown`）在 1.6.18 `plugins/thunar-uca/thunar-uca-plugin.c` 仍存在。
+
+**构建验证**（builder-g224）：
+
+- **前置 `b_deps`**：容器是新起（`/usr/local/static` 无 xfce/ 目录）→ 必须先 `b_deps` 构建 xfce 库栈（libxfce4util-4.12.1 / xfconf-4.12.1 / libxfce4ui-4.12.1 / **exo-0.10.6** / garcon-0.4.0）+ libexif；否则 configure 报 `checking for exo-1 >= 0.10.0... not found`。
+- **产物**：`/usr/local/static/thunar/bin/thunar` 14,982,248 字节；`file` = `statically linked, stripped`；`ldd` = `Not a valid dynamic program`；`strings` 含 `1.6.18`；undefined refs = 0；`xx-verify --static` pass。
+- **make thunar CCLD failed 是预期**（动态链失败，静态链才是目标；`thunar` 对象已编译，build.sh 注释）。
+- **locale**：61 语言 `.mo` 安装（po/ 手装，Thunar.mo + thunar.mo 双输出）。
+
+**GUI 实测**（hdmi `/usr/local/static/thunar/`，Xvnc + headless）：
+
+- **必须 dbus 会话**：无 `DBUS_SESSION_BUS_ADDRESS` 报 `Failed to initialize Xfconf: Using X11 for dbus-daemon autolaunch was disabled at compile time, set your DBUS_SESSION_BUS_ADDRESS instead`——thunar 是文件管理器，Xfconf 依赖 session bus，需 `dbus-run-session -- thunar` 包裹。
+- dbus-run-session 下启动成功：Xfconf 激活（`Successfully activated service 'org.xfce.Xfconf'`）、thumbnailer 注册（`gdk-pixbuf-thumbnailer`）、**持续运行 10s 无崩溃**（RC=137 = `timeout -s KILL` 预期）。
+
+**关键坑**（`ensure_gtk_libs` 记录缺失）：
+
+- `ensure_gtk_libs` 判据 = `sha256sum /src/u-gtk/*.patch` 组合 vs `/usr/local/static/.gtk-state/gtk.sha`。**新容器首次跑 gtk 应用 b_deps 会误判 NOT latest**（gtk.sha 记录缺失）→ 触发 u-gtk 完整重编（重）。tint2（imlib2 应用）不触发 ensure_gtk_libs，故旧容器从未写 gtk.sha。
+- 若 `.a` 实际最新（patch 最新 mtime < `.a` mtime），可手动补记录跳过重编：`mkdir -p /usr/local/static/.gtk-state; sha256sum /src/u-gtk/*.patch | sha256sum | cut -d" " -f1 > /usr/local/static/.gtk-state/gtk.sha`。
+
+### 9、tint2/rofi/scrot 评估 + rofi 2.1.1 升级实现与验证（2026-11-23）
+
+#### 9.1、tint2/rofi/scrot 最新版评估（2026-11-23）
+
+**tint2 最新支持 GTK2 的版本 = v16.7**（2019-07-14）。
+
+**关键认知**：tint2 **主程序本身不依赖 GTK**（用 cairo/pango/imlib2/X11），仓库带一个 **tint2conf**（主题配置器）子组件是唯一 GTK 依赖点：
+
+| tint2 版本 | tint2conf GTK | 日期 | 说明 |
+|---|---|---|---|
+| ≤ **v16.7** | **GTK2**（`gtk+-x11-2.0`） | 2019-07-14 止 | **最后支持 GTK2** |
+| v17.0 | **GTK3**（`gtk+-x11-3.0`） | 2021-04-18 | "Port tint2conf to gtk3"（issue #380） |
+| v17.0.2（官方最终版，冻结） | GTK3 | 2021-12-04 | 官方停更冻结 |
+
+**实证**：v16.7 `src/tint2conf/CMakeLists.txt` `pkg_check_modules(GTK2 REQUIRED gtk+-x11-2.0)`；v17.0/v17.0.2 同为 `GTK3 ... gtk+-x11-3.0`。README 备注「17.0.2；冻结（官方最终版）；gitlab.com/o9000/tint2」与实证一致——**github o9000/tint2 是过时镜像（只到 v16.2），活的在 gitlab.com/o9000/tint2**。
+
+**tint2 v16.7 → 17.0.2 新功能**（ChangeLog）：
+
+- v17.0（2021-04-18）：tint2conf 移 GTK3；`execp_monitor` 配置；修复窗口大图标崩溃/分钟时钟不更新/tint2conf 滚动条/图像内存泄漏/高 CPU（#786/#796/#799/#704/#800）。
+- v17.0.1（2021-05-29）：单显示器 execp 面板清理崩溃（#801）。
+- v17.0.2（2021-12-04）：双显示器最小化 Chrome 窗口落错面板（#818）。
+- v16.3–16.7 另含：executor 布局修复、电池低电量闪烁、按应用名排序任务栏、图像加载泄漏修复等。
+
+**rofi 最新版 = 2.1.1**（项目当前 2.0.0）。
+
+- **2.0.0（2025-09-01）重大版**：合并 **Wayland 后端**（官方支持）；**弃 autotools、只留 meson**；新增 `rofi -info` 调试命令。
+- **2.1.1（bugfix 版）**：nkutils 更新、DMenu 行显示修复（#2352）、CI 用 distro check、`gio-launch` 改编译期选项。
+- **依赖不变**：glib-2.0 ≥ **2.72**（2.1.1 与 2.0.0 相同）、gmodule/gio-unix/cairo/pango/pangocairo/xkbcommon/gdk-pixbuf-2.0/xcb 系列。
+- **项目适用性**：项目已在 2.0.0（meson + xcb 后端），构建脚本有降级 hack（容器 Alpine 3.15 glib 2.70.5 < 2.72，sed 降 `glib_min_minor` 至 70）。**2.1.1 依赖不变 → 适用**。
+
+**scrot 最新版 = 2.0.0**（项目当前 1.12.1）。
+
+- **2.0.0（2026-03-13）功能变化**：
+  - 移除：`--note` 和 `--script` 选项（**破坏性变更**）。
+  - 改用 **Xrandr 替代 Xinerama** 做 monitor capture（依赖集改变）。
+  - 默认线宽由显示 DPI 派生；修复 `--freeze`/`--line mode=edge` 合成器下毛刺/选区边框入图/截图后响铃。
+- **依赖变化**（deps.pc）：`x11 imlib2>=1.11.0 xcomposite>=0.2.0 xfixes>=5.0.1 xrandr>=1.5`（去掉 xext/xinerama，**imlib2 升到 >=1.11.0**）。
+- **项目适用性**：⚠️ **imlib2 冲突**——项目自建 imlib2 是 **1.7.4**（2021-09-17），scrot 2.0.0 要求 **>=1.11.0**。需升级 imlib2 到 1.11.0+（w-xlunch/w-feh/w-tint2 共用的自建 imlib2）才能用 2.0.0；否则**不可用**。
+
+#### 9.2、rofi 2.1.1 升级实现与验证总结（2026-11-23）
+
+**结论**：rofi 2.0.0 → **2.1.1** 升级 + 打开 **xim（imdkit）** 支持，**构建成功**（静态链 + xx-verify pass + imdkit 编入），已部署 hdmi。
+
+**升级改动**（`compile/src/x-rofi/build.sh`）：
+
+- **版本**：`ROFI_VER=2.0.0` → `2.1.1`；注释更新。
+- **libnkutils 子模块**：`2f220a4` → **`d436ee7`**（2.1.1 更新，含 asan 修复；libgwater 提交 `d86f990` 不变）。
+- **开 imdkit（xim）**：meson `-Dimdkit=false` → **`-Dimdkit=true`**（需自建 xcb-imdkit 库）。
+- **b_deps 补建 xcb-imdkit**（新增 `build_xcb_imdkit()`）：
+  - 源 `fcitx/xcb-imdkit 1.0.9`（Alpine 3.15 无包，自建静态 .a + `xcb-imdkit.pc`）。
+  - 需 **ECM**（`extra-cmake-modules`，`apk add`）；内置 uthash（`USE_SYSTEM_UTHASH=Off`，Alpine uthash 包是空包）。
+  - **坑**：源码 `add_library(xcb-imdkit SHARED ...)` 硬编码 SHARED，`BUILD_SHARED_LIBS=OFF` 无效 → **sed 改 STATIC**；必须先 `rm -rf build` 清 CMakeCache。
+  - **坑**：`make`/`make install` 默认触发 **test 目标**链接失败（缺 xcb 传递静态库 linker error）→ 只建主库 `make xcb-imdkit` + **手动拷贝**产物（.a/.pc/头文件到 /usr/local）。
+  - **坑**：.a/.pc 在 `build/src/`（当前 build 目录下 `src/`），源码头在 `../src/`。
+
+**实测**（builder-g224，44 秒）：
+
+- `file`：`statically linked, stripped` ✓
+- `xx-verify --static`：pass ✓
+- `ldd`：`Not a valid dynamic program` ✓
+- **imdkit 编入**：`strings` 见 `imdkit %senabled%s` / `XIM_SERVERS` / `_XIM_PROTOCOL` 等符号 ✓
+- `rofi -version`：`Version: 2.1.1` ✓
+- 部署：hdmi `/usr/local/static/rofi`（bin + share/themes）已装，`-version` 2.1.1 ✓
+
+**GUI 实跑（Xvnc 314-320，hdmi）**：
+
+- rofi `-show run` 能**拉起进程持续运行**（GUI 启动不崩）✓。
+- **发现**：Xvnc 无 WM/无 XIM server 环境下 rofi `-dump`/`-show run` 会**挂起**（`No valid backend` 仅无 DISPLAY 时快速退出）——**非二进制缺陷**，是 Xvnc 裸环境（无合成器/输入法）限制；有输入法/正常桌面会话下不受影响（imdkit 连接 XIM server 后正常）。
+- 注：`-imdkit false` 显式关仍挂，确认挂起与 imdkit 无关，是 Xvnc 裸环境 rofi 初始化阻塞。
+
+**要点**：
+
+- rofi xim 支持 = **imdkit**（xcb-imdkit，XIM），机制 2.0.0/2.1.1 相同（2.1.1 未新增 xim 能力）；构建 `-Dimdkit=true` 只**编入**能力，运行时 `imdkit` 配置默认关（`enable_imdkit` gboolean=FALSE），需运行时 `-imdkit true` 或 config `imdkit: true` 启用。
+- 依赖不变（glib>=2.72 等），容器 glib 2.70.5 降级 hack 沿用（`glib_min_minor=70`）。
+- 自建 xcb-imdkit 静态库是**新增唯一外部依赖**，装 `/usr/local/lib`，供 rofi 链入。
+
+#### 9.3、imlib2 升级评估（scrot 2.0.0 要求 + w-xxx 影响面）（2026-11-23）
+
+**版本 + 发布时间**（sourceforge 实证）：
+
+| 版本 | 日期 | 说明 |
+|---|---|---|
+| **1.7.4**（项目当前） | **2021-09-17** | 项目自建，内嵌 png/jpeg/svg loader |
+| 1.7.5 | 2021-12-06 | 修复（ICO/XBM/PNM/XPM loader mmap、WEBP 动画） |
+| 1.8.0 | 2022-02-07 | **大版本**：SVG loader 并入官方、HEIF/JXL 新增、多帧动画、`imlib_version()` API |
+| 1.8.1 | 2022-03-15 | PNM/XPM/JPEG progressive 修复 |
+| 1.9.0 / 1.9.1 | 2022-04-23 / 07-07 | loader 修复 |
+| 1.10.0 | 2022-12-19 | TGA 修复、JPEG-XL/HEIF 支持落地 |
+| **1.11.0**（scrot 2.0.0 要求） | **2023-03-10** | 含 1.8–1.10 全部功能 |
+| 1.12.0 | 2023-08-17 | QOI/RAW loader、`imlib_image_decache_file()`、Y4M 去 liby4m |
+| 1.12.7 | 2026-08-28 | 最新稳定 |
+| **1.13.0**（最新） | **2026-11-14** | 最新版 |
+
+**scrot 2.0.0 要求 imlib2 ≥1.11.0（2023-03-10），项目当前 1.7.4（2021-09-17）**——差 1 年半、中间隔 1.8/1.9/1.10 三个功能版本。
+
+**1.7.4 → 1.11.0 新功能特性变化**：
+
+- **SVG loader 官方化**：1.8.0 起 `loader_svg.c` 成为官方内置（`EC_LOADER_CHECK(SVG, auto, librsvg-2.0 ≥ 2.46)`）——项目此前需外部拷 `loader_svg.c`（w-xlunch `cp -f "$SCRIPT_DIR/loader_svg.c"`），1.11.0 不再需要。
+- **HEIF/JXL loader**：`EC_LOADER_CHECK(HEIF, auto, libheif)`、`EC_LOADER_CHECK(JXL, auto, libjxl libjxl_threads)`——新增依赖，静态构建需禁用或提供库。
+- **多帧/动画图像支持**（1.8.0）：GIF/WEBP/ICO/PNG multiframe。
+- **新 API**：`imlib_version()`（1.8.0）、`imlib_image_decache_file()`（1.12.0）。
+- **其他**：LZMA loader、PNG loader 重写（callback API）、Y4M 自定义 parser（1.12.0 去 liby4m）、缩放改进、`imlib_load_image_fd` munmap 修复。
+- **公开 API 向后兼容**：Imlib2.h 只新增不删（1.11.0 有 `imlib_version()`，无符号移除）——w-xxx 老 API 调用不受影响。
+
+**升级 imlib2 到 1.11.0+ 对 w-xxx 应用影响**（受影响：w-feh、w-scrot、w-tint2、w-xlunch、w-hsetroot，全链自建 `/usr/local/lib/libImlib2.a`）：
+
+| 应用 | 影响 | 需改动 |
+|---|---|---|
+| **w-feh** | 低（API 兼容） | 仅重建 imlib2 后重链（应用 build.sh 不变） |
+| **w-scrot** | 低（API 兼容） | 仅重建 imlib2 + 重链 |
+| **w-tint2** | 低（API 兼容） | 仅重建 imlib2 + 重链（CMake 检测 imlib2） |
+| **w-xlunch** | **高**（imlib2 自建脚本本体） | ① 版本 1.7.4→1.11.0+；② **重打 loaders.c patch**（1.11.0 loaders.c 结构变：`loaders_known[]` + `BUILD_*_LOADER` 宏，patch 锚点从 `if (loaders) return` 变 `__imlib_LoadAllLoaders` 附近）；③ **SVG loader 不再外部拷**（官方内置，删 `cp loader_svg.c`）；④ 新增 loader（heif/jxl）需 `--disable-heif --disable-jxl` 或提供库 |
+| **w-hsetroot** | 低（API 兼容） | 仅重建 imlib2 + 重链 |
+
+**核心风险**：
+
+1. **loaders.c patch 重打**——1.11.0 的 `src/lib/loaders.c` 用 `loaders_known[]` 静态表（`BUILD_JPEG/PNG/SVG_LOADER` 宏）替代 1.7.4 的注册方式，项目 patch 的「builtin static loaders（no dlopen）」插入锚点需适配新结构。**这是最大工作量**。
+2. **新增 loader 依赖**——heif/jxl 若 configure 启用会链 libheif/libjxl（项目无静态库）→ 必须 `--disable-heif --disable-jxl`（或用 `--without-*`）。svg 现在官方（librsvg 已自建，OK）。
+3. **API 兼容性**——imlib2 公开 API 向后兼容，w-xxx 应用源码无需改；但**必须重链**（新 libImlib2.a 替换旧的）。
+
+**与 10.1 的关联**：hsetroot 1.1.0 硬要求 imlib2 **≥ 1.12.6**（`imlib_save_image_with_errno_return`/`imlib_strerror`，1.7.4 无此符号）——若走升级 imlib2，需 **≥1.12.6**（非仅 1.11.0），连带重编共享 imlib2 的 w-feh/w-xlunch/w-tint2/scrot。
+
+**结论**：升级 imlib2 到 1.11.0+ 技术上可行（API 兼容，w-xxx 应用源码不用动），**主要工作在 w-xlunch 的 imlib2() 自建脚本**（版本 + loaders.c patch 重打 + SVG 官方化 + 禁 heif/jxl）。scrot 暂定 1.12.1 则无升级必要；hsetroot 1.1.0 若启用则需 ≥1.12.6 且四组件重编。
+
+#### 9.4、tint2 16.2→16.7 升级评估（2026-11-23）
+
+##### 9.4.1、tint2 定制分支 v16.2-custom 改动与 16.7 适配性（2026-11-23）
+
+**版本确认**：项目当前 tint2 基于 gitee 镜像 `g-system/fk-tint2` 的**默认分支 `v16.2-custom`**（上游 `o9000/tint2` 的 `Release 16.2`（b810bad）之上 ~7 条定制提交）。`vers.txt` 记 `16.1`、`w-tint2/build.sh` L250 `--branch=16.1` 均为**旧记录**——实际构建走 v16.2-custom（CI 无 tarsrc-git 时网络 clone 取 fork 默认分支；本地 `tarsrc-git/fk-tint2` 缓存当前停在 clean 16.1 tag）。
+
+**v16.2-custom 定制提交**（`v16.2` → `v16.2-custom` 差异）：
+
+| 提交 | 文件 | 改动 |
+|---|---|---|
+| b62d94e | `src/battery/battery.c` | `strnappend`→`strnappend02`（防符号冲突，全 10 处） |
+| 4c53e13 | `CMakeLists.txt` | `ENABLE_BATTERY/TINT2CONF/EXTRA_THEMES/RSVG/SN/UEVENT` 全 ON→OFF（**不建 tint2conf**） |
+| 84bda25 | `CMakeLists.txt` | notes：imlib2-check / 2a.x3 说明 |
+| ebacf2b | `CMakeLists.txt` | `LINK_FLAGS "-static -pthread ..."` |
+| e41566f | `CMakeLists.txt` | `target_link_libraries( tint2 ...)` 注入静态 `$deps` |
+| 5ef1db2 / e78c038 | `build-*-out*.tar.gz` | **误提交构建产物**（非源码，升级可忽略/清理） |
+
+定制改动本质 = **静态构建适配**（.a 强制 + 静态 deps 注入 + LINK_FLAGS -static + 注释 Imlib FATAL_ERROR + strnappend02 符号改名）+ **关闭非必要组件**（battery/tint2conf/rsvg/sn/extra-themes/uevent）。`w-tint2/build.sh` 的**构建期 sed 补丁**（L261 FATAL_ERROR 注释、L303/L307 deps 注入、L316 strnappend、L335-336 link.txt 去 -rdynamic+dynamic→static、L322-324 ldd.txt .so 黑名单）**镜像了上述 fork 定制**——故 fork 用干净 16.7 tag + build.sh sed 与重放 fork 定制，效果等价。
+
+**16.2 → 16.7 新功能与修复**（上游 ChangeLog 汇总）：
+
+- **新功能**：初步高 DPI 支持（16.2）；新 build script（16.5）；taskbar 按应用名排序（16.5）；电池低电量闪烁（16.7 #723）；电池百分比不带 % 号（16.7 #730）；icon 路径展开前导 `~`（16.7）。
+- **修复**：#688 正解（16.2）、word wrapping #693（16.2）、executor 布局 #695（16.3）、图片加载泄漏 #704（16.4）、executor 不再默认打日志（16.4）、图片加载回归（16.5）、task icon 亮度回归 #714（16.6）、debian 打包回归 #715（16.6.1）、垂直面板 icon 间距 #716（16.7）、时钟 `%s` 每分钟才更新 #724（16.7）、阴影字体 markup #709（16.7）、多屏 struts pivoting（16.7）。
+
+**16.7 是最后一个 GTK2 版本**：`17.0`（2021-04-18）把 **tint2conf 迁移到 GTK3**（issue #380；Debian「tint2conf now uses GTK3 instead of GTK2」、FreeBSD「tint2conf was ported to GTK 3.0」确认）。主 `tint2` panel 原生 link 线**不含 GTK**（只 X11+pango/cairo/imlib2+UNWIND/EXECINFO），仅 `tint2conf` 用 `gtk+-x11-2.0`。**项目栈是 GTK2（u-gtk）→ 16.7 是天花板**。
+
+**定制改动 16.7 re-sync 可行性——干净**（16.7 与 16.2 结构完全一致）：
+
+| 定制目标 | 16.7 位置 | 状态 |
+|---|---|---|
+| `option( ENABLE_BATTERY/TINT2CONF/EXTRA_THEMES/RSVG/SN/UEVENT ... )` | CMakeLists L4-14 | ✅ 同名同结构 |
+| `message( FATAL_ERROR "Imlib is not built with X support" )` | CMakeLists L94 | ✅ 同 |
+| `target_link_libraries( tint2 ${X11_LIBRARIES}` | CMakeLists L264 | ✅（16.2 为 L263，+1） |
+| `set_target_properties( tint2 PROPERTIES LINK_FLAGS "-pthread ..." )` | CMakeLists L287 | ✅ 同 |
+| `src/tint2conf/CMakeLists.txt` `pkg_check_modules( GTK2 REQUIRED gtk+-x11-2.0 )` | L10 | ✅ 仍是 GTK2 |
+| `strnappend` in `src/battery/battery.c` | 11 处（16.2 为 10 处） | ✅ 全局替换可处理 |
+
+行号仅 ±1，sed/选项名/锚点均不受影响 → **定制改动可原样重放到 16.7**；build.sh sed 补丁 16.7 上亦全部适用。
+
+**升级动作**（若定 16.7）：
+
+1. `w-tint2/build.sh` L250：`--branch=16.1` → `--branch=16.7`（或 `v16.7`）。
+2. fork 若要保留定制：把 CMakeLists/battery.c 改动重放到 v16.7（或只靠 build.sh sed）。
+3. **⚠️ 删/更新 `compile/tarsrc-git/fk-tint2` 缓存**（当前 16.1 clean；gitclone 缓存命中会**不 checkout tag 直接返回旧 16.1**——imlib2 同类坑，不删会拿到假 16.7）。
+
+**待拍板 nuance**：v16.2-custom 把 `ENABLE_TINT2CONF` 设 OFF（不建 tint2conf），而 `build.sh` L352 却 `xx-verify` tint2conf 二进制（暗示正常构建**会建 tint2conf**）。**保留 tint2conf → 16.7 是天花板；砍掉 tint2conf（主 tint2 不依赖 GTK）→ 可考虑 17.x**。
+
+### 10、feh/hsetroot/xlunch 最新版本评估（2026-11-23）
+
+#### 10.1、feh/hsetroot/xlunch 最新版本评估与缓存核实（2026-11-23）
+
+**结论**：
+
+| 组件 | 项目构建版本 | **最新版本**（tag） | 最新 tag 日期 | 兼容性（imlib2 1.7.4） |
+|------|:---:|:---:|:---:|:---:|
+| **feh** | fk-feh(master)（缓存 2024-06-30 无 tag） | **3.13.1** | 2026-09-16 | ✅ **兼容**（条件编译适配新旧 API） |
+| **hsetroot** | fk-hsetroot(master)（缓存 2022-01-01 无 tag） | **1.1.0** | 2026-11-18 | ❌ **不兼容**（硬要求 imlib2 ≥ 1.12.6 + 新 API） |
+| **xlunch** | fk-xlunch(master)（缓存 v4.7.5） | **v5.10.6** | 2026-11-09 | ✅ **兼容**（无版本检查，未用新 API） |
+
+**数据来源澄清（重要）**：
+
+- 本评估的"最新版本"判断**来自 `/tmp/chk-feh`、`/tmp/chk-hsr`、`/tmp/chk-xlunch`** 三个克隆
+  （**2026-11-23 14:29 同步**，remote = gitee g-system/fk-*，`git describe --tags` / `git log -1` 实证），
+  **不是** `2026/README.md` 表（README 表已修正：xlunch 官方最新列 `v4.7.5`→`v5.10.6`，commit `1b8b13fd`）。
+- **撤回到期说法**：此前评估曾称"tarsrc 缓存（11-15）已含最新、当前构建即最新"——**不成立**。
+  tarsrc 缓存是 **11-15 16:16** 旧快照，**不可能包含** 11-23 才同步的新代码/新 tag。实测缓存包内：
+  - `w-feh.fk-feh-default.tar.gz`：master = `70a7b06`（**2024-06-30**），**无任何 tag**；
+  - `w-hsetroot.fk-hsetroot-default.tar.gz`：master = `a402d53`（**2022-01-01**），**无任何 tag**；
+  - `w-xlunch.fk-xlunch-default.tar.gz`：master = `80bbe8a`（**2023-08-05**），tag = **v4.7.5**。
+  三组件当前构建均**落后**最新版，需按需升级（feh/xlunch 可直接升；hsetroot 视 imlib2 走向）。
+
+**imlib2 兼容性实证**：
+
+- **feh 3.13.1**：源码 `src/imlib.c:258`、`src/options.c:779` 用
+  `#if defined(IMLIB2_VERSION_MAJOR) && defined(IMLIB2_VERSION_MINOR) && (IMLIB2_VERSION_MAJOR > 1 || IMLIB2_VERSION_MINOR > 7)`
+  条件编译适配新旧 imlib2 API（1.7.4 走旧分支）——**无硬版本检查，兼容 1.7.4**。
+- **hsetroot 1.1.0**：`Makefile` `IMLIB2_MIN?=1.12.6` **硬要求 imlib2 ≥ 1.12.6**
+  （`pkg-config --atleast-version` 检查，不满足即 `$(error ...)`）；且源码
+  `hsetroot.c:747-749` 用 **`imlib_save_image_with_errno_return`** + **`imlib_strerror`**——
+  1.7.4 均**无此符号**（`IMLIB2_MIN=0` 绕过版本检查后仍真链接失败：`undefined reference`）。
+  需升级 imlib2 到 ≥ 1.12.6（连带 w-feh/w-xlunch/w-tint2/scrot 重编）才可用 1.1.0。
+- **xlunch v5.10.6**：`Makefile` 直接 `LDFLAGS = -lImlib2 -lX11 -lm -ldl`（**无版本检查**）；
+  源码未用 `imlib_strerror`/`imlib_save_image_with_errno_return`（全量 grep 无）——**兼容 1.7.4**。
+
+**要点**：
+
+- feh 3.13.1、xlunch v5.10.6 可直接升级（imlib2 1.7.4 兼容，构建脚本无需改依赖）。
+- hsetroot 1.1.0 **项目环境不可用**（imlib2 1.7.4 太旧）——保持 1.0.5，或走升级 imlib2
+  （≥1.12.6，连带重编共享 imlib2 的四组件，成本高）；**待用户拍板**。
+
+#### 10.2、imlib2 1.12.7 升级 + xlunch/feh/hsetroot 升级 + scrot 重编译验证（2026-11-23）
+
+**用户指令**：imlib2 升 12.x 最新 **1.12.7**（2026-08-28）；xlunch/hsetroot/feh 升级 + 编译验证；scrot 版本不变仅重编（新 imlib2）；tint2 不动不验证。
+
+##### 10.2.1、处理过程：
+
+- **imlib2 1.7.4 → 1.12.7**（w-xlunch/build.sh imlib2()）：
+  - configure 加 `--without-heif --without-jxl`（1.8.0 新增 HEIF/JXL loader，项目无静态库必禁）。
+  - **SVG configure auto 被禁**（librsvg 2.40.21 < 2.46，官方 loader_svg.c 硬依赖 ≥2.46）——预期行为，靠 builtin 注入兜底（实测 GUI svg 显示通过）。
+  - **loaders.c patch 锚点**：1.7.4 `if (loaders) return;` → 1.12.7 `list = __imlib_ModulesList(...)` 之后、early return 之前（`__imlib_LoadAllLoaders` 内）——1.12.7 用 `loaders_known[]` + 模块 dlopen，无 1.7.4 的注册 guard。
+  - **loader 导出符号**：1.7.4 独立 `png_load2/svg_load2/jpeg_load2` → 1.12.7 每个 loader 尾部 `IMLIB_LOADER_*` 宏导出**全局 `ImlibLoaderModule loader`**，三 loader 同链符号冲突 → 编译加 `-Dloader=png_loader`（svg/jpeg 同理）重命名。
+  - **builtin 注入结构**：1.7.4 手动设 `load2/save/formats` → 1.12.7 设 `module` 指针（`ImlibLoader{file,handle,module,next,name}`），loader 源尾部 `IMLIB_LOADER_KEEP(_formats,_load,NULL)`（svg） / `IMLIB_LOADER(_formats,_load,_save)`（png/jpeg）。
+  - **loader_svg.c 改写**（保留项目 2.40 兼容）：官方 1.12.7 全用 `#if LIBRSVG_CHECK_VERSION(2,46,0)`（`rsvg_handle_get_intrinsic_dimensions/render_document`），librsvg 2.40.21 下 `_load` 尺寸判定失败（SVG 失效）——改写为 2.40 API（`rsvg_handle_get_dimensions` + `rsvg_handle_render_cairo`）+ 1.12.7 module 接口，数据源 `im->fp/fseek` 改 `im->fi->fdata/fsize`。
+  - **补编 ldrs_util.c/exif.c**：首次链 xlunch 报 `get_saver_params`/`exif_parse` undefined——两符号定义在 **loader 模块辅助源**（`modules/loaders/ldrs_util.c`、`exif.c`），**非主库 libImlib2.a**；编入 builtin 后修复。
+- **xlunch v4.7.5 → v5.10.6**：`gitclone --branch=$XLUNCH_VER`（XLUNCH_VER=v5.10.6）。
+- **feh → 3.13.1**：`--branch=$FEH_VER`（3.13.1）。
+  - **tarsrc-git 缓存坑**：gitclone 优先 GITCACHE（tarsrc-git 含 .git）且**不 checkout tag** → 首次构建用旧 master（70a7b06）非 3.13.1；删 `tarsrc-git/fk-feh` 强制网络 clone tag。
+  - **-lXi 缺**：链接报 `cannot find -lXi`（XInput 静态库）→ `sh /src/w-tint2/build.sh libxi` 自建（/usr/local/lib/libXi.a）；feh 链接命令无 -lXt（libXt 仅编译头）。
+  - **补 -Wl,--strip-all**：make LDFLAGS 覆盖丢 common.sh 的 strip-all（AGENTS.md 坑）→ 38M not stripped；追加后 10.2M stripped。
+- **hsetroot 1.0.5 → 1.1.0**：`--branch=$HSR_VER`（1.1.0）；删旧 `/tmp/hsetroot`（1.0.5 残留 "source already present"）+ tarsrc-git 缓存；Makefile `IMLIB2_MIN?=1.12.6` 硬检查满足（1.12.7 ≥1.12.6）。
+- **scrot 1.12.1**：版本不变，仅重链新 imlib2；补装 `autoconf-archive`（autogen 需 AX_ 宏）。
+- **tint2**：未动。
+
+##### 10.2.2、编译验证结果（builder-g224，2026-11-23）：
+
+| 组件 | 版本 | file | xx-verify | undefined reference |
+|------|:---:|:---:|:---:|:---:|
+| imlib2 (libImlib2.a) | **1.12.7** | 静态库 | — | 0（nm 含 png_loader/svg_loader/jpeg_loader/get_saver_params/exif_parse 定义） |
+| xlunch | **v5.10.6** | statically linked, stripped | pass | 0 |
+| feh | **3.13.1** | statically linked, stripped (10.2M) | pass | 0 |
+| hsetroot | **1.1.0** | statically linked, stripped | pass | 0 |
+| scrot | 1.12.1（不变） | statically linked, stripped | pass | 0 |
+
+##### 10.2.3、GUI 验证结果（hdmi 容器 Xvnc :311，2026-11-23）：
+
+- **feh 显示 SVG + PNG**：进程存活 3s（`svg_loader`/`png_loader` builtin 工作）——**SVG configure 被禁但注入兜底生效，关键验证通过**。
+- **scrot 截图**：rc=0，生成 shot.png 3072B（png save 工作）。
+- **hsetroot 壁纸**：rc=0（png load + 设壁纸）。
+- **xlunch 启动**：进程存活（GUI 初始化 + imlib2 图标 loader 正常）；日志 `Error opening entries file /etc/xlunch/entries.dsv` 为**配置部署项**（entries.dsv 未随 bin 部署），非 imlib2 loader 缺陷。
+
+**结论**：imlib2 1.12.7 升级 + 三组件升级 + scrot 重链全部编译/GUI 验证通过；tint2 未动。imlib2 1.12.7 的 SVG loader 经 configure auto 检查被禁（librsvg 2.40<2.46），但**项目 builtin 注入（改写 2.40 兼容 loader_svg.c）实测可加载 SVG**——后续升级 librsvg（≥2.46）可启用官方 SVG loader，非必须。
+
 
 ## 二、配置项
 
