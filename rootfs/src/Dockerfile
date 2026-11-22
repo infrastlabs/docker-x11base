@@ -269,7 +269,8 @@ FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
 # FROM busybox:1.36.1
 # FROM ubuntu:20.04
 # FROM alpine:3.13.12
-FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
+# FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
+FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.12
 # https://www.jakehu.me/2021/alpine-mirrors/
 # domain="mirrors.ustc.edu.cn"
 # domain="mirrors.aliyun.com";
@@ -280,11 +281,14 @@ RUN \
   #  bash-completion coreutils busybox-extras 
   # xterm :/usr/share/applications/{xterm,uxterm}
   # ping: @busybox / @iputils-ping
-RUN apk add --no-cache \
+  # alpine312-none: iproute2-ss
+RUN echo 123; \
+  apk add --no-cache \
   bash curl wget \
   sed grep gawk findutils sudo tree unzip procps htop \
   expect shadow \
-  jq sysstat lame iproute2-ss net-tools \
+  jq sysstat lame net-tools \
+  # iproute2-ss \
   # shared-mime-info \
   ; \
   chmod u+s /bin/ping;
