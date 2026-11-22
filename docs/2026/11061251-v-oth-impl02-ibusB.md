@@ -1,9 +1,9 @@
-# v-oth-impl02-ibusB：后续完善项（ibus + ibus-rime 静态构建调试记录 第三章拆出）
+# v-oth-impl02-ibusB：壹期收尾/完善项（ibus + ibus-rime 静态构建调试记录 第三章拆出）
 
-> **来处**：本文档原为 `docs/2026/11061251-v-oth-impl02-ibusA.md` 的「第三章：后续完善项」，
+> **来处**：本文档原为 `docs/2026/11061251-v-oth-impl02-ibusA.md` 的「第三章：壹期收尾/完善项」，
 > 因原文档过大拆出独立成篇。**章节序号与层级保留不变**。
 > **订正（2026-11-21）**：章号随 ibusA 二/三章对调同步为**第三章**（本章内容、层级、`### N、` 子节序号不变）；
-> 即本文档与 ibusA 尾部的「三、后续完善项」占位指向同一章。
+> 即本文档与 ibusA 尾部的「三、壹期收尾/完善项」占位指向同一章。
 > **原文档去向**：`docs/2026/11061251-v-oth-impl02-ibusA.md`（现余「一、ibus/ibus-rime 静态构建调试」；
 > 第三章位置已留占位注明去向）。
 > **订正（2026-11-21）**：更上游的 `docs/2026/11061251-v-oth-impl02.md` 已删除——原「二、xfce4-settings」移至
@@ -14,7 +14,7 @@
 
 ## 目录
 
-- 三、后续完善项（2026-11-07）
+- 三、壹期收尾/完善项（2026-11-07）
   - 1、ibus/ibus-rime部署形态与apt版对比
   - 2、叁个待办的处理/panel面板打磨:自建系统托盘右键菜单/多引擎切换分析（2026-11-07）
   - 3、现状回顾/gtk2-fcitx支持分析（2026-11-19）
@@ -24,8 +24,10 @@
   - 3、XIM仍在用，输入底层：经其转接，静态/动态IBUS对比（2026-11-21）
   - 4、应用顶层：静态程序->静态IBUS:直接对接 vs XIM转接，项目实景分析（2026-11-21）
   - 5、总结篇：静态/动态 ibus 服务 × 动/静态应用的接入矩阵（2026-11-21）
+- 五、动态版IBUS配置与使用（2026-11-22）
+  - 1、输入方案（rime 五笔数据）安装与配置（2026-11-22）
 
-## 三、后续完善项（2026-11-07）
+## 三、壹期收尾/完善项（2026-11-07）
 
 ### 1、ibus/ibus-rime部署形态与apt版对比
 
@@ -646,15 +648,15 @@ ibus-daemon -dx                # 先起 daemon（-x 顺带拉起 ibus-x11）
 >
 > 这块结合整篇，说下我的理解，看是否准确
 >
-> 1、最终环境:全静态ibus/ibus-x11/xim服务 供动静态应用使用。
-> 1a.gtk2静态应用，在gtk的a库集成ibus-x11支持免dlopen调用ibus-x11的库，与ibus-deamon直通，另xim默认即支持的
-> 1b.xterm/st/rofi等静态非gtk应用，只能xim模式，或也得静态集成ibus-x11
-> 1c.系统动态应用，经ibus-x11.so库与ibus-deamon直通，xim模式一样支持的
+> 1、最终环境:全静态ibus/ibus-x11/xim服务 供动静态应用使用。  
+> 1a.gtk2静态应用，在gtk的a库集成ibus-x11支持免dlopen调用ibus-x11的库，与ibus-deamon直通，另xim默认即支持的  
+> 1b.xterm/st/rofi等静态非gtk应用，只能xim模式，或也得静态集成ibus-x11  
+> 1c.系统动态应用，经ibus-x11.so库与ibus-deamon直通，xim模式一样支持的  
 >
-> 2、过渡环境:动态ibus/ibus-x11/xim服务 供动静态应用
-> 2a.gtk2静态应用，xim默认即支持。理论来说gtk的a库集成ibus-x11支持免dlopen，它也能与动态ibus-deamon直通？？
-> 2b.xterm/st/rofi等静态非gtk应用，同上段。
-> 2c.系统动态应用，同上段。
+> 2、过渡环境:动态ibus/ibus-x11/xim服务 供动静态应用  
+> 2a.gtk2静态应用，xim默认即支持。理论来说gtk的a库集成ibus-x11支持免dlopen，它也能与动态ibus-deamon直通？？  
+> 2b.xterm/st/rofi等静态非gtk应用，同上段。  
+> 2c.系统动态应用，同上段。  
 
 **答**：
 
@@ -876,3 +878,104 @@ distro 的 `libibus-1.0.so.5` + `im-ibus.so` 连我们**静态** daemon，走 D-
    - 极端情况：我们静态 daemon 若是**很旧的** 1.5.x、客户端是**很新的** 1.5.x，可能缺新接口 → 但本项目是 1.5.35，**无此问题**。
 
 **一句话**：1.5.x 是 2012 年底至今 13 年、100+ 版的唯一现役主线；项目静态 ibus 又是最顶的 1.5.35，所以"两边主版本一致"在全部目标发行版上**天然成立**，兼容风险可忽略。
+
+## 五、动态版IBUS配置与使用（2026-11-22）
+
+### 1、输入方案（rime 五笔数据）安装与配置（2026-11-22）
+
+#### 1.1、librime-data-wubi 在 Alpine 无包——怎么装（2026-11-22 用户问）
+
+**问（用户）**：
+
+> librime-data-wubi alpine 没有这个包，该怎么安装？
+
+**答**：
+
+Alpine **确实没有** `librime-data-wubi`（也无 `rime-data-wubi`）——它的 rime 数据**不按 schema 分包**。Alpine 的 rime 相关包只有：`librime`（引擎）、`ibus-rime`（IBus 集成，**依赖 `rime-plum-data`**）、`librime-tools`、`librime-plugins`。即 Alpine 的 rime 数据管理方式是 **plum（东风破）**，非 Debian 的 `librime-data-*` 分包。
+
+**①、方案 A：plum 安装（Alpine 官方方式，推荐）**
+
+```sh
+apk add ibus-rime              # 自动带 librime + rime-plum-data
+git clone https://github.com/rime/plum ~/.config/ibus/rime/plum
+~/.config/ibus/rime/plum/rime-install wubi pinyin-simp
+ibus-daemon -drx
+```
+
+plum 从 rime 官方 git 拉 `rime-wubi`（wubi86 等）+ `rime-pinyin-simp` 到用户 rime 目录，与发行版无关；装完按 `Ctrl+~` / F4 切换方案选「五筆字型86」。
+
+**②、方案 B：跨发行版拷 schema（不依赖 apk，最直接）**
+
+rime schema 数据是**纯文本 yaml + 码表**，架构/发行版无关，从 Debian 包或 rime 官方 git 直接拿：
+
+```sh
+git clone https://github.com/rime/rime-wubi /tmp/rime-wubi
+git clone https://github.com/rime/rime-pinyin-simp /tmp/rime-pinyin-simp
+mkdir -p ~/.config/ibus/rime
+cp /tmp/rime-wubi/*.yaml /tmp/rime-wubi/*.txt ~/.config/ibus/rime/ 2>/dev/null
+cp /tmp/rime-pinyin-simp/*.yaml /tmp/rime-pinyin-simp/*.txt ~/.config/ibus/rime/ 2>/dev/null
+ibus-daemon -drx
+```
+
+核心文件：`wubi86.schema.yaml` + `wubi86.dict.yaml`（五笔86）、`wubi_pinyin`（五笔拼音）、`pinyin_simp`（拼音反查）。
+
+**③、说明**
+
+- **数据目录**：用户级 `~/.config/ibus/rime/`（单用户最省事）；rootfs 多用户共用放系统级 `/usr/share/rime-data/`（librime 编译时 `RIME_DATA_DIR`）。
+- **为何 Debian 有而 Alpine 无**：Debian/Ubuntu 按 schema 分包（`librime-data-wubi`、`librime-data-pinyin-simp`…）；Alpine 走 **plum 单包（rime-plum-data）+ 运行时拉取**，装五笔要么 plum 要么手动放数据——**数据本身完全通用**。
+- 五笔86 依赖 `rime-pinyin-simp`（拼音反查/五笔拼音混合），别漏装；纯五笔86 可只放 `rime-wubi`。
+
+#### 1.2、Ubuntu/Debian 能用这两个方法？——能，但没必要（2026-11-22 用户问）+ plum 源
+
+**问（用户）**：
+
+> ubuntu/debian能用这个两个方法？
+
+**答**：
+
+能，但 Ubuntu/Debian **不需要**——它们本身有打包好的五笔数据包，直接 apt 最省事、版本匹配、随系统升级。
+
+**①、Ubuntu/Debian 正确姿势（首选）**
+
+```sh
+sudo apt install ibus-rime rime-data-wubi rime-data-pinyin-simp
+ibus-daemon -drx
+```
+
+（Ubuntu noble 起包名 `rime-data-wubi`；旧版/Debian 可能叫 `librime-data-wubi`；`rime-data-wubi` 实测 3.2MB 包装 12MB，含 wubi86.schema.yaml 等，noble 有 amd64/arm64 等全架构包。）
+
+**②、两方法在 Ubuntu/Debian 的定位**
+
+| 方法 | Ubuntu/Debian 能用？ | 何时才值得用 |
+|---|---|---|
+| A：plum | 能（apt install ibus-rime 后，plum 拉到用户 rime 目录） | 要最新 git 版 schema / 发行版包过旧 / 装发行版没打包的方案 |
+| B：拷 schema | 能（纯 yaml+码表，架构无关） | 同上；或要自定义/改过的五笔 |
+
+**③、plum 默认源与国内源（2026-11-22 用户问）**
+
+**问（用户）**：
+
+> plum默认是从哪个地址安装，有国内源吗 如何指定？
+
+**答**：
+
+- **默认源**：全部走 **GitHub**。plum 本体 `github.com/rime/plum`；schema 包由配方推导：`wubi` → `github.com/rime/rime-wubi.git`、`iDvel/rime-ice` → `github.com/iDvel/rime-ice.git`；安装脚本 `raw.githubusercontent.com/rime/plum/master/rime-install`；ZIP 包 `github.com/rime/<repo>/archive/<branch>.zip`。
+- **国内源**：
+  - **gitee.com/rime/**：rime 官方组织镜像（gitee.com/rime/plum、rime-wubi、rime-pinyin-simp 等）。
+  - **ghproxy 类代理**：`ghproxy.com`/`ghfast.top`/`mirror.ghproxy.com` 等，前缀 GitHub URL 即可。
+  - **CNB**（cnb.cool）：社区方案（oh-my-rime 等）有镜像。
+- **如何指定（Linux）**：git url 重写最通用，不改 plum 脚本：
+  ```sh
+  # gitee 镜像（推荐）
+  git config --global url."https://gitee.com/rime/".insteadOf "https://github.com/rime/"
+  # 或 ghproxy 代理（全 GitHub 走代理）
+  git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+  ```
+  之后 `bash rime-install wubi pinyin-simp` 正常跑，git 自动走重写后的地址。或直接 clone gitee 的 plum：
+  ```sh
+  git clone --depth 1 https://gitee.com/rime/plum.git ~/.config/ibus/rime/plum
+  ~/.config/ibus/rime/plum/rime-install wubi pinyin-simp
+  ```
+  （Windows 侧官方内置 `git_mirror=taobao` 淘宝镜像；Linux 无此变量，用 insteadOf。）
+
+- **验证**：`git config --global --get-regexp insteadOf` 查看；plum 拉取时看 URL 是否走 gitee/代理。
