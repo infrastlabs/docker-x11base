@@ -91,6 +91,20 @@ RUN apt.sh \
   exit 0
 
 
+  # AUD img: 546MB[239M]> 560MB
+  # INPUT img: 546MB[239M]> 658MB[252M]
+  # librime-data-wubi> rime-data-wubi
+  RUN \
+    # test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh \
+    # Audio 39.8 MB 
+    # pavucontrol \
+    \
+    # \12.3 MB (默认不含输入法: IBus/Fcitx)
+    ibus-gtk ibus-gtk3 \
+    ibus ibus-rime librime-data-wubi; \
+    exit 0
+
 ##APP################################################
 # img: 362MB> 444MB (none-font); after mv-top: 610MB> 546MB
 # MESA-LLVM img: 362MB> 398MB
@@ -146,18 +160,6 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   apt-utils x11-xkb-utils xdg-utils; \
   exit 0
 
-  # AUD img: 546MB[239M]> 560MB
-  # INPUT img: 546MB[239M]> 658MB[252M]
-  # librime-data-wubi> rime-data-wubi
-  RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-    apt.sh \
-    # Audio 39.8 MB 
-    pavucontrol \
-    \
-    # \12.3 MB (默认不含输入法: IBus/Fcitx)
-    ibus ibus-gtk ibus-gtk3 ibus-rime librime-data-wubi; \
-    exit 0
-
   # # 2868 kB #fcitx ##img:78.095 MB
   # # 15.3 kB #输入法依赖 https://shurufa.sogou.com/linux/guide
   # RUN apt.sh fcitx fcitx-bin fcitx-config-common fcitx-config-gtk fcitx-data \
@@ -210,16 +212,18 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   # pnmixer> pasystray
   # xrandr @x11-xserver-utils
   RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-    apt.sh thunar dunst clipit pasystray \
-    pcmanfm lxappearance \
-    sakura geany ristretto gnome-system-monitor; \
+    # dunst pasystray pcmanfm lxappearance 
+    apt.sh clipit thunar \
+    # geany ristretto gnome-system-monitor
+    sakura ; \
     # misc2
     \
     # link: sakura, thunar
     # ln -s /usr/bin/thunar /usr/bin/pcmanfm; \
     mv /usr/bin/st /usr/bin/st00; ln -s /usr/bin/sakura /usr/bin/st; \
     test "14.04" == "${VER}" && exit 0; \
-    apt.sh plank engrampa; \
+    # engrampa
+    apt.sh plank ; \
     exit 0
 
   # # wps: libxss1
@@ -241,13 +245,14 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # xrandr: @x11-xserver-utils
 RUN \
   echo a.123; \
-  apt.sh x11-xserver-utils scrot ; \
-  \
-  test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apt.sh git mousepad; \
-  test "24.04" != "${VER}" && apt.sh leafpad; \
-  \
-  exit 0
+  # scrot 
+  apt.sh x11-xserver-utils ; 
+  # \
+  # test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  # apt.sh git mousepad; \
+  # test "24.04" != "${VER}" && apt.sh leafpad; \
+  # \
+  # exit 0
 
 
 
