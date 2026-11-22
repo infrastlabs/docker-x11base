@@ -81,14 +81,14 @@ jobs:
             # 
             # bash buildx.sh builder #gtk224 to ali's layer not supported err, re-build origin
             # bash buildx.sh gtk224 #builder-gtk224
-            # bash buildx.sh gtkmm224
-            # bash buildx.sh #compile
+            bash buildx.sh gtkmm224
+            bash buildx.sh #compile
             # exit 0
           echo rootfs; cd ../rootfs;
             # 25.9.14: 不识别ARG参? @28.0.4
             # FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS bin2
             bash buildx.sh rootfs
-            # exit 0
+            exit 0
           # 
           # #############################
           doDistros=true
@@ -122,9 +122,14 @@ jobs:
             bash buildx.sh core busybox 1.36.1 latest &
             bash buildx.sh core openwrt 23.05 latest &
             bash buildx.sh core alpine 3.12 &
+            # ibus-rime@alpine3.21-24
+            bash buildx.sh core alpine 3.21 &
+            bash buildx.sh core alpine 3.22 &
+            bash buildx.sh core alpine 3.23 &
+            bash buildx.sh core alpine 3.24 &
+            bash buildx.sh core ubuntu 22.04 &
             bash buildx.sh core opensuse 15.6 latest &
-            bash buildx.sh core debian 13 latest &
-            # bash buildx.sh core ubuntu 22.04 &
+            bash buildx.sh core debian 11 &
             # bash buildx.sh core ubuntu 24.04 &
             # bash buildx.sh core ubuntu 26.04 latest &
             wait; unset ENV_ROOTFS ENV_PLAT; exit 0
