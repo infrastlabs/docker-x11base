@@ -73,6 +73,45 @@ RUN apk add --no-cache \
   test "3.19" == "${VER}" && apk add --no-cache musl-locales; \
   exit 0;
 
+
+# alpine_3.1..3.6..3.11..3.12 : UNTRUSTED signature
+#  --allow-untrusted #Segmentation fault (core dumped)
+#  3.11: --allow-untrusted ##ERROR: FDB format error (line 10241)
+#  3.12: cert ok; apk add: conflicts: libvpx-1.14.1-r0; ... x8条;
+#  3.13: cert ok; apk update/add ok; app:==> depsErr;
+#  3.14: app:==> depsErr;
+#  3.19: ins.run.ok; 26.11:depsErr;
+##########
+# ibus-rime: 3.21~3.24才有  https://pkgs.alpinelinux.org/packages?name=ibus-rime&branch=v3.21&repo=&arch=x86_64&origin=&flagged=&maintainer=
+RUN \
+  # test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  # test "3.19" != "${VER}" && exit 0; \
+  # domain="mirrors.tuna.tsinghua.edu.cn"; echo "http://$domain/alpine/edge/community" >> /etc/apk/repositories; \
+  \
+  match1=$(echo "${VER}" |grep -E "3.1$|3.2$|3.3$|3.4$|3.5$|3.6$|3.8$|3.10$|3.11$|3.12$"); \
+  test ! -z "$match1" && exit 0; \
+  match1=$(echo "${VER}" |grep -E "3.13$|3.14$|3.15$|3.16$|3.17$|3.18$|3.19$|3.20$"); \
+  test ! -z "$match1" && exit 0; \
+  # \12.3 MB (默认不含输入法: IBus/Fcitx); @edge/community
+  apk add --no-cache \
+  # pavucontrol-qt \
+  # pavucontrol; \
+  ibus-gtk2 ibus-gtk3 \
+  ibus ibus-rime ibus-libpinyin ; \
+  # fcitx5 fcitx5-gtk fcitx5-gtk3 fcitx5-rime ; \
+  exit 0  
+
+# gtk2: icon/theme
+# https://pkgs.alpinelinux.org/packages?name=*theme* #pgs5
+# https://pkgs.alpinelinux.org/packages?name=*icon* #pgs4
+# ubt1604:
+  # root@tenvm2:/# pkgsize |grep engine
+  # 0.11 Mbs	gtk2-engines-pixbuf #ubt1404,only-this
+  # 0.27 Mbs	gtk2-engines-murrine
+# RUN \
+#   apk add --no-cache gtk-murrine-engine; \
+#   exit 0;
+
 ##APP################################################
 # font-wqy-zenhei@edge
 # v3.1: firefox (31.2.0-r1)
@@ -90,7 +129,8 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # v3.13: +musl-locales
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall; \
   apk add --no-cache \
-  tzdata  binutils  dbus-x11 at-spi2-core    xdg-utils xrdb; \
+  # at-spi2-core 
+  tzdata  binutils  dbus-x11   xdg-utils xrdb; \
   test "3.13" == "${VER}" && apk add --no-cache musl-locales; \
   test "3.19" == "${VER}" && apk add --no-cache musl-locales; \
   exit 0;
@@ -103,19 +143,19 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   cd /usr/share/icons && rm -rf Tango ; \
   exit 0
 
-# v3.1 v3.2: +gnome-system-monitor
-# v3.5/v3.8: none gnome-system-monitor
-# v3.13: +pavucontrol
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  apk add --no-cache \
-  git \
-  thunar geany ristretto xrandr ; \
-  # 3.5$|
-  match2=$(echo "${VER}" |grep -E "3.6$|3.8$"); \
-  test -z "$match2" && apk add --no-cache gnome-system-monitor; \
-  test "3.13" == "${VER}" && apk add --no-cache pavucontrol ; \
-  test "3.19" == "${VER}" && apk add --no-cache pavucontrol ; \
-  exit 0;
+# # v3.1 v3.2: +gnome-system-monitor
+# # v3.5/v3.8: none gnome-system-monitor
+# # v3.13: +pavucontrol
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   apk add --no-cache \
+#   git \
+#   thunar geany ristretto xrandr ; \
+#   # 3.5$|
+#   match2=$(echo "${VER}" |grep -E "3.6$|3.8$"); \
+#   test -z "$match2" && apk add --no-cache gnome-system-monitor; \
+#   test "3.13" == "${VER}" && apk add --no-cache pavucontrol ; \
+#   test "3.19" == "${VER}" && apk add --no-cache pavucontrol ; \
+#   exit 0;
 
 # # flameshot-lib-err; engrampa-mate-deskDeps; ibus-tray-err;
 # # pnmixer/clipit-segfault-err; lxapperance-func-err; 
@@ -138,8 +178,9 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # v3.13: +rofi clipit pnmixer lxappearance
 # pnmixer> pasystray
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  test "3.13" == "${VER}" && apk add --no-cache rofi clipit pasystray xrandr lxappearance engrampa; \
-  test "3.19" == "${VER}" && apk add --no-cache sakura rofi clipit pasystray xrandr lxappearance engrampa; \
+  # rofi pasystray xrandr lxappearance engrampa
+  test "3.13" == "${VER}" && apk add --no-cache clipit; \
+  test "3.19" == "${VER}" && apk add --no-cache sakura clipit; \
   exit 0;
 
 # XFCE4
@@ -154,50 +195,16 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   xfce4-notifyd xfce4-settings xfce4-session; \
   exit 0;
 
-# lxde
-# v3.8: pcmanfm (1.2.5-r2)
-# 3.8_none: lxappearance lxtask
-# v3.2_none: 
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  # 2536 kB #18.9 MB > 14.3 MB
-  apk add --no-cache \
-  pcmanfm mousepad scrot; \
-  match1=$(echo "${VER}" |grep -E "3.1$|3.2$"); \
-  test -z "$match1" && apk add --no-cache leafpad; \
-  exit 0;
-
-
-# alpine_3.1..3.6..3.11..3.12 : UNTRUSTED signature
-#  --allow-untrusted #Segmentation fault (core dumped)
-#  3.11: --allow-untrusted ##ERROR: FDB format error (line 10241)
-#  3.12: cert ok; apk add: conflicts: libvpx-1.14.1-r0; ... x8条;
-#  3.13: cert ok; apk update/add ok; app:==> depsErr;
-#  3.14: app:==> depsErr;
-#  3.19: ins.run.ok;
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  # match1=$(echo "${VER}" |grep -E "3.1$|3.2$|3.3$|3.4$|3.5$|3.6$|3.8$|3.10$|3.11$|3.12$"); \
-  # test ! -z "$match1" && exit 0; \
-  test "3.19" != "${VER}" && exit 0; \
-  domain="mirrors.tuna.tsinghua.edu.cn"; \
-  echo "http://$domain/alpine/edge/community" >> /etc/apk/repositories; \
-  \
-  # \12.3 MB (默认不含输入法: IBus/Fcitx); @edge/community
-  apk add --no-cache \
-  # pavucontrol-qt \
-  pavucontrol; \
-  # ibus ibus-gtk2 ibus-gtk3 ibus-rime ibus-libpinyin ; \
-  # fcitx5 fcitx5-gtk fcitx5-gtk3 fcitx5-rime ; \
-  exit 0  
-
-# gtk2: icon/theme
-# https://pkgs.alpinelinux.org/packages?name=*theme* #pgs5
-# https://pkgs.alpinelinux.org/packages?name=*icon* #pgs4
-# ubt1604:
-  # root@tenvm2:/# pkgsize |grep engine
-  # 0.11 Mbs	gtk2-engines-pixbuf #ubt1404,only-this
-  # 0.27 Mbs	gtk2-engines-murrine
-# RUN \
-#   apk add --no-cache gtk-murrine-engine; \
+# # lxde
+# # v3.8: pcmanfm (1.2.5-r2)
+# # 3.8_none: lxappearance lxtask
+# # v3.2_none: 
+# RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
+#   # 2536 kB #18.9 MB > 14.3 MB
+#   apk add --no-cache \
+#   pcmanfm mousepad scrot; \
+#   match1=$(echo "${VER}" |grep -E "3.1$|3.2$"); \
+#   test -z "$match1" && apk add --no-cache leafpad; \
 #   exit 0;
 
 
