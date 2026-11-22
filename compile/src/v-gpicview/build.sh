@@ -32,6 +32,10 @@ source /src/common.sh
 #   * 网络坑：容器外网不可达（github/gitee 均挂死）→ 宿主 curl（codeload.github.com 通）
 #     下载 tarball + docker cp 到容器 /tmp/gpicview-0.2.5.tar.gz；build.sh 优先用离线 tarball。
 #     实际成功源 = codeload.github.com/lxde/gpicview/tar.gz/refs/tags/0.2.5（github 镜像 codeload）。
+#   * 手装漏 pref-dlg.ui → 点 Preferences 崩：edit_preferences() 用 GtkBuilder 从
+#     PACKAGE_DATA_DIR "/gpicview/ui/pref-dlg.ui"（= $prefix/share/gpicview/ui/）加载，
+#     漏装则 gtk_builder_add_from_file 返回 0（未检查）→ dlg=NULL → 崩溃。
+#     pref-dlg.ui 不嵌入二进制，必须随部署装（data/pref-dlg.ui，非 data/ui/）。
 #
 GPICVIEW_VER=0.2.5
 GPICVIEW_URL="https://codeload.github.com/lxde/gpicview/tar.gz/refs/tags/$GPICVIEW_VER"
@@ -105,6 +109,11 @@ function gpicview(){
       gpicview.desktop.in > $TARGETPATH/share/applications/gpicview.desktop
     cp gpicview.png $TARGETPATH/share/pixmaps/
     cp -r data/pixmaps $TARGETPATH/share/gpicview/ 2>/dev/null || true
+    # pref-dlg.ui 必须手装：edit_preferences() 用 GtkBuilder 从
+    # PACKAGE_DATA_DIR "/gpicview/ui/pref-dlg.ui"（= $prefix/share/gpicview/ui/）加载，
+    # 漏装则点 Preferences 直接崩（gtk_builder_add_from_file 返回 0 未检查 → dlg=NULL）。
+    mkdir -p $TARGETPATH/share/gpicview/ui
+    cp data/pref-dlg.ui $TARGETPATH/share/gpicview/ui/
 
   log "Install GPICVIEW locale (静态 LOCALEDIR=$TARGETPATH/share/locale；src/Makefile.am PACKAGE_LOCALE_DIR=\$(prefix)/share/locale，po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
     if [ -d po ]; then
