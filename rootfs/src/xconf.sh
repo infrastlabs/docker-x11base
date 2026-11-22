@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function core(){
-##########################################
+###############
   # xrdp
   mkdir -p /etc/xrdp && xrdp-keygen xrdp auto #/etc/xrdp/rsakeys.ini
   # rm -rf /etc/xrdp; ln -s /usr/local/static/xrdp/etc/xrdp /etc/xrdp
@@ -11,7 +11,7 @@ function core(){
   # link-static-bash /bin/bash
   # rm -f /bin/bash; ln -s /usr/local/static/3rd/bin/bash /bin/bash; # #!/bin/bash @busybox
 
-##########################################
+################
 # $RUN
   export group=headless
   export user=headless
@@ -63,19 +63,7 @@ function core(){
     # echo "curl mp3.." && gosu headless bash -c "curl --connect-timeout 3 -k -O -fSL https://www.51mp3ring.com/51mp3ring_com3/at20131018141155.mp3";
 
 
-# dotfiles
-  # git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles #git@files2
-  bash /usr/local/static/.dotfiles/refresh.sh
-  # bash /etc/skel/.fluxbox/fluxbox.sh #@refresh.sh
-}
-
-
-
-function app(){
-  rm -f /xconf.sh #delete here, @second call
-test "app" != "$TYPE" && exit 0 || echo appInstall;
-
-##AUDIO###########################
+##AUDIO########
 # Setup D-Bus; ;
 # $RUN
   mkdir -p /run/dbus/ && chown messagebus:messagebus /run/dbus/
@@ -86,7 +74,6 @@ test "app" != "$TYPE" && exit 0 || echo appInstall;
 # # for core: avoid multi> 'dbus-daemon --syslog --fork --print-pid 4 --print-address 6 --session'; #(headless x2, root x1)
 # kill -9 `ps -ef |grep dbus |grep -v grep |awk '{print $2}'`
 
-##FULL###########################
 # IBUS+DCONF env
 # $RUN
   find /home/headless/.config |wc
@@ -106,6 +93,19 @@ test "app" != "$TYPE" && exit 0 || echo appInstall;
   # echo "export GTK_IM_MODULE=ibus" |sudo tee -a /.env
   # echo "export QT_IM_MODULE=ibus" |sudo tee -a /.env;
 
+# dotfiles########
+  # git clone --depth=1 https://gitee.com/infrastlabs/dotfiles.git /usr/local/static/.dotfiles #git@files2
+  bash /usr/local/static/.dotfiles/refresh.sh
+  # bash /etc/skel/.fluxbox/fluxbox.sh #@refresh.sh
+}
+
+
+
+function app(){
+  rm -f /xconf.sh #delete here, @second call
+test "app" != "$TYPE" && exit 0 || echo appInstall;
+
+##FULL#########
 # ohmybash
 # $RUN
   echo "curl oh-my-bash.." && gosu headless bash -c "$(curl -k --connect-timeout 38 -fsSL https://gitee.com/g-system/oh-my-bash/raw/sam-custom/tools/install.sh)"
