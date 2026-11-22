@@ -116,6 +116,17 @@ RUN apt.sh \
   # test -z "$match1" && apt.sh leafpad; \
   exit 0
 
+
+# librime-data-wubi> rime-data-wubi
+RUN echo 123; \
+    # test "app" != "$TYPE" && exit 0 || echo appInstall;\
+    apt.sh \
+    # xx MB
+    ibus-gtk ibus-gtk3 \
+    ibus ibus-rime librime-data-wubi; \
+    exit 0
+
+
 # HEADLESS
 COPY --from=rootfs /rootfs/res_ubt_share /
 COPY --from=rootfs /rootfs/files1 /
