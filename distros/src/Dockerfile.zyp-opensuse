@@ -66,6 +66,18 @@ RUN \
 RUN \
   zyp.sh thunar librsvg-2-2
 
+# sakura+
+# zyp-ex: clipit pnmixer 
+# plank rofi clipit pnmixer lxappearance thunar \
+# tint2
+# pnmixer> pasystray
+RUN \
+  # test "app" != "$TYPE" && exit 0 || echo appInstall;\
+  zyp.sh \
+  ibus ibus-rime \
+  exit 0
+
+
 ##APP################################################
 # 0.07 Mbs	hicolor-icon-theme-0.17-noarch
 # 0.34 Mbs	adwaita-xfce-icon-theme-0.0.2+git0.ee9b710-noarch
@@ -79,17 +91,6 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 # gpg check failed too? @alma 8.7
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   zyp.sh firefox; \
-  exit 0
-
-# sakura+
-# zyp-ex: clipit pnmixer 
-# plank rofi clipit pnmixer lxappearance thunar \
-# tint2
-# pnmixer> pasystray
-RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
-  zyp.sh pavucontrol pasystray xrandr \
-  ibus ibus-rime flameshot \
-  sakura thunar lxappearance   geany ristretto engrampa gnome-system-monitor; \
   exit 0
 
 # XFCE4
@@ -107,11 +108,15 @@ RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
 RUN test "app" != "$TYPE" && exit 0 || echo appInstall;\
   zyp.sh binutils at-spi2-core xdg-utils \
   # lanpacks: rhel>> yum install langpacks-zh_CN;
-  glibc-locale plank \
+  glibc-locale \
+  plank flameshot \
+  # pavucontrol pasystray xrandr lxappearance   geany engrampa gnome-system-monitor \
+  sakura thunar ristretto ; \
   # xrdb-font
   xrdb git \
   # vim, locale, ping; ubt:iptuils-ping; vim 2.2M;
-  iputils vim scrot \
+  # scrot 
+  iputils vim \
   # dbus-x11: perp> xfce4-session: err #hand run> xfce4-session: ok
   dbus-1-x11; \
   exit 0
