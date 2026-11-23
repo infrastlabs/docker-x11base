@@ -158,6 +158,7 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   # apk update; apk add gtk-doc
   # apk x libfm-extra-dev ##可过./configure检查; 但ld -lfm-extra静态库错误
 
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
@@ -165,9 +166,15 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   rm -rf /tmp/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache $branch
   cd /tmp/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
-    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    # 2026-11-23: LDFLAGS 补 -static——否则 menu-cached daemon 动态链接 glib(rootfs 无共享库起不来); 勿覆盖 common.sh 的 --static
+    export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
+    # 2026-11-23: 菜单目录默认指向静态部署目录(env 优先)——menu-cache-menudir.patch + sed 替换默认路径
+    #   CFLAGS 传宏引号经 libtool 会被吃(/usr 变标识符), 改 sed 直改源码默认值(见 5.3.2)
+    git apply /src/v-pcmanfm/menu-cache-menudir.patch || { log "menu-cache menudir patch apply fail"; exit 1; }
+    sed -i "s|define MENU_CONFIG_DIR \"/etc/xdg\"|define MENU_CONFIG_DIR \"$TARGETPATH/etc/xdg\"|g" libmenu-cache/menu-cache.c menu-cache-gen/main.c
     ./autogen.sh 
-    ./configure --enable-static; 
+    # --libexecdir=$TARGETPATH/libexec: MENUCACHE_LIBEXECDIR 编入静态部署路径(fork_server 找 menu-cached daemon, 漏配则 OpenWith g_error 崩)
+    ./configure --enable-static --libexecdir=$TARGETPATH/libexec 
 
   log "Compiling menu-cache..."
   make
@@ -177,6 +184,28 @@ function menu_cache(){ ##依赖libfm-extra @libfm
 
   find /usr/local/lib |grep "menu-cache.*\.a$"
   cp /usr/local/lib/libmenu-cache.a /usr/lib/
+
+  log "Install lxmenu-data (static data -> $TARGETPATH/etc/xdg/menus, desktop-directories)..."
+  mkdir -p $TARGETPATH
+  tar xzf /src/v-pcmanfm/data/lxmenu-data.tar.gz -C $TARGETPATH 2>/dev/null || log "lxmenu-data.tar.gz 解压失败"
+  ls -la $TARGETPATH/etc/xdg/menus/ 2>/dev/null | head
+  ls $TARGETPATH/libexec/menu-cache/ 2>/dev/null | head
+
+  # 2026-11-23: 静态链接 menu-cached(daemon)——libtool 产物动态链接 glib, rootfs 无共享库起不来;
+  #   fork_server 检查 $libexecdir/menu-cached, 漏静态链则 OpenWith g_error 崩(5.3.2)
+  log "static link menu-cached (daemon)..."
+  cd /tmp/menu-cache
+  if [ -f menu-cache-daemon/menu-cached.o ]; then
+    mkdir -p $TARGETPATH/libexec/menu-cache
+    gcc -static -o $TARGETPATH/libexec/menu-cache/menu-cached \
+      menu-cache-daemon/menu-cached.o \
+      libmenu-cache/.libs/libmenu-cache.a \
+      $(pkg-config --libs --static glib-2.0 gio-2.0 2>/dev/null) \
+      || log "menu-cached static link fail"
+    file $TARGETPATH/libexec/menu-cache/menu-cached 2>/dev/null | head -1
+  else
+    log "menu-cached.o 缺失, 跳过静态链"
+  fi
 }
 
 #

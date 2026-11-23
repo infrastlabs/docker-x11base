@@ -1,0 +1,36 @@
+diff --git a/libmenu-cache/menu-cache.c b/libmenu-cache/menu-cache.c
+index 273b503..72e2acd 100644
+--- a/libmenu-cache/menu-cache.c
++++ b/libmenu-cache/menu-cache.c
+@@ -1791,6 +1791,12 @@ static MenuCache* menu_cache_create(const char* menu_name)
+     MenuCache* cache;
+     const gchar * const * langs = g_get_language_names();
+     const char* xdg_cfg_env = g_getenv("XDG_CONFIG_DIRS");
++#ifndef MENU_CONFIG_DIR
++# define MENU_CONFIG_DIR "/etc/xdg"
++#endif
++    /* 默认从静态部署目录取菜单；XDG_CONFIG_DIRS 环境变量优先 */
++    if (!xdg_cfg_env || !xdg_cfg_env[0])
++        xdg_cfg_env = MENU_CONFIG_DIR;
+     const char* xdg_prefix_env = g_getenv("XDG_MENU_PREFIX");
+     const char* xdg_data_env = g_getenv("XDG_DATA_DIRS");
+     const char* xdg_cfg_home_env = g_getenv("XDG_CONFIG_HOME");
+diff --git a/menu-cache-gen/main.c b/menu-cache-gen/main.c
+index 33a1914..13ae300 100644
+--- a/menu-cache-gen/main.c
++++ b/menu-cache-gen/main.c
+@@ -104,6 +104,14 @@ int main(int argc, char **argv)
+         char *path;
+         gboolean found;
+         const gchar * const *dirs = g_get_system_config_dirs();
++#ifndef MENU_CONFIG_DIR
++# define MENU_CONFIG_DIR "/etc/xdg"
++#endif
++        /* 默认从静态部署目录取菜单；XDG_CONFIG_DIRS 环境变量优先 */
++        if (!g_getenv("XDG_CONFIG_DIRS") || !g_getenv("XDG_CONFIG_DIRS")[0]) {
++            static const gchar *mc_dirs[] = { MENU_CONFIG_DIR, NULL };
++            dirs = mc_dirs;
++        }
+ 
+         const char *menu_prefix = g_getenv("XDG_MENU_PREFIX");
+         if (menu_prefix != NULL && menu_prefix[0] != '\0')
