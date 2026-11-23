@@ -1,86 +1,94 @@
-#include "loader_common.h"
+#include "config.h"
+#include "Imlib2_Loader.h"
 #include <librsvg/rsvg.h>
 #include <cairo.h>
 #include <string.h>
 
-int
-load2(ImlibImage * im, int load_data)
+#define DBG_PFX "LDR-svg"
+
+static const char *const _formats[] = { "svg", "svgz" };
+
+static void
+_handle_error(GError *error)
 {
-   long                 sz;
-   guint8              *buf;
-   RsvgHandle          *h;
-   RsvgDimensionData    dd;
-   int                  w, hh;
-   cairo_surface_t     *surf;
-   cairo_t             *cr;
-   unsigned char       *pix;
-   GError              *err = NULL;
+   g_error_free(error);
+}
 
-   fseek(im->fp, 0, SEEK_END);
-   sz = ftell(im->fp);
-   fseek(im->fp, 0, SEEK_SET);
-   if (sz <= 0)
-      return LOAD_FAIL;
-   buf = malloc(sz);
-   if (!buf)
-      return LOAD_FAIL;
-   if (fread(buf, 1, sz, im->fp) != (size_t) sz)
-     {
-        free(buf);
-        return LOAD_FAIL;
-     }
+/*
+ * 2026-11-23 改写（1.12.7 适配）：
+ * 1.12.7 官方 loader_svg.c 硬依赖 librsvg >= 2.46（rsvg_handle_get_intrinsic_dimensions
+ *   / rsvg_handle_render_document 全在 #if LIBRSVG_CHECK_VERSION(2,46,0) 内），项目容器
+ *   librsvg 2.40.21 不满足 → 官方 _load 尺寸判定失败（SVG 失效）。
+ * 本文件保留项目 2.40 兼容逻辑（rsvg_handle_get_dimensions + rsvg_handle_render_cairo，
+ *   旧 1.7.4 loader_svg.c 同款），仅接口改写为 1.12.7 ImlibLoaderModule（load/save/inex
+ *   + IMLIB_LOADER_KEEP 宏），数据源 im->fp/fseek 改 im->fi->fdata/im->fi->fsize。
+ */
+static int
+_load(ImlibImage *im, int load_data)
+{
+   RsvgHandle     *rsvg;
+   RsvgDimensionData dd;
+   GError         *error = NULL;
+   cairo_surface_t *surf;
+   cairo_t        *cr;
+   int             w, hh;
 
-   h = rsvg_handle_new_from_data(buf, sz, &err);
-   free(buf);
-   if (!h)
-      return LOAD_FAIL;
+   rsvg = rsvg_handle_new_from_data(im->fi->fdata, im->fi->fsize, &error);
+   if (!rsvg)
+      goto quit;
 
-   rsvg_handle_get_dimensions(h, &dd);
+   rsvg_handle_get_dimensions(rsvg, &dd);
    w = dd.width;
    hh = dd.height;
    if (w <= 0 || hh <= 0)
-     {
-        g_object_unref(h);
-        return LOAD_FAIL;
-     }
+      goto quit;
 
    im->w = w;
    im->h = hh;
-   SET_FLAG(im->flags, F_HAS_ALPHA);
+   im->has_alpha = LDR_ALPHA_CHECK;
 
    if (!load_data)
-     {
-        g_object_unref(h);
-        return LOAD_SUCCESS;
-     }
+   {
+      g_object_unref(rsvg);
+      return LOAD_SUCCESS;
+   }
 
    if (!__imlib_AllocateData(im))
-     {
-        g_object_unref(h);
-        return LOAD_FAIL;
-     }
+   {
+      g_object_unref(rsvg);
+      return LOAD_OOM;
+   }
 
-   surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, hh);
-   if (cairo_surface_status(surf) != CAIRO_STATUS_SUCCESS)
-     {
-        g_object_unref(h);
-        return LOAD_FAIL;
-     }
+   memset(im->data, 0, im->w * im->h * sizeof(uint32_t));
+   surf = cairo_image_surface_create_for_data((void *)im->data,
+               CAIRO_FORMAT_ARGB32, im->w, im->h, im->w * sizeof(uint32_t));
+   if (!surf)
+   {
+      g_object_unref(rsvg);
+      return LOAD_OOM;
+   }
+
    cr = cairo_create(surf);
+   if (!cr)
+   {
+      cairo_surface_destroy(surf);
+      g_object_unref(rsvg);
+      return LOAD_OOM;
+   }
+
    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-   rsvg_handle_render_cairo(h, cr);
+   rsvg_handle_render_cairo(rsvg, cr);
    cairo_destroy(cr);
-   pix = cairo_image_surface_get_data(surf);
-   memcpy(im->data, pix, w * hh * 4);
    cairo_surface_destroy(surf);
-   g_object_unref(h);
+   g_object_unref(rsvg);
    return LOAD_SUCCESS;
+
+ quit:
+   if (error)
+      _handle_error(error);
+   if (rsvg)
+      g_object_unref(rsvg);
+   return LOAD_FAIL;
 }
 
-void
-formats(ImlibLoader * l)
-{
-   static const char  *const list_formats[] = { "svg" };
-   __imlib_LoaderSetFormats(l, list_formats,
-                            sizeof(list_formats) / sizeof(char *));
-}
+IMLIB_LOADER_KEEP(_formats, _load, NULL);
