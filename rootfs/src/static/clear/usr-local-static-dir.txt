@@ -159,12 +159,12 @@
 
 ### 261116; xfce4-disp-settings@static/xfce4
 /usr/local/static/xfce
-/usr/local/static/thunar
-/usr/local/static/ristretto
+# /usr/local/static/thunar
+# /usr/local/static/ristretto
 /usr/local/static/exif
-/usr/local/static/feh
-/usr/local/static/hsetroot
-/usr/local/static/xlunch
+# /usr/local/static/feh
+# /usr/local/static/xlunch
+# /usr/local/static/hsetroot
 /usr/local/static/temp1
 # /usr/local/static/temp1
 
