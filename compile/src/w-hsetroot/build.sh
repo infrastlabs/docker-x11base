@@ -12,7 +12,7 @@ source /src/common.sh
 # 注意: 简单 Makefile(非 autotools, 无 configure/autogen), 需 pkg-config + GNU make;
 #       ①C99 编译(hsr-outputs.c/hsetroot.c 有 for 循环初始声明) ②1.0.5 用 xinerama 处理多屏
 function hsetroot(){
-  HSR_VER=1.0.5
+  HSR_VER=1.1.0
   HSR_SRC=/tmp/hsetroot
 
   log "Downloading hsetroot..."
@@ -24,7 +24,7 @@ function hsetroot(){
   else
     rm -rf $HSR_SRC
     # github tag 在此环境挂死; 用 gitee 镜像(g-system/fk-hsetroot, master = himdel 1.0.5 代码, 含 -root)
-    gitclone https://gitee.com/g-system/fk-hsetroot $HSR_SRC \
+    gitclone https://gitee.com/g-system/fk-hsetroot $HSR_SRC --branch=$HSR_VER \
       || { log "hsetroot source download FAILED"; exit 1; }
   fi
 
