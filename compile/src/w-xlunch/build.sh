@@ -6,9 +6,8 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-w-xlunch}"
 # 脚本目录（绝对路径；imlib2() 内会 cd，须在函数外先算好）
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-# v1.12.3 @ 	2024-02-03
-# v1.7.4 @2021-09-17
-IMLIB2_VER=1.7.4
+# v1.12.7 @ 2026-08-28（12.x 最新；2026-11-23 升级）
+IMLIB2_VER=1.12.7
 IMLIB2_URL=https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/${IMLIB2_VER}/imlib2-${IMLIB2_VER}.tar.gz
 # v1.12.2 tar -Jxf xx.tar.xz
 # https://nchc.dl.sourceforge.net/project/enlightenment/imlib2-src/1.12.2/imlib2-1.12.2.tar.xz #xz,gz
@@ -19,7 +18,7 @@ IMLIB2_URL=https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/${
 
 # gh=https://ghps.cc/
 # https://gitee.com/g-system/fk-suckless-xlunch #git clone;
-XLUNCH_VER=0.8.4
+XLUNCH_VER=v5.10.6
 XLUNCH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}/xrdp-${XRDP_VER}.tar.gz
 
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2-1.7.4.tar.gz
@@ -38,7 +37,8 @@ function imlib2(){
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
     # ./configure; 
     ./configure --with-x \
-      --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ ; 
+      --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
+      --without-heif --without-jxl ; 
     # make; make install;
 
   log "Compiling imlib2..."
@@ -55,58 +55,41 @@ function imlib2(){
   python3 - <<'PYEOF'
 p = "/tmp/imlib2/src/lib/loaders.c"
 s = open(p).read()
-if "jpeg_load2" in s:
+if "png_loader" in s:
     print("loaders.c already patched")
 else:
-    anchor = "   if (loaders)\n      return;\n"
+    # 1.12.7 锚点：__imlib_LoadAllLoaders 内 __imlib_ModulesList 之后、early return 之前
+    anchor = "    list = __imlib_ModulesList(__imlib_PathToLoaders(), &num);\n"
     assert s.count(anchor) == 1, "anchor not unique"
-    block = anchor + '''
-  /* builtin static loaders (no dlopen; for static/musl builds) */
+    block = anchor + '''  /* builtin static loaders (no dlopen; for static/musl builds) */
   {
       ImlibLoader        *bl, *bl2, *bl3;
-      extern int          png_load2(ImlibImage * im, int load_data);
-      extern char         png_save(ImlibImage * im, ImlibProgressFunction progress,
-                                   char progress_granularity);
-      extern void         png_formats(ImlibLoader * l);
-      extern int          svg_load2(ImlibImage * im, int load_data);
-      extern void         svg_formats(ImlibLoader * l);
-      extern int          jpeg_load2(ImlibImage * im, int load_data);
-      extern char         jpeg_save(ImlibImage * im, ImlibProgressFunction progress,
-                                   char progress_granularity);
-      extern void         jpeg_formats(ImlibLoader * l);
+      extern ImlibLoaderModule png_loader, svg_loader, jpeg_loader;
 
       bl = malloc(sizeof(ImlibLoader));
       bl->file = strdup("png");
-      bl->num_formats = 0;
-      bl->formats = NULL;
       bl->handle = NULL;
-      bl->load = NULL;
-      bl->save = png_save;
+      bl->module = &png_loader;
       bl->next = NULL;
-      bl->load2 = png_load2;
-      png_formats(bl);
+      bl->name = png_loader.formats[0];
 
       bl2 = malloc(sizeof(ImlibLoader));
       bl2->file = strdup("svg");
-      bl2->num_formats = 0;
-      bl2->formats = NULL;
       bl2->handle = NULL;
-      bl2->load = NULL;
-      bl2->save = NULL;
+      bl2->module = &svg_loader;
       bl2->next = NULL;
-      bl2->load2 = svg_load2;
-      svg_formats(bl2);
+      bl2->name = svg_loader.formats[0];
 
       bl3 = malloc(sizeof(ImlibLoader));
       bl3->file = strdup("jpeg");
-      bl3->num_formats = 0;
-      bl3->formats = NULL;
       bl3->handle = NULL;
-      bl3->load = NULL;
-      bl3->save = jpeg_save;
+      bl3->module = &jpeg_loader;
       bl3->next = NULL;
-      bl3->load2 = jpeg_load2;
-      jpeg_formats(bl3);
+      bl3->name = jpeg_loader.formats[0];
+
+      if (png_loader.inex) png_loader.inex(1);
+      if (svg_loader.inex) svg_loader.inex(1);
+      if (jpeg_loader.inex) jpeg_loader.inex(1);
 
       bl2->next = bl3;
       bl->next = bl2;
@@ -120,22 +103,32 @@ PYEOF
   INC="-I/tmp/imlib2 -I/tmp/imlib2/src/lib -I/tmp/imlib2/src/modules/loaders"
   RSVG_CFLAGS=$(pkg-config --cflags librsvg-2.0)
   mkdir -p /tmp/builtin
+  # 1.12.7: loader 源尾部导出全局符号 `loader`(ImlibLoaderModule)，三 loader 同链会符号冲突；
+  #   -Dloader=xxx 重命名导出符号（等价 1.7.4 的 -Dload2=png_load2 手法）。
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
-    -Dload2=png_load2 -Dsave=png_save -Dformats=png_formats \
+    -Dloader=png_loader \
     -c /tmp/imlib2/src/modules/loaders/loader_png.c -o /tmp/builtin/png.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC $RSVG_CFLAGS \
-    -Dload2=svg_load2 -Dsave=svg_save -Dformats=svg_formats \
+    -Dloader=svg_loader \
     -c /tmp/imlib2/src/modules/loaders/loader_svg.c -o /tmp/builtin/svg.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
-    -Dload2=jpeg_load2 -Dsave=jpeg_save -Dformats=jpeg_formats \
+    -Dloader=jpeg_loader \
     -c /tmp/imlib2/src/modules/loaders/loader_jpeg.c -o /tmp/builtin/jpeg.o
+  # 1.12.7 新增：loader 模块辅助源（非主库）——ldrs_util.c 定义 get_saver_params
+  #   （loader_png/jpeg save 引用）、exif.c 定义 exif_parse（loader_jpeg 引用）。
+  #   不编入则 builtin loader 链出 undefined reference（2026-11-23 实测）。
+  xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
+    -c /tmp/imlib2/src/modules/loaders/ldrs_util.c -o /tmp/builtin/ldrs_util.o
+  xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
+    -c /tmp/imlib2/src/modules/loaders/exif.c -o /tmp/builtin/exif.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
     -c /tmp/imlib2/src/lib/loaders.c -o /tmp/builtin/loaders.o
   # 不再 ar r 直改系统 /usr/local/lib/libImlib2.a（魔改系统库，隐式影响其他 imlib2 链接者）；
   # 拷贝到私有归档再注入 loader，xlunch 链接 -L/tmp/builtin -lImlib2 优先取用（2026-11-08 整改）。
   cp /usr/local/lib/libImlib2.a /tmp/builtin/libImlib2.a
   ar r /tmp/builtin/libImlib2.a \
-    /tmp/builtin/loaders.o /tmp/builtin/png.o /tmp/builtin/svg.o /tmp/builtin/jpeg.o
+    /tmp/builtin/loaders.o /tmp/builtin/png.o /tmp/builtin/svg.o /tmp/builtin/jpeg.o \
+    /tmp/builtin/ldrs_util.o /tmp/builtin/exif.o
   ranlib /tmp/builtin/libImlib2.a
   # 2026-11-15: 注入版再覆盖 /usr/local/lib——base 烘焙后 5 个 w-xxx 裸 -lImlib2 即取注入库
   #   （本容器内 imlib2 链接者仅 w-xxx，无"其他链接者"；与二章 1.5-2"覆盖系统库"方案一致，
@@ -158,7 +151,7 @@ function xlunch(){
   # down_catfile ${XLUNCH_URL} | tar -zx --strip 1 -C /tmp/xlunch
   # branch="--branch=$XLUNCH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/xlunch
-  gitclone https://gitee.com/g-system/fk-xlunch /tmp/xlunch $branch #;
+  gitclone https://gitee.com/g-system/fk-xlunch /tmp/xlunch --branch=$XLUNCH_VER #;
   log "Configuring XLUNCH..."
   cd /tmp/xlunch #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
@@ -176,7 +169,7 @@ function xlunch(){
     # 过滤缺库的 -lzstd -ltiff（gdk-pixbuf 非必需 io）
     RSVG_LIBS=$(pkg-config --static --libs librsvg-2.0 cairo pangocairo | tr ' ' '\n' | grep -vE '^-l(zstd|tiff)$' | tr '\n' ' ')
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext  -lfreetype -lpng   -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-    make LDFLAGS="-static --static -Wl,--start-group -L/tmp/builtin -lImlib2 -L/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
+    make LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
 
   log "Install XLUNCH..."
   # make;
