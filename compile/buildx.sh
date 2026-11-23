@@ -172,11 +172,16 @@ gtk224)
     # repo=registry.cn-shenzhen.aliyuncs.com
     test ! -z "$REPO" && repo=$REPO #@gitac REPO_TEN
     # repo=$REPO_TEN
-    img="x11-base:alpine-builder-gtk224-2"
+    img="x11-base:alpine-builder-gtk224-3" ##2=qemu-former; 3=xx-cross
+    # PARALLEL_BUILD=1: CI 三架构并行加速(工作区隔离见 multiarch-buildSpeed 3.1/3.2); 本机 build-local.sh 仍=0(1.9Gi OOM 红线)
+    #   注意: args 是未加引号展开的多行串, 行内不能写 # 注释——会被 word-split 成额外位置参数→buildx "requires 1 argument"
+    ARCHS="amd64,arm64,armv7" #amd64,arm64,armv7
     args="""
     --provenance=false --sbom=false
     --build-arg REPO=$repo/
+    --build-arg ARCHS=$ARCHS
     --build-arg NOCACHE=$builddate
+    --build-arg PARALLEL_BUILD=1
     """
 
     # cache
@@ -188,19 +193,33 @@ gtk224)
     cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64" #dbg==>xx交叉编译:只要amd64即可
     output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
-    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtk224 . 
+    # docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtk224 . 
+    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtk224.xx . 
+    # 2026-11-26(3.4.3): 镜像无条件建成(方案A exit 0), 读容器内 /report/u-gtk-*.txt 判成败
+    docker pull "$repo/$ns/$img" >/dev/null 2>&1 || true
+    REPORT=$(docker run --rm "$repo/$ns/$img" sh -c "cat /report/u-gtk-*.txt" 2>/dev/null || true)
+    if [ -z "$REPORT" ] || echo "$REPORT" | grep -q "CONCLUSION: FAILED"; then
+      echo ">>> gtk224 静态产物分析: FAILED (详见报告)"
+      [ -n "$REPORT" ] && echo "$REPORT" || echo "!! 无 /report/u-gtk-*.txt 报告"
+      exit 1
+    else
+      echo ">>> gtk224 静态产物分析: SUCCESS"
+    fi
     ;;
 gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     repo=registry-1.docker.io; builddate=$(date +%Y-%m-%d_%H:%M:%S)
     # repo=registry.cn-shenzhen.aliyuncs.com
     test ! -z "$REPO" && repo=$REPO #@gitac
-    img="x11-base:alpine-builder-gtkmm224-2"
+    img="x11-base:alpine-builder-gtkmm224-3"
+    ARCHS="amd64,arm64,armv7" #amd64,arm64,armv7
     args="""
     --provenance=false --sbom=false
     --build-arg REPO=$repo/
+    --build-arg ARCHS=$ARCHS
     --build-arg NOCACHE=$builddate
+    --build-arg PARALLEL_BUILD=1
     """
 
     # cache
@@ -212,9 +231,20 @@ gtkmm224) #gtk/gtkmm全串一起: 超过gitac.max:6h而fail!
     cache="$cache --cache-to type=registry,ref=$ali2/$ns/$cimg,mode=max"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64" #dbg==>xx交叉编译:只要amd64即可
     output="--output type=image,name=$repo/$ns/$img,push=true,oci-mediatypes=true,annotation.author=sam"
-    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtkmm224 . 
+    # docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtkmm224 . 
+    docker buildx build $cache $plat $args $output -f src/../builder/Dockerfile.builder.gtkmm224.xx . 
+    # 2026-11-26(3.4.3): 镜像无条件建成(方案A exit 0), 读容器内 /report/u-gtk-*.txt 判成败
+    docker pull "$repo/$ns/$img" >/dev/null 2>&1 || true
+    REPORT=$(docker run --rm "$repo/$ns/$img" sh -c "cat /report/u-gtk-*.txt" 2>/dev/null || true)
+    if [ -z "$REPORT" ] || echo "$REPORT" | grep -q "CONCLUSION: FAILED"; then
+      echo ">>> gtkmm224 静态产物分析: FAILED (详见报告)"
+      [ -n "$REPORT" ] && echo "$REPORT" || echo "!! 无 /report/u-gtk-*.txt 报告"
+      exit 1
+    else
+      echo ">>> gtkmm224 静态产物分析: SUCCESS"
+    fi
     ;;
 cache_repo) # 预下载 gitclone 依赖快照（遍历 src/*/build.sh 批量解析打包 _cache_repo/）
     cache_repo
@@ -237,16 +267,16 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     repo=registry-1.docker.io
     # repo=registry.cn-shenzhen.aliyuncs.com
     test ! -z "$REPO" && repo=$REPO #@gitac
-    img="x11-base:alpine-compile-2"
+    img="x11-base:alpine-compile-3" #2=qemu-former; 3=xx-cross
     # cache
     ali="registry.cn-shenzhen.aliyuncs.com"
     cimg="$img-cache"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm64" #pulse-arm-dbg
-    plat="--platform linux/amd64" #dbg
+    # plat="--platform linux/amd64,linux/arm64" #dbg
     
-    compile="alpine-compile-2"
+    compile="alpine-compile-3"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
     compile="alpine-compile" ########V2 TEST, AVOID DBG
     args="--provenance=false"
@@ -256,22 +286,22 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --provenance=false 
     --build-arg REPO=$repo/
     --build-arg COMPILE_IMG=$compile
-    --build-arg COMPILE_TIGER=no
-    --build-arg COMPILE_XRDP=no
-    --build-arg COMPILE_X11VNC=no
+    --build-arg COMPILE_TIGER=yes
+    --build-arg COMPILE_XRDP=yes
+    --build-arg COMPILE_X11VNC=yes
     --build-arg COMPILE_SSH=yes
-    --build-arg COMPILE_FLUX=no
+    --build-arg COMPILE_FLUX=yes
     --build-arg COMPILE_OPENBOX=yes
-    --build-arg COMPILE_SUCKLESS=no
-    --build-arg COMPILE_XCOMPMGR=no
-    --build-arg COMPILE_PERP=no
-    --build-arg COMPILE_MISC=no
+    --build-arg COMPILE_SUCKLESS=yes
+    --build-arg COMPILE_XCOMPMGR=yes
+    --build-arg COMPILE_PERP=yes
+    --build-arg COMPILE_MISC=yes
 
     --build-arg COMPILE_SCROT=yes
     --build-arg COMPILE_TINT2=yes
-    --build-arg COMPILE_FEH=no
-    --build-arg COMPILE_XLUNCH=no
-    --build-arg COMPILE_HSETROOT=no
+    --build-arg COMPILE_FEH=yes
+    --build-arg COMPILE_XLUNCH=yes
+    --build-arg COMPILE_HSETROOT=yes
 
     --build-arg COMPILE_XBINDKEYS=yes
     --build-arg COMPILE_XRANDR=yes
@@ -288,6 +318,7 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_GEANY=yes
     --build-arg COMPILE_ENGRAMPA=yes
     --build-arg COMPILE_GPICVIEW=yes
+    --build-arg COMPILE_CLIPIT=yes
     --build-arg COMPILE_DBUS=yes
     --build-arg COMPILE_IBUS=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
