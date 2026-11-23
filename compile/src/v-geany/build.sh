@@ -4,23 +4,23 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-v-geany}"
 source /src/common.sh
 
 #
-# Build geany 1.34.0 (GTK2, Scintilla=C++) 静态
+# Build geany 1.37.1 (GTK2, Scintilla=C++) 静态
 #
 # 网络坑（2026-11-05）：builder 容器外网不可达（DNS 通、git/curl 全挂），ghfast.top 已失效。
-# 实测 host 走 gh-proxy.com 可下载 tarball；本容器内已由 host 下载 + docker cp 到 /tmp/geany-1.34.0.tar.gz
+# 实测 host 走 gh-proxy.com 可下载 tarball；本容器内已由 host 下载 + docker cp 到 /tmp/geany-1.37.1.tar.gz
 # 并解包 /tmp/geany（离线复用）。正常网络环境走 $GITHUB/geany/geany git clone。
-# 版本 1.34.0 = 最后几个 GTK2 之一（1.38 起删 GTK2；2.0 起强制 GTK3.24）。
+# 版本 1.37.1 = 最后一个支持 GTK2 的发布（1.38 起删 GTK2；2.0 起强制 GTK3.24）。
 
 function geany(){
   log "Downloading GEANY..."
     if [ ! -f /tmp/geany/configure.ac ]; then
       # 离线：host 下载 + docker cp 的 tarball 已解包 /tmp/geany；否则 git clone
-      if [ -f /tmp/geany-1.34.0.tar.gz ]; then
+      if [ -f /tmp/geany-1.37.1.tar.gz ]; then
         rm -rf /tmp/geany; mkdir -p /tmp/geany
-        tar xzf /tmp/geany-1.34.0.tar.gz -C /tmp --strip-components=1
+        tar xzf /tmp/geany-1.37.1.tar.gz -C /tmp/geany --strip-components=1
       else
         rm -rf /tmp/geany
-        gitclone https://gitee.com/g-system/fk-geany /tmp/geany --branch=1.34.0
+        gitclone https://gitee.com/g-system/fk-geany /tmp/geany --branch=1.37.1
       fi
     fi
     cd /tmp/geany
@@ -31,6 +31,7 @@ function geany(){
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
     ./autogen.sh
     ./configure --enable-static --disable-shared \
+      --enable-gtk2 \
       --disable-vte \
       --disable-html-docs --disable-pdf-docs --disable-api-docs \
       --prefix=$TARGETPATH
