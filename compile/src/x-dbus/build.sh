@@ -228,18 +228,95 @@ function dbus_glib(){
     ls -lh $TARGETPATH/lib/libdbus-glib-1.a
 }
 
+# 新方法（2026-11-23，方案C 升最新）：dbus 1.16.4 Meson 静态构建。
+# 1.16 起 Autotools 移除（tarball 无 configure），须 Meson（容器已有 meson/ninja/python3）。
+# 选项名见 meson_options.txt：x11_autolaunch（可正确关 X11，旧 configure --disable-x11 无效）、
+#   default_library 是 Meson 内建（meson_options 不列），-Dc_link_args=-static 令 daemon/tools 全静态链。
+# 产物：libdbus-1.a + bin/{dbus-daemon,dbus-send,dbus-launch}（tools=true 一次全建）+ dbus-1.pc + conf。
+function dbus_1_16_4(){
+  set -e
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/dbus}
+  DBUS_VER_NEW=1.16.4
+  log "Download/unpack dbus-$DBUS_VER_NEW (meson)..."
+    name=dbus-$DBUS_VER_NEW.tar.xz
+    mkdir -p /tmp/dbus-deps /tmp/dbus-build
+    rm -rf /tmp/dbus-build/dbus-$DBUS_VER_NEW
+    for cand in /tmp/dbus-deps/$name /_ext/tmp/$name; do
+      if [ -f "$cand" ] && [ "$cand" != "/tmp/dbus-deps/$name" ]; then
+        echo "use $cand"; cp "$cand" /tmp/dbus-deps/$name; break
+      fi
+    done
+    if [ -f /tmp/dbus-deps/$name ]; then
+      echo "unpack $name (offline)"
+      tar xJf /tmp/dbus-deps/$name -C /tmp/dbus-build
+    else
+      echo "download $name"
+      down_catfile https://dbus.freedesktop.org/releases/dbus/$name | tar xJ -C /tmp/dbus-build
+    fi
+    cd /tmp/dbus-build/dbus-$DBUS_VER_NEW
+
+  log "Patch meson.build: expat 强制静态（libexpat.a，否则 Meson 用 libexpat.so 与 -static 冲突）..."
+    sed -i "s/        'expat',/        'expat',\n        static: true,/" meson.build
+    grep -n "static: true" meson.build | head -2 || { log "expat static patch FAILED"; exit 1; }
+
+  log "Meson setup dbus 1.16.4 (static only)..."
+    meson setup build \
+      -Ddefault_library=static \
+      -Dc_link_args='-static -Wl,--strip-all' \
+      -Dsystemd=disabled -Dselinux=disabled -Dapparmor=disabled -Dlibaudit=disabled \
+      -Dx11_autolaunch=disabled -Dlaunchd=disabled \
+      -Dtools=true -Dmessage_bus=true -Dtraditional_activation=true \
+      -Duser_session=false \
+      -Dmodular_tests=disabled -Dinstalled_tests=false -Dintrusive_tests=false \
+      -Dxml_docs=disabled -Ddoxygen_docs=disabled -Dducktype_docs=disabled \
+      -Dasserts=false -Dchecks=true \
+      --prefix=$TARGETPATH >/tmp/dbus164-meson.log 2>&1 \
+      || { log "dbus 1.16.4 meson setup FAILED"; tail -25 /tmp/dbus164-meson.log; exit 1; }
+
+  log "Ninja build dbus 1.16.4 (仅产品 target，避测试程序链动态库)..."
+    ninja -C build bus/dbus-daemon tools/dbus-send tools/dbus-launch dbus/libdbus-1.a >/tmp/dbus164-ninja.log 2>&1 \
+      || { log "dbus 1.16.4 ninja FAILED"; tail -30 /tmp/dbus164-ninja.log; exit 1; }
+
+  log "Install dbus 1.16.4 (ninja install)..."
+    ninja -C build install >/tmp/dbus164-inst.log 2>&1 \
+      || { log "dbus 1.16.4 install FAILED"; tail -20 /tmp/dbus164-inst.log; exit 1; }
+
+  log "Patch dbus-1.pc Libs.private (expat/pthread/dl/m)..."
+    PC=$TARGETPATH/lib/pkgconfig/dbus-1.pc
+    if [ -f "$PC" ]; then
+      sed -i "s/^Libs: .*/& -lexpat -lpthread -ldl -lm/" "$PC"
+      sed -i "s/^Libs.private:.*/Libs.private: -lexpat -lpthread -ldl -lm/" "$PC"
+    fi
+
+  log "Verify dbus 1.16.4..."
+    file $TARGETPATH/bin/dbus-daemon | grep -q "statically linked" || { log "dbus-daemon not static"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/dbus-daemon || { log "dbus-daemon xx-verify FAILED"; exit 1; }
+    $TARGETPATH/bin/dbus-daemon --version >/dev/null 2>&1 || { log "dbus-daemon run FAILED"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/dbus-send 2>/dev/null && echo "dbus-send static OK" || echo "!! dbus-send not static"
+    xx-verify --static $TARGETPATH/bin/dbus-launch 2>/dev/null && echo "dbus-launch static OK" || echo "!! dbus-launch not static"
+    nm $TARGETPATH/lib/libdbus-1.a 2>/dev/null | grep -q "T dbus_bus_get" && echo "nm: dbus_bus_get OK"
+    strings $TARGETPATH/bin/dbus-daemon | grep -q "1.16.4" && echo "strings: version 1.16.4 OK"
+    ls -lh $TARGETPATH/bin/dbus-daemon $TARGETPATH/bin/dbus-send $TARGETPATH/bin/dbus-launch $TARGETPATH/lib/libdbus-1.a
+}
+
+# 旧方法别名（1.12.26 Autotools，保留可调；默认入口走 dbus_1_16_4）
+function dbus_1_12_26(){ dbus; }
+function dbus_send_1_12_26(){ dbus_send; }
+function dbus_launch_1_12_26(){ dbus_launch; }
+
 case "$1" in
 cache)
     down_catfile $DBUS_URL > /dev/null
     ;;
 full)
-    doExec dbus || exit 1
+    doExec dbus_1_16_4 || exit 1
     ;;
 full-send)
-    doExec dbus_send || exit 1
+    doExec dbus_1_16_4 || exit 1
     ;;
-dbus-launch)
-    doExec dbus_launch || exit 1
+dbus|dbus-send|dbus-launch)
+    # 默认走新 1.16.4（Meson 全建 daemon/send/launch/lib）；旧 1.12.26 方法保留可调（dbus_1_12_26）
+    oneBuild dbus_1_16_4
     ;;
 full-glib)
     doExec dbus_glib || exit 1
@@ -249,7 +326,7 @@ b_deps)
     echo "== dbus =="; ls /usr/local/static/dbus/lib/libdbus-1.a /usr/local/static/dbus/bin/dbus-daemon 2>&1
     echo "== libexpat (daemon 静态链依赖) =="; ls /usr/lib/libexpat.a 2>&1
     ;;
-*) #compile
+*) #compile：dbus_glib / dbus_1_12_26 / dbus_send_1_12_26 等按名
     oneBuild $1
     ;;
 esac
