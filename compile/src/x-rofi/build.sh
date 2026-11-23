@@ -4,18 +4,20 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-x-rofi}"
 source /src/common.sh
 
 #
-# Build rofi (应用启动器/dmenu 替代, 2.0.0, xcb+cairo+pango 渲染, 无 GTK)
+# Build rofi (应用启动器/dmenu 替代, 2.1.1, xcb+cairo+pango 渲染, 无 GTK)
 #
-# 版本: 2.0.0 (2025-09-01), meson-only (弃 autotools), xcb 后端
-#   上游: https://github.com/davatorium/rofi (tag 2.0.0)
+# 版本: 2.1.1 (bugfix 版, nkutils 更新/DMenu 行显示修复#2352), meson-only (弃 autotools), xcb 后端
+#   上游: https://github.com/davatorium/rofi (tag 2.1.1)
 # 依赖(xcb 后端, meson.build xcb_deps): glib-2.0(>=2.72)/gmodule-2.0/gio-unix-2.0,
 #   cairo/cairo-xcb, pango/pangocairo, gdk-pixbuf-2.0, xkbcommon/xkbcommon-x11,
 #   xcb, xcb-aux(xcb-util), xcb-ewmh/xcb-icccm(xcb-util-wm), xcb-randr, xcb-cursor,
 #   xcb-xinerama, xcb-keysyms, libstartup-notification-1.0
 #   (子项目 libgwater/libnkutils 为 git 子模块, github tarball 不含 -> 需单独取)
-# 需补建(纯 C 静态, 装 /usr/local/lib): xcb-util 家族 + startup-notification
+# 需补建(纯 C 静态, 装 /usr/local/lib): xcb-util 家族 + startup-notification + xcb-imdkit
 #   顺序: util -> image -> renderutil -> wm(icccm+ewmh)/keysyms/xrm -> cursor
 #   (cursor 依赖 image/renderutil/util 的 .pc, 故最后)
+# 输入法: 2.1.1 与 2.0.0 同机制——imdkit (xcb-imdkit, XIM); 2026-11-23 开 imdkit=true,
+#   需自建 fcitx/xcb-imdkit 1.0.9 静态库(Alpine 3.15 无包), 见 b_deps build_xcb_imdkit。
 # 复用说明(2026-11-07 用户质疑「是否都重新拉源码编译」调查):
 #   - apk 无 xcb-util 系列 .a(仅 libxcb-static 本体; xcb-util*-dev 只头/.so) → 无法 apk 复用
 #   - w-tint2/build.sh 已有 xcbutil() 构建 xcb-util 本体(libxcb-util.a, gitee fk-xcb__util)
@@ -26,7 +28,7 @@ source /src/common.sh
 #   - meson 默认把 libs 包进 -Wl,--start-group/--end-group (解循环/顺序)
 #   - pkg-config --static 包装器 (PKG_CONFIG=...) 让 meson 拿到 Libs.private 全链
 #   - c_link_args 带 -static 强制只用 .a (忽略同路径 .so)
-# 注意(容器内实测): rofi 2.0.0 meson 要求 glib>=2.72, 而本容器(Alpine 3.15)
+# 注意(容器内实测): rofi 2.0.0/2.1.1 meson 要求 glib>=2.72, 而本容器(Alpine 3.15)
 #   glib 为 2.70.5 且 apk 无网络升级 -> sed 降 glib_min_minor 至 70 (见 rofi())。
 export TARGETPATH=${TARGETPATH:-/usr/local/static/rofi}
 
@@ -125,11 +127,57 @@ b_deps(){
   doExec build_dep startup-notification-0.12.tar.gz startup-notification-0.12 libstartup-notification-1.a \
     https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz \
     || { log "b_deps FAILED: startup-notification"; exit 1; }
+  # xcb-imdkit (rofi xim 输入法, fcitx; CMake + ECM 构建, 生成 xcb-imdkit.pc 供 rofi meson 用)
+  # 2026-11-23: Alpine 3.15 无 xcb-imdkit 包 -> 自建静态 .a; 依赖 xcb + xcb-util + KEYSYMS(已有)。
+  #   需 ECM(extra-cmake-modules) + 内置 uthash(USE_SYSTEM_UTHASH=Off; Alpine uthash 包是空包)。
+  doExec build_xcb_imdkit || { log "b_deps FAILED: xcb-imdkit"; exit 1; }
   log "b_deps all OK"
 }
 
+# 构建 xcb-imdkit (CMake 静态 .a + xcb-imdkit.pc -> /usr/local)
+build_xcb_imdkit(){
+  # 复用: 已建则跳过
+  if test -s /usr/local/lib/libxcb-imdkit.a && test -s /usr/local/lib/pkgconfig/xcb-imdkit.pc; then
+    log "reuse existing xcb-imdkit (skip build)"; return 0
+  fi
+  # ECM (Extra CMake Modules, find_package(ECM)必需)
+  command -v cmake >/dev/null 2>&1 || { log "cmake missing"; return 1; }
+  test -f /usr/share/ECM/cmake/ECMConfig.cmake || apk add --no-cache extra-cmake-modules >/dev/null 2>&1 || true
+  test -f /usr/share/ECM/cmake/ECMConfig.cmake || { log "ECM missing (extra-cmake-modules)"; return 1; }
+  get_src xcb-imdkit-1.0.9.tar.gz \
+    https://github.com/fcitx/xcb-imdkit/archive/refs/tags/1.0.9.tar.gz || return 1
+  log "Building xcb-imdkit 1.0.9 ..."
+  rm -rf /tmp/build-xcb-imdkit
+  mkdir -p /tmp/build-xcb-imdkit
+  tar xzf /tmp/xcb-imdkit-1.0.9.tar.gz -C /tmp/build-xcb-imdkit --strip-components=1
+  cd /tmp/build-xcb-imdkit
+  rm -rf build && mkdir build && cd build
+  # 静态构建: 源码 add_library(xcb-imdkit SHARED ...) 硬编码 SHARED, BUILD_SHARED_LIBS=OFF 无效
+  #   -> sed 改 STATIC(在源码 src/CMakeLists.txt); USE_SYSTEM_UTHASH=Off 用内置 uthash/
+  #   注意: 必须先 rm -rf build 清 CMakeCache, 否则旧 SHARED 缓存残留.
+  sed -i 's/add_library(xcb-imdkit SHARED/add_library(xcb-imdkit STATIC/' ../src/CMakeLists.txt
+  cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DUSE_SYSTEM_UTHASH=OFF \
+    -DCMAKE_C_FLAGS="-fPIC" >/dev/null 2>&1 \
+    || { log "cmake configure FAILED: xcb-imdkit"; return 1; }
+  # 只构建主库目标(make xcb-imdkit), 不构建 test(链接需 xcb 传递静态库, 缺参会 linker 失败);
+  # 主库 libxcb-imdkit.a 已可产出, test 非部署所需.
+  make -j$(nproc) xcb-imdkit >/dev/null 2>&1 || { log "make FAILED: xcb-imdkit"; return 1; }
+  # install 触发 all(含 test)会再链接失败 -> 手动拷贝产物到 /usr/local
+  # 当前在 build/ 目录: .a/.pc/生成头在 src/, 源码头在 ../src/
+  install -d /usr/local/lib /usr/local/lib/pkgconfig /usr/local/include/xcb-imdkit
+  install -m644 src/libxcb-imdkit.a /usr/local/lib/
+  install -m644 src/xcb-imdkit.pc /usr/local/lib/pkgconfig/
+  cp ../src/*.h /usr/local/include/xcb-imdkit/ 2>/dev/null || true
+  cp src/*.h /usr/local/include/xcb-imdkit/ 2>/dev/null || true
+  test -s /usr/local/lib/libxcb-imdkit.a || { log "MISSING /usr/local/lib/libxcb-imdkit.a"; return 1; }
+  test -s /usr/local/lib/pkgconfig/xcb-imdkit.pc || { log "MISSING xcb-imdkit.pc"; return 1; }
+  log "OK: xcb-imdkit"
+}
+
 rofi(){
-  ROFI_VER=2.0.0
+  ROFI_VER=2.1.1
+  # 依赖库(xcb-util 家族/startup-notification/xcb-imdkit)就位——有复用跳过, 缺则自建
+  doExec b_deps || { log "rofi FAILED: b_deps"; exit 1; }
   get_src rofi-$ROFI_VER.tar.gz \
     https://github.com/davatorium/rofi/archive/refs/tags/$ROFI_VER.tar.gz \
     || return 1
@@ -140,10 +188,10 @@ rofi(){
   cd /tmp/rofi-$ROFI_VER
 
   # rofi github tarball 不含 git 子模块(subprojects/libgwater, libnkutils 为空)
-  # -> 单独取子模块源码填回 (rofi 2.0.0 固定提交 d86f990/2f220a4, 文档 11051758 九章原法;
-  #    2026-11-15 改: master 版会让 meson 0.59 丢 rofi 目标(额外 not-found 依赖), 须用固定提交版)
+  # -> 单独取子模块源码填回 (rofi 2.1.1: libgwater d86f990(同2.0.0)/libnkutils d436ee7(2.1.1 更新, asan 修复);
+  #    文档 11051758 九章原法; 2026-11-15 改: master 版会让 meson 0.59 丢 rofi 目标, 须用固定提交版)
   get_src libgwater.tar.gz https://github.com/sardemff7/libgwater/archive/d86f990.tar.gz
-  get_src libnkutils.tar.gz https://github.com/sardemff7/libnkutils/archive/2f220a4.tar.gz
+  get_src libnkutils.tar.gz https://github.com/sardemff7/libnkutils/archive/d436ee7.tar.gz
   tar xzf /tmp/libgwater.tar.gz -C /tmp/rofi-$ROFI_VER/subprojects
   tar xzf /tmp/libnkutils.tar.gz -C /tmp/rofi-$ROFI_VER/subprojects
   # github 归档为 <repo>-<suffix>/ 结构(master 或固定提交 SHA, 如 libgwater-d86f990),
@@ -203,9 +251,11 @@ EOF
   export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 
   # 注意: meson 0.59 (feature 型 option) 只认 enabled/disabled/auto, 不认 true/false
-  log "meson setup (wayland=disabled xcb=enabled imdkit=false check=disabled) ..."
+  # 2026-11-23: imdkit=true 开 xim 输入法(xcb-imdkit, 已自建); 容器缺 gio-unix 的 xim 相关
+  #   (libgwater/gio) 已由 b_deps 提供, 无新增 xcb 依赖。
+  log "meson setup (wayland=disabled xcb=enabled imdkit=true check=disabled) ..."
   meson setup /tmp/rofi-build \
-    -Dwayland=disabled -Dxcb=enabled -Dimdkit=false -Dcheck=disabled \
+    -Dwayland=disabled -Dxcb=enabled -Dimdkit=true -Dcheck=disabled \
     -Dprefix=$TARGETPATH \
     -Dc_args="$CFLAGS" \
     -Dc_link_args="-Wl,--as-needed -static -Wl,--strip-all -L/usr/local/lib" 2>&1 \
