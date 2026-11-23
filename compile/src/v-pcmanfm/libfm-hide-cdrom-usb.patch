@@ -1,0 +1,48 @@
+diff --git a/src/gtk/fm-places-model.c b/src/gtk/fm-places-model.c
+index 104f988..2d1d618 100644
+--- a/src/gtk/fm-places-model.c
++++ b/src/gtk/fm-places-model.c
+@@ -384,11 +384,43 @@ static void remove_path_item(GtkListStore* model, FmPlacesOrder id)
+     } while(gtk_tree_model_iter_next(GTK_TREE_MODEL(model), &it));
+ }
+ 
++/* 2026-11-23 项目场景: 屏蔽 cdrom/usb 侧栏设备（当下及项目用不着）*/
++static gboolean _hide_cdrom_usb(GObject* volume_or_mount)
++{
++    const char* name = NULL;
++    char* path = NULL;
++    GFile* root = NULL;
++    char* lower = NULL;
++    gboolean ret = FALSE;
++    if(G_IS_VOLUME(volume_or_mount))
++        name = g_volume_get_name(G_VOLUME(volume_or_mount));
++    else if(G_IS_MOUNT(volume_or_mount))
++    {
++        name = g_mount_get_name(G_MOUNT(volume_or_mount));
++        root = g_mount_get_root(G_MOUNT(volume_or_mount));
++        if(root) path = g_file_get_path(root);
++    }
++    if(name)
++    {
++        lower = g_ascii_strdown(name, -1);
++        if(strstr(lower, "cdrom") || strstr(lower, "cd-rom") || strstr(lower, "usb"))
++            ret = TRUE;
++    }
++    if(path && (strstr(path, "/media/cdrom") || strstr(path, "/media/usb")))
++        ret = TRUE;
++    g_free(lower);
++    g_free(path);
++    if(root) g_object_unref(root);
++    return ret;
++}
++
+ static void add_volume_or_mount(FmPlacesModel* model, GObject* volume_or_mount, FmFileInfoJob* job)
+ {
+     FmPlacesItem* item;
+     GtkTreePath* tp;
+     GtkTreeIter it;
++    if(_hide_cdrom_usb(volume_or_mount))
++        return;
+     if(G_IS_VOLUME(volume_or_mount))
+     {
+         tp = gtk_tree_row_reference_get_path(model->separator);

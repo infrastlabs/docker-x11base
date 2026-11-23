@@ -45,6 +45,7 @@ source /src/common.sh
 
 # libfm
 function libfm(){
+  export TARGETPATH=${TARGETPATH:-/usr/local/static/pcmanfm}
   # intltool #builder装过了？？ (调试img:没得)
   # apk update; apk add gtk-doc intltool vala \
   #  menu-cache-dev gtk+2.0-dev menu-cache-dev #1.1.0-r0
@@ -53,11 +54,13 @@ function libfm(){
   log "Downloading libfm..."
   # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/libfm
   branch="--branch=1.3.1" #1.3.2
-  branch="--branch=1.3.2" # #ok with automake @alpine315 
+  branch="--branch=1.4.1" # #ok with automake @alpine315; 2026-11-23 升级(配套 pcmanfm 1.4.0)
   rm -rf /tmp/libfm; gitclone https://gitee.com/g-system/fk-libfm /tmp/libfm $branch
   cd /tmp/libfm
     # FIX: 默认 quick_exec=TRUE（desktop/可执行文件直接执行不弹确认框，2026-11-08）
     git apply /src/v-pcmanfm/libfm-quickexec.patch
+    # 2026-11-23 项目场景: 屏蔽 cdrom/usb 侧栏设备（当下及项目用不着，按名称/挂载点过滤）
+    git apply /src/v-pcmanfm/libfm-hide-cdrom-usb.patch
     # attempted static link of dynamic object `/usr/lib/libmenu-cache.so'
     #ref_pcmanfm.md>> # 改动态编译：OK
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
@@ -73,7 +76,10 @@ function libfm(){
     #   → make LIBS 补的 -lgmodule-2.0 只对 automake 主链接行生效, 不进 libtool .so 的 $deplibs → .so 必 undefined。
     #   库只被静态消费(pcmanfm cp libfm.a/libfm-gtk.a), 直接不产 .so 从源头消掉该链接阶段;
     #   make LIBS 补库仍保留(libfm-pref-apps 等可执行文件链接仍需要)。
-    ./configure --disable-shared --enable-static;
+    # 2026-11-23: --prefix=$TARGETPATH——PACKAGE_UI_DIR=$(datadir)/libfm/ui、PACKAGE_LOCALE_DIR=$(prefix)/locale
+    #   默认编入 /usr/local（builder 路径），部署后 UI/locale 找不到 → 属性框/chooser 崩、菜单英文。
+    #   库/头/.pc 仍手动装 /usr/local（build.sh 后段），prefix 只影响 UI/LOCALE 宏编入路径。
+    ./configure --disable-shared --enable-static --prefix=$TARGETPATH;
 
   log "Compiling libfm..."
   # 2026-11-14: 方案A(自动注册)后 gdk_pixbuf loader(io-png/jpeg/svg + gdk-pixbuf-io 的 g_module_*)整链拉入,
@@ -102,6 +108,27 @@ function libfm(){
     || log "manual libfm .pc copy warn"
 
   \cp -a /usr/local/lib/libfm.a /usr/local/lib/libfm-gtk.a /usr/lib/ ##拷贝两个静态库到/usr/lib
+
+  # 2026-11-23: libfm .pc 是 --prefix=$TARGETPATH 生成的（libdir=$TARGETPATH/lib），但库实际在 /usr/local/lib、
+  #   头在 /usr/local/include——pcmanfm configure 用 libfm.pc 会找不到库；sed 修正 prefix 回 /usr/local。
+  sed -i "s|$TARGETPATH|/usr/local|g" /usr/local/lib/pkgconfig/libfm.pc /usr/local/lib/pkgconfig/libfm-extra.pc /usr/local/lib/pkgconfig/libfm-gtk.pc 2>/dev/null || true
+
+  log "Install libfm UI (GtkBuilder file-prop.ui/app-chooser.ui 等，PACKAGE_UI_DIR=$TARGETPATH/share/libfm/ui；漏装则属性框/openwith 崩)..."
+    mkdir -p $TARGETPATH/share/libfm/ui
+    cp -f /tmp/libfm/data/ui/*.ui $TARGETPATH/share/libfm/ui/ 2>/dev/null \
+      || log "manual libfm ui copy warn"
+    ls $TARGETPATH/share/libfm/ui/ 2>/dev/null | head
+
+  log "Install libfm locale (静态 LOCALEDIR=$TARGETPATH/share/locale；libfm 域=libfm，右键菜单由 libfm 构建，漏装则菜单英文)..."
+    if [ -d /tmp/libfm/po ]; then
+      for p in /tmp/libfm/po/*.po; do
+        lang=$(basename "$p" .po)
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/libfm.mo 2>/dev/null \
+          || log "libfm msgfmt warn: $lang"
+      done
+      log "libfm locales installed: $(ls /tmp/libfm/po/*.po | wc -l) langs"
+    fi
 
   # 2026-11-14: menu_cache 段编不过——menu-tags.h:22 include <libfm/fm-extra.h>;
   #   libfm 头文件平铺在 /usr/local/include/libfm-1.0/(libfm-extra.pc Cflags=-I/usr/local/include),
@@ -134,6 +161,7 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   log "Downloading menu-cache..."
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
+  branch="--branch=1.1.1" #2026-11-23 升级
   rm -rf /tmp/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache $branch
   cd /tmp/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
@@ -189,7 +217,7 @@ function pcmanfm(){
   log "Downloading PCMANFM..."
   rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
   # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
-  branch="--branch=1.3.1"
+  branch="--branch=1.4.0" #2026-11-23 升级
   rm -rf /tmp/pcmanfm; gitclone https://gitee.com/g-system/fk-pcmanfm /tmp/pcmanfm $branch #;
   log "Configuring PCMANFM..."
   cd /tmp/pcmanfm #&& ./bootstrap;
