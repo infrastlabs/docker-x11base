@@ -3,7 +3,7 @@ set -e
 export DOEXEC_CALLER="${DOEXEC_CALLER:-w-feh}"
 source /src/common.sh
 
-FEH_VER=0.8.4
+FEH_VER=3.13.1
 FEH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}/xrdp-${XRDP_VER}.tar.gz
 
 #
@@ -18,12 +18,12 @@ function feh(){
   # down_catfile ${FEH_URL} | tar -zx --strip 1 -C /tmp/fk-feh
   # branch="--branch=$FEH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/feh
-  gitclone https://gitee.com/g-system/fk-feh /tmp/fk-feh $branch #;
+  gitclone https://gitee.com/g-system/fk-feh /tmp/fk-feh --branch=$FEH_VER #;
   log "Configuring FEH..."
   cd /tmp/fk-feh #&& ./bootstrap;
   # 2026-11-15: gitclone 缓存仓库无 tag → `git describe --dirty` 报 "fatal: No names found" 刷屏(CI 实测)。
   #   sed 加 2>/dev/null 消 stderr + || echo 兜底版本(不再调失败还报错)。
-  sed -i 's|^VERSION ?= ${shell git describe --dirty}|VERSION ?= ${shell git describe --dirty 2>/dev/null \|\| echo 3.9.1}|' config.mk
+  sed -i "s|^VERSION ?= \${shell git describe --dirty}|VERSION ?= \${shell git describe --dirty 2>/dev/null \|\| echo ${FEH_VER}}|" config.mk
     deps1="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
     deps2="-lXdamage   -lX11-xcb -lxcb-shm -lxcb-render -lxcb-util -lmd"
     deps3="-lXext -lXinerama -lXfixes -lXrandr -lXi -ljpeg"
@@ -37,7 +37,7 @@ function feh(){
     # make
     export DESTDIR= PREFIX=$TARGETPATH
     export curl=false exif=0 magic=0 #xinerama=0 
-    make clean; make LDFLAGS="-static -L/usr/local/lib $deps1 $deps2 $deps3 "
+    make clean; make LDFLAGS="-static -L/usr/local/lib -Wl,--strip-all $deps1 $deps2 $deps3 "
 
     log "Install FEH..."
     # make-install
