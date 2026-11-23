@@ -247,7 +247,7 @@ function tint2(){
   log "Downloading TINT2..."
   rm -rf /tmp/tint2; # mkdir -p /tmp/tint2
   # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C /tmp/tint2
-  branch="--branch=16.1"
+  branch="--branch=16.7"
   # repo=$GITHUB/o9000/tint2
   rm -rf /tmp/tint2; gitclone https://gitee.com/g-system/fk-tint2 /tmp/tint2 $branch #;
   log "Configuring TINT2..."
