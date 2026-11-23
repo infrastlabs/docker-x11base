@@ -56,7 +56,7 @@ function lxtask(){
   log "Downloading LXTASK..."
   rm -rf /tmp/lxtask; # mkdir -p /tmp/lxtask
   # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxtask
-  LXTASK_VER=master
+  LXTASK_VER=0.1.12   # 2026-11-23 改用 tag（原 master 分支）；0.1.12 是上游最新 GTK2 tag
   branch="--branch=$LXTASK_VER"
   gitclone https://gitee.com/g-system/fk-lxtask /tmp/lxtask $branch #;
   log "Configuring LXTASK..."
