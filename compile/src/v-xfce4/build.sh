@@ -190,7 +190,7 @@ function libexif(){
 }
 
 function thunar(){
-  local VER=1.6.3
+  local VER=1.6.18
   local SRC=/tmp/xfce-build/Thunar-$VER
   local PREFIX=/usr/local/static/thunar
 
@@ -213,9 +213,8 @@ function thunar(){
   log "Configure (disable 可选依赖；UCA 插件启用并内置静态注册；GTK2 最后一版，GtkUIManager 内嵌 .xml)..."
   cd $SRC
   ./configure --prefix=$PREFIX --enable-static --disable-shared \
-    --disable-exif --disable-notifications --disable-gudev --disable-startup-notification \
+    --disable-exif --disable-notifications --disable-gudev \
     --disable-tpa-plugin --disable-wallpaper-plugin --disable-apr-plugin --disable-sbr-plugin \
-    --disable-gtk-doc \
     CFLAGS="$CFLAGS -DTHUNARX_STATIC_UCA" \
     LDFLAGS="$LDFLAGS" PKG_CONFIG_PATH="$PKGCONF" \
     || { log "THUNAR CONFIGURE FAILED"; exit 1; }
@@ -265,7 +264,7 @@ function thunar(){
 
   log "Verify..."
   xx-verify --static $PREFIX/bin/thunar || { log "THUNAR xx-verify FAILED"; exit 1; }
-  log "thunar 1.6.3 static verified"
+  log "thunar 1.6.18 static verified"
 }
 
 function ristretto(){
