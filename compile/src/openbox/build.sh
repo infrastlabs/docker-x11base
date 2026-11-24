@@ -115,11 +115,21 @@ endian = 'little'
 #     harfbuzz-static \
 function pango(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
-  pango_meson #call
   mkdir -p /tmp/pango
   log "Downloading pango..."
   # curl -# -L -f ${PANGO_URL} | tar -xJ --strip 1 -C /tmp/pango
   down_catfile ${PANGO_URL} | tar -xJ --strip 1 -C /tmp/pango
+
+  # 2026-11-24 方案二交叉: xx_cross_init 已生成 $XX_CROSS_FILE（正确 cross-file: xx-clang + pkg_config_libdir
+  # + cpu_family=march），用之; native/未设 TARGETPLATFORM（XX_CROSS_FILE 空）走旧路径 pango_meson(生成 /tmp/meson-cross.txt)。
+  local CROSS_CF=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_CF="$XX_CROSS_FILE"
+    log "pango: CROSS ($XX_TRIPLE) using $XX_CROSS_FILE"
+  else
+    pango_meson #call
+    CROSS_CF=/tmp/meson-cross.txt
+  fi
 
   log "Configuring pango..."
   (
@@ -127,15 +137,30 @@ function pango(){
           -Ddefault_library=static \
           -Dintrospection=disabled \
           -Dgtk_doc=false \
-          --cross-file /tmp/meson-cross.txt \
+          --cross-file "$CROSS_CF" \
           build \
   )
 
   log "Compiling pango..."
-  meson compile -C /tmp/pango/build
+  if [ -n "$XX_CROSS_FILE" ]; then
+    # 交叉只编 4 个库目标（meson compile 接目标名，不能接 .a 文件路径）:
+    # 跳过 cxx-test（唯一 C++ 目标，stdlib 头不在 sysroot，交叉编不过）和 utils 二进制(pango-view 等)。
+    meson compile -C /tmp/pango/build pango-1.0 pangoft2-1.0 pangoxft-1.0 pangocairo-1.0
+  else
+    meson compile -C /tmp/pango/build
+  fi
 
   log "Installing pango..."
-  DESTDIR=$(xx-info sysroot) meson install --no-rebuild -C /tmp/pango/build
+  if [ -n "$XX_CROSS_FILE" ]; then
+    # 交叉: 工具二进制(pango-view)未编 → meson install 在 .a/.pc/头装完后才报错; 容错 + 校验 .a 兜底
+    #（targeted build 只编 .a 目标，install 的 pango-view 缺失是预期内）。
+    DESTDIR=$XX_SYSROOT meson install --no-rebuild -C /tmp/pango/build || true
+    for f in libpango-1.0.a libpangoft2-1.0.a libpangoxft-1.0.a libpangocairo-1.0.a; do
+      test -f "$XX_SYSROOT/usr/lib/$f" || { log "pango install MISSING $f"; exit 1; }
+    done
+  else
+    DESTDIR=$(xx-info sysroot) meson install --no-rebuild -C /tmp/pango/build
+  fi
 }
 
 #
