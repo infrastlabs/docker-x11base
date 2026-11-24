@@ -46,7 +46,26 @@ source /src/common.sh
 #   303  sed -i "s/autogen/echo autogen/g" Makefile
 #   318  find /usr/local/lib |egrep "libogg|libopus|libFLAC|libvorbis|libsndfile" |sort |while read one; do echo $one; rm -f $one; done
 #   319  find /usr/local/lib |egrep "libogg|libopus|libFLAC|libvorbis|libsndfile" |sort
+# 2026-11-24 方案二交叉: pulse 栈共用交叉环境(ogg→flac→vorbis→opus→sndfile→pulseaudio 全链)。
+# 设置 CROSS_HOST/XX_DESTDIR 供各函数 configure 追加 --host、make install 加 DESTDIR(装 sysroot)。
+# native(未设 TARGETPLATFORM): 变量留空 → 原路径零影响。
+px_cross(){
+  CROSS_HOST=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export CXX=xx-clang++
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    log "px: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function libogg(){
+  px_cross
   log "Downloading libOgg..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
@@ -57,15 +76,18 @@ function libogg(){
   (
       cd /tmp/libogg
       bash autogen.sh
-      ./configure --enable-static --disable-shared
+      ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libOgg..."
   make -C /tmp/libogg -j$(nproc)
   log "Installing libOgg..."
-  make -C /tmp/libogg install #DESTDIR=$(xx-info sysroot) 
+  make -C /tmp/libogg install ${XX_DESTDIR:-}
+  cp "$(find /tmp/libogg -name 'libogg.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  xx_la_fix
 }
 
 function libflac(){
+  px_cross
   log "Downloading libFLAC..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
@@ -76,15 +98,18 @@ function libflac(){
   (
       cd /tmp/libflac
       bash autogen.sh
-      ./configure --enable-static --disable-shared
+      ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libFLAC..."
   make -C /tmp/libflac -j$(nproc)
   log "Installing libFLAC..."
-  make -C /tmp/libflac install #DESTDIR=$(xx-info sysroot) 
+  make -C /tmp/libflac install ${XX_DESTDIR:-}
+  cp "$(find /tmp/libflac -name 'libFLAC.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  xx_la_fix
 }
 
 function libvorbis(){
+  px_cross
   log "Downloading libVorbis..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
@@ -95,15 +120,18 @@ function libvorbis(){
   (
       cd /tmp/libvorbis
       bash autogen.sh
-      ./configure --enable-static --disable-shared
+      ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libVorbis..."
   make -C /tmp/libvorbis -j$(nproc)
   log "Installing libVorbis..."
-  make -C /tmp/libvorbis install #DESTDIR=$(xx-info sysroot) 
+  make -C /tmp/libvorbis install ${XX_DESTDIR:-}
+  for _a in $(find /tmp/libvorbis -name 'libvorbis*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
+  xx_la_fix
 }
 
 function libopus(){
+  px_cross
   log "Downloading libOpus..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
@@ -114,17 +142,20 @@ function libopus(){
   (
       cd /tmp/libopus
       bash autogen.sh
-      ./configure --enable-static --disable-shared
+      ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libOpus..."
   make -C /tmp/libopus -j$(nproc)
   log "Installing libOpus..."
-  make -C /tmp/libopus install #DESTDIR=$(xx-info sysroot) 
+  make -C /tmp/libopus install ${XX_DESTDIR:-}
+  cp "$(find /tmp/libopus -name 'libopus.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  xx_la_fix
 }
 
 
 
 function libsndfile(){
+  px_cross
   log "Downloading libSndfile..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
   # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
@@ -138,19 +169,24 @@ function libsndfile(){
       apk add python2 #
       bash autogen.sh
       #
-      ./configure --enable-static --disable-shared
+      # 2026-11-24 交叉: --disable-full-suite 禁构建/安装 programs(sndfile-play/sndfile-info 等,
+      #   交叉下链接失败致 make all/install 中断, .pc/.h 没落 sysroot); 只产 libsndfile.a 即可
+      ./configure --enable-static --disable-shared --disable-full-suite $CROSS_HOST
       sed -i "s/autogen/echo autogen/g" Makefile #fix
   )
   log "Compiling libSndfile..."
   make -C /tmp/libsndfile -j$(nproc)
   log "Installing libSndfile..."
-  make -C /tmp/libsndfile install #DESTDIR=$(xx-info sysroot) 
+  make -C /tmp/libsndfile install ${XX_DESTDIR:-}
+  cp "$(find /tmp/libsndfile -name 'libsndfile.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  xx_la_fix
 }
 
 #
 # Build pulseaudio
 #
 function pulseaudio(){
+  px_cross
   log "Downloading PULSEAUDIO..."
   rm -rf /tmp/pulseaudio; # mkdir -p /tmp/pulseaudio
   # down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C /tmp/pulseaudio
@@ -171,11 +207,30 @@ function pulseaudio(){
   sed -i '/--disable-glib2/d' sam-build.sh
   # 装到 /usr/local/static/pulseaudio（外部可指定 CMAKE_BINARY_DIR；未指定默认 TARGETPATH）
   export CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR:-$TARGETPATH}"
-  bash sam-build.sh
+  # 2026-11-24 交叉: sam-build.sh 第2行 `args="--disable-shared ... --with-database=simple"` 重置 args,
+  # 且第60行 `./configure ... $args` 完全忽略 $@/$1(传 --host 作位置参数被丢) -> 交叉必须在 gitclone 后
+  # sed 把 $CROSS_HOST 注入 args 赋值尾部(此处在 pulseaudio() 同 shell, $CROSS_HOST 由 px_cross 已设),
+  # native(CROSS_HOST 空) sed 追加空串=原样。
+  [ -n "$CROSS_HOST" ] && sed -i "s|--with-database=simple\"|--with-database=simple $CROSS_HOST\"|" sam-build.sh
+  # 2026-11-24 交叉: libtool 默认搜 native /usr/local/lib 优先于 -L$XX_SYSROOT/usr/local/lib,
+  #   -lFLAC/-logg 等解析到 native x86 .a -> wrong format. 把 sysroot(arm64) deps .a/.la 拷到
+  #   native /usr/local/lib 覆盖 x86(本容器交叉构建器, native deps 不再用; native 重编自覆)。
+  #   deps: FLAC/ogg/opus/sndfile/vorbis*/vorbisfile。仅 is-cross 生效。
+  if [ -n "$XX_SYSROOT" ]; then
+    for _f in libFLAC libogg libopus libsndfile libvorbis libvorbisenc libvorbisfile; do
+      for _e in a la; do
+        [ -f "$XX_SYSROOT/usr/local/lib/$_f.$_e" ] && cp "$XX_SYSROOT/usr/local/lib/$_f.$_e" /usr/local/lib/$_f.$_e
+      done
+    done
+    log "px: deps arm64 .a/.la 拷 native /usr/local/lib (libtool 优先 native 搜索)"
+  fi
+  bash sam-build.sh $CROSS_HOST
 
   log "Install PULSEAUDIO..."
   # make;
-  make install;
+  make install ${XX_DESTDIR:-};
+  for _a in $(find /tmp/pulseaudio/src -name 'libpulse*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
+  xx_la_fix
 
   # view
   ls -lh /tmp/pulseaudio/src/pa*
