@@ -347,4 +347,21 @@ xx_meson_crossfix(){
   sed -i "s|-I/usr/local/|-I$S/usr/local/|g; s|-I/usr/|-I$S/usr/|g; s|-L/usr/local/|-L$S/usr/local/|g; s|-L/usr/|-L$S/usr/|g" "$f"
   log "xx_meson_crossfix: remapped native /usr -> $S in $f"
 }
+
+# xx_la_fix: 交叉 .la libdir 修复（2026-11-24，方案二 pangomm 交叉阻塞根因）。
+# `make install DESTDIR=$XX_SYSROOT` 会把 .la 的 libdir 写成目标绝对路径(/usr/lib)，
+# 下游按名 -lfoo 时 libtool 读到 libdir=/usr/lib → 解析到 native(错架构) 的 .a → "file in wrong format"。
+# 修复：把 sysroot 里 .la 的 libdir 改为 sysroot 相对路径（$XX_SYSROOT/usr/lib、/usr/local/lib）。
+# 用法: xx_la_fix（仅 is-cross 时生效；native 零影响）。每次 make install 后调用。
+xx_la_fix(){
+  [ -n "$XX_CROSS_FILE" ] || return 0
+  local S="${XX_SYSROOT%/}"
+  local n=0
+  for f in "$S"/usr/lib/*.la "$S"/usr/local/lib/*.la; do
+    [ -f "$f" ] || continue
+    local d="$S/usr/lib"; case "$f" in *"/usr/local/"*) d="$S/usr/local/lib";; esac
+    sed -i "s|^libdir=.*|libdir='$d'|" "$f"; n=$((n+1))
+  done
+  log "xx_la_fix: $n .la libdir -> sysroot 相对"
+}
 xx_cross_init
