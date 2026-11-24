@@ -36,7 +36,28 @@ fetch(){
 }
 
 # release tarball 有 configure; box 的 git-archive 无 -> 缺则 autogen.sh (autoreconf) 生成
-mkcfg(){ [ -f ./configure ] || { echo "no configure -> autogen"; ./autogen.sh; }; }
+# 交叉(2026-11-24): autogen 内部 bootstrap ./configure 须带 --host(否则试跑交叉产物失败),
+#   autogen.sh 透传 $@ -> 追加 $CROSS_HOST; native(CROSS_HOST 空) 传空参会被 configure 当多余参数拒,
+#   -> 有值才传(条件传参, native 与原 `./autogen.sh` 零差)。
+mkcfg(){ [ -f ./configure ] || { echo "no configure -> autogen"; if [ -n "$CROSS_HOST" ]; then ./autogen.sh $CROSS_HOST; else ./autogen.sh; fi; }; }
+
+# 2026-11-24 方案二交叉: gtkmm 栈共用交叉环境(libsigc++→gtkmm 全链)。
+# 设置 CROSS_HOST/XX_DESTDIR 供各函数 configure 追加 --host、make install 加 DESTDIR(装 sysroot)。
+# native(未设 TARGETPLATFORM): 变量留空 → 原路径零影响。
+mm_cross(){
+  CROSS_HOST=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export CXX=xx-clang++
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    log "mm: CROSS ($XX_TRIPLE)"
+  fi
+}
 
 # buildx 隔离/多阶段继承(CI): 自编库(pango/gtk/atk)头可能不在 /usr/include 标准位
 # (装 xx sysroot 或前一构建阶段隔离路径, 即使 amd64) -> pangomm/gtkmm 的 <pango/pango-markup.h>
@@ -81,70 +102,81 @@ function c_mm_common(){
 
 function c_libsigc(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build libsigc++-2.0 (2.10.8)..."
   fetch libsigc++-2.10.8 libsigc++ 2.10
   cd /tmp/gtkmm-src/libsigc++-2.10.8
   mkcfg
-  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
+  make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
   # make install 已装 /usr/lib/libsigc-2.0.a(实测 libsigc++ 会装); 多余 cp 仅兜底, 路径因 tarball 布局而异(sigc++/.libs), 找不到不致命(|| true)
-  cp .libs/libsigc-2.0.a /usr/lib/ 2>/dev/null || cp sigc++/.libs/libsigc-2.0.a /usr/lib/ 2>/dev/null || cp "$(find . -name libsigc-2.0.a 2>/dev/null | head -1)" /usr/lib/ 2>/dev/null || true
+  cp .libs/libsigc-2.0.a ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || cp sigc++/.libs/libsigc-2.0.a ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || cp "$(find . -name libsigc-2.0.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  xx_la_fix
 }
 
 function c_glibmm(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build glibmm/giomm (2.48.1)..."
   fetch glibmm-2.48.1 glibmm 2.48
   cd /tmp/gtkmm-src/glibmm-2.48.1
   git apply /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || true
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
-  [ -f /usr/lib/libglibmm-2.4.a ] || cp "$(find . -name libglibmm-2.4.a 2>/dev/null | head -1)" /usr/lib/
-  [ -f /usr/lib/libgiomm-2.4.a ] || cp "$(find . -name libgiomm-2.4.a 2>/dev/null | head -1)" /usr/lib/
+  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
+  [ -f ${XX_SYSROOT:-}/usr/lib/libglibmm-2.4.a ] || cp "$(find . -name libglibmm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  [ -f ${XX_SYSROOT:-}/usr/lib/libgiomm-2.4.a ] || cp "$(find . -name libgiomm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  xx_la_fix
 }
 
 function c_cairomm(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build cairomm-1.0 (1.12.0)..."
   fetch cairomm-1.12.0 cairomm 1.12
   cd /tmp/gtkmm-src/cairomm-1.12.0
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
-  [ -f /usr/lib/libcairomm-1.0.a ] || cp "$(find . -name libcairomm-1.0.a 2>/dev/null | head -1)" /usr/lib/
+  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
+  [ -f ${XX_SYSROOT:-}/usr/lib/libcairomm-1.0.a ] || cp "$(find . -name libcairomm-1.0.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  xx_la_fix
 }
 
 function c_pangomm(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build pangomm-1.4 (2.40.0)..."
   fetch pangomm-2.40.0 pangomm 2.40
   cd /tmp/gtkmm-src/pangomm-2.40.0
   git apply /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || true
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
-  [ -f /usr/lib/libpangomm-1.4.a ] || cp "$(find . -name libpangomm-1.4.a 2>/dev/null | head -1)" /usr/lib/
+  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
+  [ -f ${XX_SYSROOT:-}/usr/lib/libpangomm-1.4.a ] || cp "$(find . -name libpangomm-1.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  xx_la_fix
 }
 
 function c_atkmm(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build atkmm-1.6 (2.24.2)..."
   fetch atkmm-2.24.2 atkmm 2.24
   cd /tmp/gtkmm-src/atkmm-2.24.2
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr
-  make -j${PARALLEL_JOBS:-$(nproc)}; make install
-  [ -f /usr/lib/libatkmm-1.6.a ] || cp "$(find . -name libatkmm-1.6.a 2>/dev/null | head -1)" /usr/lib/
+  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
+  [ -f ${XX_SYSROOT:-}/usr/lib/libatkmm-1.6.a ] || cp "$(find . -name libatkmm-1.6.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  xx_la_fix
 }
 
 function c_gtkmm(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Build gtkmm-2.4/gdkmm-2.4 (2.24.5)..."
   fetch gtkmm-2.24.5 gtkmm 2.24
   cd /tmp/gtkmm-src/gtkmm-2.24.5
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr
+  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
   # 2026-11-15: 方案 A(u-gtk 库层 png/jpeg/svg loader 编入 libgdk_pixbuf-2.0.a)后,
   #   gdkmm 构建期工具 tools/extra_defs_gen/generate_extra_defs 链接 $(GTKMM_LIBS)
   #   (configure 取 pkg-config 非 static, 不展开 Requires.private → 缺 loader 依赖)
@@ -158,19 +190,22 @@ function c_gtkmm(){
   #     ld -ljpeg 优先 libjpeg.so(带版本符号 @@LIBJPEG_8.0), CI 实测 io-jpeg.c.o undefined jpeg_input_complete@@LIBJPEG_8.0;
   #     .a 无版本符号天然规避(本地 libtool -v 模拟 RC=0; 后面 librsvg.la 展开的 -ljpeg 会被 --as-needed 丢弃)。
   local GTKMM_LIBS_BASE="$(pkg-config --libs atkmm-1.6 giomm-2.4 pangomm-1.4 gtk+-2.0 gtk+-unix-print-2.0)"
-  local GTKMM_LIBS_EXTRA="-lpng16 /usr/lib/libjpeg.a -lz -llzma -lzstd -lgmodule-2.0 -lrsvg-2 -lcroco-0.6 -lxml2"
+  local GTKMM_LIBS_EXTRA="-lpng16 ${XX_SYSROOT:-}/usr/lib/libjpeg.a -lz -llzma -lzstd -lgmodule-2.0 -L${XX_SYSROOT:-}/usr/local/lib -lrsvg-2 -lcroco-0.6 -lxml2"
   make -j${PARALLEL_JOBS:-$(nproc)} GTKMM_LIBS="$GTKMM_LIBS_BASE $GTKMM_LIBS_EXTRA"
-  make install GTKMM_LIBS="$GTKMM_LIBS_BASE $GTKMM_LIBS_EXTRA"
-  [ -f /usr/lib/libgtkmm-2.4.a ] || cp "$(find . -name libgtkmm-2.4.a 2>/dev/null | head -1)" /usr/lib/
-  [ -f /usr/lib/libgdkmm-2.4.a ] || cp "$(find . -name libgdkmm-2.4.a 2>/dev/null | head -1)" /usr/lib/
+  make install GTKMM_LIBS="$GTKMM_LIBS_BASE $GTKMM_LIBS_EXTRA" ${XX_DESTDIR:-}
+  [ -f ${XX_SYSROOT:-}/usr/lib/libgtkmm-2.4.a ] || cp "$(find . -name libgtkmm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  [ -f ${XX_SYSROOT:-}/usr/lib/libgdkmm-2.4.a ] || cp "$(find . -name libgdkmm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
+  xx_la_fix
 }
 
 function c_verify(){
   set -e; export LDFLAGS="-Wl,--as-needed"
+  mm_cross
   log "Verify gtkmm stack..."
-  ls -lh /usr/lib/libsigc-2.0.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a \
-    /usr/lib/libcairomm-1.0.a /usr/lib/libpangomm-1.4.a /usr/lib/libatkmm-1.6.a \
-    /usr/lib/libgdkmm-2.4.a /usr/lib/libgtkmm-2.4.a
+  local D=${XX_SYSROOT:-}/usr/lib
+  ls -lh $D/libsigc-2.0.a $D/libglibmm-2.4.a $D/libgiomm-2.4.a \
+    $D/libcairomm-1.0.a $D/libpangomm-1.4.a $D/libatkmm-1.6.a \
+    $D/libgdkmm-2.4.a $D/libgtkmm-2.4.a
   pkg-config --exists gtkmm-2.4 && echo "pkg-config gtkmm-2.4 OK: $(pkg-config --modversion gtkmm-2.4)"
 }
 
