@@ -1,0 +1,28 @@
+--- a/src/main.c
++++ b/src/main.c
+@@ -208,9 +208,6 @@
+     if (screen)
+     {
+-      GdkDisplay *display = gdk_screen_get_display(screen);
+       GdkWindow *window = gdk_screen_get_root_window(screen);
+-      GdkSeat *seat = gdk_display_get_default_seat(display);
+-
+-      gdk_window_get_device_position(window, gdk_seat_get_pointer(seat), NULL,
+-          NULL, &button_state);
++      /* GTK2 无 GdkSeat（GTK3 类型）；等价检查鼠标按钮状态用 gdk_window_get_pointer */
++      gdk_window_get_pointer(window, NULL, NULL, &button_state);
+     }
+--- a/src/daemon.c
++++ b/src/daemon.c
+@@ -56,9 +56,6 @@
+ 		if (screen)
+ 		{
+-			GdkDisplay *display = gdk_screen_get_display(screen);
+ 			GdkWindow *window = gdk_screen_get_root_window(screen);
+-			GdkSeat *seat = gdk_display_get_default_seat(display);
+-
+-			gdk_window_get_device_position(window, gdk_seat_get_pointer(seat), NULL,
+-				NULL, &button_state);
++			/* GTK2 无 GdkSeat（GTK3 类型）；等价检查鼠标按钮状态用 gdk_window_get_pointer */
++			gdk_window_get_pointer(window, NULL, NULL, &button_state);
+ 		}
