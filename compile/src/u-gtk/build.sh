@@ -25,6 +25,7 @@ function atk(){ ##@meson
     # meson build
     # static>> undefined reference to 'png_destroy_write_struct'
     meson build  --default-library=both ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE" -Dintrospection=false} #both static
+    xx_meson_crossfix build  # 2026-11-24: meson 交叉 native 头泄漏修复(armv7 ILP32 暴露, 见 common.sh)
 
   log "Compiling atk..."
     if [ -n "$XX_CROSS_FILE" ]; then
@@ -88,6 +89,7 @@ PYEOF
     #   "relocation R_X86_64_TPOFF32/PC32 can not be used when making a shared object" → 链接失败(oneBuild 吞错, 产物仍是旧 .a 无 svg)。
     #   静态应用只需 .a → 改 static 只产 .a(不链 .so, 绕过 non-PIC 重定位检查), svg loader 才能进产物。
     meson build  --default-library=static -Dbuiltin_loaders=png,jpeg,svg -Dintrospection=disabled ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE"} #static only .a; 2026-11-14: introspection 禁用——否则 GdkPixbuf-2.0 临时二进制链新 .a 缺 librsvg 依赖→ninja cannot make progress→install 没跑
+    xx_meson_crossfix build  # 2026-11-24: meson 交叉 native 头泄漏修复(armv7 ILP32 暴露, 见 common.sh)
 
   log "Compiling gdk-pixbuf..."
     # 2026-11-15 源头修（不再 ninja 全量 + install）：
@@ -196,6 +198,10 @@ function gtk(){
     export PKG_CONFIG=/usr/bin/pkg-config
     export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    # 2026-11-24 方案二: 顶部 PKG_CONFIG_PATH 含 native /usr/local/lib/pkgconfig(旧 atk.pc/librsvg.pc)，
+    #   会抢先于 PKG_CONFIG_LIBDIR → gtk configure 解析 native atk → 链 native libatk-1.0.so 失败。
+    #   cross 下清掉(只用 sysroot PKG_CONFIG_LIBDIR)；native 路径不动。
+    unset PKG_CONFIG_PATH
     log "gtk: CROSS ($XX_TRIPLE) tree=$GTK"
   fi
   local PATCHDIR="${PATCH_DIR:-/src/u-gtk}"
