@@ -1,0 +1,44 @@
+# Dockerfile.xx — xx 交叉编译 sandbox（方案二，不动主 Dockerfile）
+#
+# 用途：在 build 平台（amd64）原生跑 + xx 交叉编译到 TARGETPLATFORM，
+#   逐个验证卡点大项（u-gtk/u-gtkmm/gsm/pulse/xfce4/pcmanfm…）能交叉产出静态 bin。
+#   现有主 Dockerfile/qemu 全量构建不受影响（build.sh 交叉适配用 xx-info 自动检测，
+#   is-cross=false 时走原路径；见 docs/2026/11241320-multiarch-buildSpeed.md 二章1.3）。
+#
+# 用法（单架构交叉，无需 buildx；本机未装 buildx，用 buildkit）:
+#   DOCKER_BUILDKIT=1 docker build \
+#     --build-arg REPO=registry.cn-shenzhen.aliyuncs.com/ \
+#     --build-arg TARGETPLATFORM=linux/arm64 \
+#     -f src/Dockerfile.xx --target <stage> .
+#   REPO 必须用 aliyun（docker.io → buildkit load metadata 401 Unauthorized，本机未登录）。
+#   产物验证在 RUN 内 xx-verify --static + file（build 日志即证据；
+#   勿 --output type=local，导出整 stage 文件系统 ~1.6GB，磁盘紧）。
+#
+# 通用前提（xxbase 已装）: xx-apk add gcc musl-dev —— clang-12 默认 --rtlib=libgcc，
+#   交叉静态链接须 target GCC runtime(crtbeginT.o/libgcc.a/libgcc_eh.a) + musl crt 在 sysroot。
+#
+# 已验证 stage：xdpyprobe（arm64/arm-v7 静态 bin ✓，2026-11-24）
+# 待加 stage：u-gtk（GTK2 栈，最高风险）→ lxtask → u-gtkmm → gsm → 余下
+
+ARG REPO=
+# 编译 stage 固定 build 平台（amd64 原生跑），靠 TARGETPLATFORM 交叉
+FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS xxbase
+  ARG TARGETPLATFORM
+  ARG BUILDPLATFORM
+  ENV CACHE=/usr/local/static/.cache
+  RUN echo "BUILD=$BUILDPLATFORM TARGET=$TARGETPLATFORM uname=$(uname -m)"; \
+    xx-info arch; xx-info triple; xx-info is-cross && echo CROSS || echo NATIVE
+  RUN apk update; apk add gawk git; git config --global http.sslVerify false
+  COPY ./tarsrc /tarsrc
+  COPY ./src /src
+  RUN chmod +x /src/**/*.sh
+  # target sysroot bootstrap（所有交叉静态链接前提）
+  RUN xx-apk --no-cache add gcc musl-dev
+
+# xdpyprobe（管道验证已跑通）
+FROM xxbase AS xdpyprobe
+  ARG TARGETPLATFORM
+  RUN xx-apk --no-cache add libx11-dev libx11-static libxcb-static; \
+    cd /src/xdpyprobe && make clean && CC=xx-clang make; \
+    xx-verify --static /src/xdpyprobe/xdpyprobe; \
+    file /src/xdpyprobe/xdpyprobe
