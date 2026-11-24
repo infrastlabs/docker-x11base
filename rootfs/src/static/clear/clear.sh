@@ -38,6 +38,10 @@ done
   cd ${rfs}; echo -e "\n[link] ${rfs}usr/sbin/ ${rfs}usr/bin/"
   find usr/local/static -type f |grep -Ev "/\.dotfiles/" |grep -E "/bin/|/sbin/" |sort | \
     while read one; do du -sh $one; t=${one%/*}; ln -s /$one usr/${t##*/}/; done
+  # link usr/share/applications
+  mkdir -p usr/share/applications; \
+  find usr/local/static/ -type f |grep "/applications/" |grep -E "\.desktop$" |sort | \
+    while read one; do ln -s /$one usr/share/applications/; done; 
 
 # link-openbox-theme ###########################################
 find  /rootfs/usr/local/static/openbox/share/ -type d |grep openbox-3 |while read one; do
