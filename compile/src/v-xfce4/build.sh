@@ -369,6 +369,10 @@ b_deps)
     doExec libexif || exit 1
     ;;
 full)
+    sh /src/v-xfce4/build.sh xfce4settings &
+    sh /src/v-xfce4/build.sh ristretto &
+    sh /src/v-xfce4/build.sh thunar &
+    wait; doExec_check || exit 1   # 并发组2 错误码识别
     ;;
 *) #compile
     oneBuild $1
