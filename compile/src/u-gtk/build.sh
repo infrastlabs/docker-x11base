@@ -186,6 +186,18 @@ function gtk(){
   log "Preparing gtk source tree..."
   branch="--branch=2.24.33"
   local GTK=/tmp/gtk
+  # 2026-11-24 方案二交叉: 用独立源码树(/tmp/gtk-cross)避免污染 native 增量树; 设 autotools 交叉环境
+  #   （强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot）。
+  CROSS_HOST=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    GTK=/tmp/gtk-cross
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    log "gtk: CROSS ($XX_TRIPLE) tree=$GTK"
+  fi
   local PATCHDIR="${PATCH_DIR:-/src/u-gtk}"
   local SIGFILE="$GTK/.u-gtk-config.sig"
   local STATEDIR="$GTK/.u-gtk-state"
@@ -243,14 +255,19 @@ function gtk(){
     CONFIG_ARGS="--enable-static --disable-shared --with-included-immodules=xim --prefix=/usr"  # --disable-shared: 项目只要 .a; 原默认建 .so 在 murrine/pixmap merge 前链接 → theme_* undefined
     # ③ configure 缓存: 参数 + Makefile.am 补丁未变 → 跳过 configure (省 ~5min)。
     #    Makefile.am 补丁(printbackends)变更才需重新生成 Makefile.in; 只改 .c 的补丁不需要。
-    local SIG=$( { cat "$PATCHDIR/gtk2-2.24.33-printbackends-static.patch"; echo "$CONFIG_ARGS"; } | sha256sum | cut -d' ' -f1 )
+    local SIG=$( { cat "$PATCHDIR/gtk2-2.24.33-printbackends-static.patch"; echo "$CONFIG_ARGS${CROSS_HOST:+ $CROSS_HOST}"; } | sha256sum | cut -d' ' -f1 )
     if [ -f config.status ] && [ "$(cat "$SIGFILE" 2>/dev/null)" = "$SIG" ]; then
       log "Skip configure (args + Makefile.am patch unchanged)"
     else
-      ./autogen.sh
+      # NOCONFIGURE=1: GNOME autogen.sh 无参自动跑 configure（交叉下不带 --host 报 cannot run C compiled programs）
+      if [ -n "$XX_CROSS_FILE" ]; then
+        NOCONFIGURE=1 ./autogen.sh
+      else
+        ./autogen.sh
+      fi
       # 2026-11-04: 内置 XIM(输入法)走 --with-included-immodules=xim → libstatic-im-xim + -DINCLUDE_IM_xim,
       # 静态下无需 dlopen(实测 3.5.1)。注意 args1 是死代码(从未定义), 参数必须真传这里, 别塞进 args= 块。
-      ./configure $CONFIG_ARGS
+      ./configure $CONFIG_ARGS $CROSS_HOST
       echo "$SIG" > "$SIGFILE"
     fi
 
@@ -296,15 +313,23 @@ function gtk(){
     MURRINE_GIT="${MURRINE_GIT:-https://gitee.com/g-system/fk-murrine}"
     # ④ murrine 缓存: 已有构建树则复用, make 增量; 否则全新 clone+configure。
     git config --global --add safe.directory /tmp/murrine 2>/dev/null || true
-    if [ -d /tmp/murrine/.git ] && [ -f /tmp/murrine/config.status ]; then
-      log "Reuse /tmp/murrine (incremental)"
-      ( cd /tmp/murrine && unset LDFLAGS; make -j$(nproc) )
+    # 2026-11-24 方案二交叉: murrine 独立树(/tmp/murrine-cross) + 交叉编译(--host + 强制宿主 pkg-config)
+    MURRINE=/tmp/murrine; [ -n "$XX_CROSS_FILE" ] && MURRINE=/tmp/murrine-cross
+    if [ -d "$MURRINE/.git" ] && [ -f "$MURRINE/config.status" ]; then
+      log "Reuse $MURRINE (incremental)"
+      ( cd "$MURRINE" && unset LDFLAGS; make -j$(nproc) )
     else
-      rm -rf /tmp/murrine; gitclone "$MURRINE_GIT" /tmp/murrine
-      ( cd /tmp/murrine && unset LDFLAGS; ./autogen.sh && ./configure --enable-static --disable-shared && make -j$(nproc) )
+      rm -rf "$MURRINE"; gitclone "$MURRINE_GIT" "$MURRINE"
+      ( cd "$MURRINE" && unset LDFLAGS; \
+        if [ -n "$XX_CROSS_FILE" ]; then \
+          ./autogen.sh --enable-static --disable-shared $CROSS_HOST; \
+        else \
+          ./autogen.sh && ./configure --enable-static --disable-shared; \
+        fi; \
+        make -j$(nproc) )
     fi
-    [ -f /tmp/murrine/.libs/libmurrine.a ] || { log "MURRINE build FAILED"; exit 1; }
-    ar r ./gtk/.libs/libgtk-x11-2.0.a /tmp/murrine/*.o
+    [ -f "$MURRINE/.libs/libmurrine.a" ] || { log "MURRINE build FAILED"; exit 1; }
+    ar r ./gtk/.libs/libgtk-x11-2.0.a "$MURRINE"/*.o
     log "Merged murrine into ./gtk/.libs/libgtk-x11-2.0.a"
   log "Pixmap theme engine (builtin via Makefile.am source, no separate make/ar r)..."
     # 2026-11-11: pixbuf engine 改为编进 libgtk——printbackends-static.patch 的 gtk/Makefile.am
@@ -349,7 +374,7 @@ function gtk(){
     # cp /usr/local/lib/libgdk-x11-2.0.a /usr/local/lib/libgtk-x11-2.0.a /usr/lib/
 
     # ./gdk/x11/.libs/libgdk-x11.a 
-    \cp -a ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a /usr/lib/
+    \cp -a ./gdk/.libs/libgdk-x11-2.0.a ./gtk/.libs/libgtk-x11-2.0.a $XX_SYSROOT/usr/lib/
 }
 
 
@@ -364,6 +389,9 @@ function apkdeps(){
     \
     fontconfig-static libxcomposite-dev \
     gdk-pixbuf-dev pango-dev # librsvg configure 需 gdk-pixbuf-2.0/pangocairo/pangoft2 .pc；gtk+2.0-dev 未传递装这两个（实测 MISS）
+  # 2026-11-24 方案二交叉: gtk+2.0-dev 进交叉 sysroot——提供 gtk+-2.0.pc/gdk-x11-2.0.pc + gtk 头
+  #   （murrine/下游 lxtask/pcmanfm/geany 的 configure/编译需要；.a 由本脚本源码构建，dev 包无 .a）。
+  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev
   # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
