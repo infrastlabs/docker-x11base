@@ -11,18 +11,25 @@ function Xdamage(){
   # repo=https://hub.nuaa.cf/cubanismo/libXdamage
   gitclone https://gitee.com/g-system/fk-lib-xdamage /tmp/Xdamage $branch
   cd /tmp/Xdamage
-    ./autogen.sh 
-    ./configure; 
+  # 2026-11-24 方案二交叉: --host 进 autogen(其恒跑 configure --enable-maintainer-mode "$@") + 装 sysroot
+  CROSS_HOST=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    log "Xdamage: CROSS ($XX_TRIPLE)"
+  fi
+    ./autogen.sh $CROSS_HOST
+    ./configure $CROSS_HOST
     # make; make install;
 
   log "Compiling Xdamage..."
   make
 
   log "Installing Xdamage..."
-  make install
+  make install ${XX_CROSS_FILE:+DESTDIR=$XX_SYSROOT}
 
   ls -lh ./src/.libs/libXdamage.a
-  cp ./src/.libs/libXdamage.a /usr/lib
+  cp ./src/.libs/libXdamage.a ${XX_SYSROOT:-}/usr/lib
 }
 
 #
