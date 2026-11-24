@@ -21,6 +21,23 @@ function libcroco(){
   # (undefined reference to deflateEnd/gzopen/lzma_code...) → make install 失败 → libcroco-0.6.pc 未装。
   test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
+  # 2026-11-24 方案二交叉: xx_cross_init 检测到 is-cross($XX_CROSS_FILE 非空)时设 autotools 交叉环境
+  #   （强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot; 纯静态强制）。
+  LIBDIR=/usr/local/lib; CROSS_HOST=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export STATIC=yes   # 交叉目标=纯静态(要.a)，消费方传 yes 时同值无害
+    LIBDIR=$XX_SYSROOT/usr/local/lib
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+    export DISABLE_SHARED=--disable-shared
+    [ -z "$LIBS" ] && export LIBS="-lz -llzma -lbz2 -lm"
+    log "libcroco: CROSS ($XX_TRIPLE)"
+  fi
+
   mkdir -p /tmp/libcroco
   log "Downloading libcroco..."
   # rm -rf /tmp/libcroco; git clone --depth=1 $branch $repo /tmp/libcroco
@@ -30,20 +47,29 @@ function libcroco(){
   rm -rf /tmp/libcroco; gitclone https://gitee.com/g-system/fk-libcroco /tmp/libcroco $branch
   cd /tmp/libcroco
   # cd libcroco-0.6.13
-  ./autogen.sh 
-  ./configure --enable-static $DISABLE_SHARED
+  # NOCONFIGURE=1: GNOME autogen.sh 无参自动跑 configure（交叉下不带 --host 报 cannot run C compiled programs）
+  if [ -n "$XX_CROSS_FILE" ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    ./autogen.sh
+  fi
+  ./configure --enable-static $DISABLE_SHARED $CROSS_HOST
 
   log "Compiling libcroco..."
   make
   log "Installing libcroco..."
-  make install
+  if [ -n "$XX_CROSS_FILE" ]; then
+    make install DESTDIR=$XX_SYSROOT
+  else
+    make install
+  fi
   # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs）
-  test "yes" = "$STATIC" && rm -f /usr/local/lib/libcroco-0.6.so*
+  test "yes" = "$STATIC" && rm -f $LIBDIR/libcroco-0.6.so*
   # 2026-11-15: .la 修元数据——清 .so 记录(library_names/dlname)，libtool 链接走 old_library=.a
   #   （libtool 非-static 链接优先 shared，.la 记录 .so 时展开用 .so → 静态环境顺序错；同 librsvg）。
-  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|" /usr/local/lib/libcroco-0.6.la 2>/dev/null || true
+  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|" $LIBDIR/libcroco-0.6.la 2>/dev/null || true
   # find |grep croco; cp ./src/.libs/libcroco-0.6.a /usr/lib/
-  find /usr/local/lib |grep libcroco |grep "\.a$"
+  find $LIBDIR |grep libcroco |grep "\.a$"
   # /usr/local/lib/libcroco-0.6.a
 }
 
@@ -83,18 +109,40 @@ function librsvg(){
   # STATIC 下链接 libcroco-0.6.a→libxml2.a 的传递依赖(zlib/lzma/bzip2/m)不自动链接, 需显式加。
   test "yes" = "$STATIC" && export LIBS="${LIBS:-} -lz -llzma -lbz2 -lm"
 
+  # 2026-11-24 方案二交叉: xx_cross_init 检测到 is-cross($XX_CROSS_FILE 非空)时设 autotools 交叉环境
+  #   （强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot; 纯静态强制）。
+  LIBDIR=/usr/local/lib; CROSS_HOST=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export STATIC=yes   # 交叉目标=纯静态(要.a)，消费方传 yes 时同值无害
+    LIBDIR=$XX_SYSROOT/usr/local/lib
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
+    export DISABLE_SHARED=--disable-shared
+    [ -z "$LIBS" ] && export LIBS="-lz -llzma -lbz2 -lm"
+    log "librsvg: CROSS ($XX_TRIPLE)"
+  fi
+
   log "Downloading librsvg..."
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
   branch="--branch=2.40.21"
   rm -rf /tmp/librsvg; gitclone https://gitee.com/g-system/fk-librsvg /tmp/librsvg $branch
   cd /tmp/librsvg
-  ./autogen.sh 
+  # NOCONFIGURE=1: GNOME autogen.sh 无参自动跑 configure（交叉下不带 --host 报 cannot run C compiled programs）
+  if [ -n "$XX_CROSS_FILE" ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    ./autogen.sh
+  fi
   # STATIC 下 librsvg-2.a 的消费方(rsvg-convert/rsvg-loader/GISCAN 等可执行)均被 -static 强制静态链接,
   #   需 libgdk_pixbuf-2.0.a(Alpine 无 gdk-pixbuf-static 包)会失败; 故仅构建/安装 librsvg-2.a 库本体:
   #   --enable-introspection=no 跳过 GISCAN; 清空顶层 bin_PROGRAMS(rsvg-convert 等), 剔除 SUBDIRS 中 gdk-pixbuf-loader/tests/tools/doc。
   test "yes" = "$STATIC" && export CONFIGURE_INTRO=--enable-introspection=no
-  ./configure --enable-static $DISABLE_SHARED $CONFIGURE_INTRO
+  ./configure --enable-static $DISABLE_SHARED $CONFIGURE_INTRO $CROSS_HOST
   test "yes" = "$STATIC" && sed -i 's/^bin_PROGRAMS = rsvg-convert.*/bin_PROGRAMS =/' Makefile
   test "yes" = "$STATIC" && sed -i 's/^SUBDIRS = \. gdk-pixbuf-loader tests tools doc build/SUBDIRS = . build/' Makefile
   log "Compiling librsvg..."
@@ -103,9 +151,13 @@ function librsvg(){
   #   make LIBS 补 -ljpeg(追加, 不覆盖 STATIC 路径的 -lz -llzma -lbz2 -lm)。
   make LIBS="${LIBS:-} -ljpeg"
   log "Installing librsvg..."
-  make install LIBS="${LIBS:-} -ljpeg"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    make install LIBS="${LIBS:-} -ljpeg" DESTDIR=$XX_SYSROOT
+  else
+    make install LIBS="${LIBS:-} -ljpeg"
+  fi
   # STATIC 模式清掉 .so（保留 .la 供 libtool 展开 dependency_libs：pangocairo/cairo/gio…）
-  test "yes" = "$STATIC" && rm -f /usr/local/lib/librsvg-2.so*
+  test "yes" = "$STATIC" && rm -f $LIBDIR/librsvg-2.so*
   # 2026-11-15: .la 修元数据（libtool 消费方兼容，本次 u-gtkmm generate_extra_defs 踩）——
   #   ① 清 .so 记录(library_names/dlname)→libtool 走 old_library=.a（libtool 非-static 链接优先 shared，
   #      .la 记录 .so 时即便文件已删也按名引用→顺序错/文件缺失）；
@@ -113,15 +165,15 @@ function librsvg(){
   #      (io-svg 塞进 libgdk_pixbuf-2.0.a 使 gdk_pixbuf 反向依赖 rsvg) 造成 rsvg↔gdk_pixbuf 循环依赖，
   #      libtool 无法排序→rsvg 排 gdk_pixbuf 前→rsvg_handle_* undefined。去除后单向排序。
   #      直链消费方(xx-clang -static)不读 .la，不受影响（详见 docs/2026/11091127-ci-builder-gtk.md 三章5.2）。
-  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|; s|-lgdk_pixbuf-2.0||" /usr/local/lib/librsvg-2.la 2>/dev/null || true
+  sed -i "s|^library_names=.*|library_names=''|; s|^dlname=.*|dlname=''|; s|-lgdk_pixbuf-2.0||" $LIBDIR/librsvg-2.la 2>/dev/null || true
   # 2026-11-13: librsvg-2.0.pc Requires 缺 pangocairo/libxml-2.0/libcroco-0.6(实测 Only glib/gio/gdk-pixbuf/cairo, Requires.private 空)
   # → meson dependency('librsvg-2.0') 链接 librsvg-2.a 时 undefined xml*/pango_cairo_*/cr_*(librsvg 依赖链: libxml2+pangocairo+libcroco)
   # → gdk_pixbuf svg loader 编进 .a 时链接失败→SVG图标故障; 补全 Requires 供所有消费方(openbox/gdk_pixbuf/lxtask)解析带全依赖
-  sed -i 's/^Requires: .*/Requires: glib-2.0 gio-2.0 gdk-pixbuf-2.0 cairo pangocairo libxml-2.0 libcroco-0.6/' /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null || true
-  grep -E "^Requires" /usr/local/lib/pkgconfig/librsvg-2.0.pc 2>/dev/null
+  sed -i 's/^Requires: .*/Requires: glib-2.0 gio-2.0 gdk-pixbuf-2.0 cairo pangocairo libxml-2.0 libcroco-0.6/' $LIBDIR/pkgconfig/librsvg-2.0.pc 2>/dev/null || true
+  grep -E "^Requires" $LIBDIR/pkgconfig/librsvg-2.0.pc 2>/dev/null
   # find |grep librsvg-
   # ./.libs/librsvg-2.a
-  find /usr/local/lib |grep librsvg |grep "\.a$"
+  find $LIBDIR |grep librsvg |grep "\.a$"
 }
 
 # [xcb-util]
