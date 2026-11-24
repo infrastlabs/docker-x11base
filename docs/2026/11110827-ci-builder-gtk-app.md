@@ -5,17 +5,96 @@
 ## 章节表
 
 - 四、应用调试（抽取：原 3.4 + 3.5）
+  - 0、容器网络排查明细：bridge NAT 与 iptables 双后端（0.1-0.5，builder-pav，2026-11-12）
   - 1、gtkmm 下游应用缺失清单（pavucontrol / gnome-system-monitor）
   - 2、pulse 栈当时怎么搞的（awe 容器 + 历史文档回顾）
   - 3、pulse 栈项目内版本落地与应用调试
-  - 4、容器网络排查明细：bridge NAT 与 iptables 双后端（4.1-4.5，builder-pav，2026-11-12）
-  - 5、xfce4 构建最终结果（thunar / ristretto / display-settings 均验证通过，5.1-5.2，2026-11-12）
-  - 6、pasystray 构建收口（照 Dockerfile 调用方式，6.1-6.4，2026-11-12）
-  - 7、lxtask + pcmanfm 构建收口（照 Dockerfile 调用方式，7.1-7.4，2026-11-12）
+  - 4、xfce4 构建最终结果（thunar / ristretto / display-settings 均验证通过，4.1-4.2，2026-11-12）
+  - 5、pasystray 构建收口（照 Dockerfile 调用方式，5.1-5.4，2026-11-12）
+  - 6、lxtask + pcmanfm 构建收口（照 Dockerfile 调用方式，6.1-6.4，2026-11-12）
 - 五、CI实跑验证（2026-11-12~14）→ 已拆出至 `docs/2026/11120827-ci-builder-gtk-app-rootfs.md`（2026-11-15）
 - 六、xfce4 源码包收集与下载源（2026-11-13）→ 已拆出至 `docs/2026/11130827-ci-builder-tarsrc.md`（2026-11-14）
 
 ## 四、应用调试（抽取：原 3.4 + 3.5）
+
+### 0、容器网络排查明细（2026-11-12）：bridge NAT 与 iptables 双后端
+
+任务：容器内跑 `xfce4` 的 `thunar` / `ristretto`，需要构建 `libxfce4ui`、`exo`、`libgarcon`，其中 `libgarcon` 依赖 `libexif`。构建过程中 `v-xfce4` 需要下载大量源码包，网络不通。以下记录完整排查过程。
+
+#### 0.1、现象与初判
+
+- `curl` / `wget` 下载超时，`apt-get` 无法连接镜像源。
+- 宿主机网络正常，容器内 `ping` 公网 DNS 通但 HTTP 不通。
+- 初判为 iptables NAT 规则缺失：`docker0` 是 bridge 网络，容器出站必须经宿主机 `FORWARD` + `POSTROUTING` MASQUERADE。
+
+#### 0.2、关键误判：iptables 双后端（nft vs legacy）
+
+**这是本次排查最重要的坑。**
+
+```bash
+# 宿主机检查后端
+iptables --version
+# 如果输出 "iptables v1.8.x (legacy)" → legacy 后端
+# 如果输出 "iptables v1.8.x (nf_tables)" → nft 后端
+
+# 容器内检查
+ls /proc/net/ip_tables_names
+# 存在 → legacy 内核模块已加载
+# 不存在 → 容器实际走 nftables 后端
+```
+
+本环境宿主机为 **legacy** 后端。我在排查中一度往 `iptables-nft` 加了 3 条规则：
+
+```bash
+iptables -I FORWARD -i docker0 -j ACCEPT
+iptables -I FORWARD -o docker0 -j ACCEPT
+iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+```
+
+**这 3 条规则加到了 nft 后端，而容器流量实际走 legacy 后端，所以完全无效。**
+
+#### 0.3、逐层诊断法（本次验证有效）
+
+```bash
+# 1. 包到没到容器 veth（宿主机执行）
+tcpdump -i docker0 -n 'src host 172.17.0.2' &
+# 从容器 curl 外部地址，看 tcpdump 是否抓到 SYN
+
+# 2. FORWARD 链规则（legacy 后端）
+iptables -L FORWARD -n -v
+
+# 3. nat POSTROUTING 规则
+iptables -t nat -L POSTROUTING -n -v
+
+# 4. 容器内实际出口 IP（关键验证）
+ip route get 1.1.1.1
+# 应输出 "via <gateway> src <容器IP>"
+# 如果 src 不是容器 IP → NAT 未生效，包会以源地址 172.17.0.2 出去，公网回包无处可回
+```
+
+`ip route get` 是判断 NAT 是否生效的最快方法，不需要抓包。
+
+#### 0.4、实际结论：网络是瞬态故障，bridge NAT 无问题
+
+排查推进到最后，发现：
+
+```bash
+# 容器内
+echo > /dev/tcp/8.8.8.8/443 && echo "TCP OK"     # 通
+curl -v https://www.google.com 2>&1 | grep "SSL connection"  # TLS 握手成功
+curl -o /dev/null -w '%{http_code}' https://dl.xfce.org/...     # 200/404 均有响应
+```
+
+**结论：bridge NAT 规则一直存在且工作正常，之前不通是瞬态网络退化**（DNS 解析成功但 TCP 三次握手失败 / 上游路由抖动），重启或等待即恢复，**不是 iptables 配置问题**。
+
+> 教训：网络不通时先用 `ip route get` 验证 NAT 路径，再 `nc -vz` 逐跳测试，最后才怀疑 iptables。盲目往 iptables 加规则只会污染规则链（尤其双后端环境）。
+
+#### 0.5、busybox 容器内网络诊断的两个坑（本次踩到）
+
+1. **`sh` 不支持 `/dev/tcp`**：`echo > /dev/tcp/8.8.8.8/443` 报 `nonexistent directory`，是 busybox `sh` 无此实现，**不代表网络不通**。TCP 测试要用 `curl` / `nc`。
+2. **长耗时 `docker exec` 触发 host 侧输出截断**：`nc -zv`、`curl` 等待类命令常表现为"整段无输出"，极易误判为卡死/不通。解法：命令输出重定向到容器内文件，再单独 `cat` 读；或后台 `&` 跑。
+   实测 `curl http://archive.xfce.org/` → `code=301`，**网络实际是通的**（301 为该站正常重定向）。
+
 
 ### 1、gtkmm 下游应用缺失清单（pavucontrol / gnome-system-monitor，2026-11-11）
 
@@ -216,85 +295,7 @@ b_deps)
 **注**：容器内重建 libgtk 缺 ibus（/tmp/ibus 不在，A2 SKIP）——不影响 pavucontrol（仅 xim 内置够用）；需 ibus 输入法需另起 ibus 树合并。
 
 
-### 4、容器网络排查明细（2026-11-12）：bridge NAT 与 iptables 双后端
-
-任务：容器内跑 `xfce4` 的 `thunar` / `ristretto`，需要构建 `libxfce4ui`、`exo`、`libgarcon`，其中 `libgarcon` 依赖 `libexif`。构建过程中 `v-xfce4` 需要下载大量源码包，网络不通。以下记录完整排查过程。
-
-#### 4.1、现象与初判
-
-- `curl` / `wget` 下载超时，`apt-get` 无法连接镜像源。
-- 宿主机网络正常，容器内 `ping` 公网 DNS 通但 HTTP 不通。
-- 初判为 iptables NAT 规则缺失：`docker0` 是 bridge 网络，容器出站必须经宿主机 `FORWARD` + `POSTROUTING` MASQUERADE。
-
-#### 4.2、关键误判：iptables 双后端（nft vs legacy）
-
-**这是本次排查最重要的坑。**
-
-```bash
-# 宿主机检查后端
-iptables --version
-# 如果输出 "iptables v1.8.x (legacy)" → legacy 后端
-# 如果输出 "iptables v1.8.x (nf_tables)" → nft 后端
-
-# 容器内检查
-ls /proc/net/ip_tables_names
-# 存在 → legacy 内核模块已加载
-# 不存在 → 容器实际走 nftables 后端
-```
-
-本环境宿主机为 **legacy** 后端。我在排查中一度往 `iptables-nft` 加了 3 条规则：
-
-```bash
-iptables -I FORWARD -i docker0 -j ACCEPT
-iptables -I FORWARD -o docker0 -j ACCEPT
-iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
-```
-
-**这 3 条规则加到了 nft 后端，而容器流量实际走 legacy 后端，所以完全无效。**
-
-#### 4.3、逐层诊断法（本次验证有效）
-
-```bash
-# 1. 包到没到容器 veth（宿主机执行）
-tcpdump -i docker0 -n 'src host 172.17.0.2' &
-# 从容器 curl 外部地址，看 tcpdump 是否抓到 SYN
-
-# 2. FORWARD 链规则（legacy 后端）
-iptables -L FORWARD -n -v
-
-# 3. nat POSTROUTING 规则
-iptables -t nat -L POSTROUTING -n -v
-
-# 4. 容器内实际出口 IP（关键验证）
-ip route get 1.1.1.1
-# 应输出 "via <gateway> src <容器IP>"
-# 如果 src 不是容器 IP → NAT 未生效，包会以源地址 172.17.0.2 出去，公网回包无处可回
-```
-
-`ip route get` 是判断 NAT 是否生效的最快方法，不需要抓包。
-
-#### 4.4、实际结论：网络是瞬态故障，bridge NAT 无问题
-
-排查推进到最后，发现：
-
-```bash
-# 容器内
-echo > /dev/tcp/8.8.8.8/443 && echo "TCP OK"     # 通
-curl -v https://www.google.com 2>&1 | grep "SSL connection"  # TLS 握手成功
-curl -o /dev/null -w '%{http_code}' https://dl.xfce.org/...     # 200/404 均有响应
-```
-
-**结论：bridge NAT 规则一直存在且工作正常，之前不通是瞬态网络退化**（DNS 解析成功但 TCP 三次握手失败 / 上游路由抖动），重启或等待即恢复，**不是 iptables 配置问题**。
-
-> 教训：网络不通时先用 `ip route get` 验证 NAT 路径，再 `nc -vz` 逐跳测试，最后才怀疑 iptables。盲目往 iptables 加规则只会污染规则链（尤其双后端环境）。
-
-#### 4.5、busybox 容器内网络诊断的两个坑（本次踩到）
-
-1. **`sh` 不支持 `/dev/tcp`**：`echo > /dev/tcp/8.8.8.8/443` 报 `nonexistent directory`，是 busybox `sh` 无此实现，**不代表网络不通**。TCP 测试要用 `curl` / `nc`。
-2. **长耗时 `docker exec` 触发 host 侧输出截断**：`nc -zv`、`curl` 等待类命令常表现为"整段无输出"，极易误判为卡死/不通。解法：命令输出重定向到容器内文件，再单独 `cat` 读；或后台 `&` 跑。
-   实测 `curl http://archive.xfce.org/` → `code=301`，**网络实际是通的**（301 为该站正常重定向）。
-
-### 5、xfce4 构建最终结果（2026-11-12 完成，thunar / ristretto / display-settings 均验证通过）
+### 4、xfce4 构建最终结果（2026-11-12 完成，thunar / ristretto / display-settings 均验证通过）
 
 **容器实为 `builder-pav`**（镜像 `x11-base:alpine-builder-gtkmm224-2`，网络 10.18.0.0/24）。直接跑 `sh /src/v-xfce4/build.sh <sub>`，**无 `/usr/local/bin/build-xfce4.sh` 包装器**。
 
@@ -310,7 +311,7 @@ curl -o /dev/null -w '%{http_code}' https://dl.xfce.org/...     # 200/404 均有
 | **ristretto 0.8.5** | **静态链接成功，`xx-verify --static` rc=0，13.2MB，未定义符号 0** |
 | **xfce4-display-settings** | **静态链接成功，`xx-verify --static` rc=0，12.8MB**（`xfce4settings` 只建这 1 个二进制，其余 9 个注释屏蔽；产物落在 `TARGETPATH=/usr/local/static_temp1/bin/`——common.sh 默认值） |
 
-##### 5.1、两处脚本修复
+##### 4.1、两处脚本修复
 
 **（1）`xfce_lib` 闸门放宽**（`compile/src/v-xfce4/build.sh:298` 附近）
 
@@ -320,12 +321,12 @@ xfce 包常含 daemon（xfconfd / xfce4ui），其链接需额外符号；原逻
 
 Alpine 的 `libice-dev` / `libxi-dev` **不含 `.a`**（仅运行时 `.so`），静态链接报 `cannot find -lXi` / `-lICE`。实测三者均无符号被引用，直接不链即可，链接即通过。
 
-##### 5.2、日志里"看似失败"的红鲱鱼
+##### 4.2、日志里"看似失败"的红鲱鱼
 
 `build.sh:212` 的 `make -C thunar` 是**故意允许失败**的（脚本注释明写 "CCLD failed (expected, objects built)"，只用它产出的 `.o`）。该步 stderr 里大量 `undefined reference to pcre_* / pixman_*` 属于动态链 libglib 的传递依赖，**与最终静态链接无关**，勿据此判断静态链失败。真错误要看 `build.sh:229` 静态链一行。
-### 6、pasystray 构建收口（2026-11-12，builder-pav，照 Dockerfile 调用方式）
+### 5、pasystray 构建收口（2026-11-12，builder-pav，照 Dockerfile 调用方式）
 
-#### 6.1、调用方式
+#### 5.1、调用方式
 
 照 `compile/src/Dockerfile:464-472` 原样（`FROM pulseaudio AS pasystray` 继承 pulse 栈；
 builder-pav 容器里的等价物是它已有的 `/usr/local/static/pulseaudio/`，故无需重建阶段）：
@@ -340,7 +341,7 @@ sh /src/v-pasystray/build.sh pasystray     # → PASY_EXIT=0
 `CONSOLE_LOG=no` 按 AGENTS §3：脚本内 `exit 1` 可传出；`TARGETPATH` 由调用方传入
 （AGENTS §3.2，勿在 build.sh 硬编码）。
 
-#### 6.2、根因：`libpulsecommon` 的 soname 版本写错（`-13.0` → 应为 `-13.99`）
+#### 5.2、根因：`libpulsecommon` 的 soname 版本写错（`-13.0` → 应为 `-13.99`）
 
 - `vers.txt:22` 钉的 pulseaudio 分支是 `br-v13-99-3` → soname **13.99**，实际产物
   `/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-13.99.a`。
@@ -355,7 +356,7 @@ sh /src/v-pasystray/build.sh pasystray     # → PASY_EXIT=0
 
 改 `-13.99` 后一次通过。
 
-#### 6.3、验证（不采信 `oneBuild` 的 `err 0, pass`）
+#### 5.3、验证（不采信 `oneBuild` 的 `err 0, pass`）
 
 | 项 | 结果 |
 |---|---|
@@ -364,16 +365,16 @@ sh /src/v-pasystray/build.sh pasystray     # → PASY_EXIT=0
 | 二进制 | 12.7MB |
 | 产物 4 件 | `bin/pasystray`、`applications/pasystray.desktop`、`locale/zh_CN/.../pasystray.mo`、`pasystray/pasystray.gtk2.glade` |
 
-#### 6.4、本轮顺带订正的两处环境误判
+#### 5.4、本轮顺带订正的两处环境误判
 
 | 误判 | 实际 |
 |---|---|
 | 容器名 `xm-zs01-builder-x11` | **只有 `builder-pav`**（误建的同名容器已删） |
 | xfce4 的 xfconf「失败、`.a` 未产出」 | `libxfconf-0.a` 早已存在，xfconf 本就通过了 |
 
-### 7、lxtask + pcmanfm 构建收口（照 Dockerfile 调用方式，2026-11-12，builder-pav）
+### 6、lxtask + pcmanfm 构建收口（照 Dockerfile 调用方式，2026-11-12，builder-pav）
 
-#### 7.1、调用方式（参考 Dockerfile lxde / pcmanfm stage）
+#### 6.1、调用方式（参考 Dockerfile lxde / pcmanfm stage）
 
 | 组件 | Dockerfile stage | `ENV` | 调用 |
 |---|---|---|---|
@@ -382,14 +383,14 @@ sh /src/v-pasystray/build.sh pasystray     # → PASY_EXIT=0
 
 builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）内 `/src` 已软链宿主 `compile/src`，照 stage 的环境变量在容器内执行即可复现。
 
-#### 7.2、源码获取：GITHUB 覆盖（hub.njuu.cf 不可达）
+#### 6.2、源码获取：GITHUB 覆盖（hub.njuu.cf 不可达）
 
 - **容器内网络实测**：`gitee.com` **可达**（`g-system/fk-libfm`、`g-system/fk-menu-cache` 直连 clone OK）；`hub.njuu.cf` **不可达**（`git ls-remote` rc=128）；`github.com` 直连 clone **失败**（`Failure when receiving data from the peer`）→ 用 **ghfast.top 前缀代理**。
 - **lxtask 可换源不改脚本**：`common.sh:20` 是**条件导出**（`test -z "$GITHUB" && export GITHUB=https://github.com`）→ 容器内直接 `export GITHUB=https://ghfast.top/https://github.com` 即可。
 - **pcmanfm 须改脚本位置**：`v-pcmanfm/build.sh` 尾部 `export GITHUB=https://hub.njuu.cf`（282 行）**位于 `exit 0`（275 行）之后 → 永不执行**，实际克隆源取 common.sh 默认 `github.com`；调试期把覆盖行插到脚本开头 `source /src/common.sh` **之后**（4 行）才生效。
 - ghfast.top 前缀代理对 `lxde/lxtask`、`lxde/pcmanfm` 均可用（`git ls-remote` rc=0，pcmanfm 1.3.1 tag 在）。**待办**：作者后续把源转存 gitee，届时改 `vers.txt` / `build.sh` 的克隆源。
 
-#### 7.3、结果与验证（独立兜底，不信 `err 0, pass`）
+#### 6.3、结果与验证（独立兜底，不信 `err 0, pass`）
 
 | 组件 | 产物 | `file` | `ldd` | `xx-verify --static` | 日志 miss |
 |---|---|---|---|---|---|
@@ -400,7 +401,7 @@ builder-pav（`alpine-builder-gtkmm224-2`，与 Dockerfile `base` 同镜像）�
 - 日志兜底口径：`grep -acE "undefined reference|attempted static link|cannot find"` = **0**。
 - pcmanfm 日志尾段计时 22 秒（2 核）；安装文件 11 个（bin/ui/desktop/man 齐全）。
 
-#### 7.4、避坑项（本次新增）
+#### 6.4、避坑项（本次新增）
 
 - **脚本内 `export` 的位置决定它是否执行**：`v-pcmanfm/build.sh` 的 `export GITHUB=...` 在 `exit 0` 之后的尾部注释区 → 永不执行；改克隆源必须插到 `source /src/common.sh` 之后、首个 clone 之前。第一次构建失败即此因。
 - **pcmanfm 克隆失败的表象是"源码缺失"**：clone 失败后脚本仍继续（`cd /tmp/pcmanfm` 报 `No such file or directory`、`./autogen.sh`/`./configure` 均 `No such file`），到 `make` 阶段才报 `PCMANFM build FAILED` → **日志前段 `fatal: unable to access` 才是真因**。
