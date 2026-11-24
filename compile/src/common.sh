@@ -334,4 +334,17 @@ endian = 'little'
 EOF
   log "xx_cross_init: CROSS -> $XX_TRIPLE (sysroot=$XX_SYSROOT cross-file=$XX_CROSS_FILE)"
 }
+
+# xx_meson_crossfix: meson 交叉 native 依赖头泄漏修复（2026-11-24，方案二 armv7 gdk_pixbuf 阻塞根因）。
+# meson 0.59 交叉会把 BUILD 机(native pkg-config) 与 HOST 机(sysroot) 的依赖 cflags 合并进 host 目标编译命令，
+# native -I/usr/include(glibconfig.h 等 LP64 头) 在前 → ILP32(armv7) 下 sizeof 断言失败；LP64(arm64) 掩盖。
+# 交叉构建所有目标本就该用 sysroot 头 → meson 后把 build.ninja 的 native /usr(/usr/local) -I/-L 重映射到 sysroot。
+# 用法: xx_meson_crossfix <builddir>（仅 is-cross 时生效；native 原路径不处理零影响）。
+xx_meson_crossfix(){
+  [ -n "$XX_CROSS_FILE" ] || return 0
+  local bd="$1" f="$1/build.ninja" S="${XX_SYSROOT%/}"
+  test -f "$f" || { log "xx_meson_crossfix: no $f"; return 0; }
+  sed -i "s|-I/usr/local/|-I$S/usr/local/|g; s|-I/usr/|-I$S/usr/|g; s|-L/usr/local/|-L$S/usr/local/|g; s|-L/usr/|-L$S/usr/|g" "$f"
+  log "xx_meson_crossfix: remapped native /usr -> $S in $f"
+}
 xx_cross_init
