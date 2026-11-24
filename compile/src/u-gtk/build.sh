@@ -80,14 +80,14 @@ PYEOF
     # ./configure; 
     # 2026-11-14: 补全 librsvg-2.0.pc 的 Requires.private（w-tint2 编的 .pc 为空）——否则 meson dependency('librsvg-2.0')
     #   静态链接测试 undefined reference（pango_cairo_*/Fc*/xml*）→ 判 NOT FOUND → svg loader 缺失（图标打叉根因）
-    for pc in /usr/local/lib/pkgconfig/librsvg-2.0.pc /usr/lib/pkgconfig/librsvg-2.0.pc; do
+    for pc in $XX_SYSROOT/usr/local/lib/pkgconfig/librsvg-2.0.pc $XX_SYSROOT/usr/lib/pkgconfig/librsvg-2.0.pc; do
       test -f "$pc" && sed -i 's/^Requires\.private:.*/Requires.private: pangocairo fontconfig libxml-2.0 libcroco-0.6/' "$pc" && echo "fixed: $pc"
     done
     # meson build
     # 2026-11-14: --default-library=both 链 libgdk_pixbuf-2.0.so 时把 non-PIC 的 libcairo.a/librsvg-2.a(w-tint2 STATIC=yes)塞入 →
     #   "relocation R_X86_64_TPOFF32/PC32 can not be used when making a shared object" → 链接失败(oneBuild 吞错, 产物仍是旧 .a 无 svg)。
     #   静态应用只需 .a → 改 static 只产 .a(不链 .so, 绕过 non-PIC 重定位检查), svg loader 才能进产物。
-    meson build  --default-library=static -Dbuiltin_loaders=png,jpeg,svg -Dintrospection=disabled #static only .a; 2026-11-14: introspection 禁用——否则 GdkPixbuf-2.0 临时二进制链新 .a 缺 librsvg 依赖→ninja cannot make progress→install 没跑
+    meson build  --default-library=static -Dbuiltin_loaders=png,jpeg,svg -Dintrospection=disabled ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE"} #static only .a; 2026-11-14: introspection 禁用——否则 GdkPixbuf-2.0 临时二进制链新 .a 缺 librsvg 依赖→ninja cannot make progress→install 没跑
 
   log "Compiling gdk-pixbuf..."
     # 2026-11-15 源头修（不再 ninja 全量 + install）：
@@ -101,9 +101,9 @@ PYEOF
 
   log "Installing gdk-pixbuf (manual .a cp)..."
     # 头文件/.pc 沿用 apk gdk-pixbuf-dev 既有，下游 pkg-config gdk-pixbuf-2.0 → -L/usr/lib → 命中本 .a
-    cp -f build/gdk-pixbuf/libgdk_pixbuf-2.0.a /usr/local/lib/ || { log "GDKPIXBUF LIB CP FAILED"; exit 1; }
-    ls -lh /usr/local/lib/libgdk_pixbuf-2.0.a #hand: 1016.6K> build.sh_ver2.40.0_hand: 807.2K
-    cp -f /usr/local/lib/libgdk_pixbuf-2.0.a /usr/lib/ #1016.4K @alpine's_ver_2.42.8
+    cp -f build/gdk-pixbuf/libgdk_pixbuf-2.0.a $XX_SYSROOT/usr/local/lib/ || { log "GDKPIXBUF LIB CP FAILED"; exit 1; }
+    ls -lh $XX_SYSROOT/usr/local/lib/libgdk_pixbuf-2.0.a #hand: 1016.6K> build.sh_ver2.40.0_hand: 807.2K
+    cp -f $XX_SYSROOT/usr/local/lib/libgdk_pixbuf-2.0.a $XX_SYSROOT/usr/lib/ #1016.4K @alpine's_ver_2.42.8
 }
 
 # You must have automake 1.7.x, 1,10.x, 1.11.x, 1.12.x, 1.13.x, 1.14.x
