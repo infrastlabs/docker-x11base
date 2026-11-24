@@ -1,9 +1,9 @@
 # Changelog 2026-11（docker-x11base 逐日变化概要）
 
-> 基于本地 git 历史（`feat/ai-260925`，11-04 起约 387 commit，按 commit 日期逐日）。
+> 基于本地 git 历史（`feat/ai-260925`，11-04 起约 251 commit，按 commit 日期逐日）。
 > 临时存放于用户 HOME，不在仓库下。
 
-## 逐日概要（2026-11-04 → 11-19）
+## 逐日概要（2026-11-04 → 11-24）
 
 ### 11-04 · 起步
 - `AGENTS.md` 新建（项目信息 + 静态构建避坑手册：oneBuild 吞错 / LDFLAGS 勿覆盖 / --start-group / gdk-pixbuf 图标坑等）。
@@ -64,7 +64,29 @@
 ### 11-19 · 文档收口 + 安全章节 + 版本对齐
 - dbus-launch 静态化（dbus_launch() + full-launch + 去 --disable-x11-autolaunch）；AGENTS.md 新增**四章安全守则** + swap 订正；README 状态勾上色 + **真机验证表版本列**（对齐 compile/tarsrc）；ibus01 零章设计/关系链梳理 + panel 官方 Python 标记；ibus02 3.1/3.2/3.3 大重构（fcitx 细化/跨发行版可用性/结论汇合）。
 
+### 11-20 · 中文本地化落地 + 默认会话
+- 六组件中文 `.mo` 自足：lxtask/pcmanfm/engrampa/gpicview/gsm/xfce4-settings 改 `localedir=$TARGETPATH/share/locale` + msgfmt 装 `.mo`（thunar 大写 domain `Thunar.mo` 双输出；产物自足可迁移，无 XDG 环境可用）。
+- v-pasystray `pasystray-no-icon-tooltip.patch`（修 `--no-icon-tooltip` 上游 no-op——G_OPTION_ARG_NONE 无法置 default-TRUE 变量）；rfs/entry.sh + dcp 默认 `START_SESSION=openbox-session`。
+
+### 11-21 · ibus 接入矩阵评估
+- ibusB 五章总结篇（2026-11-21）：静态/动态 ibus 服务 × 动/静态应用接入矩阵——A2 标准路径 vs XIM 转接，`ibus:xim` 回退列表消「未 A2 静默降级 simple」风险；建议先 XIM 顶上、按待办闭环 A2 后切标准配置。
+
+### 11-22 · gpicview 修复 + 发行版调整
+- v-gpicview 手装段补 `pref-dlg.ui`（GtkBuilder 运行时加载，漏装点 Preferences 崩）；11170850 4.1 根因落档。
+- ibusB 五章 1.1：librime-data-wubi 在 Alpine 无包的安装方案（plum/跨发行版拷 schema）。
+- dist/alpine/ubt/opsuse + dist/oth/debian 补 ibus/notes；rfs/xconf.sh core 加 dbus/ibus；rfs dockeffile 换 infrasync v2025 alpine-3.12。
+
+### 11-23 · 版本升级大日（GTK2 最后版全线对齐）
+- **版本升级**：thunar 1.6.3→1.6.18、tint2 16.1→16.7、rofi 2.0.0→2.1.1（开 imdkit/xim，自建 xcb-imdkit 静态库）、imlib2 1.7.4→1.12.7 + xlunch v4.7.5→v5.10.6 + feh→3.13.1 + hsetroot→1.1.0 + scrot 重链、geany 1.34.0→1.37.1、gpicview 0.2.5→0.3.1、dbus 1.12.26→1.16.4（方案C Meson，多版本构建）、pcmanfm 1.3.1→1.4.0 + libfm 1.4.1 + menu-cache 1.1.1、lxtask 改 0.1.12 tag。
+- imlib2 1.12.7 适配：loader_svg.c 改写 2.40 兼容 + loaders.c 锚点迁移 + `-Dloader=png_loader` 重命名 + 补编 ldrs_util.c/exif.c；feh/hsetroot 需删 tarsrc-git 缓存强制网络 clone tag。
+- pcmanfm 右键菜单/OpenWith 修复：menu-cached 静态链 + 菜单数据 + `menu-cache-menudir.patch`（MENU_CONFIG_DIR env 优先）+ OpenWith 对话框截图验证。
+- tarsrc 落仓（compile/tarsrc 源码包 + _cache_repo 快照）；README 真机验证表版本列对齐；gsm/pavucontrol 最新 GTK2 版评估。
+
+### 11-24 · 文档拆分收口
+- `11170850-selected-app-use.md` 一章 1-3 节（gsm/dbus-dunst/pasystray）拆出至 `11170851-selected-app-modifyA.md`（保留标题序号+去向/来源块引用+3/4级章节表）；三级标题补齐日期；章节表两层/表随正文修正。
+- rfs/dockerfile link usr/share/applications + fix/drop；cpl/dockerfile xfce4 full；gitac buildx compile/gtkmm224。
+
 ## 主题脉络
-组件版本选型（11-05）→ 各组件静态构建收口（11-07~11-15，核心：doExec 重构、gitclone 缓存、svg 库层根治、pulsecommon 版本漂移）→ 构建基建/CI（11-09/11-13）→ D-Bus 桌面会话/通知（11-17）→ 文档收口+版本对齐+安全守则（11-19）。
+组件版本选型（11-05）→ 各组件静态构建收口（11-07~11-15，核心：doExec 重构、gitclone 缓存、svg 库层根治、pulsecommon 版本漂移）→ 构建基建/CI（11-09/11-13）→ D-Bus 桌面会话/通知（11-17）→ 文档收口+版本对齐+安全守则（11-19）→ 中文本地化+版本升级大日（11-20~11-23，GTK2 最后版全线对齐）→ 文档拆分收口（11-24）。
 
 > 注：另有少量 commit 带旧 author 日期（02-04 等，属 rebase 历史），但 commit 日期均在 11-04 后，为本次分支工作的一部分；逐日主题以 commit 内容为准。
