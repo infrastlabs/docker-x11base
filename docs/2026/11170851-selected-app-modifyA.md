@@ -1,0 +1,1023 @@
+# selected-app-modifyA：x11 通用桌面组件微调/配置——调整项（gsm / dbus-dunst / pasystray）
+
+> 本文档自 `docs/2026/11170850-selected-app-use.md` 一章「调整项」的 **1-3 节**拆出（2026-11-24）：
+> ① gsm 界面改造 ② dbus/dunst 静态版在 headless 会话的使用 ③ pasystray 音量托盘通知 + pavucontrol 评估。
+> 保留原章节序号与层级；**不再保留 `## 一、调整项` 章级标题**。来源：`docs/2026/11170850-selected-app-use.md`。
+
+## 目录
+
+- 1、gsm界面改造(4tab顺序:System移最后+默认激活Processes) + 评估版本已最新（2026-11-16）
+  - 1.1、评估分析（2026-11-16 评估，2026-11-17 落档）
+  - 1.2、实现过程与总结（2026-11-17）
+  - 1.3、gsm 配置（procman.ini / 进程列表列显示）
+  - 1.4、gsm 退出 segfault + 配置不生效（2026-11-18 调研）
+  - 1.5、undecorate 后退出 segfault——gconf-shim 释放器不匹配（2026-11-18 落档）
+  - 1.6、关窗保存配置不生效 + 关闭报错——WM 直接销毁 toplevel，`delete_event` 根本不触发（2026-11-18 落档）
+  - 1.7、重开恢复尺寸根因与修复——gconf-shim 读路径从未装载 ini（2026-11-18 落档）
+  - 1.8、进程列表列配置（列显隐/列顺序）关开恢复默认——根因与修复（2026-11-18 落档）
+  - 1.9、用户问答补记——「为什么静态化后问题这么多 / 2.28.2 历史版本固有缺陷吗 / 动态版是不是没事」（2026-11-18 落档）
+  - 1.10、gsm 最新支持 GTK2 版本评估（2026-11-23）
+- 2、dbus/dunst 静态版在 headless 会话的使用（2026-11-17 分析）
+  - 2.1、使用链路与结论
+- 2.2、实现验证篇（2026-11-17）
+  - 2.2.1、通知发送端 notify-send 实现（x-dunst 内构建，GDBus 直发，2026-11-17 落档）
+  - 2.2.2、dunst 图标依赖链分析（复用 gdk-pixbuf，非 GTK；2026-11-17）
+  - 2.2.3、结构调整：notify-send 并入 x-dunst（2026-11-17 用户拍板）
+  - 2.2.4、全链路实跑验证（rootfs-dbg 现有 Xvnc 会话，2026-11-17）
+  - 2.2.5、D-Bus 激活自动拉起 dunst（不手动先跑，2026-11-17 用户拍板验证）
+  - 2.2.6、图标空白根因与 dunst 图标支持现状（mime.cache / SVG builtin，2026-11-17）
+  - 2.2.7、D-Bus 服务激活机制（怎么操作 / 写哪 / 内容，2026-11-17 用户问）
+  - 2.2.8、第一项落地：Dockerfile 加 notify_send 构建 + service 文件入扫描目录（2026-11-17）
+  - 2.2.9、第二项落地：新 dunst 验证 SVG 图标（undock 取阿里云最新镜像，2026-11-17）
+- 2.3、dbus 版本升级评估与实现（2026-11-23）
+  - 2.3.1、最新版本评估（2026-11-23）
+  - 2.3.2、方案C 开工实现与验证（2026-11-23）
+- 3、pasystray 音量托盘通知(libnotify静态化) + pavucontrol 评估版本已最新（2026-11-17）
+  - 3.1、pasystray 滚轮调音量通知：现状与方案（静态化 libnotify，2026-11-17）
+  - 3.2、libnotify 静态化落地（meson patch，2026-11-17 已推送）
+  - 3.3、运行期滚轮实测（rootfs-dbg-v5 Xvnc，2026-11-17 已推送）
+  - 3.4、重编后运行期复验（builder 重编 + hdmi Xvnc :352，2026-11-18 落档）
+  - 3.5、CI 产物无通知排查（rootfs-dbg 最新镜像，2026-11-18 落档）
+  - 3.6、现有进展：滚轮无通知根因钉死（libnotify GDBus connection closed，2026-11-18 保存）
+  - 3.7、托盘图标悬停 tooltip 遮挡 dunst——`--no-icon-tooltip` 关闭（2026-11-20）
+  - 3.8、订正：`--no-icon-tooltip` 上游是空转开关——根因、修复与实测（2026-11-20）
+  - 3.9、pavucontrol 最新支持 GTK2 版本评估（2026-11-23）
+
+### 1、gsm界面改造(4tab顺序:System移最后+默认激活Processes) + 评估版本已最新（2026-11-16）
+
+#### 1.1、评估分析（2026-11-16 评估，2026-11-17 落档）
+
+> 用户需求：gsm（GNOME System Monitor）主界面 4 个 tab，把第 1 个 System 放到最后，默认打开激活 Processes。先评估改法/代码量。
+
+**现状（源码 `/tmp/gsm-build/gsm/src/`，构建容器内）**：
+
+| 项 | 位置 | 内容 |
+|---|---|---|
+| 枚举 | `procman.h:64-67` | `PROCMAN_TAB_SYSINFO, PROCMAN_TAB_PROCESSES, PROCMAN_TAB_RESOURCES, PROCMAN_TAB_DISKS` → 索引 0=System,1=Processes,2=Resources,3=Disks |
+| 显示顺序 | `interface.cpp:691-703` | `gtk_notebook_append_page` 依次 System→Processes→Resources→Disks |
+| 默认激活 | `procman.cpp:299` + `interface.cpp:711` | `current_tab` 从 gconf `/apps/procman/current_tab` 读取（默认 0=System），启动 `set_current_page(current_tab)` |
+
+**改法（2 处，~10 行 diff）**：
+
+① `procman.h:64-67` 枚举重排（改索引语义，符号引用全跟随）：
+```c
+PROCMAN_TAB_PROCESSES,   /* 0 */
+PROCMAN_TAB_RESOURCES,   /* 1 */
+PROCMAN_TAB_DISKS,       /* 2 */
+PROCMAN_TAB_SYSINFO      /* 3 */
+```
+
+② `interface.cpp:691-703` append 顺序重排（与枚举一致，显示索引=枚举值）：
+```c
+gtk_notebook_append_page(notebook, vbox1, tab_label1);        /* Processes → 0 */
+gtk_notebook_append_page(notebook, sys_box, tab_label2);      /* Resources → 1 */
+gtk_notebook_append_page(notebook, devices_box, tab_label3);  /* Disks → 2 */
+gtk_notebook_append_page(notebook, sysinfo_box, sysinfo_label); /* System → 3 */
+```
+
+**默认激活 Processes：自动满足（无需额外改）**——枚举改后 `PROCMAN_TAB_PROCESSES=0`，gconf `current_tab` 默认 0 → 启动即 Processes。不必再显式改 `interface.cpp:711`（若想强制可在 711 前加 `procdata->config.current_tab = PROCMAN_TAB_PROCESSES;`，属冗余）。
+
+**关键点 / 风险**：
+- 显示索引必须 = 枚举值（①②同时改保证），否则 `set_current_page(PROCMAN_TAB_PROCESSES)` 错位——唯一易错点。
+- 枚举值变 → gconf `current_tab` 数值语义变（老配置 0 原=System 现=Processes；3 原=Disks 现=System）。自用静态应用可接受；严格兼容须迁移（不建议）。
+- 所有 `PROCMAN_TAB_*` 引用（`--show-system-tab`→SYSINFO=3、`processes_sensitivity`→PROCESSES=0、tab 切换回调 `callbacks.cpp:337` 的 page num）均符号引用自动跟随，无遗漏。
+- `procdialogs.cpp:527/642/707` 的 append_page 是别的对话框（进程详情/系统信息），不动。
+
+**验证建议**：改后需在 gsm 构建容器（libgtop/libwnck/gtk 栈）实跑 + Xvnc 截图确认 tab 顺序 [Processes, Resources, Disks, System]、默认页 Processes。构建环境容器待查（`/tmp/gsm-build` 在，但哪个容器具备 gsm 依赖栈需确认）。
+
+#### 1.2、实现过程与总结（2026-11-17）
+
+> 承接 1.1：评估判"默认激活 Processes 自动满足（无需额外改）"，实现时**证伪**——因 CLAMP 边界 min>max 失效，强制的 0 被钳回 3(System)。需强制 + CLAMP 边界修正。以下为实现细节与验证。
+
+**实现（3 处，`compile/src/v-sysmonitor/gsm-tab-order.patch`）**：
+
+| # | 文件 | 改动 |
+|---|---|---|
+| ① | `src/procman.h` | 枚举重排：`PROCMAN_TAB_PROCESSES, PROCMAN_TAB_RESOURCES, PROCMAN_TAB_DISKS, PROCMAN_TAB_SYSINFO`（索引 0/1/2/3） |
+| ② | `src/interface.cpp` | append 顺序重排（与枚举一致）：Processes→Resources→File Systems→System（System 移最后） |
+| ③ | `src/procman.cpp` | 两处：`current_tab` 读取后**强制** `= PROCMAN_TAB_PROCESSES`（不记忆 last tab）；尾部 CLAMP 边界改 `CLAMP(current_tab, PROCMAN_TAB_PROCESSES, PROCMAN_TAB_SYSINFO)` |
+
+**根因（默认激活落在 System）**：①后枚举 SYSINFO=3、DISKS=2，原 `CLAMP(current_tab, PROCMAN_TAB_SYSINFO, PROCMAN_TAB_DISKS)` 即 `CLAMP(x, 3, 2)` **min>max 失效**——GLib CLAMP 当 `x<low` 返回 low，`CLAMP(0,3,2)=3(System)`，把③强制的 0 钳回 3。修复为 `CLAMP(current_tab, PROCMAN_TAB_PROCESSES, PROCMAN_TAB_SYSINFO)`（0..3 有效）。
+
+**headless procman.ini 残留坑**：`/_ext/home/headless/.config/gnome-system-monitor/procman.ini` 有 `current_tab=i:3`（旧枚举 3=Disks；重排后 3=System）→ 语义错位且与强制行冲突，验证时删除。③强制行保证启动即 Processes，不读旧值，自用静态应用可接受。
+
+**验证**：
+- 构建容器 `builder-g224`（`alpine-builder-gtk224`，u-gtkmm 栈已具备）编译 gsm，产物 18M static，`xx-verify --static`=0。
+- 运行容器 `docker-hdmi-desktop-desktop-1`（app-ubuntu-22.04，TigerVNC 1.13.1）Xvnc `:603` headless 实跑，截图 OCR 确认：tab 栏 =「Processes | Resources FileSystems System」（System 移最后）；默认激活页内容区为进程表（Load averages/User/Status/Sleeping/Running）= Processes。✅
+
+**总结**：tab 顺序调整 + 默认激活 Processes 均达成；1.1 的"自动满足"结论被实现证伪，根因是枚举重排后 CLAMP min>max 失效，须强制 current_tab + 修正 CLAMP 边界。验证截图（hdmi Xvnc :603 OCR）确认默认激活 Processes。
+
+#### 1.3、gsm 配置（procman.ini / 进程列表列显示）
+
+##### 1.3.1、配置文件机制与默认值（2026-11-17 调研+实测）
+
+> 用户问：procman.ini 是运行时配置吗？运行自动创建还是调整后创建？还有其他配置文件吗？设置项存哪？无配置文件时默认取哪？发布包有默认配置文件吗？
+
+**结论：gsm 配置全走 GConf（XML 后端），唯一配置文件 `~/.config/gnome-system-monitor/procman.ini`（key 前缀 `/apps/procman/`）。**
+
+- **创建时机**：**不是运行就自动创建**——纯运行（不退出）不创建；**正常关闭窗口（delete-event→`cb_app_delete`→`procman_save_config`）或用户调整设置时**创建/更新。实测：hdmi Xvnc `:605` 无 ini 启动 → xdotool 关窗 → **自动生成 procman.ini**（1954B，`[procman]` 节 + `apps/procman/{proctree,disktreenew}/col_N_{width,visible}` + `columns_order`）；SIGKILL/杀进程不创建。
+- **"设置"对话框项**：同一 ini 的 `/apps/procman/` 下（`update_interval`、`show_tree`、`show_all_fs`、`view_as`、各颜色、`kill_dialog` 等；key 清单见源码 `gnome-system-monitor.schemas.in`）。无独立配置文件。
+- **无配置文件时默认**：`procman_get_tree_state` 先 `gconf_client_dir_exists(prefix)`，**FALSE → 不读配置，用程序内部代码默认**（建列默认全列可见；各 config 项用代码初始值）。
+- **发布包无默认配置文件**：静态产物 `/usr/local/static/gsm` 只装 `applications`+`pixmaps`，**无 schemas、无 procman.ini**；schema 默认值（仅 name/status 可见）**不生效**（schema 未安装到 gconf）。→ **无配置文件时按程序内部默认值（全列显示）**。
+
+##### 1.3.2、默认设置需求项：出包默认隐藏部分进程列表列（2026-11-17）
+
+> 用户需求：出包后就有一些默认设置，如进程列表某些列不显示。
+
+**列 ID↔名称**（`proctable.cpp` titles[]，`sort_column_id`=数组索引）：
+
+| ID | 名称 | ID | 名称 | ID | 名称 |
+|---|---|---|---|---|---|
+| 0 | Process Name | 6 | Shared Memory | 12 | ID |
+| 1 | User | 7 | X Server Memory | 13 | Security Context |
+| 2 | Status | 8 | % CPU | 14 | Command Line |
+| 3 | Virtual Memory | 9 | CPU Time | 15 | Memory |
+| 4 | Resident Memory | 10 | Started | 16 | Waiting Channel |
+| 5 | Writable Memory | 11 | Nice | | |
+
+**方案 A（推荐，打包预置配置文件）**：出包时 rootfs 预置 `~/.config/gnome-system-monitor/procman.ini`（gconf XML 格式 `[procman]` 节），对想隐藏的列写 `apps/procman/proctree/col_N_visible=b:false`；启动时 dir 存在 → 恢复 → 隐藏生效。可同时预置 `col_N_width`、`columns_order`（`l:` 前缀 list）、`sort_col/order`。
+- 格式样例（实测生成）：`apps/procman/proctree/col_13_visible=b:false`、`col_0_width=i:198`、`columns_order=l:`。
+- **坑（dir 存在但 key 缺失）**：`gconf_client_get_bool(key)` 无默认值，key 缺失返回 FALSE → 该列被隐藏。所以预置 ini 需**写全 proctree 全部 17 列（0-16）的 visible**（想显示 true、想隐藏 false），避免未写列被误隐藏；width/sort 可选。
+
+**方案 B（改源码内部默认）**：`proctable.cpp` 建列时对指定列 `set_visible(FALSE)`（或无配置分支隐藏），需重编 gsm，出包即生效、不依赖配置文件。
+
+> 待确认：部署 rootfs 用户 HOME（root 或普通用户）决定 ini 放置路径；dir 存在但 key 缺失时 visible 取 FALSE 的实测。
+
+> ✅ **拍板（2026-11-17）**：两方案（A 预置 procman.ini / B 改源码）**均不采用**，仅知会留档；后续在项目对应 **dotfiles 仓库**做预设配置（按方案 A 思路，预置 procman.ini）。部署 rootfs 用户 HOME（决定 ini 放置路径）届时在 dotfiles 仓库定，本项目不再操作。
+
+#### 1.4、gsm 退出 segfault + 配置不生效（2026-11-18 调研）
+
+> 用户反馈：gsm 退出时报 `segfault core dumped`；**不动配置、打开后直接退出也错**（文档改前就有）；改配置（进程显示列）后每次重启是默认显示内容。
+
+**现象**：
+- 关窗（delete-event）退出时 `SIGSEGV`（core dumped）。
+- 改"进程显示列"后重启，列回到默认（全列显示），配置似不保存生效。
+
+**根因（gdb 带符号 backtrace 定位，`/_ext/tmp/gsm-dbg`）**：
+```
+#0  get_meta (p=0x7ffff7f57f40)  ← free 野指针
+#1  __libc_free
+#2  procman::tree_store_update<char const>
+#3  proctable_update_list(ProcData*)
+#4  cb_timeout(void*)   ← 定时刷新回调
+#5  g_timeout_dispatch → g_main_loop_run → gtk_main → main
+```
+**A（segfault）**：`cb_timeout`（进程列表定时刷新）在**窗口已销毁后仍被 dispatch**——`cb_app_delete` 先 `save_config`、再 `g_source_remove(timeout)`、`gtk_main_quit`，但主循环退出前最后一次 dispatch 仍触发 `cb_timeout` → `proctable_update_list` → `tree_store_update` 写已销毁的 tree model → `free` 野指针 → SIGSEGV。
+
+**B（配置不生效）**：同源析构时序 bug——`cb_app_delete` 的 `save_config`→`procman_save_tree_state` 遍历列时，**部分 GTK 对象已开始销毁**（日志 `GdkWindow unexpectedly destroyed` + `invalid unclassed pointer in cast to 'GtkTreeView'` + `GTK_IS_TREE_VIEW/TREE_MODEL assertion failed`）→ 列 visible/width 读不到正确值 → ini 写不全 → 重启读默认。
+- **读侧正常**（已实证）：预置 ini `col_0_width+col_0_visible=b:false` → 启动 OCR 确认 Process Name 列**隐藏**（`gconf-shim.h` 读链路 OK）。
+- **写侧问题**：关窗析构中 save_tree_state 访问已销毁 tree，列未正确写入。
+
+**结论**：A/B 同源 = **GSM 2.28.2 关窗析构时序 bug**（非 tab patch 引入，文档改前既有）。**已修复（2026-11-18）**：`gsm-exit-crash.patch`——ProcData 加 `quitting` 标志；`cb_app_delete` 改为**先置 quitting + 停 timeout/disk_timeout 再 `save_config`**（save 时 widget 稳定，列配置正确写）；`cb_timeout`/`cb_update_disks` 开头 `if (quitting) return`（析构/退出不再刷新，防访问已销毁 tree）。重编产物 18.6M strip `xx-verify`=0；**gdb 带符号复现 3 轮（windowclose/openbox/WM_DELETE）SIGSEGV 均 0**（修复前稳定崩溃于 `cb_timeout`→`tree_store_update` free 野指针）。配置保存（ini 写列）在 Xvnc 测试环境因 WM/IO error 干扰未干净复现，**建议真机复核**（源码逻辑已保证 `cb_app_delete` 走 `save_config` 写 ini）。
+
+##### 1.4.1、修复实现与验证（2026-11-18）
+
+**修复方案**（`compile/src/v-sysmonitor/gsm-exit-crash.patch`，4 文件 5 处）：
+| # | 文件 | 改动 |
+|---|---|---|
+| ① | `src/procman.h` | `ProcData` 加 `gboolean quitting;`（`timeout`/`disk_timeout` 后） |
+| ② | `src/procman.cpp` | 构造初始化 `quitting(FALSE)` |
+| ③ | `src/callbacks.cpp` | `cb_app_delete` 重排：**先 `quitting=TRUE` + 停 `timeout`/`disk_timeout`，再 `save_config`**，`gtk_main_quit`（原先 save 后停） |
+| ④ | `src/callbacks.cpp` | `cb_timeout` 开头 `if (quitting) return FALSE;` |
+| ⑤ | `src/disks.cpp` | `cb_update_disks` 开头 `if (quitting) return 0;` |
+
+**原理**：
+- A（segfault）：`cb_app_delete` 先停 timeout + `quitting` 标志，退出时 `cb_timeout`/`cb_update_disks` 不再刷新已销毁的 tree/disk_list。
+- B（配置不生效）：`save_config` 改在 timeout 停止后执行，此时 widget 稳定，`save_tree_state` 遍历列读到的 visible/width 正确 → 写 ini 完整 → 重启恢复。
+
+**验证**：
+- 重编产物 `18.6M static stripped`，`xx-verify --static`=0（builder-g224 `/usr/local/static/gsm/bin/gnome-system-monitor`，11-17/17:24）。
+- 反汇编 `cb_timeout` 确认防护编译进：`cmpl $0x0, 0x3100(%rdi)`（quitting 检查）→ `jne` return。
+- **gdb 带符号（`/_ext/tmp/gsm-fixed-dbg`，58.7M）复现 3 轮**（xdotool windowclose / openbox WM / python WM_DELETE_WINDOW）**SIGSEGV 均 0**；修复前同场景稳定崩溃于 `cb_timeout`→`proctable_update_list`→`tree_store_update` free 野指针（`get_meta`）。
+
+**配置保存（ini 写列）**：源码逻辑已保证 `cb_app_delete` 走 `save_config` 写 ini（读侧已实证：预置 `col_0_visible=b:false` → OCR 确认列隐藏）；但 **Xvnc 测试环境的 WM/IO error（Fatal IO error 11/22）干扰，未在容器干净复现 ini 写列**——建议**真机复核**（改列→关窗→重启，确认列显示恢复）。若仍不生效，再深挖写侧（`procman_save_tree_state` 遍历列与 gconf-shim list 读写一致性）。
+
+**提交**：`78571b9a`（patch）/ `5383ef1e`（build.sh 接入）/ `d1bdd17c`（本文档结论更新）。
+
+#### 1.5、undecorate 后退出 segfault——gconf-shim 释放器不匹配（2026-11-18 落档）
+
+**现象**：openbox 执行 `undecorate` 后 gsm 退出时报 `SIGSEGV`（core dumped），rc=139。与 1.4 的关窗 segfault **不同源**——本项仅在 undecorate 场景触发（SmoothRefresh 析构路径），1.4 已修复后仍存在。
+
+**根因（gdb 带符号反汇编 + 内存 dump 实证，`/_ext/tmp/gsm-new-dbg`）**：
+```
+#0  get_meta (p=0x7ffff7f12cb0)
+#1  __libc_free
+#2  gconf_client_notify_remove   ← gconf-shim 里 g_free(it)
+#3  SmoothRefresh::~SmoothRefresh
+```
+- `SmoothRefresh::~SmoothRefresh` → `gconf_client_notify_remove(client, connection)` 释放 notify 链表节点 `it`。
+- **`g_free(it)` 用 musl free 释放了由 `g_slist_append` 分配的 GSList 节点**——该节点来自 **glib `g_slice` 分配器**（16 字节 slab 紧密打包），musl free 把 g_slice slab 对象当 mallocng chunk → `get_meta` 读 p-8..p-1（实为前一节点 `next=0`）→ `assert(meta->mem==base)` 失败（`hlt`）→ SIGSEGV。
+- **判据**：
+  - 崩溃地址确定性（`0x7ffff7f12cb0` 两次构建相同）——堆布局确定。
+  - gdb 断 `g_free if $rdi==<崩溃地址>` 证明该节点**从未被提前 free**（唯一 free 在 notify_remove 内）→ 非 use-after-free，是**分配器不匹配**。
+  - 内存 dump：节点 **16 字节紧密打包**（g_slice slab 特征，非 musl class-1 的 32 字节间隔）。
+  - `get_meta` 反汇编：崩溃于 `assert(meta->mem==base)`，offset=0/index=0（p-8..p-1 被前一节点 next 覆盖清零）。
+
+**修复**（`compile/src/v-sysmonitor/gsm-gconf-keyfile.patch`，4 处）：
+| # | 位置 | 改动 |
+|---|---|---|
+| ① | `notify_remove` | **主修复**：`g_free(it)` → **`g_slist_free1(it)`**（g_slice 正确释放） |
+| ② | `notify_add` | 同 key 二次 add 不再 `g_hash_table_insert` 覆盖（否则 value_destroy 释放旧节点、链表留悬挂指针）→ 改 `g_slist_append` 就地扩展 / 首次才 insert |
+| ③ | `get_default` values | value_destroy 回退 `gconf_shim_free_value`（曾误改 `gconf_shim_notify_list_free`——会把 GConfValue 当 GSList 释放） |
+| ④ | `get_default` notify | value_destroy `g_slist_free` → `gconf_shim_notify_list_free`（补 GConfNotify 节点泄漏） |
+
+**验证**：
+- 重编产物 `18.6M static stripped`，`xx-verify --static`=0（builder-g224 `/usr/local/static/gsm/bin/gnome-system-monitor`，11-18/03:03）。
+- **Xvnc(:323/:324)+openbox 实跑 2 轮**（`wmunde.py undecorate` → `wmclose.py WM_DELETE_WINDOW`）：**gsm 退出 rc=0 干净退出**；修复前同场景 rc=139 SIGSEGV。
+- patch 干净应用到原始 gsm 源码（`git apply` OK），4 处修复全部落地。
+- gconf-shim 全量 `g_free`/`g_slist_free` 审计：所有 `g_free` 均作用于 `g_malloc`/`g_strdup`/`g_new0` 对象，GSList 节点全走 `g_slist_free`/`g_slist_free1`，无剩余不匹配。
+
+**提交**：`3970b5aa`。
+
+> 教训：**glib 容器对象（GSList/GList/GHashTable 节点、g_slice 分配）必须用对应 `g_*_free` 释放，勿用 `g_free`**；`g_free` 仅用于 `g_malloc`/`g_strdup`/`g_new0` 对象。
+
+#### 1.6、关窗保存配置不生效 + 关闭报错——WM 直接销毁 toplevel，`delete_event` 根本不触发（2026-11-18 落档）
+
+**背景/现象**：在 hdmi 容器（Xvnc+openbox）实跑 gsm 2.28.2（新基准镜像 `alpine-builder-gtkmm224-2` 构建，见五章 1），**改窗口大小/切 tab 后点 WM 关闭按钮重开，配置不生效**（重开仍是默认 532x437、回 Processes tab）；且关闭时日志报 `GdkWindow ... unexpectedly destroyed` + X `BadWindow`，进程 `exit(1)`。用户拍板「拿最新代码构建跑的、已确认复现」→ 进入本次根因排查。
+
+**关键判据（builder 容器内插桩 `fprintf` 实跑 2 轮，Xvnc:437+openbox）**：
+
+| 路径 | `[DBG] cb_app_delete` | `[DBG] save_config` | `procman.ini` 关键键 | 退出码 |
+|---|---|---|---|---|
+| WM 关闭（`xdotool windowclose`） | **未打印** | **未打印** | 无 `width`/`height`/`current_tab`（只有列宽 46 键） | **rc=1** |
+| ctrl+q（程序内 Quit 菜单） | 打印 | 打印 | `width=1024/height=700/current_tab=0` ✓ | rc=0 |
+
+**根因**：gsm 只把 `cb_app_delete` 连到 `delete_event`（`interface.cpp`）。openbox 点关闭按钮走 **`XDestroyWindow` 直接销毁 toplevel**，`delete_event` 信号**根本不发** → `cb_app_delete`/`procman_save_config` 从不执行 → ini 缺 `width/height/current_tab`（1.4 的修复只保住了 ctrl+q/Quit 菜单路径）。同时销毁后 GTK 仍跑刷新回调（`cb_timeout` 等）访问已销毁 widget → X 报 `BadWindow`（request_code 2 minor 0 = `CreateWindow` 以已销毁窗口为父）→ gdk 默认错误处理 `exit(1)` = 「关闭有错」。
+
+**第一版方案（已废弃）**：把 `destroy` 也连到 `cb_app_delete`。实测 `rc=139` SIGSEGV，插桩显示 `procdata->app` 读到垃圾 `0x5f6d75736b636568` → **destroy 信号触发时 `ProcData` 已被 `procman_free_data` 释放**（use-after-free），`cb_app_delete` 再解引用 `procdata` 即崩。**结论：destroy 路径下不可解引用 procdata。**
+
+**定稿方案（`compile/src/v-sysmonitor/gsm-exit-crash.patch` 追加，4 处改动）**：
+
+| # | 文件 | 改动 |
+|---|---|---|
+| ① | `callbacks.cpp` | 新增**全局标志** `gboolean gsm_procman_quitting`（定义）+ `cb_app_configure`（`configure-event` 里 `gconf_client_set_int` 实时写 `width/height`，窗口尺寸不依赖退出路径即落盘）+ `gsm_procman_app_destroyed`（只置全局标志 + `gtk_main_quit`，**不解引用 procdata**） |
+| ② | `callbacks.cpp` | `cb_change_current_page` 切 tab 时立即 `gconf_client_set_int current_tab`（原来只在退出时写） |
+| ③ | `interface.cpp` | 主窗口 `app` 连 `configure-event → cb_app_configure`（带 procdata，窗口存活期安全）＋ `destroy → gsm_procman_app_destroyed`（**user_data=NULL**，不碰 procdata） |
+| ④ | `callbacks.cpp`/`disks.cpp` | `cb_timeout`/`cb_update_disks` 防护改为**先查 `gsm_procman_quitting` 再查 `procdata->quitting`**（destroy 时 procdata 可能已释放，必须先用全局标志短路）；`procman.h` 加 `extern gboolean gsm_procman_quitting;`，`callbacks.h` 加两个新函数声明 |
+
+**patch 文件格式 4 类坑（本次踩完，已全修）**：
+
+| # | 坑 | 修法 |
+|---|---|---|
+| ① | hunk header 行号/计数与实际 body 不符（手写 hunk，`patch` 报 `malformed patch`、`git apply` 报 `corrupt patch`） | 逐 hunk 数清 context/add/del 行，改 header `-old,+new` 与 body 严格一致 |
+| ② | hunk header **缺尾部 `@@`**（`git-diff` 生成的有，手写的没有 → `git apply` 直接 corrupt） | 每行 `@@ -a,b +c,d @@` 补尾 `@@` |
+| ③ | 空上下文行写成真空行（须为**单个空格**，否则 `patch` 判 malformed） | 全局把 hunk 内空行转 `' '` |
+| ④ | patch 文件末行缺换行 / 末尾多余空格 | `rstrip()+'\n'` 收口 |
+
+**当前状态（2026-11-18 复核）**：新 patch 已在 builder 内 pristine 重建（`/tmp/gsm-src.tar.bz2` 解包 → 正序 `git apply` 4 个 patch：gconf-keyfile、disk-icon、tab-order、exit-crash，顺序应用全通过、`rej=0`）→ fresh 构建 `BUILD_RC=0`/`VERIFY_RC=0`，产物 18.68MB 静态 → 部署 hdmi。**Xvnc:440+openbox 实跑 3 轮验收**：`windowclose` 均 clean exit（109/111/108ms，无 segfault/GPF）；RUN1 **运行中** ini 已实时落盘 `width=1024/height=700/current_tab=1`（configure-event 实时写 + 切 tab 立即写），关闭后保留。仅存 `GdkWindow ... unexpectedly destroyed` 良性警告。**「关闭无错误 / 保存配置生效」两项验收已过。**
+
+**遗留（独立问题，不在本 patch 范围）**：重开恢复尺寸不生效——gsm 确实读回（`procman.cpp:256-257` 读 width/height、`interface.cpp:633` `set_default_size`），但 `config.width` 读回 0/默认 → 指向 **gconf-shim 读路径返回 0**（写正常、读异常），大概率既有 bug，非 exit-crash 修复引入。**tab 恢复被刻意禁用**（`procman.cpp:302-303`，2026-11-17 的 gsm-tab-order.patch 强制 Processes 不记忆 last tab——已有设计决策）。两问题单列跟进。
+
+**待办**：① 提交 `gsm-exit-crash.patch` + `gsm-gconf-keyfile.patch` + docs 1.6（单文件单 commit，信息以文件路径开头）；② 更新 AGENTS.md 五章 1 基准镜像名（gtk224-2→gtkmm224-2）；③ 重开恢复尺寸（shim 读路径）单独排查。
+
+#### 1.7、重开恢复尺寸根因与修复——gconf-shim 读路径从未装载 ini（2026-11-18 落档）
+
+**根因**：`fee2f850` 之前，`gconf_shim_load()`（`gconf-shim.cpp`）**从未调用 `g_key_file_load_from_file()`** 把 ini 内容装载进 `GKeyFile` → `values` 哈希**恒空** → `gconf_shim_get_int()` 恒返回 0 → 重开时 `config.width/height` 读回 0 → 回退默认 532x437；且 1.6 方案 ① 的 `configure-event` 实时写会在窗口创建后立刻把默认尺寸写回，覆盖已保存值。**写路径正常、读路径异常**（与 1.6 节遗留判断一致）。
+
+**修复**（`compile/src/v-sysmonitor/gsm-gconf-keyfile.patch` 第三版，commit `fee2f850`）：`gconf_shim_load()` 补一行 `g_key_file_load_from_file()` 装载 ini；同时修 hunk header 行数（595→598，防 `endif` 截断）。干净构建 `xx-verify=0`；hdmi Xvnc:440 复验 RUN2/RUN3 重开恢复 **1024x700**。
+
+**rootfs-dbg 实测（用户实际验证环境，2026-11-18 补完）**：
+
+| 轮 | 操作 | 窗口尺寸 | ini 关键键（关闭后） | 退出 |
+|---|---|---|---|---|
+| RUN1 | 清 ini 启动 → resize 1024x700 → windowclose | 534x435（默认）→ 1024x700 | `width=1024/height=700/current_tab=0` | 干净 |
+| RUN2 | 重开（期望恢复保存尺寸） | **1020x700**（内容区，fluxbox 边框 -4px） | `width=1020/height=700/current_tab=0` | 干净 |
+| RUN3 | 再开稳定复核 | **1020x700** | `width=1020/height=700/current_tab=0` | 干净 |
+
+- 3 轮均 `windowclose` **干净退出**（无 alive 回退、无 `CRITICAL`/`ERROR`/`Trace`；仅良性 `GdkWindow ... unexpectedly destroyed` 警告，与 hdmi 一致）。
+- **结论**：写路径（resize 实时落盘 1024x700）+ 读路径（重开恢复 1020x700，非默认 532x437）**均生效**，配置持久化问题闭环。
+- 环境：rootfs-dbg 容器默认桌面（Xvnc `:10` depth16 + fluxbox + tint2，headless 用户）；窗口查找用 `xdotool search --classname "gnome-system-monitor"` 返回 2 窗口（1 个 10x10 内部辅助 + 1 个真主窗口），按面积取最大选中真主窗口。容器运行环境/访问方式详见 memory `container-env.md`。
+
+**用户问答补记（2026-11-18，两轮问答原文/答复保存）**：
+
+**问 1**：先前不行的具体原因是啥？你修复了一些啥，都推送了吗？
+**答 1**：根因见上（`gconf_shim_load` 从未 `g_key_file_load_from_file` → `values` 恒空 → `get_int` 恒 0 → 重开回退默认 532x437 + `configure-event` 覆盖保存值）。修复 4 个核心 commit：`db5e340b`（exit-crash：WM `XDestroyWindow` 不触发 `delete_event` → 保存不执行 + 刷新回调访问已销毁 widget → `BadWindow exit(1)`；改全局 `gsm_procman_quitting` 标志 + destroy 只置标志 + `configure-event` 实时写 width/height + 切 tab 立即写 current_tab）、`24ce2fab`（gconf shim 跨 TU 单例 + dirty/autosave + `procman_save_config` 加固）、`fee2f850`（读路径：补 `load_from_file` + 修 hunk 行数）、`641ee424`/`3e359326`（docs 1.6/1.7）。全部已推送（HEAD=`3e359326`=`origin/feat/ai-260925`，工作树干净）。
+
+**问 2**：配置项改动之后关掉再打开，配置没生效还是程序默认，这一块修好了吗？
+**答 2**：修好了，正是 `fee2f850` 修的读路径 bug（写正常、读异常）。rootfs-dbg 实测：RUN1 清 ini → resize 1024x700 → 关闭存 `width=1024/height=700`；RUN2 重开恢复 **1020x700**（非默认 532x437）；RUN3 一致；hdmi 同样恢复 1024x700。边界说明：**tab 恢复刻意禁用**（`gsm-tab-order.patch` 强制回 Processes tab，非 bug），窗口尺寸/列宽正常恢复。
+
+#### 1.8、进程列表列配置（列显隐/列顺序）关开恢复默认——根因与修复（2026-11-18 落档）
+
+> 本节 = 用户实际验证环境反馈「进程列表列配置（关列显示/拖列排序）关掉重开恢复默认」的排查结论与修复。**此前 1.6/1.7 只验了窗口尺寸，未覆盖列配置——验证项没对准用户真实需求。**
+
+**根因（插桩铁证，非理论）**：列配置存在 `/apps/procman/proctree/*`（`columns_order`/`col_N_width`/`col_N_visible`/`sort_col`/`sort_order`），读写走 `procman_get_tree_state`/`procman_save_tree_state`。**两个独立 bug**：
+
+| # | 现象 | 根因 |
+|---|---|---|
+| ① | **列顺序**重开回默认 | `cb_columns_changed`（columns-changed 信号→`save_tree_state`）在**窗口关闭销毁期间连发**（列逐个拆除）。插桩实测 `get_columns_order count` **16→15→…→0**，最后一次把**空 `columns_order=l:`** 写入，**覆盖掉正常会话已存好的顺序**。同 bug 在 disk 树（`cb_disk_columns_changed`）。 |
+| ② | **列显隐**重开回默认 | `field_toggled`（Preferences 勾选框）只 `gtk_tree_view_column_set_visible`，**不触发 columns-changed**（GTK2 `set_visible` 不发信号）→ **从不写盘**。 |
+
+**修复**（`compile/src/v-sysmonitor/gsm-column-persist.patch`）：
+1. `cb_columns_changed`/`cb_disk_columns_changed` 加 `if (gsm_procman_quitting) return;` 守卫（同 exit-crash 模式）——修列顺序。
+2. `field_toggled` 在 `set_visible` 后**手动 `g_signal_emit_by_name(gtk_tree_view_column_get_tree_view(column), "columns-changed")`** 走既有 `save_tree_state`——修列显隐。
+
+**验证（rootfs-dbg Xvnc:10 种子测试，runtime 证据）**：
+- **修复前**：种子 `columns_order=l:2,0,8,1,3,4,5,6,7,9,10,11,12,13,14,15,16` 关闭后变 **`l:` 空**（DBG 显示 destroy 期间连发 count 递减到 0）。
+- **修复后**：`columns_order` **完整保留**、`col_0_visible=b:false` **保留**；DBG 为空（destroy 不再触发）；**二次开关循环仍稳定**；无 `CRITICAL`/`ERROR`。
+- 干净构建 `BUILD_RC=0`；pristine `git apply` 5 个 patch（含新 patch）顺序全过。
+
+**诚实说明**：列顺序/显隐的**持久化机制**（种子非默认配置 → 关 → 开 → 保留）已 runtime 实测。Preferences 勾选 GUI 路径（修复 ②）是**复用同一条已验证的 `save_tree_state`**（`set_visible` 后发信号触发它）；GUI 自动化点勾选框在 headless 环境不可靠，未单独 GUI 点测。
+
+**提交**：`gsm-column-persist.patch`（单独 commit）+ `build.sh` 应用（单独 commit）→ 已推送 `e09644ae..e40a6b26`，HEAD=`e40a6b26`。
+
+**插桩/调试坑**：容器内 `python3 -c` 经 bash 双重引号 `\\n` 变真实换行（字符串跨行非法 C）→ 写脚本文件避免转义地狱；`pkill -f`/`pgrep -f` 匹配串出现在脚本文本会**自匹配杀外层 bash**（AGENTS 已知坑）→ 用 `pkill -x <comm>` 或按 PID。
+
+
+#### 1.9、用户问答补记——「为什么静态化后问题这么多 / 2.28.2 历史版本固有缺陷吗 / 动态版是不是没事」（2026-11-18 落档）
+
+> 本节保存用户两问的**完整答复原文（含表格）**。结论要点：**配置类 bug = 静态化引入（gconf-shim，已修）；关窗报错/不保存 = 2.28 原版设计局限（`delete_event` 未处理 WM 直接 destroy），静态构建放大；hdmi ubt22 是 3.28.x（gsettings）≠ 2.28.2（gconf），不能当「2.28.2 动态版正常」的证据。**
+
+**问 1**：gsm 2.28.2 是历史版本固有缺陷吗？非静态版包是否同样有问题？
+**答 1**：要分两类看——
+
+| 问题现象 | 是不是 2.28.2 历史版本固有缺陷 | 说明 |
+|---|---|---|
+| 配置保存无效（读不回来 / 关开回默认） | **不是**——是静态化引入的 bug | 原版 gsm 2.28.2 走 **gconfd**（D-Bus 守护进程，存 `~/.gconf/*.xml`）；静态库**无法提供守护进程** → 手写 **gconf-shim**（`gconf-shim.h/cpp`，GKeyFile 存 `procman.ini`）替代，配置读写**全在 shim 层**。本次修的 3 个 bug（exit-crash `db5e340b`、读路径 `fee2f850`、列配置 `e40a6b26`）**全在 shim/回调层**，非上游原版代码缺陷。 |
+| 关闭报错 / 关闭时配置不保存 | **部分是原版设计局限** | 2.28 时代原版只在 `delete_event` 存配置，且刷新回调不防 destroy（WM 直接 `XDestroyWindow` 时 `delete_event` 根本不触发）——这是 **2.28 时代原版设计局限**，**非静态包也可能有**，但静态构建（gconf-shim + 无窗口管理器干预兜底）**放大**。 |
+
+> **诚实声明**：**未在别发行版实测 2.28.2 非静态包**。上述「非静态包也可能有」基于**机制推断**（原版依赖 gconfd / `delete_event` 的设计），**非实测**。
+
+**问 2**：动态版是不是没事、只是静态化影响大？hdmi ubt22 环境列配置正常，不是证据吗？
+**答 2**：**hdmi ubt22 那个 gsm 是 3.28.x（gsettings，非 gconf）**，与 2.28.2（gconf）**不同代**，不能直接证明「2.28.2 动态版正常」。
+
+| 问题 | 静态版（本项目 2.28.2） | 动态版（hdmi ubt22 3.28.x） | 结论 |
+|---|---|---|---|
+| 配置保存/读取 | 有 bug（shim 层，已修） | 正常（gsettings 原生支持） | **配置问题确实是静态化引入**（gconfd 缺失 → shim bug）；与 2.28.2 原版无关。 |
+| 关窗报错 / 不保存 | 有（原版设计局限 + 静态放大） | 3.x 已改 `delete_event`/gsettings 处理 | **关窗问题原版 2.28 就有设计局限**（非静态包也可能有）；静态构建放大，非 3.x 可比。 |
+
+**一句话总结**：**配置类 bug = 静态化引入（gconf-shim，已修）；关窗报错/不保存 = 2.28 原版设计局限（`delete_event` 未处理 WM 直接 destroy），静态构建放大——不能拿 hdmi 3.28.x 动态版证明「2.28.2 动态版正常」；且未实测 2.28.2 非静态包，上述基于机制推断。**
+
+#### 1.10、gsm 最新支持 GTK2 版本评估（2026-11-23）
+
+**结论**：gsm 最新支持 GTK2（gtkmm-2.4）的稳定版本 = **2.28.2**（项目当前版本，**无更高可升**）。
+
+**实测**（download.gnome.org 各版本 configure 依赖）：
+
+| 版本 | 关键依赖 | GTK 世代 |
+|---|---|---|
+| 2.28.2（项目当前，2.x 最后稳定） | `gtk+-2.0` + `gtkmm-2.4` + `libwnck-1.0` + `gconf-2.0` + `dbus-glib-1` | **GTK2 / gtkmm-2.4** |
+| 2.99.0–2.99.3（GNOME 3 过渡开发版） | `gtk+-3.0` + `gtkmm-3.0` + `libwnck-3.0` | GTK3 |
+| 3.0.0 起 | `gtk+-3.0` + `gtkmm-3.0` | GTK3 |
+
+**要点**：
+
+- 2.x 系列（最后 2.28.2）全用 GTK2/gtkmm-2.4；**2.99.x 起一次性迁 GTK3**（`configure.ac` 已确认 2.99.3 为 `gtkmm-3.0`）。
+- 中间**不存在**更高的 GTK2 版本——2.28.2 之后直接跳 GTK3，项目当前 `2.28.2` 已是**最后/最高支持 GTK2 的稳定版**。
+- 类似 geany 的 1.37.1（最后支持 GTK2）：gsm **无需升级**（已是最新 GTK2 版），后续 GTK3 版本（3.0+/40+）项目用不上。
+
+### 2、dbus/dunst 静态版在 headless 会话的使用（2026-11-17 分析）
+
+#### 2.1、使用链路与结论
+
+##### 2.1.1、使用链路（headless 用户会话）
+
+```
+Xvnc（rootfs-dbg 自带，完整桌面）→ DISPLAY=:N
+  └─ dbus-daemon --session --nofork --address=unix:abstract=/tmp/dbus-uid<uid>   ← 用户会话总线（唯一 owner，保活）
+        └─ dunst（D-Bus 按需激活，见 2.1.2）→ 注册 org.freedesktop.Notifications → 接收显示
+              └─ scrot 截图脚本 → 发送端（notify-send/dbus-send）→ 同一 session bus → dunst 显示
+```
+
+通知**必须走用户会话总线**（`org.freedesktop.Notifications` 在 session bus），不是系统总线。
+
+**两条总线（b17 链路）**：
+
+| | **系统总线 (system)** | **会话总线 (session)** |
+|---|---|---|
+| 数量 | 全容器一条，root 起，perp 盯 | 每用户一条，谁起谁管 |
+| 地址 | 写死 `unix:path=/var/run/dbus/system_bus_socket` | 固定 `unix:abstract=/tmp/dbus-uid<uid>`（perp 起） |
+| 谁能连 | 任何人零配置（socket 0777） | 必须知道地址（env 或猜常量） |
+| 管什么 | 全机共享服务 | 一个桌面会话内互认（通知、mpris、ibus） |
+
+##### 2.1.2、dunst 启动与注册——D-Bus 按需激活（a1 纠正）
+
+- **dunst 不用提前常驻**：D-Bus **激活**机制。dunst 源码自带 `org.knopwob.dunst.service.in`（内容 `[D-BUS Service] Name=org.freedesktop.Notifications / Exec=@bindir@/dunst`）；`make install` 经 `config.mk:13 SERVICEDIR_DBUS=${DATADIR}/dbus-1/services`（随 PREFIX）装到 **`$TARGETPATH/share/dbus-1/services/org.knopwob.dunst.service`** → 静态产物**自带激活 service**。
+- **机制**：客户端发 `Notify` 到 `org.freedesktop.Notifications` → D-Bus 见该名无 owner → 按 service 的 `Exec=dunst` 自动拉起 dunst → dunst 运行时自动 RequestName 接管并显示。**有通知时才触发**。
+- **静态版不需要手动注册**：D-Bus 激活文件 + dunst 运行时自动注册（走 GDBus，glib/gio 内置，不链 libdbus-1，`x-dunst/build.sh:12`）。需前提：① 产物 `share/dbus-1/services/` 放到运行环境 session 总线激活目录（`/usr/share/dbus-1/services/` 或 `XDG_DATA_DIRS` 下 `dbus-1/services/`）；② 用户会话总线已起 + `DBUS_SESSION_BUS_ADDRESS` 指向。
+- **对照 hdmi**：那边 dunst 是系统包（`Dockerfile.app-debian:35` apt install dunst），自带同款 service → 同样按需激活，与 a1 描述吻合。
+
+##### 2.1.3、rootfs-dbg 调试验证（a2 纠正）
+
+- **rootfs-dbg 无参启动 = 完整桌面**：`entry.sh:175` `START_SESSION` 默认 `startfluxbox`，可 `-e START_SESSION=openbox-session` 指定；**自带 Xvnc**（rootfs 有 VNC 支持：`entry.sh:3-16` VNC_OFFSET/PORT_VNC 等）。历史命令参考：`docs/core/dropbear.md:79` 类 `-e START_SESSION2=openbox-session`。
+- **注意**：rootfs `entry.sh` dbus 相关全注释（L141-150），**默认不自动起 dbus 总线** → 验证需手动/脚本起。
+- **验证步骤（rootfs-dbg 内，静态产物）**：
+  1. 起用户会话总线：`DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-uid$(id -u) /usr/local/static/dbus/bin/dbus-daemon --session --nosyslog --nofork --address=unix:abstract=/tmp/dbus-uid$(id -u) &`（唯一 owner，勿双起）。
+  2. 部署 dunst 激活 service：`cp /usr/local/static/dunst/share/dbus-1/services/org.knopwob.dunst.service /usr/share/dbus-1/services/`。
+  3. 发通知：`DBUS_SESSION_BUS_ADDRESS=<addr> notify-send 标题 正文`（或 dbus-send Notify）→ D-Bus 自动拉起 dunst → 显示。
+  4. scrot 截图包装脚本：`scrot /tmp/x.png && notify-send 截图 /tmp/x.png`。
+
+##### 2.1.4、hdmi 双线改造参考（b17 照搬）
+
+`docker-hdmi-desktop/docs/b17-261026-dbus-sys-user-session.md`（那边 dbus 动态）链路逻辑适用静态版：
+
+| b17 结论 | 静态版照搬 |
+|---|---|
+| 两条总线：系统（root，/var/run/dbus/system_bus_socket，0777）+ 用户会话（headless，固定 abstract） | ✅ 同；通知只走 session，系统总线非必需 |
+| 用户会话总线唯一 owner + 保活（--nofork，perp）；ensure-* 删（否则再 spawn→bind 失败→perp 自转） | ✅ 同：dbus-daemon --session --nofork --address=<固定> |
+| 地址注入：perp 服务命令（envcmd 覆盖桌面子树）+ /etc/profile.d/99dbus-session.sh 一行 export；不塞 ~/.bashrc | ✅ 同：export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:abstract=/tmp/dbus-uid$(id -u)}" |
+| 通知（org.freedesktop.Notifications）/mpris 走 session bus | ✅ 同：dunst 连 session bus |
+
+##### 2.1.5、产物缺口与提醒
+
+- **无通知发送端**：静态产物**没有 notify-send/dbus-send/dunstctl**——x-dbus 只出 dbus-daemon+libdbus；x-dunst `DUNSTIFY=0`（dunstify 需 libnotify，不在静态栈，`x-dunst/build.sh:88`）只出 dunst。发通知需补：静态化 libnotify 的 notify-send，或 x-dbus 补 dbus-send，或用 libdbus-1.a 编小发送器。
+- **dunst 通知图标可能空白**（`x-dunst/build.sh` 注释：gdk-pixbuf PNG/JPEG loader 静态下 dlopen，AGENTS「gdk-pixbuf 图标坑」）——文本可显示，图标需静态链 loader 或自解码。
+
+**一句话**：链路 = 用户会话 dbus-daemon（唯一 owner，perp 保活）→ dunst（D-Bus 按需激活，产物自带 org.knopwob.dunst.service）→ scrot 脚本经发送端发 Notify；dunst 不用提前常驻，静态版无需手动注册（激活文件+自动 RequestName）；rootfs-dbg 无参=完整桌面+Xvnc（START_SESSION 可选）；缺通知发送端需补。
+
+##### 2.1.6、通知发送端静态化可行性（2026-11-17 分析）
+
+> 承接 2.1.5「缺通知发送端」：分析 dbus-send / notify-send / dunstify 三条静态化路径与成本，给出推荐。
+
+**先订正 2.1.5 的一条**：静态产物**其实有 dunstctl**——但它**不是编译产物，是 shell 脚本**（上游 tarball 直接带 `dunstctl` 文件，非 dunstctl.c 编译），已装到 `/usr/local/static/dunst/bin/dunstctl`（8.7K，`file`=POSIX shell script）。它是**控制工具**（close/close-all/history/Ping），**不是通知发送端**；且**运行期硬依赖 dbus-send**（脚本内 `command -v dbus-send || die "Command dbus-send not found"`）→ 无 dbus-send 时 dunstctl 直接报错。所以 2.1.5 说的「没有 dunstctl」严格说是**没有可用的 dunstctl**（缺 dbus-send 它跑不了），且它本来也发不了新通知。
+
+**发送端三条路径（静态化可行性）**：
+
+| 路径 | 依赖 | 静态化成本 | 说明 |
+|---|---|---|---|
+| **dbus-send**（推荐） | 无新增——dbus 自带工具 | **低** | `tools/dbus-send.c` + `dbus-print-message.c` + `tool-common.c` 三对象 + `libdbus-1.a` + `-lexpat -lpthread -ldl -lm`；`tools/Makefile` 里 `dbus_send_DEPENDENCIES = libdbus-1.la`，只链 libdbus-1。在 `x-dbus/build.sh` 追加（dbus 源码已就位）。**一石二鸟**：既能发 `Notify`，又解锁 dunstctl（其运行期要 dbus-send） |
+| **notify-send** | 需 **libnotify**（新组件，静态栈没有） | 中 | libnotify 走 GDBus（gio，静态栈有）或 libdbus（x-dbus 有），`--enable-static` 可行；需新增组件（如 `w-notify`/`v-notify`）+ 下载 libnotify 源码 |
+| **dunstify** | 需 **libnotify**（`Makefile:30-31` pkg-config libnotify） | 中 | dunst 自家发送工具（dunstify.c）；与 notify-send 同依赖——建了 libnotify 可顺手把 `DUNSTIFY=0` 改 `1` 一并出 |
+
+**结论**：**先补 dbus-send**（成本最低，解锁 dunstctl + 能发 Notify，`x-dbus/build.sh` 一条手工链即可）；notify-send/dunstify 视需要再建 libnotify（新组件，成本中，非当务之急）。
+
+> ⚠️ **订正（2026-11-17，实跑证伪）**：dbus-send **不能发通知**——`Notify` 的 hints 参数是 `a{sv}`（string→variant 字典），而 dbus-send 1.12.26 的 `type_from_name()` **只认基础类型（string/int*/uint*/double/byte/boolean/objpath），不认 `variant`**（`tools/dbus-send.c` 源码实证）→ `dict:string:variant:` 直接 `Unknown type "variant"` 报错。所以 dbus-send **只能做 dunstctl 的控制命令**（close/close-all/history/Ping/GetServerInformation 全走 string/uint，无 a{sv}），**发通知必须 notify-send（libnotify）或 dunstify（libnotify）**。结论修订：**dbus-send 已建可用（dunstctl 用），通知发送端 = notify-send（libnotify，真正该优先的）**。
+>
+> **dbus-send 实跑验证（2026-11-17）**：`x-dbus/build.sh` 加 `dbus_send()` 手工链成功，产物 `/usr/local/static/dbus/bin/dbus-send`（306K）`file`=statically linked/stripped、`xx-verify --static`=0、`ldd`=Not a valid dynamic program、`--help` 可跑；在 hdmi 容器经 `DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-uid1000` 以 **uid1000（headless）** 连 session bus `ListNames` 成功（root 连被拒，session bus 属 uid1000）。
+
+##### 2.1.7、dunst 通知图标 loader 方案（订正 2.1.5「可能空白」）
+
+> 承接 2.1.5「dunst 通知图标可能空白」：实查静态 gdk-pixbuf 栈后**订正**——不再空白，方案已就位，无需再补 loader。
+
+**订正结论**：dunst 图标**不再必空白**——u-gtk 已把 gdk-pixbuf 2.42.8 的 **png/jpeg/svg 设为 builtin loader**（`u-gtk/build.sh:88` `-Dbuiltin_loaders=png,jpeg,svg`，`--default-library=static` 只出 .a），静态 `libgdk_pixbuf-2.0.a`（`/usr/lib/`，1.1M）**内含 `io-png.c.o / io-jpeg.c.o / io-svg.c.o`**（2026-11-17 `ar t` 自证）。dunst 经 `pkg-config --static --libs gdk-pixbuf-2.0` 链这个 .a（libdir=`/usr/lib`）→ **PNG/SVG 图标加载 OK**。2.1.5 的「可能空白」基于旧 dlopen loader 模型（`-rdynamic` 缺失），**已被 builtin loader 方案取代**。
+
+**dunst 图标取用路径**（`src/icon.c`）：`get_pixbuf_from_file()` → `gdk_pixbuf_get_file_info()` + `gdk_pixbuf_new_from_file_at_scale()`，只需 loader 已注册（builtin 注册于 `gdk_pixbuf_get_type` 的 `gdk_pixbuf_io_init_builtin()`，u-gtk patch 注入）+ 图标文件存在。
+
+**运行期前提**：
+- **按名字查图标（`icon_name`）**：还需**图标主题**目录（`index.theme` + PNG/SVG 位图，如 Papirus/hicolor）在 `XDG_DATA_DIRS`/`~/.local/share/icons` 路径上（hdmi 容器有 Papirus/Adwaita/Yaru 等，实查）。
+- **按文件路径（`file://` 或绝对路径）**：只需 loader（builtin 已就位），无需主题。
+
+**结论**：静态 loader 方案 = **沿用 u-gtk builtin loader（已就位）**，无需再补 `libstaticpixbufloader-*.a` 或自解码（AGENTS「gdk-pixbuf 图标坑」针对旧模型）；只需运行时提供图标主题目录（部署项，非构建项）。
+
+### 2.2、实现验证篇（2026-11-17）
+
+#### 2.2.1、通知发送端 notify-send 实现（x-dunst 内构建，GDBus 直发，2026-11-17 落档）
+
+> 承接 2.1.6 订正（通知发送端 = notify-send）：实现并验证——**不是 libnotify，是 x-dunst 内最小 GDBus 直发**（`notify_send()` 方法块，同目录部署，见 2.2.3 结构调整）。
+>
+> **澄清（2026-11-17）**：notify-send 是**独立程序**，只走 D-Bus 发 `Notify`，**不与 dunst 耦合**（不链 dunst 任何库）；dunst 本身**无 GTK 依赖**——它链的是 **gdk-pixbuf**（GTK 家族中独立的图像加载库，非 GTK 组件库），见 2.2.2 图标依赖链分析。
+
+**为什么不用 libnotify（notify-send 官方工具）**：libnotify 0.8.9 **硬依赖 `gio-unix-2.0.a`**（`libnotify/meson.build` `dependency('gio-unix-2.0')`），而静态栈**缺该 .a**（`find / -name libgio-unix-2.0.a` 无果；glib 源码不在，无从补编）；且 libnotify 主库是 `shared_library`（meson 需 patch 成 static，成本高）。**GDBus 直发只需 gio+glib**（dunst 已证可静态链），且 GDBus **原生能编 `a{sv}`**（dbus-send 不能，见 2.1.6 订正）→ 选最小 GDBus 直发。
+
+**实现**（`compile/src/x-dunst/`，`notify_send()` 方法块 + `notify-send.c`）：
+- `notify-send.c`：直连 session bus，`g_dbus_connection_call_sync` 发 `org.freedesktop.Notifications.Notify`，签名 `(susssasa{sv}i)`——用 `GVariantBuilder` 显式构造（空 `as` + `a{sv}`（可带 urgency hint））；支持 `-a/-i/-t/-u` 选项。
+- `build.sh`：`xx-clang -static` + `pkg-config --static --libs gio-2.0 glib-2.0 gobject-2.0`（含 gmodule/pcre/ffi/mount/blkid，`-L/lib` 取 `libz.a`），`--start-group` 解静态循环依赖；产物 `bin/notify-send`。
+- **坑**：`g_variant_new` 直接传 `&hints`/`g_variant_new_strv(NULL,0)` 会 `g_variant_builder_end` 断言（空容器），改 `GVariantBuilder` 显式构造；`call_sync` **sink 掉 params 浮引**，**勿再 `g_variant_unref(params)`**（否则 `g_atomic_ref_count_dec` 断言）。
+
+**验证（2026-11-17）**：
+- 产物 `bin/notify-send` 3.3M，`file`=statically linked/stripped、`xx-verify --static`=0、`--help` 可跑。
+- hdmi 实跑（uid1000/headless，`DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-uid1000`）：`notify-send -a test-static -u critical "..." "..."` → **bus 收到 Notify 并触发 dunst 激活**（报 `Spawn.ChildExited: Process org.freedesktop.Notifications exited with status 1` = dunst 在该测试上下文起不来（多会话/环境），**非 notify-send bug**——消息构造与 a{sv} 正确）。
+
+**结论**：通知发送端 = **notify-send（x-dunst notify_send 最小 GDBus 直发）**，已建可用；dbus-send 只做 dunstctl 控制。两组件（dbus-send/notify-send）**均可静态编译**，**优先 notify-send**（真发送端）；dunst 显示链路完整验证待 rootfs-dbg 实跑（见 2.1.3）。
+
+#### 2.2.2、dunst 图标依赖链分析（复用 gdk-pixbuf，非 GTK；2026-11-17）
+
+> 用户问：图标显示复用 gtk 那边的库，依赖链如何？会不会太重？
+>
+> **澄清**：dunst **无 GTK 依赖**——它链的是 **gdk-pixbuf**（GTK 家族里**独立的图像加载库**，非 GTK 组件库）；notify-send 是**独立程序**，只走 D-Bus，**不用 gdk-pixbuf**，与 dunst 解耦。
+
+**dunst 图标依赖链**（`x-dunst/build.sh` 的 deps + `strings` 实链核）：
+
+```
+dunst → gdk-pixbuf-2.0.a（builtin png/jpeg/svg loader，1.1M）
+         ├─ png loader → libpng16.a（309K）
+         ├─ jpeg loader → libjpeg.a（770K）
+         └─ svg loader → librsvg-2.a（423K）→ libcroco-0.6.a（438K）+ libxml2.a（6.1M）
+         └─ glib/gio/gobject（dunst 本来就链）
+```
+
+**会不会太重？——不算重，且不新增依赖**：
+- gdk-pixbuf **本来就是 dunst 的硬依赖**（build deps 明列 `gdk-pixbuf-2.0`，非可选）→ 图标支持**没给 dunst 加新链**；dunst 静态 9.6M 里图标相关（png/jpeg/svg loader + rsvg/croco/xml2 被引用部分）只占**小头**。
+- 大头是 **cairo（8.0M .a）+ pango + freetype + harfbuzz**——dunst **渲染文字/背景必需**，**非图标专属**（无 gdk-pixbuf 也得链）。
+- 实际链接用 `--as-needed`，只拉被引用的 .o，二进制远小于 .a 之和。
+- **替代考量**：若嫌重，可把 dunst 图标降级为**无图标/单色**（`icon_path`/不设 `icon`），或换更轻的图像库（如 libpng 直读 + 自绘，弃 SVG）——但 gdk-pixbuf 已链、增量小，**不值得为此改动**。
+
+**结论**：dunst 图标走 **gdk-pixbuf（非 GTK）**，依赖链 = gdk-pixbuf → png/jpeg/svg loader → png16/jpeg/rsvg/croco/xml2 + glib/gio；**重量可接受**（已是 dunst 硬依赖、增量小，大头 cairo/pango 是渲染必需非图标专属）。notify-send 与 dunst 解耦、不用 gdk-pixbuf（3.3M，只链 gio/glib）。
+
+#### 2.2.3、结构调整：notify-send 并入 x-dunst（2026-11-17 用户拍板）
+
+> 用户指示：notify-send **不要独立 x-notify 模块**，**放 dunst 内构建**——加多一个方法块，各一个参数调入口编译即可。
+
+**调整**：
+- **删除** `compile/src/x-notify/`（build.sh + notify-send.c）独立组件。
+- **notify-send.c 移入** `compile/src/x-dunst/`；`x-dunst/build.sh` 加 **`notify_send()` 方法块** + **独立参数调入口** `sh /src/x-dunst/build.sh notify_send`（`notify_send)` case 分支，`doExec notify_send`）。
+- **同目录部署**：产物装 `/usr/local/static/dunst/bin/notify-send`（与 dunst/dunstctl 同目录，配套）。
+- 仍是**独立程序**（不链 dunst 库、不用 gdk-pixbuf），只是**构建/部署归口**到 x-dunst。
+
+**理由**：notify-send 与 dunst 是通知发送/显示的**配套工具**（同用 org.freedesktop.Notifications），归 x-dunst 构建、同目录部署更内聚；Dockerfile/CI 只加一条 `sh /src/x-dunst/build.sh notify_send`。
+
+#### 2.2.4、全链路实跑验证（rootfs-dbg 现有 Xvnc 会话，2026-11-17）
+
+> 用户指示：验证用**容器里现有的 Xvnc**（rootfs-dbg-v5 的 `:10` 活动会话，Xvnc+fluxbox 常驻），不另起新号。
+
+**验证环境**：rootfs-dbg-v5（alpine rootfs 3.13），复用**现有 `:10`**（headless uid1000 的 Xvnc+fluxbox 活动会话）。
+
+**步骤与结果**（静态产物部署到 `/usr/local/static/{dbus,dunst}`，全部 headless 运行）：
+1. **会话总线**：`/usr/local/static/dbus/bin/dbus-daemon --session --nosyslog --nofork --address=unix:abstract=/tmp/dbus-uid1000`（rootfs entry.sh dbus 注释默认不起，手动起）→ proc 存活、无报错。
+2. **dunst 注册**：`DISPLAY=:10 DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-uid1000 /usr/local/static/dunst/bin/dunst` → `ListNames` 见 **`org.freedesktop.Notifications` 被持有**（注册成功）；日志 `No configuration file found, using defaults`（无配置文件走默认，正常）。
+3. **notify-send 发送**：`/usr/local/static/dunst/bin/notify-send -a static-test -u critical -t 15000 "DISPLAY-CHECK-12345" "全链路显示验证正文"` → **返回通知 ID**（dunst 接受，rc=0）。
+4. **显示确认**：`DISPLAY=:10 scrot` + OCR → **`DISPLAY-CHECK-12345` 清晰可见**（3x 放大 OCR，chi_sim+eng）→ **通知在 :10 屏幕上渲染**。✅
+
+**结论**：静态通知**全链路通**——notify-send（x-dunst）→ 会话总线（static dbus-daemon）→ dunst（static，D-Bus 注册）→ **屏幕显示**（OCR 确认）。notify-send 独立（只走 D-Bus、不用 gdk-pixbuf）；dunst 用 gdk-pixbuf（非 GTK，见 2.2.2）渲染图标。
+
+#### 2.2.5、D-Bus 激活自动拉起 dunst（不手动先跑，2026-11-17 用户拍板验证）
+
+> 用户问（2026-11-17）："dunst 你要先跑起来他吗？按照先前的设计，不是不用先跑吗？直接让默认注册去拉起来他。这个你也验证一遍。"
+
+**背景（hdmi 动态版对照）**：Ubuntu 22.04 hdmi 容器的 `/usr/bin/dunst` 由 `perpd` **开机自启**（ppid=1，3 个常驻进程），且**未装 notify-send**（`which notify-send` 空）——动态版靠桌面会话自启、不靠 D-Bus 激活。其 `/usr/share/dbus-1/services/org.knopwob.dunst.service` 仅作标准接口兜底（内容 `Name=org.freedesktop.Notifications, Exec=/usr/bin/dunst`）。
+
+**根因（首次实测失败）**：rootfs-dbg-v5 的静态 dunst 部署在 `/usr/local/static/dunst/share/dbus-1/services/org.knopwob.dunst.service`（内容 `Name=org.freedesktop.Notifications, Exec=/usr/local/static/dunst/bin/dunst`），但 **dbus-daemon 扫描目录（`<standard_session_servicedirs />` = `~/.local/share`、`/usr/local/share`、`/usr/share` 下 `dbus-1/services/`）均为空** → 激活条目未加载 → notify-send 报 `not provided by any .service files`。且 `/usr/bin/dunst` 不存在（宿主机装的服务文件不适用）。
+
+**修复**：把 service 文件放 `/usr/share/dbus-1/services/org.knopwob.dunst.service`（扫描目录内），重启 session bus 让 dbus-daemon 重新加载激活条目（bus 启动时扫描，运行中不热加载）。
+
+**验证步骤与结果**（rootfs-dbg-v5 `:10`，全部 headless）：
+1. **放置 service 文件** → `/usr/share/dbus-1/services/org.knopwob.dunst.service`（`Name=org.freedesktop.Notifications`、`Exec=/usr/local/static/dunst/bin/dunst`）。
+2. **kill 现有 dunst**（此前手动起）→ `ps -C dunst` 空（确认不跑）。
+3. **重启 session bus**：`dbus-daemon --session --nosyslog --nofork --address=unix:abstract=/tmp/dbus-uid1000`（**需带 `DISPLAY=:10`**——激活子进程继承 bus 环境，缺 DISPLAY 则 dunst 激活后连不上 X 退出 status 1；首次实测 `Spawn.ChildExited: ...exited with status 1` 即此因）。
+4. **notify-send 发送**（不先跑 dunst）：`notify-send -t 15000 "ACT-CHECK-3" "dunst auto-activate via dbus service file OK"` → **返回 ID=3（rc=0）**，dunst **被 D-Bus 激活自动拉起**（`ps` 见 `/usr/local/static/dunst/bin/dunst`，pid 2123）。
+5. **注册确认**：`ListNames` 见 **`org.freedesktop.Notifications` 被持有**（激活的 dunst 已注册）。
+6. **显示确认**：`DISPLAY=:10 scrot` + 裁剪放大 OCR → **`ACT-CHECK-3` 清晰可见**（通知在右上角渲染）。✅
+
+**结论**：**dunst 无需手动先跑**——把 service 文件放进 dbus-daemon 扫描目录（`/usr/share/dbus-1/services/`），notify-send 发 `Notify` 时 dbus-daemon 按 `Name=org.freedesktop.Notifications` 自动 `Exec` dunst（继承 bus 环境含 DISPLAY），dunst 自注册并显示。**前提两条**：① service 文件在扫描目录（静态部署的 `share/dbus-1/services/` 非扫描路径，需拷入 `/usr/share/dbus-1/services/`）；② bus 重启（启动时扫描）且带 DISPLAY。截图：`docs/img/tmp/notify-dunst/notif-autoact.png`。
+
+#### 2.2.6、图标空白根因与 dunst 图标支持现状（mime.cache / SVG builtin，2026-11-17）
+
+> 用户问（2026-11-17）："dunst 已链接 pixbuf 这个是最初 CI 那边构建/镜像内的包就已经包含的，还是你先前调试的时候重新编译的？""跟文档内说的 mime 有关吗？完全没有 loaders.cache 和 gdk-pixbuf-2.0/2.10.0/ 目录；builder 有 ... 啥其他的程序没有这个东西也是可以的呢，这个东西感觉不需要了吧。"
+> 用户确认（2026-11-17）："svg 那个，你查看代码 跟记录文档应该是已经就绪了，ci 那边已经跑了新的镜像，只是本地的镜像是旧的滞后的。""mime 那个 也是已经处理了，新镜像里头有配置了的。"
+
+**① dunst 二进制来源：CI 镜像内置，非调试重编**。
+- rootfs-dbg-v5 的 dunst md5 `3d1c09e7...` 与 **builder-g224（CI 构建镜像）完全一致**，时间戳 Nov 15 08:40（镜像烘焙时间）。Nov 17 仅**部署**（拷 `/usr/local/static/dunst/`），**未重编**。
+- 链接行（strings）：`-lgdk_pixbuf-2.0 -lrsvg-2 -lpng16 -ljpeg`——CI 的 `x-dunst/build.sh` `DUNST_LIBS` 本就含，非调试新增。
+
+**② 图标空白根因 = mime.cache 缺失（非 loaders.cache）**。决定性实验（探针 `pbprobe`，静态链同套 gdk-pixbuf）：
+- 格式表：builder 与 rootfs **都 13 个格式**（含 png/jpeg），无差异——**格式注册正常**。
+- builder 加载 png OK、rootfs png FAIL（"Couldn't recognize the image file format"）。
+- **挪走 builder 两份 `gdk-pixbuf-2.0/2.10.0/`（loaders.cache + loaders/）→ png 仍 OK**——**builtin loader 不依赖 loaders.cache**（用户判断正确：loaders.cache 不需要）。
+- **拷入 `/usr/share/mime/mime.cache` → rootfs 探针 png 立即 OK（24x24）**。✅
+- **根因**：gdk-pixbuf 编译 `config.h` 定义 `GDK_PIXBUF_USE_GIO_MIME 1` → `_gdk_pixbuf_get_module` 走 **`g_content_type_guess`（按 MIME，非 magic）** 匹配格式；rootfs 无 `shared-mime-info`（`mime.cache`）→ 猜不出 `image/png` → 匹配不到 png 格式 → 图标空白。**builder 有 mime.cache 故一直 OK**。
+- **与文档「二、配置项 1、mime 数据」完全吻合**（R8 实证：拷 builder `/usr/share/mime` 进 rootfs，png/svg 立即翻 OK）。
+
+**③ SVG builtin：代码已就绪，本地镜像滞后**（用户确认）。
+- u-gtk 代码：`meson -Dbuiltin_loaders=png,jpeg,svg`（`u-gtk/build.sh:88`）+ patch `gdk-pixbuf-2.42.8-lxtask-static.patch` 加 `io-svg.c` + `INCLUDE_svg` 三处（`module(svg)`/`try_module(svg,svg)`/`load_one_builtin_module(svg)`）。
+- 文档 `09261949-lxtask-解析与优化.md:782-786` 已记录：svg loader 编进 builtin，`.a` 1.31MB 含 `io-svg.c.o` + `_gdk_pixbuf__svg_fill_vtable` T。
+- **本地 builder 滞后**：`/usr/lib` 与 `/usr/local/lib` 的 `libgdk_pixbuf-2.0.a` **md5 相同、Nov 11 06:33 旧构建**，`ar t` 只有 io-png/io-jpeg **无 io-svg** → 探针格式表无 svg → dunst svg 图标空白（本地）。
+- **CI 新镜像已含**（u-gtk 已配 svg builtin + `shared-mime-info` 装包带 mime.cache），本地重编 u-gtk 或拉新镜像即可。
+
+**④ mime 部署配置已就绪**（用户确认）：`rootfs/src/Dockerfile:285` 装 `shared-mime-info`（生成 `/usr/share/mime/mime.cache`）；`u-gtk/build.sh:357` 同装。本地旧镜像未装（手动拷 mime.cache 才 PNG OK）。
+
+**结论**：**dunst 图标支持（png/jpeg builtin + svg builtin + mime.cache）在 CI 新镜像均已就绪**；本地 rootfs-dbg-v5/builder 旧镜像滞后（缺 io-svg 与 mime.cache），故本地验证 PNG 需手动补 mime.cache、SVG 需重编 u-gtk 或拉新镜像。**loaders.cache / `gdk-pixbuf-2.0/2.10.0/` 无需部署**（builtin 不依赖，用户判断正确）。效果截图（本地补 mime.cache 后 PNG OK）：`docs/img/tmp/notify-dunst/notif-icon-png-mime-fixed.png`。
+
+#### 2.2.7、D-Bus 服务激活机制（怎么操作 / 写哪 / 内容，2026-11-17 用户问）
+
+> 用户问（2026-11-17）："它的那个 dbus 自动注册是怎么样的操作？写哪里的配置文件？配置的内容又是啥？"
+
+**D-Bus 服务激活（service activation）**——即"默认注册自动拉起"（2.2.5 已验证）。
+
+**① 操作（机制链路）**：
+```
+notify-send 发 org.freedesktop.Notifications.Notify
+        ↓（该名当前无 owner）
+dbus-daemon 查「激活条目表」（启动时从 service 文件加载）
+        ↓（找到 Name=org.freedesktop.Notifications 的条目）
+dbus-daemon 按 Exec 自动 spawn 服务（继承 bus 环境，含 DISPLAY）
+        ↓
+dunst 启动 → 注册 org.freedesktop.Notifications → 接收通知并显示
+```
+- **dbus-daemon 启动时扫描 service 目录**（运行中新增文件不热加载）→ 放好文件后需**重启 session bus**。
+- bus 环境要带 `DISPLAY`（激活子进程继承 bus 环境，缺 DISPLAY 则 dunst 连不上 X 退出 status 1，2.2.5 实测）。
+
+**② 配置文件位置**（`session.conf` 的 `<standard_session_servicedirs />` 扫描，任一即可）：
+- `$XDG_DATA_HOME/dbus-1/services/`（默认 `~/.local/share/dbus-1/services/`）
+- `$XDG_DATA_DIRS/dbus-1/services/`（默认 `/usr/local/share:/usr/share` → `/usr/local/share/dbus-1/services/`、`/usr/share/dbus-1/services/`）
+
+验证用：**`/usr/share/dbus-1/services/org.knopwob.dunst.service`**。
+
+**③ 内容**：
+```
+[D-BUS Service]
+Name=org.freedesktop.Notifications
+Exec=/usr/local/static/dunst/bin/dunst
+```
+- `Name=` = **要激活的 bus 名**（dbus-daemon 按 `Name=` 字段建激活条目，非文件名）。
+- `Exec=` = **自动启动命令**（指向静态 dunst 绝对路径）。
+- **文件名**：dunst 源码就叫 `org.knopwob.dunst.service`（内容 Name 是 `org.freedesktop.Notifications`）——文件名与 Name **不一致**，但 session bus **非严格命名**不报错、仍按 Name 激活（system bus 严格命名才拒绝）；dunst 上游就这样设计，可用。
+
+**落地注意**：当前 build.sh 只把 service 文件装到 `$TARGETPATH/share/dbus-1/services/`（`/usr/local/static/dunst/share/dbus-1/services/`）——**这不是扫描目录**，CI 镜像要能自动激活，还需拷到 `/usr/share/dbus-1/services/`（或任一扫描目录）。
+
+#### 2.2.8、第一项落地：Dockerfile 加 notify_send 构建 + service 文件入扫描目录（2026-11-17）
+
+> 用户指示（2026-11-17）："先第一项，然后第二项"——第一项 = Dockerfile/CI 落地（notify_send 构建 + service 文件入扫描目录 + mime.cache 确认）。实现后用户要求"把你的实现也更新到记录文档"。
+
+**改动**（`compile/src/Dockerfile`，单 commit `16b1b105` 已推送）：
+1. **dunst stage 加 `notify_send` 构建**：`sh /src/x-dunst/build.sh notify_send;` → notify-send 进新镜像 `/usr/local/static/dunst/bin/notify-send`（此前 stage 只有 `b_deps`+`dunst`）。
+2. **service 文件入扫描目录**：组装层 `COPY --from=dunst` 后加 `RUN`，把 `/rootfs/usr/local/static/dunst/share/dbus-1/services/*.service` 拷到 **`/rootfs/usr/share/dbus-1/services/`**（dbus 扫描目录）→ 新镜像里 notify-send 发 `Notify` 时 **D-Bus 激活自动拉起 dunst**（2.2.5/2.2.7 机制）。
+
+**实跑验证**（builder-gtk-dbg 执行 `notify_send` 分支）：
+- `notify-send` 编译+验证通过 → **3.36M 静态**，`xx-verify --static` = **0**（rc=0）✅
+
+**mime.cache**：`rootfs/src/Dockerfile:285` 已装 `shared-mime-info`（自动生成 `/usr/share/mime/mime.cache`），新镜像已就绪，无需改动（2.2.6 ④）。
+
+**结论**：新镜像将自动含 `notify-send`（x-dunst 内构建）与 dbus 扫描目录 service 文件，D-Bus 激活自动拉起 dunst 全链路落地。
+
+#### 2.2.9、第二项落地：新 dunst 验证 SVG 图标（undock 取阿里云最新镜像，2026-11-17）
+
+> 用户指示（2026-11-17）："只做第 1、2 项"——第二项 = 新 dunst 验证 SVG 图标。**用户指出关键工具**：新 dunst 4M 是 **UPX 压缩**（`rootfs/src/static/clear/clear.sh:24-31` `upx -7`），**不是不含库**。
+
+**为什么本地旧 dunst 不能验 SVG**：本地 builder 旧 `.a`（Nov 11，无 io-svg）滞后；CI 新镜像已含 SVG builtin 代码（u-gtk `-Dbuiltin_loaders=png,jpeg,svg`，build.sh:88，2.2.6 ④）。故用 **`undock`**（crazy-max，`/usr/bin/undock`→`/usr/local/static/3rd/bin/undock`）从**阿里云远程镜像 `x11-base:rootfs-dbg`** 直接抽取内容（`undock --platform linux/amd64 --include="/rootfs/files1/usr/local/static/dunst" <镜像> <输出目录>`），绕开 docker overlay ENOSPC（宿主 `/` 与 `/_ext` 均 98% 满）。
+
+**新 dunst 特征**（undock 抽取到 `/_ext/tmp/svg/undock-out/`）：
+- md5 **`37b454a9`**，**4.01M（UPX 压缩）**，解压后 ~10M 原大小；与 v5 旧（`3d1c09e7`，10M 未压缩）**不同**。
+- 链接含 **`-lrsvg-2`**，strings 有 `image/svg+xml`/`<svg`、`svg_load`/`rsvg` → **librsvg/io-svg 已编入**；stripped 无符号，需实测验证。
+
+**验证方法**（rootfs-dbg，Xvnc 会话）：
+1. 新 dunst 替换 v5 `/usr/local/static/dunst/bin/dunst`（旧备份 `dunst.old-bak`），重启。
+2. 发 SVG/PNG 图标通知：**SVG ID=2 rc=0、PNG ID=3 rc=0**，OCR 确认文本 `SVG-ICON-NEW`/`PNG-ICON-NEW`。
+3. **用户确认**：`notif-svg-new-dunst-zoom.png` 有鼠标图标（SVG Papirus `input-mouse`），`notif-png-new-dunst.png` SVG+PNG 两条都有图标 → **SVG builtin 验证通过 ✅**。
+
+**截图已推送**（`017fb2a2`，`docs/img/tmp/notify-dunst/`，3 张）：`notif-svg-new-dunst.png` / `notif-png-new-dunst.png` / `notif-svg-new-dunst-zoom.png`。
+
+**结论**：新镜像 dunst（UPX 压缩 4M，含 librsvg/io-svg）**SVG+PNG 图标均渲染正常**，图标链路（2.2.6 根因）在最终产物上闭环。
+
+### 2.3、dbus 版本升级评估与实现（2026-11-23）
+
+#### 2.3.1、最新版本评估（2026-11-23）
+
+**结论**：项目当前 dbus **1.12.26**（2023-02-08），上游最新 **1.16.4**（2026-11-12）；1.12 系列最高 **1.12.28**。方案 C（升最新 1.16.4）需 **Meson 构建改造**（1.16 起 Autotools 移除，tarball 无 configure）。
+
+**发布时间对比**：
+
+| 版本 | 角色 | 发布时间 |
+|---|---|---|
+| 1.12.26（项目当前） | 1.12.x 老稳定 | 2023-02-08 |
+| 1.12.28 | 1.12 系列最后（项目未到） | 2023-06 |
+| 1.14.0 | 1.14.x 稳定分支（取代 1.12.x） | 2022-02-28 |
+| 1.14.10 | 1.14 末版 LTS | 2024-06 |
+| 1.16.0 | 1.16.x 新稳定（取代 1.14.x） | 2024-12-16 |
+| 1.16.2 | 1.16 点版 | 2025-02-27 |
+| 1.16.4（上游最新） | 当前稳定 | 2026-11-12 |
+
+**1.16.x 功能变化**（相对 1.12.26）：
+
+- **构建系统：Autotools 移除，Meson 推荐/默认**（Meson ≥ 0.56 + Python 3.5）——官方 1.16.x tarball 不再含 `configure`。
+- C99 编译器要求；>64 位指针平台需 C11。
+- 系统总线 socket 默认 runtime state dir（/run）。
+- 传统 activation 的 `dbus-daemon-launch-helper` setuid 权限不自动设置（需打包/手动）。
+- `pam_console`/`pam_foreground` 集成移除。
+- Linux `GetConnectionCredentials()` 支持 **ProcessFD**。
+- 系统总线从 /etc 和 /run 加载 .service 文件。
+- `close_range()` 关闭 fd / close-on-exec。
+- **Y2038 安全**：32 位平台 64 位时间戳、64 位 inode/timestamp API。
+- dbus-send 支持数组/字典/嵌套变体；AF_UNIX on Windows；大指针架构可移植性。
+
+**CVE 修复**（1.12.26 未含，1.16.4 已含）：
+
+| CVE/编号 | 类型 | 修复版本 |
+|---|---|---|
+| CVE-2023-34969 | Monitoring interface DoS | 1.12.28 / 1.14.6 |
+| CVE-2026-120749 | 系统总线 DoS（CVE-2023-34969 不完整修复） | 1.16.4 |
+| RHEL-239613 (dbus#587) | 客户端关 socket busy-loop DoS | 1.16.4 |
+| RHEL-239294 (dbus#586) | nonce-tcp 阻塞 DoS | 1.16.4 |
+| RHEL-239610/239934 | 非 Linux 平台 DoS（macOS/FreeBSD，x86_64 Linux 不直接相关） | 1.16.4 |
+
+**项目环境兼容性（用 1.16.4）**：
+
+| 维度 | 评估 | 说明 |
+|---|---|---|
+| 构建 | ⚠️ 最大障碍 | 项目 build.sh 用 Autotools `./configure`；1.16.x 无 configure → 需重写 **Meson 构建**（meson setup+ninja），静态链逻辑可保留 |
+| ABI/API | ✅ 兼容 | libdbus 公共 ABI 稳定，下游（dbus-glib/gtk2 应用）无需重编，直接换 libdbus-1.a |
+| dbus-glib | ✅ 基本兼容 | 1.16 的 dbus-1.pc（Meson 生成）需补 Libs.private（-lexpat -lpthread -ldl -lm，项目已有 sed 补丁） |
+| session bus 运行时 | ✅ 功能兼容 | 项目 headless session bus（非 systemd），1.16 的系统 bus /run、setuid helper、systemd 差异不触及 |
+| 安全收益 | ✅ 显著 | 获 CVE-2026-120749 + RHEL-239613 + CVE-2023-34969 等（当前全未含） |
+| 成本/风险 | 中 | Meson 改造 + 重新验证（session bus 起停 / dbus-send / dunst / dbus-glib） |
+
+**建议**：方案 C 升 1.16.4（最新安全），需 Meson 构建改造；build.sh 改多版本（像 dropbear），旧 1.12.26 保留。
+
+#### 2.3.2、方案C 开工实现与验证（2026-11-23）
+
+**方案 C（升最新 1.16.4）实现完成**：`x-dbus/build.sh` 改**多版本构建**（像 dropbear），默认走 `dbus_1_16_4`（Meson 静态全建），旧 1.12.26 方法保留（`dbus_1_12_26`/`dbus_send_1_12_26`/`dbus_launch_1_12_26` 可调）。
+
+**构建过程与坑**（容器 builder-g224，alpine-builder-gtk224-2）：
+
+1. **build.sh 多版本化**：保留旧 `dbus()`（1.12.26 Autotools）为 `dbus_1_12_26` 等可调；新增 `dbus_1_16_4()`；case 默认 `dbus`/`dbus-send`/`dbus-launch` → `dbus_1_16_4`。
+2. **1.16 构建系统迁移**：1.16 起 Autotools 移除（tarball 无 configure），须 **Meson**（容器已有 meson/ninja/python3）。Meson 选项名全变（`meson_options.txt`）：`x11_autolaunch`（可正确关 X11，旧 configure `--disable-x11` 无效）、`default_library` 为 Meson 内建（meson_options 不列）。
+3. **Meson 选项类型坑**：`modular_tests`/`xml_docs` 是 **feature**（enabled/disabled/auto），`user_session`/`installed_tests`/`intrusive_tests`/`tools`/`message_bus`/`traditional_activation`/`asserts`/`checks` 是 **boolean**（true/false）——首次传值错（boolean 收 `disabled` / feature 收 `false`）报「Value ... is not boolean / not one of the choices」。
+4. **expat 静态坑**：Meson 的 expat dependency 默认用 `/usr/lib/libexpat.so`（动态），与 `-Dc_link_args=-static` 冲突（attempted static link of dynamic object）→ patch meson.build 给 expat dependency 加 `static: true` 强制 libexpat.a。
+5. **ninja target 名带路径**：`bus/dbus-daemon`、`tools/dbus-send`、`tools/dbus-launch`、`dbus/libdbus-1.a`（裸名报 unknown target）。
+6. **只建产品 target 避测试程序**：`test-service` 无条件建、`launch-helper-for-tests` 因 `traditional_activation` 触发（链 glib 动态）→ ninja 只建 4 产品 target，避开测试链。
+7. **strip**：`-Dc_link_args='-static -Wl,--strip-all'` 令产物 `statically linked, stripped`（Meson 默认不 strip）。
+
+**验证结果**（容器 builder-g224）：
+
+| 项 | 结果 |
+|---|---|
+| dbus-daemon | `statically linked, stripped`（582K）；`--version` = D-Bus Message Bus Daemon **1.16.4** |
+| dbus-send | 静态（309K），xx-verify PASS |
+| dbus-launch | 静态（1.1M），xx-verify PASS |
+| libdbus-1.a | 2.0M，nm `dbus_bus_get` OK |
+| session bus 实跑 | 起 `dbus-daemon --session` 成功 + `dbus-send` ListNames 返回（org.freedesktop.DBus + :1.0） |
+| dbus-glib 下游 | dbus-glib 0.112 对 **1.16.4 libdbus-1.a** 编译成功（libdbus-glib-1.a 275K，**ABI 兼容**） |
+| 产物路径 | `/usr/local/static/dbus/bin/{dbus-daemon,dbus-send,dbus-launch,...}` + `lib/libdbus-1.a` + `lib/pkgconfig/dbus-1.pc` + `share/dbus-1/*.conf` |
+
+**总结**：方案 C 完成，dbus 1.16.4 静态构建 + 运行 + 下游 dbus-glib 全验证通过。升级获 CVE-2026-120749 + RHEL-239613 + CVE-2023-34969 等修复；构建系统改 Meson（Autotools 移除），旧 1.12.26 方法保留可回退。
+
+### 3、pasystray 音量托盘通知(libnotify静态化) + pavucontrol 评估版本已最新（2026-11-17）
+
+#### 3.1、pasystray 滚轮调音量通知：现状与方案（静态化 libnotify，2026-11-17）
+
+> 用户问（2026-11-17）："pasystray 鼠标在那个托盘区域，鼠标中键滚轮调大或者改小音量会有通知吧，它本身触发通知。"——调研 pasystray 滚轮调音量是否触发通知；用户拍板方案：**静态化 libnotify**，库放组件脚本内构建（开工见 3.2）。
+
+**结论：静态版 pasystray 滚轮调音量不会触发通知**——构建时就把 notify 禁了。
+
+**源码依据**（pasystray 0.8.2，`compile/tarsrc/v-pasystray/`）：
+- **构建**（`v-pasystray/build.sh:52`）：`./configure --with-gtk=2 --disable-avahi --disable-notify --disable-appindicator`——**`--disable-notify`**（libnotify 不在静态栈，2.1.6 已证）。
+- **notify.c 空实现**（`#ifndef HAVE_NOTIFY`，`src/notify.c:24-30`）：`HAVE_NOTIFY=0` 时 `notify()` 返回 0、`notify_update()` 空——**滚轮调音量调了但什么都不显示**。
+- **调用链**（真实存在）：滚轮 → `systray_scroll_cb`（`systray.c:408`）→ `pulseaudio_volume` → **`notify()`/`notify_update()`**（`pulseaudio_action.c:288-290`）→ 若有 libnotify 则发 D-Bus 通知；**静态版是空函数**。
+
+**方案（用户拍板）**：要让它「滚轮调音量有通知」（走方案 A 的 dunst），选**静态化 libnotify**——libnotify 走 GDBus/libdbus（2.1.6 已分析：`--enable-static` 可行，需下载源码），**库放在组件脚本内构建**；然后 pasystray 去掉 `--disable-notify` 重建。备选：改 notify.c 直接发 D-Bus（GDBus 直发，不依赖 libnotify）。
+
+#### 3.2、libnotify 静态化落地（meson patch，2026-11-17 已推送）
+
+> 承接 3.1 方案：静态化 libnotify 0.8.9（放 `v-pasystray/build.sh` 组件脚本内构建），pasystray 去 `--disable-notify` 链入——滚轮调音量通知链路落地。单 commit `e2ebbeb7`。
+
+**libnotify 静态化要点**（`compile/src/v-pasystray/build.sh` 加 `libnotify()` 函数，`b_deps` 调用）：
+1. **meson 主库坑**：`libnotify/meson.build:58` **`shared_library` 硬编码**（`--default-library=static` 无效）→ patch 成 `static_library`，且 `static_library` **不接受 `version`/`soversion`**（shared 才有）→ 一并删。
+2. **tools/docs 阻塞**：meson 自带 `tools/notify-send` 链 `.so` + `--static` 失败（`attempted static link of dynamic object`）→ patch 删 `subdir('tools')`/`subdir('docs')`，只编主库。
+3. **gio-unix 不构成问题**：`gio-unix-2.0.pc` **无 Libs**（仅 `Requires: gio-2.0`），且 libnotify 代码**不用 `g_unix_*` 符号**——符号在 `libgio-2.0.a` 里，无需独立 gio-unix.a（2.1.6 坑证伪）。
+4. **构建**：`meson setup --prefix=/usr --default-library=static -Dintrospection=disabled -Dtests=false -Dman=false -Dgtk_doc=false -Ddocbook_docs=disabled` → `meson compile` + `meson install`。
+5. **产物**：`/usr/lib/libnotify.a`（234K）+ `/usr/lib/pkgconfig/libnotify.pc` + `/usr/include/libnotify/{notify,notification,notification-hints,notify-features,notify-enum-types}.h`。
+
+**pasystray 接入**（同 commit）：`configure` 去 `--disable-notify`（保留 `--disable-avahi --disable-appindicator`），`PST_LIBS` 加 `-lnotify`（start-group 内）。
+
+**实跑验证**（builder-g224）：
+- libnotify.a 234K 装 `/usr/lib` ✅；`pkg-config --exists libnotify` OK ✅。
+- pasystray 14M `statically linked, stripped`，`xx-verify --static` = **0** ✅。
+- **strings 确认 libnotify 真实现编入**：`notify_notification_show`/`notify_notification_update`/`notify_notification_set_timeout` + `you must call notify_init() before showing`（`notify_init` 前置检查）+ `../libnotify/notify.c` → **HAVE_NOTIFY=1，notify() 真实现**（非空实现）✅。
+
+**结论**：滚轮调音量 → `notify()` → libnotify → D-Bus `org.freedesktop.Notifications` → 方案 A 会话总线 → dunst 激活显示，链路已接通（运行期滚轮实测待做，见 3.3 待补充）。
+
+#### 3.3、运行期滚轮实测（rootfs-dbg-v5 Xvnc，2026-11-17 已推送）
+
+> 承接 3.2：静态版 pasystray 已链 libnotify 真实现，本节在运行环境实测「托盘滚轮调音量 → 通知弹出」是否真的生效。截图 `docs/img/tmp/notify-dunst/v4_notif-pasystray-scroll.png`（commit `7a5564c6`）。
+
+**测试环境**：rootfs-dbg-v5（Xvnc `:10` + fluxbox + tint2 托盘 + pulseaudio + dunst + dbus-daemon）。
+
+**两个关键坑（实测踩到）**：
+1. **dunst 挂在 fork 会话总线** `unix:path=/tmp/dbus-wrJOIvjpMf`（**不是** entry.sh 方案 A 的抽象总线 `unix:abstract=/tmp/dbus-uid1000`）——`ListNames` 确认 `org.freedesktop.Notifications` 只在 fork 总线；抽象总线上没有 dunst。
+2. **总线为 `headless` 用户所有，root 连不上**（unix 认证拒绝）——`dbus-send`/pasystray 必须 `docker exec -u headless` 跑（root 下连 ListNames 都失败）。
+
+**部署**：builder-g224 的 `/usr/local/static/pasystray/share/`（`pasystray.gtk2.glade` + `zh_CN/LC_MESSAGES/pasystray.mo` + `applications/pasystray.desktop`，共 40K）经 `/_ext/tmp` 中转拷到 rootfs-dbg-v5 同名路径；起 pasystray（headless，`DISPLAY=:10`，`DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-wrJOIvjpMf`，pid 3360，无崩溃）。
+
+**托盘图标定位**：真图标 = `PulseAudio system tray`（win `12582915`）@ (975,745) 19x19；`pasystray` win @ (10,10) 10x10 是**隐藏窗口**（别点错，第一次就点错没反应）。
+
+**验证（干净 A/B 裁剪 dunst 窗口区域 705,50-1014,104）**：
+- 滚轮前：2 色（纯背景）。
+- 滚轮后：32 色（通知框弹出，含文字/图标）。
+
+**结论**：滚轮 → `systray_scroll_cb` → `pulseaudio_volume` → `notify_update()` → **libnotify → D-Bus → dunst 通知显示**，`HAVE_NOTIFY=1` 真实现运行期生效 ✅（静态版 pasystray 滚轮调音量**现在有通知**了）。
+
+#### 3.4、重编后运行期复验（builder 重编 + hdmi Xvnc :352，2026-11-18 落档）
+
+承接 3.3（rootfs-dbg-v5 已实证滚轮→dunst）：用户 2026-11-18 问"pasystray 是否有编译错误/没产生二进制"、以及"运行正常吗 / 有没有托盘图标 / 托盘图标中间滚轮会不会触发 dunst 通知"——**builder 重编 + hdmi 全新 display 复验，结论全部正常**。
+
+**构建复验**（builder-g224，重跑 build.sh）：
+- `CONSOLE_LOG=no TARGETPATH=/usr/local/static/pasystray sh /src/v-pasystray/build.sh pasystray` → **BUILD_RC=0**，6s（增量重链），日志 **0 处** `undefined reference`/`attempted static link`。
+- 产物 `/usr/local/static/pasystray/bin/pasystray` 14.0M `statically linked, stripped`，`xx-verify --static` = 0；ldd 报 `Not a valid dynamic program`。
+- **源码树 4 个 `.c.rej`（menu_info/pasystray/systray/ui）是良性残留**：build.sh `patch -p1 -N ... || true` 对已打补丁树重跑时部分 hunk 上下文不精确匹配 → 生成 `.rej` 但被 `|| true` 吞；grep 确证源码**确实含全部改动**（menu_info.c 8 处 `_(`、systray.c 20 处、pasystray.c setlocale/bindtextdomain、ui.c ui_register_glade_types），勿误判"缺补丁"。
+
+**运行复验**（hdmi `docker-hdmi-desktop-desktop-1`，全新 Xvnc `:352`；按规则不用 live `:1`）：
+- 环境：Xvnc :352 + `dbus-launch` + `pulseaudio --start`（+ `module-null-sink sink_name=pstest`）+ **单实例 dunst** + openbox + tint2 托盘 + pasystray（新编版，先经 `/_ext/tmp` 中转部署到 `/usr/local/static/pasystray/`）。
+- **托盘图标存在且渲染**：GtkStatusIcon 窗口 `PulseAudio system tray`（22x22）嵌入 tint2 托盘；图标 crop 区 **422 种颜色**（非空白，真画出来了）。`pasystray` win 10x10 是隐藏窗口（3.3 同坑，别点错）。
+- **滚轮改变音量**：`xdotool click --window <icon_id> 4/5` → 100%→102%→104%→106%（null-sink 实测）。
+- **滚轮触发 dunst 通知**：dbus-monitor 捕获 `org.freedesktop.Notifications.Notify` → destination=:1.7（dunst），文本 `sink Null Output 106%`，hints `image-path=audio-volume-high`、`value=106`；`dunstctl is-paused=false`，截图 diff 右上角 (1075,33) 通知文字更新（连续滚轮同一通知复用，仅末位数字变）。
+
+**通知门控（默认）**——`options.c notify_default`：`n_systray_action=TRUE`（pasystray 自身操作→通知），`n_sink/source=FALSE`（外部音量变更→不通知）。**故默认配置滚轮→dunst 通知会触发**；`--notify=all` 才全开。
+
+**本次新增测试坑（2026-11-18）**：
+1. **多 dunst 实例竞争 `org.freedesktop.Notifications` 名→通知丢失/不到达**——测试必须单实例 dunst（初次"没捕获到"即此因）。
+2. **托盘图标窗口须 `xdotool click --window <id>` 定向**——`mousemove+click` 落不到图标（XEmbed 位置偏移，指针实际落在 tint2 主窗口）。
+3. `notify_update` 复用同一通知句柄→连续滚轮仅末位数字变化（截图 diff 区域小）。
+
+**结论**：pasystray 构建无错、二进制有效；运行正常、托盘图标有、滚轮→dunst 通知默认触发 ✅。
+
+#### 3.5、CI 产物无通知排查（rootfs-dbg 最新镜像，2026-11-18 落档）
+
+承接 3.4（builder 重编验证有通知）：**CI 构建产物（rootfs-dbg 镜像）的 pasystray 无通知**——用户 2026-11-18 反馈「CI 构建成功后滚轮仍无 dunst 通知」。
+
+**实测（最新镜像 `b51a761c` / 本地 `8e9b136bda1e`，产物 11-18 11:44 构建）**：
+
+- 产物 `/usr/local/static/pasystray/bin/pasystray`（5.7M，静态）`strings | grep -c "notify_notification_show\|notify_init"` = **0**——**二进制不含 libnotify 实现**（连 `you must call notify_init` 字面量都没有），非 UPX 假阴性（ELF 头正常，`ci-upx` 已证）。
+- CI 日志（`ci-pasystray-log.txt`）编译命令**带 libnotify Cflags** `-DG_LOG_DOMAIN=libnotify`（来自 libnotify.pc）且 `pasystray-notify.o` 编译成功（`.Tpo→.Po`，line 17）——**configure 检测到 libnotify（NOTIFY=yes）**。
+
+**根因排查（2026-11-18，`builder-gsm-verify` 复现，非猜测）**：
+
+- `configure` 在 libnotify.pc 存在时**完全正常**：`checking for NOTIFY... yes` + `src/config.h` = `#define HAVE_NOTIFY 1`（AC_DEFINE 生效，`src/config.h.in` 模板有 `#undef HAVE_NOTIFY`）。
+- `make -C src pasystray-notify.o` 正常：notify.o **真实现**——`U notify_init`、`U notify_notification_new/show/update`（引用 libnotify，8 处）+ `T notify_initialize/show/update`（真实现函数）。
+- `libnotify.pc`（meson 生成）Cflags = `-I${includedir} -DG_LOG_DOMAIN="libnotify"`——**该宏确来自 libnotify.pc**；NOTIFY_CFLAGS 非空 ⟺ PKG_CHECK 成功 ⟺ HAVE_NOTIFY=1。
+- 链接：`-lnotify` 可链（libnotify.a 在 `/usr/lib`，脚本 `PST_LIBS` 完整含 glib/pcre 全链）；手动测试报 `undefined reference pcre_*` 只是测试命令漏 `-lpcre`，非脚本问题。
+
+**结论**：**脚本/源码/configure 均正常**（本地能得出 HAVE_NOTIFY=1 真实现 + notify.o 引用 libnotify）；**CI 产物无 notify 符号 = CI 构建环境问题**——notify.o 或 libnotify.a **未链入最终二进制**，且 `oneBuild` 吞错（AGENTS「判成功别信 oneBuild」）致 `_exec_result.txt=0` **假成功**。**需 CI 侧构建日志（本镜像 `/usr/local/static/.logs/` 已被清）/构建缓存排查**；本仓库脚本侧无可修点。
+
+**与 3.3/3.4 区分**：3.3/3.4 验证的是 **builder 手链版**（有通知）；**CI 产物无**。运行期无通知与用户反馈**一致**（产物无 notify 代码，滚轮 `notify_update()` 走空实现）。
+
+**订正（2026-11-18 晚，镜像内完整日志 + upx 解压实测）**：3.5 上述「CI 构建环境未链入 libnotify」结论**有误，撤**。
+
+真实情况（镜像内 `/rootfs/files1/usr/local/static/.logs/doExec/v-pasystray/pasystray.log` 727 行完整日志 + `upx -d` 解压实测）：
+
+- **CI 构建完全正常**（12:39）：`checking for NOTIFY... yes`（51 行）；链接命令（706 行）含 `pasystray-notify.o` + 两次 `-lnotify` + `-lpulsecommon-13.13`；`undefined reference` 计数 **0**；verify 段产物 **13.4M** `statically linked, stripped`，GTK_ICON_THEME/murrine/rsvg strings 全 OK。
+- **产物被 UPX 压缩**（13.4M → 5.7M，40.79%）——notify 代码在 UPX 压缩段内，`strings` 看到「无 notify」是**压缩假阴性**。用镜像自带 `upx -d`（`/rootfs/files1/usr/local/static/3rd/bin/upx`）解压后 = **14,046,968 字节**（与本地构建同尺寸），`strings` notify 计数 **2**，真实现字符串 `[notify] unable to show notification: %s: %s (%i)`、`[notify] invalid arguments passed to notify_update()` 均在。
+- **3.5 分析错误根因**：① 镜像内产物在 `/rootfs/files1/usr/local/static/`（rootfs 分层），此前误查容器 `/usr/local/static/`（不存在）判「日志被清」；② `strings` 检查未考虑 UPX 压缩（`ci-upx` 只查前 4 字节 ELF magic，UPX 保留 magic，检查方法错误）。
+- **因此「滚轮无通知」真实原因不在构建**（CI 产物含 notify 实现，解压可运行）——**转向运行层**：dunst 会话总线归属 / notify 门控（`options.c notify_default`）/ UPX 运行时行为，**待实跑定位**。
+
+**build.sh 补充防御**（2026-11-18）：verify 段加 `strings | grep "notify_notification_show\|notify_init"` 检查（构建产物真缺 notify 时直接 `exit 1`）；`case` 默认分支 `oneBuild $1` 后改 `exit $?`（撤掉原本无条件 `exit 0` 吞错，AGENTS「case 结尾不要 exit 0」坑）。
+
+#### 3.6、现有进展：滚轮无通知根因钉死（libnotify GDBus connection closed，2026-11-18 保存）
+
+用户 rootfs-dbg（`docker run -it --rm --net=host -e L=zh_CN -e START_SESSION=openbox-session <rootfs-dbg>`）托盘滚轮调音量**无 dunst 通知**，且反复排查多轮才定位。本节保存当前定论与验证链（供后续实施解决）。
+
+##### 3.6.1、现有进展记录（验证链与结论）
+
+**结论（已实测钉死）**：**pasystray 静态链 libnotify 的 `notify_notification_show` 失败——报 `The connection is closed`（GDBus 连接关闭）**——滚轮 → `notify()` → show 失败 → 总线无 Notify → dunst 无事可做，无通知。**notify-send（x-dunst GDBus 直发）同环境正常显示**——libnotify 与 GDBus 直发**实现不一致**坐实。
+
+**验证链（逐步排除，全程实测）**：
+
+| 环节 | 结果 |
+|---|---|
+| CI 构建 | ✅ 正常（13.4M 有 notify；UPX 压 5.7M 是 strings 假阴性，见 3.5 订正） |
+| dunst 显示 | ✅ 正常（notify-send 显示；手动起 dunst 后 notify-send 也显示，diff bbox 证实） |
+| 音频 sink | ✅ 正常（用户环境有 `xrdp-sink`，pulse 定制；滚轮 `set_volume` 成功，pavucontrol 音量相应变化） |
+| UPX 运行时 | ❌ 排除（同环境换 14M 解压版，滚轮仍无通知，diff None） |
+| dunst 接管 | ❌ 排除（手动起 dunst 常驻 + 滚轮仍无通知） |
+| 总线 Notify | ❌ **0 条**（dbus-monitor 监听滚轮，无 `member=Notify`） |
+| **libnotify 独立实测** | ❌ **`show rc=0 (The connection is closed)`**（test-notify 静态链：notify_init → new → show） |
+| notify-send 对照 | ✅ 显示（GDBus 直发 `g_dbus_connection_call_sync` 工作） |
+
+**根因机制**：
+- `systray_scroll_cb`（systray.c:408-429）→ `pulseaudio_volume`（pulseaudio_action.c:161，set_volume 成功）→ `pulseaudio_set_volume_success_cb`（`success=1`，无 "failed to set volume" 警告）→ `n_systray_action=TRUE`（options.c:79 默认开，无配置覆盖）→ `notify()`（notify.c 真实现）→ `notify_notification_show`（libnotify）→ **失败（connection closed）** → 总线无 Notify。
+- libnotify 的 GDBus connection（notify_init 建立）在 show 时已 closed；notify-send 每次 `g_dbus_connection_call_sync` 独立连接则正常——**差异在连接生命周期/复用**（静态 glib/libnotify 在 musl 下的问题）。
+
+**解决路径（待实施）**：
+- A（推荐）：patch `compile/src/v-pasystray/notify.c` 改 **GDBus 直发**（`g_dbus_connection_call_sync` 发 `org.freedesktop.Notifications.Notify`，复用 x-dunst notify-send 已验证实现），绕开 libnotify——静态栈 GDBus 直发已被证明工作。
+- B：深修静态 libnotify/glib 的 GDBus connection（musl/静态下连接生命周期，成本高不确定）。
+- 下一步：实施 A + 静态链验证 + rootfs-dbg（用户跑法）实跑确认通知弹出。
+
+##### 3.6.2、根因修正与修复实施（2026-11-18）
+
+**订正 3.6.1**：3.6.1 的「libnotify connection closed」是**连接失败的表现层**——**最终根因不是 libnotify**，是**会话 bus 与桌面应用 uid 不匹配**（libnotify/UPX/dunst/sink 均无辜，逐项实测排除过）。
+
+**真因（实测钉死）**：
+- 会话 `dbus-daemon`(357) 为 **root** 启动（父进程=1/perpd；模板本应 `gosu headless` 内起，实际 root——uid bug）。
+- 桌面应用 `pasystray`/`pulse` 为 **headless**（openbox session 内，用户确认 pulse 在 headless 下正常）。
+- **headless 连 root bus：EXTERNAL 认证拒绝**（gio 报 `The connection is closed`；dbus-send 报 `Did not receive a reply`）→ `notify_notification_show` 发不出 → 总线无 Notify → dunst 收不到 → 无通知。
+- root 连 root bus：正常（`method return`）——三者对照锁定认证。
+
+**验证链**：
+
+| 连接 | 结果 |
+|---|---|
+| headless → root bus(357) | ❌ 认证拒绝（connection closed / Did not receive a reply） |
+| root → root bus(357) | ✅ `method return`（ListNames 正常） |
+| headless → 新起 headless bus | ✅ 连接成功（notify-send 发出，认证通过） |
+| headless bus + headless dunst(带 DISPLAY) + headless notify-send | ✅ **通知显示**（diff bbox (221,2,530,93) + 773 色） |
+
+**修复（用户拍板选 A）**：修 `entry.sh` / `tpl-rc.main` / `x10-de/rc.main` 里 `dbus-daemon` 启动**明确以 headless（+DISPLAY 环境）**起，让会话 bus 与桌面应用同 uid → 重构建 rootfs 镜像验证。备选 B（openbox autostart 起 headless bus + dunst 常驻）已证链路可行，未选。
+
+##### 3.6.3、修复落地与 dunst 手动启动（2026-11-19）
+
+**修复 A 已落地**：`rootfs/src/entry.sh`（x10-de 会话生成处）`dbus-daemon` 改为**明确 `gosu headless dbus-daemon --session`**（commit `293c5f5e`）——重建 rootfs 镜像后会话 bus 属 headless，桌面应用（headless）连接认证通过，通知链路恢复。
+
+**根因实证补充（2026-11-19，前文之外）**：
+- headless → root bus(357)：认证拒绝（`Did not receive a reply` / `The connection is closed`）；root → root bus：通过（`method return`）。
+- 新起 `dbus-daemon --session`（无论 root bash 还是 headless bash 调）**均为 headless**（实测 1447/1478）——仅 16:31 容器启动早期的 357 为 root（异常：早期环境/rootfs 未就绪时 gosu 失效）。
+- **libnotify 本身无辜**：test-notify（静态链 libnotify）在 **headless bus 下 `show rc=1`（成功）**；root bus 下 closed 只是认证失败的表现（非库问题）。
+
+**dunst 手动启动命令（用户问「直接 dunst 命令不行」——缺环境）**：
+```sh
+su headless -s /bin/sh -c 'DISPLAY=:10 DBUS_SESSION_BUS_ADDRESS=<会话bus地址> nohup /usr/local/static/dunst/bin/dunst > /tmp/dunst.log 2>&1 &'
+```
+- 必须：`su headless`（用户）、`DISPLAY`（X）、`DBUS_SESSION_BUS_ADDRESS`（与通知发送方**同一会话 bus**——查 `ls /tmp/dbus-*` 或 `pgrep -af dbus-daemon` 取地址）、`nohup ... &`（后台）。
+- 直接 `dunst`（root/缺 DISPLAY/缺 bus）会启动失败或没接管 `org.freedesktop.Notifications`，通知照旧丢失。
+
+**待续**：重建 rootfs-dbg 镜像后用用户跑法验证滚轮通知；「第二层」（pasystray 滚轮在干净 headless 环境是否触发 notify——现容器多实例污染未钉死）待确认。
+
+**第二层定论与修复验证通过（2026-11-19 补）**：
+- 干净环境（单 dunst 6098 + 单 pasystray 6107，均为 headless、同一 headless bus）滚轮 → **通知区 diff bbox (301,15,535,89)、584 色——通知框正常渲染**（与 notify-send 显示同位置同特征）——**pasystray 滚轮 notify 触发正常**，之前 root bus 时「无 notify」全系第一层认证拒绝所致。
+- **「bus 0 条 Notify」为 monitor 失效假象**：headless `su` 后台化 dbus-monitor 连上（NameAcquired）后即 NameLost 退出（`cm.log` 实证），monitor 未覆盖滚轮窗口——不可信。
+- **完整根因 = 第一层（bus uid 错位）**，**修复 A（entry.sh dbus 明确 gosu headless）完整有效**（模拟修复环境全链路验证通过：headless bus + headless dunst + headless pasystray + 滚轮 → 通知显示）。
+- **下一步**：重建 rootfs-dbg 镜像（entry.sh commit `293c5f5e` 生效）→ 用户跑法实跑验证。
+
+##### 3.6.4、修复验证成功（重建 rootfs-dbg 镜像，2026-11-19）
+
+**用户实跑确认**：重建 rootfs-dbg 镜像后，托盘图标滚轮调音量 → **通知正常弹出 —— 问题解决** ✅（修复 A：`entry.sh` dbus 明确 `gosu headless` 起，commit `293c5f5e`）。
+
+**用户补充（印证根因）**：之前滚轮报错时，`DISPLAY` 与 `DBUS_SESSION_BUS_ADDRESS` 两个环境变量**都是有的**——不行的原因是 **dbus 当时是 root 跑的**（会话 bus root 属 + 桌面应用 headless → EXTERNAL 认证拒绝）——与 3.6.2/3.6.3 锁定的根因一致。
+
+**dunst 手动启动命令（用户问，实测保存）**：
+```sh
+su headless -s /bin/sh -c 'DISPLAY=:10 DBUS_SESSION_BUS_ADDRESS=<会话bus地址> nohup /usr/local/static/dunst/bin/dunst > /tmp/dunst.log 2>&1 &'
+```
+- 必须 `su headless`（root 直接跑不行：连 headless 的 X/bus 认证/权限都不对）。
+- `DISPLAY=:10`（X 显示号）。
+- `DBUS_SESSION_BUS_ADDRESS` 必须与通知发送方（pasystray）**同一会话 bus**——`ls /tmp/dbus-*` 或 `pgrep -af dbus-daemon` 取。
+- `nohup &` 后台；日志看 `/tmp/dunst.log`。
+- 「直接 dunst 不行」= 缺 DISPLAY/bus/用户不对——dunst 启动失败或没接管 `org.freedesktop.Notifications`，通知照旧丢失。
+
+#### 3.7、托盘图标悬停 tooltip 遮挡 dunst——`--no-icon-tooltip` 关闭（2026-11-20）
+
+用户反馈（2026-11-20）：鼠标悬停托盘图标跳出信息框（连接状态 tooltip），与 dunst 通知区域互相遮挡，要屏蔽并问原生有无配置项。
+
+**结论：原生有配置项**——`pasystray --no-icon-tooltip`（短参数 `-t`）关闭连接状态托盘图标 tooltip；`icon_tooltip` 默认 `TRUE`。
+
+**源码依据**（pasystray 0.8.2，`compile/tarsrc/v-pasystray/`）：
+
+- `src/options.c:33`：`static gboolean icon_tooltip = TRUE;`（默认开启）。
+- `src/options.c:49-50`：`{ "no-icon-tooltip", 't', 0, G_OPTION_ARG_NONE, &icon_tooltip, "Disable the status icon tooltip for the connected state", NULL }`。
+- `src/options.c:132`：`settings->icon_tooltip = icon_tooltip;`（仅 CLI，无 gconf 键持久化）。
+- `src/pulseaudio.c:105`：`PA_CONTEXT_READY` 时 `if(mis->settings.icon_tooltip)` → `systray_impl_set_tooltip()`（`context_info_str` 的 server 信息，`systray_impl.c:156` `gtk_status_icon_set_tooltip_markup`）；else `systray_impl_set_has_tooltip(FALSE)`。
+- 悬停框 = 连接状态 tooltip（显示 PulseAudio server 信息），正是 `--no-icon-tooltip` 关闭的对象。
+
+**实测**：hdmi 发行版系统包 `/usr/bin/pasystray --help` 含 `-t, --no-icon-tooltip`；生产静态版同源码同样支持。
+
+**应用方式**：
+
+- 运行环境（hdmi/Ubuntu）：改 `/etc/xdg/autostart/pasystray.desktop` 的 `Exec=pasystray` → `Exec=pasystray --no-icon-tooltip`，`pkill pasystray` 重启生效。
+- 生产 rootfs 静态版：启动加 `--no-icon-tooltip` 即可（同源码 0.8.2）。
+- 注：只关**连接状态** tooltip；未连接瞬态 "connecting to server..."（`systray_impl.c:114`）与下拉菜单项 tooltip 不受控制（非悬停框场景）。
+
+**拍板**：用户 2026-11-20 决定「只存文档」（本章 3 节下），运行环境（hdmi autostart）与生产 rootfs 落点**未改**，后续按需实施。
+
+#### 3.8、订正：`--no-icon-tooltip` 上游是空转开关——根因、修复与实测（2026-11-20）
+
+> **订正（2026-11-20）**：3.7 的「应用方式」结论作废。加 `--no-icon-tooltip` **无法关闭 tooltip**，原因是开关本身在上游就是无效的。
+
+用户把 `pasystray --no-icon-tooltip` 加进生产 rootfs 的 openbox autostart 后，悬停托盘图标**仍弹信息框**（`ps -ef` 已确认参数在进程命令行上）。因此 3.7 的"加参数即可解决"不成立。
+
+**根因**：`--no-icon-tooltip` / `-t` 在 pasystray 0.8.2 **就是空转的 no-op 开关**。
+
+- `src/options.c:49-50` 把该开关（`G_OPTION_ARG_NONE`）直接绑定到 `src/options.c:33` 的 `static gboolean icon_tooltip`，而它**默认已是 `TRUE`**。
+- GLib 的 `G_OPTION_ARG_NONE` 处理器是无条件 `*bool = TRUE`，**无法表达"未传"**——所以传了 flag，`icon_tooltip` 还是 `TRUE`（等于默认值），开关根本翻不过去。
+- 于是 `src/options.c:132` 的 `settings->icon_tooltip = icon_tooltip;` 恒为 `TRUE`，`src/pulseaudio.c:105` 的 `if(mis->settings.icon_tooltip)` 永远走"设 tooltip"分支，`systray_impl.c:156` 的 `gtk_status_icon_set_tooltip_markup` 照常被调用。
+- 已抓上游 `master/src/options.c` 逐行核对：**与我们 0.8.2 源码完全一致**，属上游 bug，不是本项目构建或部署问题。
+
+**GLib 探针实测**（builder 容器内 gcc + glib-2.0 编译真跑，不靠推测）：同一程序放两个开关，A 绑 default-TRUE 变量（pasystray 现状写法）、B 绑 default-FALSE 变量（拟修复写法）。
+
+| 命令行 | A（default-TRUE 变量） | B（default-FALSE 变量） |
+| --- | --- | --- |
+| `--no-icon-tooltip --no-flag` | 1 | 1 |
+| `--no-icon-tooltip` | 1 | 0 |
+| `-t` | 1 | 0 |
+| （无参数） | 1 | 0 |
+
+A 在"传"与"不传"下都是 1 —— 与 pasystray 现状行为完全吻合；B 才是正确语义。
+
+**同时推翻上一轮的"启动环境差异"假设**：手动 `su` 起干净环境（只设 `DISPLAY/HOME/LANG`）、以及 autostart 环境，**都复现 tooltip**（悬停 19363 / 19487 字节，移开基线 11079 / 11233）。差异是测试假象，不是 autostart 环境变量（`GTK_IM_MODULE`/`XMODIFIERS`/`DBUS` 等）导致。
+
+**修复**（已落代码，未推 CI）：
+
+- 新增 `compile/src/v-pasystray/pasystray-no-icon-tooltip.patch`：新增 `static gboolean no_icon_tooltip = FALSE;`，开关改绑 `&no_icon_tooltip`，`parse_options()` 里改 `settings->icon_tooltip = !no_icon_tooltip;`。
+- `compile/src/v-pasystray/build.sh`：在 glade-types、i18n 之后应用第 3 个 patch。
+
+**全链路实跑验证**（`alpine-builder-gtkmm224-2` 起临时容器 `builder-mm224`，`/src` 软链宿主；`x-pulseaudio` 静态栈 126s、`PULSE_RC=0`，`pasystray` 10s，`xx-verify --static` 通过、`0` 个 undefined reference、patch 确认落在 `src/options.c:34/51/133`）：
+
+| 二进制 | 参数 | 悬停截图 | 移开基线 | 结论 |
+| --- | --- | --- | --- | --- |
+| CI 旧件（5733608B，`md5 20a45bfa...`，Nov 20 10:30） | `--no-icon-tooltip` | 19363 / 19487 | 11079 / 11233 | **仍有 tooltip（bug）** |
+| 修复后（14046968B，`md5 06d0d08c...`） | `--no-icon-tooltip` | **11229** | **11229** | **无 tooltip ✅** |
+| 修复后 | （不带参数） | 19541 | 11299 | 默认 tooltip 保留 ✅ |
+
+验证环境：`rootfs-dbg` 最新镜像（Digest `22c90072fa86`）容器 `rootfs-dbg-latest`，Xvnc `:10` 1024x768，tint2 托盘，托盘图标窗口 `6291459 @ (977,745) 19x19`。截图用 `scrot`，宿主无 PIL/ImageMagick，**比字节数**即能判定有无 tooltip（有 ≈19KB，无 ≈11KB）。
+
+旁证：托盘图标仍渲染、右键菜单正常弹出（截图 11299 → 31995 字节）、`share/locale/zh_CN/LC_MESSAGES/pasystray.mo` 未受影响。
+
+**产物体积**：本地全量静态链接 14046968B，CI 镜像内为 5733608B——**不用管**，CI 到 rootfs 后有 upx 压缩（用户 2026-11-20 澄清），非缺链接。
+
+**生效路径**：patch 随 CI 重建 rootfs 镜像后，生产 autostart 里已有的 `pasystray --no-icon-tooltip &`（`~/.config/openbox/autostart:73`）才真正生效；本 3.7 的 hdmi autostart 改法同理，需等 CI 新产物。
+
+#### 3.9、pavucontrol 最新支持 GTK2 版本评估（2026-11-23）
+
+**结论**：pavucontrol 最新支持 GTK2 的版本 = **3.0**（项目当前版本，**无更高可升**）。
+
+**实测**（gitlab.freedesktop.org/pulseaudio/pavucontrol 各 tag 查 configure.ac）：
+
+| 版本 | GTK/gtkmm 依赖 | GTK 世代 |
+|---|---|---|
+| 3.0（项目当前） | `AC_ARG_ENABLE(gtk3, --disable-gtk3)`：默认 `gtkmm-3.0 ≥ 2.99`；**`--disable-gtk3` → `gtkmm-2.4 ≥ 2.16`**（configure.ac:43-62） | **GTK2（--disable-gtk3）+ 默认 GTK3** |
+| 4.0 | `PKG_CHECK_MODULES(GUILIBS, [ gtkmm-3.0 >= 3.0 sigc++-2.0 libcanberra-gtk3 >= 0.16 ])` | **只 GTK3** |
+| 5.0 | `gtkmm-3.0 ≥ 3.22 ... json-glib-1.0` | GTK3 |
+| 6.2（上游最新） | gtkmm-3.0 | GTK3 |
+
+**要点**：
+
+- 3.0 是最后支持 GTK2 的版本：configure.ac 保留 `AC_ARG_ENABLE(gtk3, --disable-gtk3)` 双选（默认 gtk3=yes，--disable-gtk3 走 gtkmm-2.4 分支）；**4.0 起强制 GTK3**（`PKG_CHECK_MODULES(gtkmm-3.0)`，无 --disable-gtk3 / gtkmm-2.4 分支）。
+- **3.0 系列确认无更高小版本**：`git ls-remote --tags` 仅 v3.0（无 v3.0.1/v3.0.x），3.0 系列就一个版本。
+- 项目当前 `3.0` 已是**最后/最高支持 GTK2 的版本**（build.sh 注释「版本 3.0 = 最后 GTK2 版（--disable-gtk3 走 gtkmm-2.4 分支）」经源码独立确认），**无需升级**。
+- 后续版本（4.0+/5.0/6.2）全 GTK3，项目用不上。
+
