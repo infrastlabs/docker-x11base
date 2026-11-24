@@ -24,7 +24,7 @@ function atk(){ ##@meson
     # ./configure --enable-static; 
     # meson build
     # static>> undefined reference to 'png_destroy_write_struct'
-    meson build  --default-library=both ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE"} #both static
+    meson build  --default-library=both ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE" -Dintrospection=false} #both static
 
   log "Compiling atk..."
     if [ -n "$XX_CROSS_FILE" ]; then
