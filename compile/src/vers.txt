@@ -17,6 +17,7 @@ lxde-lxtask|master|git clone --depth=1 $GITHUB/lxde/lxtask
 pcmanfm|1.3.1|git clone --depth=1 --branch=1.3.1 $GITHUB/lxde/pcmanfm
 tint2|16.1|git clone --depth=1 --branch=16.1 $GITHUB/o9000/tint2
 pasystray|0.8.2|down_catfile $GITHUB/christophgysin/pasystray/archive/refs/tags/0.8.2.tar.gz | tar -xz --strip 1 -C /tmp/pasystray
+clipit|1.4.5+git20241103|down_catfile $GITHUB/CristianHenzel/ClipIt/archive/f35db540c9d3c57b13439d66597736e917e8c9a1.tar.gz | tar -xz --strip 1 -C /tmp/ClipIt
 xlunch|master|git clone --depth=1 https://gitee.com/g-system/fk-xlunch
 dropbear|master|git clone --depth=1 https://github.com/mkj/dropbear
 pulseaudio|v13-99-3|git clone --branch=br-v13-99-3 https://gitee.com/g-system/fk-pulseaudio
