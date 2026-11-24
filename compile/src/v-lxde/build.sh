@@ -61,8 +61,19 @@ function lxtask(){
   gitclone https://gitee.com/g-system/fk-lxtask /tmp/lxtask $branch #;
   log "Configuring LXTASK..."
   cd /tmp/lxtask #&& ./bootstrap;
+  # 2026-11-24 方案二交叉: 强制宿主 pkg-config(同 gtk 坑①) + --host 交叉 + LDFLAGS 补 -L sysroot/usr/local(librsvg/libcroco 装 /usr/local)
+  CROSS_HOST=""; X_LIBDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    X_LIBDIR="-L$XX_SYSROOT/usr/local/lib"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    log "lxtask: CROSS ($XX_TRIPLE)"
+  fi
   ./autogen.sh
-  ./configure --prefix=$TARGETPATH --localedir=$TARGETPATH/share/locale
+  ./configure --prefix=$TARGETPATH --localedir=$TARGETPATH/share/locale $CROSS_HOST
   # ref pcmanfm
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
@@ -74,7 +85,7 @@ function lxtask(){
     #   后 u-gtk 库层根治(方案A: 注册函数导出 + get_type 必然调用, 见 u-gtk/build.sh gdk_pixbuf 内联 python)——lxtask 恢复原 LIBS0 无需 -u, svg loader 自动注册。
     LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
-  make LDFLAGS="$LDFLAGS" \
+  make LDFLAGS="$X_LIBDIR $LDFLAGS" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
     || { log "LXTASK build FAILED"; exit 1; }
 
