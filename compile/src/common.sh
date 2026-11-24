@@ -299,3 +299,39 @@ function ensure_gtk_libs(){
   mkdir -p $ST; echo "$CUR" > $ST/gtk.sha
   log "ensure_gtk_libs: gtk2 rebuilt, marker updated"
 }
+
+# xx_cross_init: 交叉编译初始化（2026-11-24，方案二）。
+# is-cross=true（编译 stage 在 build 平台跑、TARGETPLATFORM 指 target）时：生成 meson cross-file +
+#   导出 XX_SYSROOT/XX_CROSS_FILE/XX_TRIPLE/XX_MARCH，供 build.sh 交叉（meson --cross-file、.a 落 sysroot）。
+# is-cross=false（native/qemu/未设 TARGETPLATFORM）：变量留空 → build.sh 走原路径（旧构建模式不变）。
+# 兼容：xx-info 不存在 或 is-cross 非 0 → 直接 return（native 原路径，零影响）。
+# 判据=执行 arch(uname -m) vs target arch（xx-info is-cross）——非 BUILDPLATFORM!=TARGETPLATFORM（qemu 下后者恒真会误判）。
+# cross-file 要点：pkgconfig key 无连字符；cpu_family 用 march(aarch64 非 arm64)；sys_root 使 meson 设 PKG_CONFIG_SYSROOT_DIR。
+xx_cross_init(){
+  command -v xx-info >/dev/null 2>&1 || return 0
+  xx-info is-cross >/dev/null 2>&1 || return 0
+  export XX_SYSROOT=$(xx-info sysroot)
+  export XX_TRIPLE=$(xx-info triple)
+  export XX_MARCH=$(xx-info march)
+  export XX_CROSS_FILE=/tmp/xx-cross-${XX_MARCH}.ini
+  cat > "$XX_CROSS_FILE" <<EOF
+[binaries]
+c = '/usr/bin/xx-clang'
+cpp = '/usr/bin/xx-clang++'
+ar = 'ar'
+pkgconfig = '/usr/bin/pkg-config'
+
+[properties]
+needs_exe_wrapper = true
+sys_root = '$XX_SYSROOT'
+pkg_config_libdir = '$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig'
+
+[host_machine]
+system = 'linux'
+cpu_family = '$XX_MARCH'
+cpu = '$XX_MARCH'
+endian = 'little'
+EOF
+  log "xx_cross_init: CROSS -> $XX_TRIPLE (sysroot=$XX_SYSROOT cross-file=$XX_CROSS_FILE)"
+}
+xx_cross_init
