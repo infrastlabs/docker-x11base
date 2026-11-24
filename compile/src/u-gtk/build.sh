@@ -24,17 +24,19 @@ function atk(){ ##@meson
     # ./configure --enable-static; 
     # meson build
     # static>> undefined reference to 'png_destroy_write_struct'
-    meson build  --default-library=both #both static
+    meson build  --default-library=both ${XX_CROSS_FILE:+--cross-file "$XX_CROSS_FILE"} #both static
 
   log "Compiling atk..."
-    # make
-    ninja -C build/
-
-  log "Installing atk..."
-    # make install
-    ninja -C build/ install
-  
-  cp -a /usr/local/lib/libatk-1.0.a /usr/lib/
+    if [ -n "$XX_CROSS_FILE" ]; then
+      # 交叉：只编 .a 目标（全量 ninja/install 会链 libatk-1.0.so → 拉 host x86 libglib-2.0.so "wrong format"）；.a 手动落 sysroot
+      ninja -C build/ atk/libatk-1.0.a
+      cp -a build/atk/libatk-1.0.a ${XX_SYSROOT:-}/usr/lib/
+    else
+      # make
+      ninja -C build/
+      ninja -C build/ install
+      cp -a /usr/local/lib/libatk-1.0.a /usr/lib/
+    fi
 }
 
 # meson build>> clone: gi-docgen [by meson_py slow..; meson两个文件未找到docgen信息]
