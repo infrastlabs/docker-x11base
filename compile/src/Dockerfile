@@ -395,9 +395,7 @@ RUN mkdir -p $TARGETPATH; \
   \
   test "yes" != "$COMPILE_XFCE4" && exit 0 || echo doMake; \
   sh /src/v-xfce4/build.sh b_deps; \
-  sh /src/v-xfce4/build.sh xfce4settings; \
-  # sh /src/v-xfce4/build.sh ristretto; \
-  # sh /src/v-xfce4/build.sh thunar; \
+  sh /src/v-xfce4/build.sh full; \
   \
   test -x $TARGETPATH/bin/xfce4-display-settings || { echo "XFCE4 FAIL: xfce4-display-settings not built"; exit 1; }; \
   # test -x /usr/local/static/ristretto/bin/ristretto || { echo "XFCE4 FAIL: ristretto not built"; exit 1; }; \
@@ -509,6 +507,17 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
+# Build clipit
+FROM base AS clipit
+ARG COMPILE_CLIPIT="yes"
+ENV CONSOLE_LOG=no \
+  TARGETPATH=/usr/local/static/clipit
+RUN mkdir -p $TARGETPATH; \
+  test "yes" != "$COMPILE_CLIPIT" && exit 0 || echo doMake; \
+  # sh /src/v-clipit/build.sh b_deps; \
+  sh /src/v-clipit/build.sh clipit; \
+  find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
+
 # Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
 FROM base AS dbus
 ARG COMPILE_DBUS="yes"
@@ -616,6 +625,7 @@ COPY --from=xfce4 ${STATIC} /rootfs${STATIC}
 COPY --from=geany ${STATIC} /rootfs${STATIC}
 COPY --from=engrampa ${STATIC} /rootfs${STATIC}
 COPY --from=gpicview ${STATIC} /rootfs${STATIC}
+COPY --from=clipit ${STATIC} /rootfs${STATIC}
 COPY --from=dbus ${STATIC} /rootfs${STATIC}
 # COPY --from=ibus ${STATIC} /rootfs${STATIC}
 COPY --from=base /tmp/NOCACHE /tmp/
