@@ -300,6 +300,14 @@ function ensure_gtk_libs(){
   log "ensure_gtk_libs: gtk2 rebuilt, marker updated"
 }
 
+# XX_X11_PKGS: X11 静态库/头的公共最小集（2026-11-25，方案二交叉共享清单）。
+# 背景：xx-cross 下交叉 sysroot 由 xx-apk 现建，只含显式装的包；native amd64 靠 gtk224 镜像烘焙的 X11，
+#   交叉 sysroot 无 → 凡链 X11 的组件都需先补装（xdpyprobe CI 首踩：X11/Xlib.h file not found）。
+# 用法：xx-apk add $XX_X11_PKGS [<本组件额外包>]；native 已装 → 幂等零影响。
+#   libx11 的 .a 在 libx11-static；xcb/xau/xdmcp 的 .a 在各自 -dev（无 -static 变体）；xorgproto 作依赖自动拉。
+#   需额外扩展（xext/xrender/xcomposite/xfixes/xrandr/xdamage…）的组件在此基线后追加。
+export XX_X11_PKGS="libx11-dev libx11-static libxcb-dev libxcb-static libxau-dev libxdmcp-dev"
+
 # xx_cross_init: 交叉编译初始化（2026-11-24，方案二）。
 # is-cross=true（编译 stage 在 build 平台跑、TARGETPLATFORM 指 target）时：生成 meson cross-file +
 #   导出 XX_SYSROOT/XX_CROSS_FILE/XX_TRIPLE/XX_MARCH，供 build.sh 交叉（meson --cross-file、.a 落 sysroot）。
