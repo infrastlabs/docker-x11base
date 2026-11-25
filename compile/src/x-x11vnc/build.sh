@@ -8,9 +8,6 @@ gh=https://ghproxy.com/
 gh=https://gh.api.99988866.xyz/
 gh=https://ghps.cc/
 gh=https://ghfast.top/
-# 
-LIBXTST_VER=2.0.2
-LIBXTST_URL=https://downloads.sourceforge.net/project/opencore-amr/fdk-aac/fdk-aac-${LIBXTST_VER}.tar.gz
 
 
 #
