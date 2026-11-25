@@ -26,6 +26,7 @@
   - [11150827-ci-builder-gtkmm-lib.md](11150827-ci-builder-gtkmm-lib.md) 【编译缺依赖修复、tarsrc 复用、基底评估】
   - [11170850-selected-app-use.md](11170850-selected-app-use.md) 【gpicview/pcmanfm/geany 升级、xfce4/tint2/rofi 版本评估】
   - [11170851-selected-app-modifyA.md](11170851-selected-app-modifyA.md) 【gsm 界面改造、dbus/dunst 串接、pasystray 托盘通知】
+  - [11241240-v-oth-impl03.md](11241240-v-oth-impl03.md) 【clipit 剪贴板托盘静态化、xdotool 连带】
 
 ---
 
@@ -52,6 +53,7 @@
 | xrandr | 1.5.4 (最新) | 正常 | <span style="color:#2e7d32;">✔</span> 正常 | — | 1.5.4；即最新；gitlab.freedesktop.org/xorg/app/xrandr |
 | xbindkeys | 1.8.7 (最新) | 正常 | <span style="color:#8a8a8a;">✔</span> 正常 | — | 1.8.7；近停更（官网 2020 后未更新）；nongnu.org/xbindkeys |
 | rofi | 2.0.0→2.1.1 | `-version` 2.1.1（static+verify pass，部署 hdmi）；xim/imdkit 编入（运行时默认关，需 `-imdkit true` 或 config `imdkit: true` 启用） | <span style="color:#2e7d32;">✔</span> 正常 | ci-rootfs 5.2.3 / 11170850 一 9.2 | 2.1.1；即最新（2026-11-23 升级 2.0.0→2.1.1，开 xim/imdkit 支持，自建 xcb-imdkit 静态库）；github.com/davatorium/rofi |
+| clipit | 1.4.5+git20241103 (最新) | 静态 PASS（12.9M，xx-verify rc=0）；hdmi Xvnc :318 + tint2 托盘宿主启动存活 6s+ 无崩溃、scrot 截图 30K 正常（11241240 2.4） | <span style="color:#2e7d32;">✔</span> 正常 | 11241240-v-oth-impl03.md | 1.4.5+git20241103（commit f35db54）；弃更即最新（last tag 1.4.5@2020-06，2024-11 C99 fix，Debian/Ubuntu deprecated）；github.com/CristianHenzel/ClipIt |
 | scrot | 1.12.1 (最新) | 按用法执行使用：正常（存可写 cwd） | <span style="color:#2e7d32;">✔</span> 正常 | 11140827 二章 3.1 ③ | 1.12.1；即最新（imlib2 线，2026-11-23 重链 imlib2 1.7.4→1.12.7）；2.0.0 需 imlib2≥1.11 不可用（9.1 评估）；github.com/resurrecting-open-source-projects/scrot |
 | tint2 | 16.1→16.7 | <span style="color:#8a8a8a;">待编译验证</span>（build.sh 已切 `--branch=16.7`、16.7 快照已落 tarsrc；2026-11-23 用户指示 tint2 不动不验证，未重编——9.4 评估 16.7 为最后 GTK2 版） | ⏳ 待确认 | 11140827 二章 3.1 ② / 11170850 9.4 | <span style="color:#2e7d32;">✔</span> 已升级 gtk2环境最新（16.7，17.0 起 tint2conf 转 GTK3）；17.0.2；冻结（官方最终版）；imlib2 未重链（本次 tint2 未重编，仍链旧 1.7.4）；gitlab.com/o9000/tint2 |
 | feh | 3.10.3-master→3.13.1 | 按用法执行使用：正常 | <span style="color:#8a8a8a;">✔</span> 正常 | 11140827 二章 3.1 ①/③ | 3.13.1；即最新（2026-11-23 升级，重链 imlib2 1.7.4→1.12.7）；github.com/derf/feh |
