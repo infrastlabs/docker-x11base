@@ -40,54 +40,99 @@ fetch(){
   fi
 }
 
+# 2026-11-24 方案二交叉: gsm 栈共用交叉环境(gtop/wnck/startup-notification/gsm 全链)。
+# 设置 CROSS_HOST/XX_DESTDIR 供各函数 configure 追加 --host、make install 加 DESTDIR(装 sysroot)。
+# native(未设 TARGETPLATFORM): 变量留空 → 原路径零影响。
+sm_cross(){
+  CROSS_HOST=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export CXX=xx-clang++
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: musl/glibc 下 realloc(NULL,0)/malloc(0)/mmap 均可用，
+    #   AC_FUNC_* 在 cross 下不能 run（cannot run test program while cross compiling）→ 显式 yes。
+    # 注: startup-notification 自检用 lf_cv_sane_*（非标准 ac_cv_func_*_0_nonnull，configure 实测）。
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export lf_cv_sane_realloc=yes
+    export lf_cv_sane_malloc=yes
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    log "sm: CROSS ($XX_TRIPLE)"
+  fi
+}
+
+# 2026-11-24 交叉: 旧源码树自带 config.sub(2011前后) 不识 aarch64-alpine-linux-musl
+#   (configure: host system type Invalid configuration `aarch64-alpine-linux-musl') → 用 automake/autoconf 新版替换。
+# 仅 is-cross 生效; native 零影响。须在 clone 后、configure 前于源码树根调用。
+xx_config_sub_fix(){
+  [ -n "$XX_CROSS_FILE" ] || return 0
+  for f in config.sub config.guess; do
+    cp /usr/share/automake-1.16/$f "$f" 2>/dev/null || cp /usr/share/autoconf/build-aux/$f "$f" 2>/dev/null || true
+  done
+}
+
 build_gtop(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
-  if [ -s /usr/local/static/gtop/lib/libgtop-2.0.a ]; then
+  sm_cross
+  if [ -s ${XX_SYSROOT:-}/usr/local/static/gtop/lib/libgtop-2.0.a ]; then
     log "reuse existing libgtop-2.0.a (skip build)"; return 0
   fi
   log "Build libgtop-2.40.0 static..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libgtop-2.40.0
     fetch libgtop-2.40.0.tar.xz $GNOME/libgtop/2.40/libgtop-2.40.0.tar.xz
     cd /tmp/gsm-build/libgtop-2.40.0
-    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gtop >/tmp/gtop-cfg.log 2>&1 || true
+    xx_config_sub_fix
+    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gtop $CROSS_HOST >/tmp/gtop-cfg.log 2>&1 || true
     make -j$(nproc) >/tmp/gtop-make.log 2>&1 || true   # gir/introspect 用静态 glib 缺 -lpcre，会失败但 .a 已产出
     test -f lib/.libs/libgtop-2.0.a || { log "libgtop-2.0.a MISSING"; exit 1; }
-    mkdir -p /usr/local/static/gtop/lib/pkgconfig /usr/local/static/gtop/include/libgtop-2.0
-    cp lib/.libs/libgtop-2.0.a /usr/local/static/gtop/lib/
-    cp libgtop-2.0.pc /usr/local/static/gtop/lib/pkgconfig/
-    cp libgtopconfig.h /usr/local/static/gtop/include/libgtop-2.0/
-    cp -r include/glibtop /usr/local/static/gtop/include/libgtop-2.0/
-    cp glibtop.h /usr/local/static/gtop/include/libgtop-2.0/
+    mkdir -p ${XX_SYSROOT:-}/usr/local/static/gtop/lib/pkgconfig ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0
+    cp lib/.libs/libgtop-2.0.a ${XX_SYSROOT:-}/usr/local/static/gtop/lib/
+    cp libgtop-2.0.pc ${XX_SYSROOT:-}/usr/local/static/gtop/lib/pkgconfig/
+    cp libgtopconfig.h ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0/
+    cp -r include/glibtop ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0/
+    cp glibtop.h ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0/
     # glibtop.h:61 用无前缀 #include <glibtop_server.h>; 该头是平台相关(sysdeps/<plat>/), 需显式 cp linux 版。
-    cp sysdeps/linux/glibtop_server.h /usr/local/static/gtop/include/libgtop-2.0/
-    ls -lh /usr/local/static/gtop/lib/libgtop-2.0.a
+    cp sysdeps/linux/glibtop_server.h ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0/
+    ls -lh ${XX_SYSROOT:-}/usr/local/static/gtop/lib/libgtop-2.0.a
 }
 
 build_wnck(){
   set -e
-  if [ -s /usr/local/static/wnck/lib/libwnck-1.a ]; then
+  sm_cross
+  if [ -s ${XX_SYSROOT:-}/usr/local/static/wnck/lib/libwnck-1.a ]; then
     log "reuse existing libwnck-1.a (skip build)"; return 0
   fi
   log "Build libwnck-2.30.7 static (no Xres, conditional)..."
     mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libwnck-2.30.7
     fetch libwnck-2.30.7.tar.xz $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz
     cd /tmp/gsm-build/libwnck-2.30.7
-    ./configure --enable-static --disable-shared --disable-gtk-doc --prefix=/usr/local/static/wnck >/tmp/wnck-cfg.log 2>&1 || true
+    xx_config_sub_fix
+    ./configure --enable-static --disable-shared --disable-gtk-doc --prefix=/usr/local/static/wnck $CROSS_HOST >/tmp/wnck-cfg.log 2>&1 || true
     ./config.status >/dev/null 2>&1 || true
-    make -j$(nproc) >/tmp/wnck-make.log 2>&1 || true  # 测试程序缺 -ljpeg/-lxcb 等会失败，但 libwnck-1.a 已产出
+    # 2026-11-24 交叉: apk gdk.h 声明 gdk_error_trap_push/pop 为函数，但交叉 u-gtk 的 libgdk 只导出 IA__gdk_error_trap_push/pop
+    #   （GDK_COMPILATION 内部别名）→ libwnck 引用裸 gdk_error_trap_* 在 gsm 链时未定义。编译期 -D 把裸名映射到 IA__（仅 is-cross；native 无此问题）。
+    WNCK_CFLAGS=""
+    [ -n "$XX_CROSS_FILE" ] && WNCK_CFLAGS="-Dgdk_error_trap_push=IA__gdk_error_trap_push -Dgdk_error_trap_pop=IA__gdk_error_trap_pop"
+    make -j$(nproc) CFLAGS="$CFLAGS $WNCK_CFLAGS" >/tmp/wnck-make.log 2>&1 || true  # 测试程序缺 -ljpeg/-lxcb 等会失败，但 libwnck-1.a 已产出
     test -f libwnck/.libs/libwnck-1.a || { log "libwnck-1.a MISSING"; exit 1; }
-    mkdir -p /usr/local/static/wnck/lib/pkgconfig /usr/local/static/wnck/include/libwnck-1.0/libwnck
-    cp libwnck/.libs/libwnck-1.a /usr/local/static/wnck/lib/
-    cp libwnck-1.0.pc /usr/local/static/wnck/lib/pkgconfig/
-    cp libwnck/*.h /usr/local/static/wnck/include/libwnck-1.0/libwnck/
-    ls -lh /usr/local/static/wnck/lib/libwnck-1.a
+    mkdir -p ${XX_SYSROOT:-}/usr/local/static/wnck/lib/pkgconfig ${XX_SYSROOT:-}/usr/local/static/wnck/include/libwnck-1.0/libwnck
+    cp libwnck/.libs/libwnck-1.a ${XX_SYSROOT:-}/usr/local/static/wnck/lib/
+    cp libwnck-1.0.pc ${XX_SYSROOT:-}/usr/local/static/wnck/lib/pkgconfig/
+    cp libwnck/*.h ${XX_SYSROOT:-}/usr/local/static/wnck/include/libwnck-1.0/libwnck/
+    ls -lh ${XX_SYSROOT:-}/usr/local/static/wnck/lib/libwnck-1.a
 }
 
 # startup-notification（libwnck → libstartup-notification → xcb-util/X11-xcb 传递依赖）。
 # 纯 C autotools，装 /usr/local/lib（同 x-rofi build_dep），供 gsm 静态链 -lstartup-notification-1。
 build_startup_notification(){
   set -e
-  if [ -s /usr/local/lib/libstartup-notification-1.a ]; then
+  sm_cross
+  if [ -s ${XX_SYSROOT:-}/usr/local/lib/libstartup-notification-1.a ]; then
     log "reuse existing libstartup-notification-1.a (skip build)"; return 0
   fi
   log "Build startup-notification-0.12 static..."
@@ -95,24 +140,34 @@ build_startup_notification(){
     fetch startup-notification-0.12.tar.gz \
       https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz
     cd /tmp/gsm-build/startup-notification-0.12
-    ./configure --enable-static --disable-shared --prefix=/usr/local >/tmp/sn-cfg.log 2>&1 || true
+    xx_config_sub_fix
+    ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST >/tmp/sn-cfg.log 2>&1 || true
     make -j$(nproc) LIBS="-lXau -lXdmcp" >/tmp/sn-make.log 2>&1 || true
-    make install >/tmp/sn-inst.log 2>&1 || true
-    test -s /usr/local/lib/libstartup-notification-1.a || { log "libstartup-notification-1.a MISSING"; exit 1; }
-    ls -lh /usr/local/lib/libstartup-notification-1.a
+    make install ${XX_DESTDIR:-} >/tmp/sn-inst.log 2>&1 || true
+    # libtool install-exec 不装 .a(同 u-gtkmm 坑③) -> 手动 cp 兜底落 sysroot /usr/local/lib
+    [ -f ${XX_SYSROOT:-}/usr/local/lib/libstartup-notification-1.a ] || cp "$(find . -name libstartup-notification-1.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/local/lib/ 2>/dev/null || true
+    xx_la_fix
+    test -s ${XX_SYSROOT:-}/usr/local/lib/libstartup-notification-1.a || { log "libstartup-notification-1.a MISSING"; exit 1; }
+    ls -lh ${XX_SYSROOT:-}/usr/local/lib/libstartup-notification-1.a
 }
 
 # gnome-icon-theme / gnome-doc-utils 是 data/构建工具，无 .a；pkg-config 检查需 .pc
 stub_pc(){
   log "Create stub pc (gnome-icon-theme, gnome-doc-utils)..."
-    printf "prefix=/usr\nexec_prefix=\${prefix}\ndatadir=\${prefix}/share\nName: GNOME Icon Theme\nDescription: GNOME Icon Theme data\nVersion: 2.15.3\n" > /usr/local/static/gtop/lib/pkgconfig/gnome-icon-theme.pc
-    printf "prefix=/usr\nexec_prefix=\${prefix}\ndatadir=\${prefix}/share\nlibdir=\${exec_prefix}/lib\nincludedir=\${prefix}/include\nName: gnome-doc-utils\nDescription: GNOME documentation utilities\nVersion: 0.32.3\n" > /usr/local/static/gtop/lib/pkgconfig/gnome-doc-utils.pc
+    printf "prefix=/usr\nexec_prefix=\${prefix}\ndatadir=\${prefix}/share\nName: GNOME Icon Theme\nDescription: GNOME Icon Theme data\nVersion: 2.15.3\n" > ${XX_SYSROOT:-}/usr/local/static/gtop/lib/pkgconfig/gnome-icon-theme.pc
+    printf "prefix=/usr\nexec_prefix=\${prefix}\ndatadir=\${prefix}/share\nlibdir=\${exec_prefix}/lib\nincludedir=\${prefix}/include\nName: gnome-doc-utils\nDescription: GNOME documentation utilities\nVersion: 0.32.3\n" > ${XX_SYSROOT:-}/usr/local/static/gtop/lib/pkgconfig/gnome-doc-utils.pc
 }
 
 function gnome_system_monitor(){
   set -e
+  sm_cross
   export TARGETPATH=${TARGETPATH:-/usr/local/static/gsm}
-  export PKG_CONFIG_PATH="/usr/local/static/gtop/lib/pkgconfig:/usr/local/static/wnck/lib/pkgconfig:$PKG_CONFIG_PATH"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    # 交叉: PKG_CONFIG_PATH 已 unset(sm_cross); gtop/wnck .pc 落 sysroot 非标准 pkgconfig 位 → 追加进 PKG_CONFIG_LIBDIR
+    export PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR:$XX_SYSROOT/usr/local/static/gtop/lib/pkgconfig:$XX_SYSROOT/usr/local/static/wnck/lib/pkgconfig"
+  else
+    export PKG_CONFIG_PATH="/usr/local/static/gtop/lib/pkgconfig:/usr/local/static/wnck/lib/pkgconfig:$PKG_CONFIG_PATH"
+  fi
   # configure 测试程序用非 -static LDFLAGS（pavucontrol 式）；最终二进制手动 xx-clang++ -static
   export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
 
@@ -153,7 +208,8 @@ function gnome_system_monitor(){
       || patch -p1 < /src/v-sysmonitor/gsm-column-persist.patch 2>/dev/null || true
 
   log "Configuring GSM (GTK2, static only)..."
-    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm >/tmp/gsm-cfg.log 2>&1 || true
+    xx_config_sub_fix
+    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm $CROSS_HOST >/tmp/gsm-cfg.log 2>&1 || true
     test -f Makefile || ./config.status >/tmp/gsm-cs.log 2>&1
     test -f Makefile || { log "GSM configure FAILED"; tail -20 /tmp/gsm-cfg.log; exit 1; }
     # 2.28.2 旧 automake：configure 未替换 GCONF_SCHEMAS_INSTALL_TRUE/FALSE 条件
@@ -179,6 +235,7 @@ function gnome_system_monitor(){
     ex1="-lfontconfig -lgio-2.0 -lcairo -lXdamage"
     LIBS0="-lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
     mkdir -p $TARGETPATH/bin
+    # 2026-11-24 交叉: xcb-util 交叉产物经 make install DESTDIR=$XX_SYSROOT 落 sysroot /usr/local/lib（非源码树 /tmp/xcb-util/src/.libs，那是 native 构建期路径）→ 与 startup-notification 共用 -L 即可
     cd /tmp/gsm-build/gsm/src
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/gnome-system-monitor \
       *.o \
@@ -186,9 +243,9 @@ function gnome_system_monitor(){
       -Wl,-u,_gtk_print_backend_lpr_init -Wl,-u,_gtk_print_backend_lpr_exit -Wl,-u,_gtk_print_backend_lpr_create \
       -Wl,--start-group \
       -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
-      -L/usr/local/static/gtop/lib -L/usr/local/static/wnck/lib \
+      -L${XX_SYSROOT:-}/usr/local/static/gtop/lib -L${XX_SYSROOT:-}/usr/local/static/wnck/lib \
       -lgtop-2.0 -lwnck-1 \
-      -lstartup-notification-1 -L/tmp/xcb-util/src/.libs -lxcb-util -lX11-xcb \
+      -L${XX_SYSROOT:-}/usr/local/lib -lstartup-notification-1 -lxcb-util -lX11-xcb \
       -lXinerama -lXrandr -lXfixes -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 \
       $LIBS0 \
       -Wl,--end-group \
