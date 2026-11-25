@@ -30,7 +30,7 @@ function libcroco(){
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
     export DISABLE_SHARED=--disable-shared
@@ -118,7 +118,7 @@ function librsvg(){
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     export LDFLAGS="-Wl,--as-needed -Wl,--strip-all"
     export DISABLE_SHARED=--disable-shared
@@ -184,7 +184,7 @@ function xcbutil(){
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
@@ -239,9 +239,19 @@ function libxi(){
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 2026-11-25: libxi 旧 configure 的 run-test 在交叉下报 cannot run C compiled programs /
+    #   cannot run test program while cross compiling(ARM 测试二进制不能跑 x86)。
+    #   缓存变量让 configure 跳过 run-test(同 xl_cross), 否则 configure 中止无 Makefile。
+    #   注: libxi 的 malloc 检查用 X.Org 的 xorg_cv_malloc0_returns_null(非 AC_FUNC_MALLOC 的
+    #   ac_cv_func_malloc_0_nonnull); musl malloc(0) 返回非 NULL → 设 no(-DMALLOC_0_RETURNS_NULL 无)。
+    export ac_cv_prog_cc_cross=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export xorg_cv_malloc0_returns_null=no
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
     log "libxi: CROSS ($XX_TRIPLE)"
   fi
@@ -333,10 +343,8 @@ function libxi(){
 # # 重名方法改名>> tint2过了; tint2conf err:
 function tint2(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
-  # 2026-11-25: tint2 用 cmake——交叉需 toolchain 文件(CMAKE_SYSTEM_NAME/CMAKE_C_COMPILER=xx-clang/
-  #   CMAKE_FIND_ROOT_PATH=$XX_SYSROOT/CMAKE_FIND_LIBRARY_SUFFIXES=.a) 暂未实现(留 TODO)。
-  #   native 零影响; 仅 is-cross 标注, 不阻断 native 路径。
-  [ -n "$XX_CROSS_FILE" ] && log "tint2: CROSS 暂未适配(cmake 需 toolchain 文件, TODO)"
+  # 2026-11-25 交叉: tint2 用 cmake, 需 toolchain 文件(xx-clang + sysroot 根 + 只链 .a 静态)。
+  #   toolchain 文件在下方 cmake 前按需生成; native(无 XX_CROSS_FILE) 不生成不传, 零影响。
   # xcomposite-dev gtk+2.0-dev
   apk add pango-dev librsvg-dev
   apk add startup-notification-dev
@@ -408,7 +416,35 @@ function tint2(){
       sed -i "s/tint2conf \${X11_T2C_LIBRARIES}.*/tint2conf \${X11_T2C_LIBRARIES} $deps/g" ../src/tint2conf/CMakeLists.txt
     # cmake
     # cmake -h |grep pref
-    cmake .. --install-prefix=$TARGETPATH
+    # 2026-11-25 交叉: 生成 toolchain 文件(xx-clang 编译器 + sysroot 根 + 只找 .a 静态库),
+    #   强制 CMAKE_FIND_ROOT_PATH_MODE_* 只在 sysroot 找, 防误读 native 头/库。native 不生成。
+    T2_TC=""
+    if [ -n "$XX_CROSS_FILE" ]; then
+      # 2026-11-25: cmake 的 pkg_check_modules 默认走 native pkg-config → 误读 x86-64 头/库
+      #   (libstartup-notification 找不到 / Imlib2 链到 native .a 被 arm 链接器拒)。
+      #   显式把 pkg-config 指到 sysroot(自建 /usr/local 优先), 否则依赖检查/链库全解析到 build 机。
+      export PKG_CONFIG=/usr/bin/pkg-config
+      export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+      export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+      unset PKG_CONFIG_PATH
+      T2_TC=/tmp/tint2/toolchain.cmake
+      cat > $T2_TC <<EOF
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR ${XX_TRIPLE})
+set(CMAKE_C_COMPILER /usr/bin/xx-clang)
+set(CMAKE_CXX_COMPILER /usr/bin/xx-clang++)
+set(CMAKE_FIND_ROOT_PATH ${XX_SYSROOT})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+EOF
+      T2_TC="-DCMAKE_TOOLCHAIN_FILE=$T2_TC"
+      log "tint2: CROSS toolchain ($XX_TRIPLE)"
+    fi
+    cmake $T2_TC .. --install-prefix=$TARGETPATH
 
     # make
       # b1d491eb5ac5:/tmp/tint2/build# cat Makefile  |wc
