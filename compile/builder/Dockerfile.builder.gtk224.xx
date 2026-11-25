@@ -6,6 +6,12 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   ARG NOCACHE
+  # 并行开关: 0=串行(默认, 本机 1.9Gi 安全); 1=并行(仅 CI/大内存, 需 --build-arg PARALLEL_BUILD=1)
+  #   并行注意: ①3 路 b_deps 峰值内存高(每路编译整条 gtk2 栈), 本机 OOM 风险;
+  #   ②apk 并行【实测无冲突】(2026-11-26): cross xx-apk 自带 /var/lock/xx-apk flock 全局互斥(arm64/armv7 互串);
+  #     native amd64 与 cross 各用不同 --root → 不同 /lib/apk/db/lock; 本链路 xx-apk 均 --no-cache(无共享缓存写),
+  #     native 的 /var/cache/apk 与 cross --no-cache 不交集 → 并行安全。仅内存红线决定串/并。
+  ARG PARALLEL_BUILD=0
   RUN echo "NOCACHE.gtk.xx=${NOCACHE}" > /tmp/NOCACHE; \
     sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.aliyun.com|g' /etc/apk/repositories; \
     apk update; apk add gawk git;
@@ -13,17 +19,44 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     chmod +x /src/u-gtk/xx-clear.sh
-  # 交叉建整条 gtk2 栈: 循环 arm64 + armv7, 每架构:
-  #   ① 建前清该 sysroot 旧 .a(防串架构污染, libXrandr.a file format not recognized 实测踩过)
-  #   ② sh u-gtk/build.sh b_deps 交叉建整条 gtk2 栈(apkdeps→group1→group2→gdk_pixbuf→gtk→imlib2, 跨 u-gtk/openbox/xcompmgr/w-tint2/w-xlunch)
+  # 交叉建整条 gtk2 栈: 循环 amd64(native 静态) + arm64 + armv7(cross sysroot), 每架构:
+  #   ① 建前清该 sysroot 旧 .a(防串架构污染, libXrandr.a file format not recognized 实测踩过); amd64 的 XX_SYSROOT 空(跳过)
+  #   ② sh u-gtk/build.sh b_deps 建整条 gtk2 栈(apkdeps→group1→group2→gdk_pixbuf→gtk→imlib2, 跨 u-gtk/openbox/xcompmgr/w-tint2/w-xlunch)
   #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
-  # 消费方: 所有 GTK2 应用(lxde/pcmanfm/geany/tint2/xfce4...) 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtk
+  # 2026-11-25(2.4.9): amd64 必须纳入——base(alpine-builder)只有 apk 的 amd64 gtk2 .so 无静态 .a,
+  #   原 amd64 静态 gtk2 只在旧 gtk224-2; amd64 native 装 /usr(Option B, 应用 Dockerfile 不用改)。
+  # 消费方: 所有 GTK2 应用(lxde/pcmanfm/geany/tint2/xfce4...) amd64 走 native /usr, cross 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtk
   RUN set -e; \
-    for arch in arm64 arm/v7; do \
-      export TARGETPLATFORM=linux/$arch; \
-      . /src/common.sh; \
-      sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
-      sh /src/u-gtk/build.sh b_deps; \
-      sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+    if [ "$PARALLEL_BUILD" = "1" ]; then \
+      for arch in amd64 arm64 arm/v7; do \
+        ( unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
+          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+          sh /src/u-gtk/build.sh b_deps > /tmp/gtk-$arch.log 2>&1; RC=$?; \
+          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+          echo $RC > /tmp/gtk-$arch.rc ) & \
+      done; wait; \
+      for arch in amd64 arm64 arm/v7; do \
+        [ "$(cat /tmp/gtk-$arch.rc)" = "0" ] || { echo "FAIL $arch (see /tmp/gtk-$arch.log)"; exit 1; }; \
+      done; \
+    else \
+      for arch in amd64 arm64 arm/v7; do \
+        unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
+        export TARGETPLATFORM=linux/$arch; \
+        . /src/common.sh; xx_cross_init; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+        sh /src/u-gtk/build.sh b_deps; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+      done; \
+    fi; \
+    for arch in amd64 arm64 arm/v7; do \
+      unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
+      export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
+      case "$arch" in amd64) want=x86-64 ;; arm64) want=aarch64 ;; *) want=EABI ;; esac; \
+      if [ -n "$XX_SYSROOT" ]; then A="$XX_SYSROOT/usr/lib/libgtk-x11-2.0.a"; \
+      else A=/usr/lib/libgtk-x11-2.0.a; fi; \
+      [ -f "$A" ] || { echo "CHECKPOINT FAIL: gtk2 lib missing for $arch"; exit 1; }; \
+      sh /src/u-gtk/xx-clear.sh archcheck "$A" "$want"; \
     done; \
-    unset TARGETPLATFORM
+    unset TARGETPLATFORM; \
+    # 2026-11-26(2.4.10.2): 构建收尾统一清理(文档/man/pycache/pyc/apk 缓存//tmp 残留)——apkc 规则文件语义对齐 apt path-exclude
+    sh /src/u-gtk/apkc clean
