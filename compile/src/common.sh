@@ -356,10 +356,15 @@ xx_meson_crossfix(){
   log "xx_meson_crossfix: remapped native /usr -> $S in $f"
 }
 
-# xx_la_fix: 交叉 .la libdir 修复（2026-11-24，方案二 pangomm 交叉阻塞根因）。
+# xx_la_fix: 交叉 .la libdir/dependency_libs 修复（2026-11-24 方案二 pangomm 交叉阻塞根因；
+# 2026-11-25 补 dependency_libs——gdkmm/gtkmm generate_extra_defs 找不到 /usr/lib/libglibmm-2.4.la 根因）。
 # `make install DESTDIR=$XX_SYSROOT` 会把 .la 的 libdir 写成目标绝对路径(/usr/lib)，
 # 下游按名 -lfoo 时 libtool 读到 libdir=/usr/lib → 解析到 native(错架构) 的 .a → "file in wrong format"。
-# 修复：把 sysroot 里 .la 的 libdir 改为 sysroot 相对路径（$XX_SYSROOT/usr/lib、/usr/local/lib）。
+# 修复①：把 sysroot 里 .la 的 libdir 改为 sysroot 相对路径（$XX_SYSROOT/usr/lib、/usr/local/lib）。
+# 修复②（2026-11-25）：dependency_libs 里对兄弟 .la 的引用可能仍是 native 绝对路径
+#   （实测 libgiomm-2.4.la 带 /usr/lib/libglibmm-2.4.la、librsvg-2.la 带 /usr/local/lib/libcroco-0.6.la）。
+#   libtool 对 dependency_libs 的裸 .la 绝对路径按字面解析（不走 -L），找不到即
+#   "cannot find the library '/usr/lib/xxx.la'" → 重写成 sysroot 前缀。已 sysroot 化的先保护防重复加前缀。
 # 用法: xx_la_fix（仅 is-cross 时生效；native 零影响）。每次 make install 后调用。
 xx_la_fix(){
   [ -n "$XX_CROSS_FILE" ] || return 0
@@ -368,8 +373,11 @@ xx_la_fix(){
   for f in "$S"/usr/lib/*.la "$S"/usr/local/lib/*.la; do
     [ -f "$f" ] || continue
     local d="$S/usr/lib"; case "$f" in *"/usr/local/"*) d="$S/usr/local/lib";; esac
-    sed -i "s|^libdir=.*|libdir='$d'|" "$f"; n=$((n+1))
+    sed -i "s|^libdir=.*|libdir='$d'|" "$f"
+    # 修复②: 裸 /usr(/lib|/local/lib) -> sysroot 前缀; 先保护已 sysroot 的 $S/usr 防双前缀
+    sed -i "s|$S/usr|@XX_SYSROOT_USR@|g; s|/usr|$S/usr|g; s|@XX_SYSROOT_USR@|$S/usr|g" "$f"
+    n=$((n+1))
   done
-  log "xx_la_fix: $n .la libdir -> sysroot 相对"
+  log "xx_la_fix: $n .la libdir/dependency_libs -> sysroot 相对"
 }
 xx_cross_init
