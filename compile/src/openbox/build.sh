@@ -162,6 +162,11 @@ function pango(){
     for f in libpango-1.0.a libpangoft2-1.0.a libpangoxft-1.0.a libpangocairo-1.0.a; do
       test -f "$XX_SYSROOT/usr/lib/$f" || { log "pango install MISSING $f"; exit 1; }
     done
+    # 2026-11-26: 交叉 meson install 只装了 pango-enum-types.h + 4 .a(工具二进制 pango-view 未编 → install 中途
+    #   || true 吞错, 主 pango 头未装); Alpine pango-dev 亦无 pango-markup.h → gtkmm/pangomm C++ 编译
+    #   "pango/pango-markup.h file not found"。补拷主 pango 头(pango_headers, 含 pango-markup.h)到 sysroot。
+    mkdir -p "$XX_SYSROOT/usr/include/pango-1.0/pango"
+    \cp -a /tmp/pango/pango/*.h "$XX_SYSROOT/usr/include/pango-1.0/pango/"
   else
     DESTDIR=$(xx-info sysroot) meson install --no-rebuild -C /tmp/pango/build
   fi
