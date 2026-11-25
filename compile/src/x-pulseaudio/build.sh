@@ -60,6 +60,18 @@ px_cross(){
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    # 2026-11-25: libtool 默认搜 native /usr/local/lib 优先于 -L$XX_SYSROOT/usr/local/lib,
+    #   -lFLAC/-logg 等解析到 native 残留其它架构 .a/.la -> wrong format(armv7 拉 aarch64 libvorbis 根因)。
+    #   把 sysroot 已装的 deps .a/.la 拷到 native /usr/local/lib 覆盖残留(本容器交叉构建器, native deps 不再用;
+    #   native 重编自覆)。deps: FLAC/ogg/opus/sndfile/vorbis*/vorbisfile。
+    #   放 px_cross() 使每个 dep 函数(含 libsndfile)构建前都同步 native——否则 b_deps 里 libsndfile
+    #   先于 pulseaudio() 的拷贝读 native 残留 .la → dependency_libs 被污染(实测 2.11)。
+    for _f in libFLAC libogg libopus libsndfile libvorbis libvorbisenc libvorbisfile; do
+      for _e in a la; do
+        [ -f "$XX_SYSROOT/usr/local/lib/$_f.$_e" ] && cp "$XX_SYSROOT/usr/local/lib/$_f.$_e" /usr/local/lib/$_f.$_e
+      done
+    done
+    log "px: deps .a/.la 拷 native /usr/local/lib (libtool 优先 native 搜索)"
     log "px: CROSS ($XX_TRIPLE)"
   fi
 }
@@ -212,18 +224,6 @@ function pulseaudio(){
   # sed 把 $CROSS_HOST 注入 args 赋值尾部(此处在 pulseaudio() 同 shell, $CROSS_HOST 由 px_cross 已设),
   # native(CROSS_HOST 空) sed 追加空串=原样。
   [ -n "$CROSS_HOST" ] && sed -i "s|--with-database=simple\"|--with-database=simple $CROSS_HOST\"|" sam-build.sh
-  # 2026-11-24 交叉: libtool 默认搜 native /usr/local/lib 优先于 -L$XX_SYSROOT/usr/local/lib,
-  #   -lFLAC/-logg 等解析到 native x86 .a -> wrong format. 把 sysroot(arm64) deps .a/.la 拷到
-  #   native /usr/local/lib 覆盖 x86(本容器交叉构建器, native deps 不再用; native 重编自覆)。
-  #   deps: FLAC/ogg/opus/sndfile/vorbis*/vorbisfile。仅 is-cross 生效。
-  if [ -n "$XX_SYSROOT" ]; then
-    for _f in libFLAC libogg libopus libsndfile libvorbis libvorbisenc libvorbisfile; do
-      for _e in a la; do
-        [ -f "$XX_SYSROOT/usr/local/lib/$_f.$_e" ] && cp "$XX_SYSROOT/usr/local/lib/$_f.$_e" /usr/local/lib/$_f.$_e
-      done
-    done
-    log "px: deps arm64 .a/.la 拷 native /usr/local/lib (libtool 优先 native 搜索)"
-  fi
   bash sam-build.sh $CROSS_HOST
 
   log "Install PULSEAUDIO..."
