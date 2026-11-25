@@ -178,6 +178,18 @@ function librsvg(){
 
 # [xcb-util]
 function xcbutil(){
+  # 2026-11-25 方案二交叉: autotools 交叉环境(同 libcroco)——--host 交叉、强制宿主 pkg-config、装 sysroot。
+  CROSS_HOST=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    log "xcbutil: CROSS ($XX_TRIPLE)"
+  fi
   log "Downloading xcb_util..."
   rm -rf /tmp/xcb-util; gitclone https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util $branch
   cd /tmp/xcb-util
@@ -194,13 +206,24 @@ function xcbutil(){
   git rm --cached m4 >/dev/null 2>&1 || true
   git config --remove-section submodule.m4 2>/dev/null || true
   test -f m4/xcb_util_common.m4 || { echo "!! m4 gitclone 未就位(autogen 将失败)"; }
-  ./autogen.sh 
+  # 交叉下 autogen 自动 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1 + 显式 configure。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    NOCONFIGURE=1 ./autogen.sh
+    ./configure --enable-static --disable-shared $CROSS_HOST
+  else
+    ./autogen.sh
+  fi
   #  
   # cd /mnt2/_deps/xcb__util/
   log "Compiling xcb_util..."
   make
   log "Installing xcb_util..."
-  make install
+  if [ -n "$XX_CROSS_FILE" ]; then
+    make install DESTDIR=$XX_SYSROOT
+    xx_la_fix   # 交叉 .la libdir 修正(仅 is-cross; native 零影响)
+  else
+    make install
+  fi
   find |grep libxcb-util
   # ./src/.libs/libxcb-util.a
   # ./src/.libs/libxcb-util.so
@@ -210,16 +233,38 @@ function xcbutil(){
 
 # https://github.com/aleax/libxi
 function libxi(){
+  # 2026-11-25 方案二交叉: autotools 交叉环境(同 libcroco)——--host 交叉、强制宿主 pkg-config、装 sysroot。
+  CROSS_HOST=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    log "libxi: CROSS ($XX_TRIPLE)"
+  fi
   # git clone $GITHUB/aleax/libxi
   log "Downloading libxi..."
   rm -rf /tmp/libxi; gitclone https://gitee.com/g-system/fk-libxi /tmp/libxi $branch
   cd /tmp/libxi
-  ./autogen.sh 
-  ./configure  --enable-static --disable-shared #disable dyn;
+  # 交叉下 autogen 自动 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1 + 显式 configure。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    NOCONFIGURE=1 ./autogen.sh
+  else
+    ./autogen.sh
+  fi
+  ./configure  --enable-static --disable-shared $CROSS_HOST #disable dyn;
   log "Compiling libxi..."
   make
   log "Installing libxi..."
-  make install
+  if [ -n "$XX_CROSS_FILE" ]; then
+    make install DESTDIR=$XX_SYSROOT
+    xx_la_fix   # 交叉 .la libdir 修正(仅 is-cross; native 零影响)
+  else
+    make install
+  fi
   find /usr/lib /usr/local/lib |grep libXi.a
   # /usr/local/lib/libXi.a
 }
@@ -288,6 +333,10 @@ function libxi(){
 # # 重名方法改名>> tint2过了; tint2conf err:
 function tint2(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  # 2026-11-25: tint2 用 cmake——交叉需 toolchain 文件(CMAKE_SYSTEM_NAME/CMAKE_C_COMPILER=xx-clang/
+  #   CMAKE_FIND_ROOT_PATH=$XX_SYSROOT/CMAKE_FIND_LIBRARY_SUFFIXES=.a) 暂未实现(留 TODO)。
+  #   native 零影响; 仅 is-cross 标注, 不阻断 native 路径。
+  [ -n "$XX_CROSS_FILE" ] && log "tint2: CROSS 暂未适配(cmake 需 toolchain 文件, TODO)"
   # xcomposite-dev gtk+2.0-dev
   apk add pango-dev librsvg-dev
   apk add startup-notification-dev
