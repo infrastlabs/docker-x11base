@@ -32,6 +32,42 @@ source /src/common.sh
 #   glib 为 2.70.5 且 apk 无网络升级 -> sed 降 glib_min_minor 至 70 (见 rofi())。
 export TARGETPATH=${TARGETPATH:-/usr/local/static/rofi}
 
+# 2026-11-25 方案二交叉: rofi 交叉环境初始化(同 pasystray ps_cross / tint2 toolchain 交叉模式)。
+# native(XX_CROSS_FILE 空): 各 XX_*/CROSS_* 变量留空 -> 原路径零影响。
+rofi_cross(){
+  XX_LIBDIR=/usr/local/lib                        # 依赖 .a 落点(库)
+  XX_INCDIR=/usr/local/include                    # 依赖头落点
+  XX_DESTDIR=""                                   # make install 前缀(空=native 原路径)
+  CROSS_HOST=""                                   # autotools --host(空=native)
+  XX_TC=""                                        # cmake toolchain 参数(空=native)
+  XX_ECM_ARG=""                                   # cmake ECM_DIR(空=native; 交叉需指宿主 ECM)
+  XX_CROSS_ARGS=""                                # meson --cross-file(空=native)
+  XX_LINK_LIBDIR="-L/usr/local/lib"               # c_link_args 的 -L
+  XX_LIBDIRS="/usr/local/lib /usr/lib /lib"       # pkgconfig-static 包装器 .a 查找目录
+  XX_EXTRA_LIBS="/usr/lib/libX11-xcb.a /usr/local/lib/librsvg-2.a /usr/local/lib/libcroco-0.6.a /usr/lib/libxml2.a"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_LIBDIR="$XX_SYSROOT/usr/local/lib"
+    XX_INCDIR="$XX_SYSROOT/usr/local/include"
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    CROSS_HOST="--host=$(xx-info triple)"
+    XX_LINK_LIBDIR="-L$XX_SYSROOT/usr/local/lib"
+    # 交叉: cmake toolchain MODE_PACKAGE=ONLY 会挡宿主 ECM(在 /usr/share/ECM) -> 显式指 ECM_DIR(ECM 仅配置期宏, 不交叉)。
+    XX_ECM_ARG="-DECM_DIR=/usr/share/ECM/cmake"
+    XX_LIBDIRS="$XX_SYSROOT/usr/local/lib $XX_SYSROOT/usr/lib $XX_SYSROOT/lib"
+    XX_EXTRA_LIBS="$XX_SYSROOT/usr/lib/libX11-xcb.a $XX_SYSROOT/usr/local/lib/librsvg-2.a $XX_SYSROOT/usr/local/lib/libcroco-0.6.a $XX_SYSROOT/usr/lib/libxml2.a"
+    # autotools cross configure run-test 缓存(mmap/realloc/malloc 不能 run)
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    log "rofi: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 # 离线 tarball 兜底(/tmp 已有则跳过) + 多源回退
 get_src(){
   local tarball=$1; shift
@@ -63,7 +99,7 @@ build_dep(){
   # 复用: 目标 .a 已在 /usr/local/lib(如 w-tint2 已建 xcb-util 本体/上次已建)则跳过源码编译
   local all_exist=1
   for l in $(echo "$libs" | tr ':' ' '); do
-    test -s /usr/local/lib/$l || { all_exist=0; break; }
+    test -s $XX_LIBDIR/$l || { all_exist=0; break; }
   done
   if test "$all_exist" = "1"; then log "reuse existing $libs (skip build)"; return 0; fi
   get_src "$tarball" "$@" || return 1
@@ -73,32 +109,72 @@ build_dep(){
   tar xzf /tmp/$tarball -C /tmp/build-$srcdir --strip-components=1
   cd /tmp/build-$srcdir
   test -x ./configure || { autoreconf -fi 2>&1 || { log "autoreconf FAILED: $srcdir"; return 1; }; }
-  ./configure --enable-static --disable-shared --prefix=/usr/local 2>&1 \
+  # 2026-11-25 交叉: --host + DESTDIR 落 sysroot; native CROSS_HOST/XX_DESTDIR 空零影响.
+  ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST 2>&1 \
     || { log "configure FAILED: $srcdir"; return 1; }
   # 测试程序链接缺 xcb 的传递静态依赖(Xau/Xdmcp) -> 经 LIBS 补齐(静态链模式)
   make -j$(nproc) LIBS="-lXau -lXdmcp" 2>&1 || { log "make FAILED: $srcdir"; return 1; }
-  make install 2>&1 || { log "install FAILED: $srcdir"; return 1; }
+  # 2026-11-25 交叉: $XX_DESTDIR 作命令前缀不生效(POSIX 变量展开不算赋值) -> if 分支直接 DESTDIR(同 w-tint2 xcbutil)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    make install DESTDIR=$XX_SYSROOT 2>&1 || { log "install FAILED: $srcdir"; return 1; }
+  else
+    make install 2>&1 || { log "install FAILED: $srcdir"; return 1; }
+  fi
+  xx_la_fix   # 交叉 .la libdir 修正(仅 is-cross; native 零影响)
   for l in $(echo "$libs" | tr ':' ' '); do
-    test -s /usr/local/lib/$l || { log "MISSING /usr/local/lib/$l"; return 1; }
+    test -s $XX_LIBDIR/$l || { log "MISSING $XX_LIBDIR/$l"; return 1; }
   done
   log "OK: $libs"
 }
 
+# 2026-11-25 交叉: xkbcommon(dev+static) 从 Alpine armv7 仓库解包到 sysroot。
+# rofi meson 需 dependency('xkbcommon') + dependency('xkbcommon-x11')(头/.pc/.a 在 dev/static 包内)。
+# native 走 b_deps 的 apk add(不经此), 故本函数仅 is-cross 调用。
+build_xkbcommon_cross(){
+  local S="${XX_SYSROOT%/}"
+  # 复用: sysroot 已有则跳过
+  if test -s "$S/usr/lib/libxkbcommon.a" && test -s "$S/usr/lib/pkgconfig/xkbcommon-x11.pc"; then
+    log "reuse existing xkbcommon (cross, skip)"; return 0
+  fi
+  local BASE="https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.15/main/$XX_MARCH"
+  log "xkbcommon cross: fetch dev+static from $BASE"
+  curl -sSL --connect-timeout 20 -o /tmp/xx-xkbcommon-APKINDEX.tar.gz "$BASE/APKINDEX.tar.gz" \
+    || { log "xkbcommon: APKINDEX dl fail"; return 1; }
+  tar xzf /tmp/xx-xkbcommon-APKINDEX.tar.gz -O APKINDEX > /tmp/xx-xkbcommon-APKINDEX 2>/dev/null \
+    || { log "xkbcommon: APKINDEX extract fail"; return 1; }
+  for p in libxkbcommon-dev libxkbcommon-static; do
+    local V=$(grep -A1 "^P:$p$" /tmp/xx-xkbcommon-APKINDEX 2>/dev/null | grep "^V:" | head -1 | sed 's/^V://')
+    test -n "$V" || { log "xkbcommon: $p version not found"; return 1; }
+    local apkf=/tmp/xx-$p-$V.apk
+    curl -sSL --connect-timeout 20 -o "$apkf" "$BASE/$p-$V.apk" || { log "xkbcommon: $p dl fail"; return 1; }
+    tar xzf "$apkf" -C "$S" 2>/dev/null || { log "xkbcommon: $p extract fail"; return 1; }
+  done
+  test -s "$S/usr/lib/libxkbcommon.a" || { log "xkbcommon: libxkbcommon.a missing"; return 1; }
+  test -s "$S/usr/lib/pkgconfig/xkbcommon-x11.pc" || { log "xkbcommon: xkbcommon-x11.pc missing"; return 1; }
+  log "xkbcommon cross OK"
+}
+
 # 补建 xcb-util 家族 8 个 + startup-notification (全部纯 C autotools)
 b_deps(){
-  # 2026-11-15: gtk224-2 基准镜像缺 xkbcommon(.pc/.h/.a 全无)——rofi 的 dependency('xkbcommon') not-found
-  #   → libnkutils 子工程 xkbcommon 版本检查失败(disabler:true) → nk 变量全 disabler → meson 0.59 静默丢 rofi 目标
-  #   (18 vs 30 目标; 文档 11051758 九章 11-07 容器当时"已有"xkbcommon)。装 dev(头/.pc/.so)+static(.a)。
-  apk add --no-cache libxkbcommon-dev libxkbcommon-static >/dev/null 2>&1 \
-    || { log "b_deps FAILED: libxkbcommon"; exit 1; }
+  rofi_cross   # 交叉环境(XX_* 变量); native 全空零影响
+  # 2026-11-25 交叉: xkbcommon 走 Alpine armv7 仓库解包到 sysroot; native 保持 apk add 原路径。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    build_xkbcommon_cross || { log "b_deps FAILED: xkbcommon (cross)"; exit 1; }
+  else
+    # 2026-11-15: gtk224-2 基准镜像缺 xkbcommon(.pc/.h/.a 全无)——rofi 的 dependency('xkbcommon') not-found
+    #   → libnkutils 子工程 xkbcommon 版本检查失败(disabler:true) → nk 变量全 disabler → meson 0.59 静默丢 rofi 目标
+    #   (18 vs 30 目标; 文档 11051758 九章 11-07 容器当时"已有"xkbcommon)。装 dev(头/.pc/.so)+static(.a)。
+    apk add --no-cache libxkbcommon-dev libxkbcommon-static >/dev/null 2>&1 \
+      || { log "b_deps FAILED: libxkbcommon"; exit 1; }
+  fi
   # xcb-util 核心 (提供 xcb-util.pc / xcb-aux.pc / xcb-atom.pc / xcb-event.pc)
   # 真正复用: 不再保留本包源码 URL, 统一用 w-tint2 的 xcbutil()(gitee fk-xcb__util)构建;
-  # 若 /usr/local/lib/libxcb-util.a 已存在则直接用(不重编), 否则调 w-tint2。
-  if ! test -s /usr/local/lib/libxcb-util.a; then
+  # 若 $XX_LIBDIR/libxcb-util.a 已存在则直接用(不重编), 否则调 w-tint2(xcbutil 自身交叉感知)。
+  if ! test -s $XX_LIBDIR/libxcb-util.a; then
     log "xcb-util missing, build via w-tint2 xcbutil..."
     doExec bash /src/w-tint2/build.sh xcbutil || { log "b_deps FAILED: xcb-util (w-tint2 xcbutil)"; exit 1; }
   fi
-  test -s /usr/local/lib/libxcb-util.a || { log "b_deps FAILED: libxcb-util.a missing"; exit 1; }
+  test -s $XX_LIBDIR/libxcb-util.a || { log "b_deps FAILED: libxcb-util.a missing"; exit 1; }
   # xcb-util-image (依赖 xcb-util, 提供 xcb-image.pc)
   doExec build_dep xcb-util-image-0.4.1.tar.gz xcb-util-image-0.4.1 libxcb-image.a \
     https://xorg.freedesktop.org/archive/individual/lib/xcb-util-image-0.4.1.tar.gz \
@@ -136,8 +212,8 @@ b_deps(){
 
 # 构建 xcb-imdkit (CMake 静态 .a + xcb-imdkit.pc -> /usr/local)
 build_xcb_imdkit(){
-  # 复用: 已建则跳过
-  if test -s /usr/local/lib/libxcb-imdkit.a && test -s /usr/local/lib/pkgconfig/xcb-imdkit.pc; then
+  # 复用: 已建则跳过(交叉: 查 sysroot)
+  if test -s $XX_LIBDIR/libxcb-imdkit.a && test -s $XX_LIBDIR/pkgconfig/xcb-imdkit.pc; then
     log "reuse existing xcb-imdkit (skip build)"; return 0
   fi
   # ECM (Extra CMake Modules, find_package(ECM)必需)
@@ -156,25 +232,44 @@ build_xcb_imdkit(){
   #   -> sed 改 STATIC(在源码 src/CMakeLists.txt); USE_SYSTEM_UTHASH=Off 用内置 uthash/
   #   注意: 必须先 rm -rf build 清 CMakeCache, 否则旧 SHARED 缓存残留.
   sed -i 's/add_library(xcb-imdkit SHARED/add_library(xcb-imdkit STATIC/' ../src/CMakeLists.txt
+  # 2026-11-25 交叉: cmake toolchain 文件(xx-clang + sysroot + 只找 .a; native 不生成不传, 零影响).
+  XX_TC=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    cat > /tmp/xcb-imdkit-toolchain.cmake <<EOF
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR $XX_TRIPLE)
+set(CMAKE_C_COMPILER /usr/bin/xx-clang)
+set(CMAKE_FIND_ROOT_PATH $XX_SYSROOT)
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+EOF
+    XX_TC="-DCMAKE_TOOLCHAIN_FILE=/tmp/xcb-imdkit-toolchain.cmake"
+    log "xcb-imdkit: CROSS toolchain ($XX_TRIPLE)"
+  fi
   cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DUSE_SYSTEM_UTHASH=OFF \
-    -DCMAKE_C_FLAGS="-fPIC" >/dev/null 2>&1 \
+    -DCMAKE_C_FLAGS="-fPIC" $XX_TC $XX_ECM_ARG >/dev/null 2>&1 \
     || { log "cmake configure FAILED: xcb-imdkit"; return 1; }
   # 只构建主库目标(make xcb-imdkit), 不构建 test(链接需 xcb 传递静态库, 缺参会 linker 失败);
   # 主库 libxcb-imdkit.a 已可产出, test 非部署所需.
   make -j$(nproc) xcb-imdkit >/dev/null 2>&1 || { log "make FAILED: xcb-imdkit"; return 1; }
   # install 触发 all(含 test)会再链接失败 -> 手动拷贝产物到 /usr/local
   # 当前在 build/ 目录: .a/.pc/生成头在 src/, 源码头在 ../src/
-  install -d /usr/local/lib /usr/local/lib/pkgconfig /usr/local/include/xcb-imdkit
-  install -m644 src/libxcb-imdkit.a /usr/local/lib/
-  install -m644 src/xcb-imdkit.pc /usr/local/lib/pkgconfig/
-  cp ../src/*.h /usr/local/include/xcb-imdkit/ 2>/dev/null || true
-  cp src/*.h /usr/local/include/xcb-imdkit/ 2>/dev/null || true
-  test -s /usr/local/lib/libxcb-imdkit.a || { log "MISSING /usr/local/lib/libxcb-imdkit.a"; return 1; }
-  test -s /usr/local/lib/pkgconfig/xcb-imdkit.pc || { log "MISSING xcb-imdkit.pc"; return 1; }
+  install -d $XX_LIBDIR $XX_LIBDIR/pkgconfig $XX_INCDIR/xcb-imdkit
+  install -m644 src/libxcb-imdkit.a $XX_LIBDIR/
+  install -m644 src/xcb-imdkit.pc $XX_LIBDIR/pkgconfig/
+  cp ../src/*.h $XX_INCDIR/xcb-imdkit/ 2>/dev/null || true
+  cp src/*.h $XX_INCDIR/xcb-imdkit/ 2>/dev/null || true
+  test -s $XX_LIBDIR/libxcb-imdkit.a || { log "MISSING $XX_LIBDIR/libxcb-imdkit.a"; return 1; }
+  test -s $XX_LIBDIR/pkgconfig/xcb-imdkit.pc || { log "MISSING xcb-imdkit.pc"; return 1; }
   log "OK: xcb-imdkit"
 }
 
 rofi(){
+  rofi_cross   # 交叉环境(XX_* 变量); native 全空零影响
   ROFI_VER=2.1.1
   # 依赖库(xcb-util 家族/startup-notification/xcb-imdkit)就位——有复用跳过, 缺则自建
   doExec b_deps || { log "rofi FAILED: b_deps"; exit 1; }
@@ -216,7 +311,7 @@ rofi(){
   # (pcre/ffi/intl/png... 传递静态依赖), 否则静态链必 undefined reference.
   # 关键: meson 默认把 -lfoo 解析成 .so 全路径(即使 pkg-config --static),
   # 故把 --libs 输出里的 -lfoo 一律换成存在的 .a 绝对路径, 强制静态链。
-  cat > /tmp/pkgconfig-static <<'EOF'
+  cat > /tmp/pkgconfig-static.tpl <<'EOF'
 #!/bin/sh
 out=$(/usr/bin/pkg-config --static "$@")
 case " $* " in
@@ -229,7 +324,7 @@ echo "$out" | tr ' ' '\n' | while IFS= read -r tok; do
     -l*)
       name=${tok#-l}
       found=""
-      for d in /usr/local/lib /usr/lib /lib; do
+      for d in @@LIBDIRS@@; do
         if test -f "$d/lib$name.a"; then found="$d/lib$name.a"; break; fi
       done
       if test -n "$found"; then echo "$found"; fi
@@ -244,22 +339,52 @@ done | tr '\n' ' '
 # XGetXCBConnection -> libX11-xcb.a). 重复附加无害(--start-group 内只拉一次).
 # 2026-11-15 追加: gdk-pixbuf svg loader(io-svg.c)引 rsvg_handle_* — gdk-pixbuf-2.0.pc 静态链不扩散
 #   librsvg(同 libfm/geany 先例) → 附加 librsvg/croco/xml2(lxtask LIBS0 同款)。
-printf ' /usr/lib/libX11-xcb.a /usr/local/lib/librsvg-2.a /usr/local/lib/libcroco-0.6.a /usr/lib/libxml2.a'
+printf ' @@EXTRA@@'
 EOF
+  # 2026-11-25 交叉: XX_LIBDIRS/XX_EXTRA_LIBS 由 rofi_cross 注入 sysroot 路径(native 原路径零影响)。
+  sed -e "s|@@LIBDIRS@@|$XX_LIBDIRS|" -e "s|@@EXTRA@@|$XX_EXTRA_LIBS|" /tmp/pkgconfig-static.tpl > /tmp/pkgconfig-static
   chmod +x /tmp/pkgconfig-static
   export PKG_CONFIG=/tmp/pkgconfig-static
   export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 
+  # 2026-11-25 交叉: meson 0.59 HOST pkg-config 只认 cross-file [binaries] pkgconfig(env PKG_CONFIG 无效,
+  #   find_external_program allow_default_for_cross=False) -> 本组件 cross-file 覆盖 pkgconfig 指静态包装器,
+  #   否则 Libs.private 不解析, 静态链必 undefined。native 走 env PKG_CONFIG(原路径), 不生成。
+  XX_CROSS_ARGS=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    ROFI_CROSS=/tmp/xx-cross-rofi.ini
+    sed "s|pkgconfig = '/usr/bin/pkg-config'|pkgconfig = '/tmp/pkgconfig-static'|" "$XX_CROSS_FILE" > "$ROFI_CROSS"
+    XX_CROSS_ARGS="--cross-file=$ROFI_CROSS"
+  fi
+
   # 注意: meson 0.59 (feature 型 option) 只认 enabled/disabled/auto, 不认 true/false
   # 2026-11-23: imdkit=true 开 xim 输入法(xcb-imdkit, 已自建); 容器缺 gio-unix 的 xim 相关
   #   (libgwater/gio) 已由 b_deps 提供, 无新增 xcb 依赖。
-  log "meson setup (wayland=disabled xcb=enabled imdkit=true check=disabled) ..."
-  meson setup /tmp/rofi-build \
+  # 2026-11-25 功能开关全开(用户拍板): xcb 后端 + drun/window 模式 + imdkit 输入法 + giolaunch;
+  #   dmenu/run/combi/ssh/script/filebrowser 无条件编入(非选项); wayland(非 xcb 后端)/check(测试) 不适用禁用。
+  log "meson setup (xcb=enabled wayland=disabled imdkit=true drun=true window=true giolaunch=true check=disabled) ..."
+  meson setup /tmp/rofi-build $XX_CROSS_ARGS \
     -Dwayland=disabled -Dxcb=enabled -Dimdkit=true -Dcheck=disabled \
+    -Ddrun=true -Dwindow=true -Dgiolaunch=true \
     -Dprefix=$TARGETPATH \
     -Dc_args="$CFLAGS" \
-    -Dc_link_args="-Wl,--as-needed -static -Wl,--strip-all -L/usr/local/lib" 2>&1 \
+    -Dc_link_args="-Wl,--as-needed -static -Wl,--strip-all $XX_LINK_LIBDIR" 2>&1 \
     || { log "meson setup FAILED"; exit 1; }
+
+  # 交叉: 重映射 native /usr(/usr/local) 头/库到 sysroot(armv7 ILP32 gdk_pixbuf 阻塞根因, 方案二)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    xx_meson_crossfix /tmp/rofi-build
+    # libnkutils nk-git-version-native 是 native:true 目标(在 build 机跑), xx_meson_crossfix 把其 -I/-L
+    #   也重映射到 sysroot -> native cc 链 ARM .so (file in wrong format)。恢复该 native 目标 /usr 路径。
+    #   编译/build 行含目标名 → sed 直接恢复; LINK_ARGS 行紧随 build 行但不带目标名 → awk 联动恢复。
+    sed -i '/nk-git-version-native/ s|'"${XX_SYSROOT%/}"'/usr/|/usr/|g' /tmp/rofi-build/build.ninja
+    awk -v S="${XX_SYSROOT%/}" '
+      /nk-git-version-native: c_LINKER_FOR_BUILD/ { nxt=1 }
+      nxt && /LINK_ARGS/ { gsub(S "/usr/", "/usr/"); nxt=0 }
+      { print }
+    ' /tmp/rofi-build/build.ninja > /tmp/rofi-build/build.ninja.tmp \
+      && mv /tmp/rofi-build/build.ninja.tmp /tmp/rofi-build/build.ninja
+  fi
 
   log "ninja ..."
   ninja -C /tmp/rofi-build 2>&1 || { log "ninja FAILED"; exit 1; }
@@ -269,7 +394,14 @@ EOF
 
   log "Verify rofi ..."
   ls -lh $TARGETPATH/bin/rofi
-  xx-verify --static $TARGETPATH/bin/rofi || { log "xx-verify FAILED"; exit 1; }
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+  #   native 仍走 xx-verify(原路径)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file $TARGETPATH/bin/rofi | grep -qE "ARM.*statically linked" \
+      || { log "rofi file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static $TARGETPATH/bin/rofi || { log "xx-verify FAILED"; exit 1; }
+  fi
 }
 
 case "$1" in
