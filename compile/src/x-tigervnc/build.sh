@@ -129,15 +129,16 @@ XKB_REF_PATH=$TARGETPATH
 # it ourself.
 #
 function gnutls(){
+  tigervnc_cross
   mkdir -p /tmp/gnutls
   log "Downloading GNU TLS..."
   down_catfile ${GNUTLS_URL} | tar -xJ --strip 1 -C /tmp/gnutls
   log "Configuring GNU TLS..."
   (
       cd /tmp/gnutls && ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
-          --prefix=/usr \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$(xx-info triple) \
+          $CROSS_HOST \
           --disable-openssl-compatibility \
           --disable-rpath \
           --disable-guile \
@@ -150,9 +151,9 @@ function gnutls(){
           --disable-shared \
   )
   log "Compiling GNU TLS..."
-  make -C /tmp/gnutls -j$(nproc)
+  make $MAKE_CC -C /tmp/gnutls -j$(nproc)
   log "Installing GNU TLS..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/gnutls install
+  make DESTDIR=$XX_SYSROOT -C /tmp/gnutls install
 }
 
 #
@@ -161,15 +162,16 @@ function gnutls(){
 # it ourself.
 #
 function libxfont2(){
+  tigervnc_cross
   mkdir -p /tmp/libxfont2
   log "Downloading libXfont2..."
   down_catfile ${LIBXFONT2_URL} | tar -xz --strip 1 -C /tmp/libxfont2
   log "Configuring libXfont2..."
   (
       cd /tmp/libxfont2 && ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
-          --prefix=/usr \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$(xx-info triple) \
+          $CROSS_HOST \
           --without-fop \
           --without-xmlto \
           --disable-devel-docs \
@@ -178,9 +180,9 @@ function libxfont2(){
   )
   log "Compiling libXfont2..."
   sed 's/^noinst_PROGRAMS = /#noinst_PROGRAMS = /' -i /tmp/libxfont2/Makefile.in
-  make -C /tmp/libxfont2 -j$(nproc)
+  make $MAKE_CC -C /tmp/libxfont2 -j$(nproc)
   log "Installing libXfont2..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libxfont2 install
+  make DESTDIR=$XX_SYSROOT -C /tmp/libxfont2 install
 }
 
 #
@@ -189,23 +191,24 @@ function libxfont2(){
 # it ourself.
 #
 function libfontenc(){
+  tigervnc_cross
   mkdir -p /tmp/libfontenc
   log "Downloading libfontenc..."
   down_catfile ${LIBFONTENC_URL} | tar -xz --strip 1 -C /tmp/libfontenc
   log "Configuring libfontenc..."
   (
       cd /tmp/libfontenc && ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
-          --prefix=/usr \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$(xx-info triple) \
+          $CROSS_HOST \
           --with-encodingsdir=/usr/share/fonts/encodings \
           --enable-static \
           --disable-shared \
   )
   log "Compiling libfontenc..."
-  make -C /tmp/libfontenc -j$(nproc)
+  make $MAKE_CC -C /tmp/libfontenc -j$(nproc)
   log "Installing libfontenc..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libfontenc install
+  make DESTDIR=$XX_SYSROOT -C /tmp/libfontenc install
 }
 
 #
@@ -214,22 +217,23 @@ function libfontenc(){
 # it ourself.
 #
 function libtasn1(){
+  tigervnc_cross
   mkdir -p /tmp/libtasn1
   log "Downloading libtasn1..."
   down_catfile ${LIBTASN1_URL} | tar -xz --strip 1 -C /tmp/libtasn1
   log "Configuring libtasn1..."
   (
       cd /tmp/libtasn1 && CFLAGS="$CFLAGS -Wno-error=inline" ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
-          --prefix=/usr \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$(xx-info triple) \
+          $CROSS_HOST \
           --enable-static \
           --disable-shared \
   )
   log "Compiling libtasn1..."
-  make -C /tmp/libtasn1 -j$(nproc)
+  make $MAKE_CC -C /tmp/libtasn1 -j$(nproc)
   log "Installing libtasn1..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libtasn1 install
+  make DESTDIR=$XX_SYSROOT -C /tmp/libtasn1 install
 }
 
 #
@@ -238,29 +242,92 @@ function libtasn1(){
 # it ourself.
 #
 function libxshmfence(){
+  tigervnc_cross
   mkdir -p /tmp/libxshmfence
   log "Downloading libxshmfence..."
   down_catfile ${LIBXSHMFENCE_URL} | tar -xz --strip 1 -C /tmp/libxshmfence
   log "Configuring libxshmfence..."
   (
       cd /tmp/libxshmfence && ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
-          --prefix=/usr \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$(xx-info triple) \
+          $CROSS_HOST \
           --enable-static \
           --disable-shared \
           --enable-futex \
   )
   log "Compiling libxshmfence..."
-  make -C /tmp/libxshmfence -j$(nproc)
+  make $MAKE_CC -C /tmp/libxshmfence -j$(nproc)
   log "Installing libxshmfence..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libxshmfence install
+  make DESTDIR=$XX_SYSROOT -C /tmp/libxshmfence install
+}
+
+# libxkbfile: 直接用 sysroot apk 包（libxkbfile-dev，无需源码建）
+
+#
+
+#
+# 2026-11-25 交叉(arm64/armv7 via xx-clang): 参 x-xbindkeys xbk_cross 共享环境。
+# native(未设 XX_CROSS_FILE): 变量留空 → 原路径零影响。
+# 注: gnutls/libxfont2/libfontenc/libtasn1/libxshmfence 子构建已自带
+#   --host=$(xx-clang --print-target-triple)(native 也如此)→ 无需 CROSS_HOST。
+# xkb 走 meson(需 --cross-file)本脚本未接 → 交叉下 xkb 保持原样(见 uncertainties)。
+tigervnc_cross(){
+  CROSS_HOST=""; MAKE_CC=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    # xx-info sysroot 在 Alpine 里返回 / 而非真实 sysroot；
+    # 直接从 cross-file 读 sys_root 更可靠（tigervnc_cross 被所有子构建复用）。
+    XX_SYSROOT="${XX_SYSROOT:-$(grep "sys_root" "$XX_CROSS_FILE" 2>/dev/null | head -1 | sed "s/.*= *'\\([^']*\\)'.*/\\1/; s/\\/$//")}"
+    export XX_SYSROOT
+    # xx-clang/xx-info 认的是 TARGETPLATFORM(非 XX_CROSS_FILE)，必须在此 export，
+    # 否则退回宿主 x86_64（vncpasswd/Xvnc 会被编成 x86-64）。
+    _march="$(grep "^cpu_family" "$XX_CROSS_FILE" 2>/dev/null | head -1 | sed "s/.*= *'\\([^']*\\)'.*/\\1/")"
+    case "$_march" in
+      aarch64) _tpf="linux/arm64" ;;
+      arm)     _tpf="linux/arm/v7" ;;
+      *)       _tpf="linux/$_march" ;;
+    esac
+    TARGETPLATFORM="${TARGETPLATFORM:-$_tpf}"
+    export TARGETPLATFORM
+    XX_TRIPLE="$(xx-info triple 2>/dev/null)"
+    [ -z "$XX_TRIPLE" ] && XX_TRIPLE="$(grep "^cpu" "$XX_CROSS_FILE" 2>/dev/null | head -1 | sed "s/.*= *'\\(.*\\)'/\\1/")"
+    export XX_TRIPLE
+    export XX_MARCH="${XX_MARCH:-$_march}"
+    CROSS_HOST="--host=$XX_TRIPLE"
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    # sysroot 补 X11/字体/压缩等静态库(幂等; apk 命中已装则 no-op)
+    # 注意: libtasn1-static / brotli-static 在 sysroot APKINDEX 里不存在，
+    # 但 libtasn1(.so)/libbrotli*.a 已随其他包装入，用 test 幂等跳过。
+    xx-apk add libx11-dev libx11-static libxext-dev libxrandr-dev libxrender-dev \
+      libxdamage-dev libxfixes-dev libxinerama-dev libxcursor-dev libxft-dev \
+      freetype-dev fontconfig-dev zlib-static libjpeg-turbo-static \
+      libxkbcommon-dev libxkbcommon-static libxcb-dev libxcb-static \
+      pixman-static libxau-dev libxdmcp-dev \
+      nettle-dev nettle-static libunistring-dev libunistring-static \
+      libtasn1-dev libbsd-dev libmd-dev libpng-static \
+      bzip2-static libfontenc-dev libxshmfence-dev libxkbfile-dev 2>/dev/null || true
+    # brotli-static 幂等: sysroot 里已有 libbrotlidec.a 等
+    test -f "$XX_SYSROOT/usr/lib/libbrotlidec.a" || (xx-apk add brotli-static 2>/dev/null || true)
+    # libXrandr.a: apk 无对应包 → 借 openbox 的 libxrandr()(cross-aware, 装到 sysroot)
+    test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
+    log "tigervnc: CROSS ($XX_TRIPLE)"
+  fi
 }
 
 #
 # Build TigerVNC
 #
 function tigervnc(){
+  tigervnc_cross
   rm -rf /tmp/tigervnc; mkdir -p /tmp/tigervnc
   log "Downloading TigerVNC..."
   down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C /tmp/tigervnc
@@ -300,17 +367,18 @@ function tigervnc(){
   )
 
   log "Compiling TigerVNC common libraries and tools..."
-  make -C /tmp/tigervnc/common -j$(nproc)
-  make -C /tmp/tigervnc/unix/common -j$(nproc)
-  make -C /tmp/tigervnc/unix/vncpasswd -j$(nproc)
+  make $MAKE_CC -C /tmp/tigervnc/common -j$(nproc)
+  make $MAKE_CC -C /tmp/tigervnc/unix/common -j$(nproc)
+  make $MAKE_CC -C /tmp/tigervnc/unix/vncpasswd -j$(nproc)
 
   log "Configuring TigerVNC server..."
   autoreconf -fiv /tmp/tigervnc/unix/xserver
   (
       cd /tmp/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
-          --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
-          --host=$(xx-clang --print-target-triple) \
+          --build=$(TARGETPLATFORM='' xx-info triple) \
+          --host=$XX_TRIPLE \
           --prefix=$INS_PREFIX \
+          $CROSS_HOST \
           --sysconfdir=/etc/X11 \
           --localstatedir=/var \
           --with-xkb-path=${XKB_REF_PATH}/share/X11/xkb \
@@ -360,22 +428,58 @@ function tigervnc(){
   # Remove all automatic dependencies on libraries and manually define them to
   # have the correct order.
   find /tmp/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
+  # 交叉: sysroot 里 .la 的 libdir 是裸 /usr/local/lib(libtool 在依赖构建时被 DESTDIR 剥掉前缀)
+  #   → xserver 链接经 libtool 解析 -lfontenc/-ltasn1 等时找裸 /usr/local/lib/*.a(clang 找不到)。
+  #   给 sysroot 的 .la libdir 补 sysroot 前缀。native(XX_CROSS_FILE 空)跳过, .la 不动。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    find "$XX_SYSROOT/usr/local/lib" "$XX_SYSROOT/usr/lib" -maxdepth 1 -name "*.la" \
+      -exec sed -i "s|^libdir='|libdir='$XX_SYSROOT|" {} '+' 2>/dev/null
+    log "tigervnc: sysroot .la libdir 加 sysroot 前缀($XX_SYSROOT)"
+    # xserver configure 经 pkg-config 探测得到裸 -L/usr/local/lib(容器 amd64 真实目录，
+    #   内有同名 .la/libXfont2 等 → libtool 优先命中并拼出裸 .a 路径)。
+    #   交叉下换成 sysroot 的两个 -L，避免命中容器 amd64 库。
+    find /tmp/tigervnc/unix/xserver -name "Makefile" \
+      -exec sed -i "s|-L/usr/local/lib|-L$XX_SYSROOT/usr/local/lib -L$XX_SYSROOT/usr/lib|g" {} '+'
+    log "tigervnc: xserver Makefile 裸 -L/usr/local/lib → sysroot -L"
+  fi
   # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
   # 
   # #  -lbrotlidec -lbrotlicommon
   # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
   # 
   # -lgnutls 
-  sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # XSERVER_SYS_LIBS: 静态链接顺序敏感(freetype/fontenc/Xfont2/png/z 互依赖)，
+  #   用 --start-group/--end-group 让 ld 反复解析。native 也用 group(无害)。
+  #   libz.a 在 Alpine 位于 $XX_SYSROOT/lib(非 usr/lib)→ 交叉补 -L。native 走默认路径。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    _SYSLIBS="-Wl,--start-group -lXau -lXdmcp -lpixman-1 -ljpeg -lxkbfile -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd -lxshmfence -Wl,--end-group"
+    _XLL="-L$XX_SYSROOT/lib -L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+  else
+    _SYSLIBS="-Wl,--start-group -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd -Wl,--end-group"
+    _XLL=""
+  fi
+  sed "s|^XSERVER_SYS_LIBS = .*|XSERVER_SYS_LIBS = ${_XLL} ${_SYSLIBS}|" -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
 
   log "Compiling TigerVNC server..."
-  make -C /tmp/tigervnc/unix/xserver -j$(nproc)
+  make $MAKE_CC -C /tmp/tigervnc/unix/xserver -j$(nproc)
 
   log "Installing TigerVNC server..."
-  make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
+  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
 
   log "Installing TigerVNC vncpasswd tool..."
-  make DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
+  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
+
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判
+  #   static + 目标架构; native 仍走 xx-verify(原路径)。产物 = Xvnc + vncpasswd。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    for _b in $TARGETPATH/bin/Xvnc $TARGETPATH/bin/vncpasswd; do
+      file $_b | grep -qE "ARM.*statically linked" \
+        || { log "TIGERVNC file 非 ARM static: $_b"; exit 1; }
+    done
+  else
+    xx-verify --static $TARGETPATH/bin/Xvnc || { log "TIGERVNC xx-verify FAILED(Xvnc)"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/vncpasswd || { log "TIGERVNC xx-verify FAILED(vncpasswd)"; exit 1; }
+  fi
 }
 
 #
@@ -455,10 +559,11 @@ function xkbcomp(){
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
           --prefix=$INS_PREFIX \
+          $CROSS_HOST \
   )
 
   log "Compiling xkbcomp..."
-  make -C /tmp/xkbcomp -j$(nproc)
+  make $MAKE_CC -C /tmp/xkbcomp -j$(nproc)
 
   log "Installing xkbcomp..."
   make DESTDIR=$ROOT_DEST_DIR -C /tmp/xkbcomp install
@@ -507,7 +612,13 @@ b_tiger)
     doExec_check || exit 1
     ;;
 *) #compile
-    oneBuild $1
+    # POSIX sh: 函数不跨 subshell 继承。doExec 调 bash /src/...build.sh <func> 时，
+    # 子进程里函数定义在脚本顶层已就位，直接调即可（避免 doExec→oneBuild→doExec 循环）。
+    if type "$1" 2>/dev/null | grep -q function; then
+      "$1"
+    else
+      oneBuild $1
+    fi
     ;;          
 esac
 exit 0
