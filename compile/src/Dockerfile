@@ -1,10 +1,14 @@
 ARG COMPILE_IMG=alpine-compile
 ARG REPO=
+# BUILDPLATFORM: global-scope 声明(不给默认值)——FROM --platform=$BUILDPLATFORM 需其解析。
+# buildx(CI)自动注入真实 build 平台;本地 docker build 用 --build-arg BUILDPLATFORM=linux/amd64 传入。
+ARG BUILDPLATFORM
 # split to basemm, for former validate: like geany with gtk's theme/icon/print/input/..
-FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
+FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
-  RUN apk update; apk add gawk git;
+  RUN apk update; apk add gawk git; \
+    xx-apk add musl-dev gcc
   ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
   RUN git config --global http.sslVerify false
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
@@ -12,10 +16,11 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     ls -lh /src/**/*.sh
-FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
+FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
-  RUN apk update; apk add gawk git;
+  RUN apk update; apk add gawk git; \
+    xx-apk add musl-dev gcc
   ##Close SSL Verify, for hubProxy's clone; ref x-pulseaudio/build.sh
   RUN git config --global http.sslVerify false
   # COPY --from=compile /rootfs${CACHE} ${CACHE}
@@ -25,7 +30,8 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
     # ls -lh /src/**/*.sh ##avoid ci-log with double print
 
 # --platform=$BUILDPLATFORM 
-FROM base AS tiger
+FROM --platform=$BUILDPLATFORM base AS tiger
+ARG TARGETPLATFORM
 ARG COMPILE_TIGER="yes"
 ENV TARGETPATH=/usr/local/static/tigervnc
 RUN mkdir -p $TARGETPATH; \
@@ -60,7 +66,8 @@ RUN \
   upx /tmp/xdpyprobe/xdpyprobe
 
 
-FROM base AS xrdp
+FROM --platform=$BUILDPLATFORM base AS xrdp
+ARG TARGETPLATFORM
 ARG COMPILE_XRDP="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xrdp
@@ -80,7 +87,8 @@ RUN mkdir -p $TARGETPATH; \
 # xrdp-mods-cut
 # RUN mkdir -p $TARGETPATH/etc/xrdp;
 
-FROM base AS x11vnc
+FROM --platform=$BUILDPLATFORM base AS x11vnc
+ARG TARGETPLATFORM
 ARG COMPILE_X11VNC="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/x11vnc
@@ -94,7 +102,8 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
-FROM base AS dropbear
+FROM --platform=$BUILDPLATFORM base AS dropbear
+ARG TARGETPLATFORM
 ARG COMPILE_SSH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/dropbear
@@ -108,7 +117,8 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3; \
   test -x ${TARGETPATH}/sbin/dropbear || exit 1
-FROM base AS suckless
+FROM --platform=$BUILDPLATFORM base AS suckless
+ARG TARGETPLATFORM
 ARG COMPILE_SUCKLESS="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/suckless
@@ -123,7 +133,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 
-FROM base AS fluxbox
+FROM --platform=$BUILDPLATFORM base AS fluxbox
+ARG TARGETPLATFORM
 ARG COMPILE_FLUX="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/fluxbox
@@ -144,7 +155,8 @@ RUN mkdir -p $TARGETPATH; \
 
 # Build Openbox.
 # FROM infrastlabs/x11-base:builder AS openbox
-FROM base AS openbox
+FROM --platform=$BUILDPLATFORM base AS openbox
+ARG TARGETPLATFORM
 ARG COMPILE_OPENBOX="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/openbox
@@ -193,7 +205,8 @@ RUN mkdir -p $TARGETPATH; \
 
 #######################################################
 #######################################################
-FROM base AS xcompmgr
+FROM --platform=$BUILDPLATFORM base AS xcompmgr
+ARG TARGETPLATFORM
 ARG COMPILE_XCOMPMGR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xcompmgr
@@ -206,7 +219,8 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
-FROM base AS perp
+FROM --platform=$BUILDPLATFORM base AS perp
+ARG TARGETPLATFORM
 ARG COMPILE_PERP="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/perp
@@ -219,7 +233,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build misc:su-exec,lrzsz,n2n,tinc
-FROM base AS misc
+FROM --platform=$BUILDPLATFORM base AS misc
+ARG TARGETPLATFORM
 ARG COMPILE_MISC="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/misc
@@ -235,7 +250,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build xbindkeys
-FROM base AS xbindkeys
+FROM --platform=$BUILDPLATFORM base AS xbindkeys
+ARG TARGETPLATFORM
 ARG COMPILE_XBINDKEYS="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xbindkeys
@@ -249,7 +265,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build xrandr
-FROM base AS xrandr
+FROM --platform=$BUILDPLATFORM base AS xrandr
+ARG TARGETPLATFORM
 ARG COMPILE_XRANDR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xrandr
@@ -262,7 +279,8 @@ RUN mkdir -p $TARGETPATH; \
 
 
 # Build dunst (xcb 通知守护) + notify-send（通知发送端，x-dunst 内构建）
-FROM base AS dunst
+FROM --platform=$BUILDPLATFORM base AS dunst
+ARG TARGETPLATFORM
 ARG COMPILE_DUNST="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/dunst
@@ -274,7 +292,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build rofi (基础应用; 需 xcb-util -> b_deps 复用 w-tint2 xcbutil)
-FROM base AS rofi
+FROM --platform=$BUILDPLATFORM base AS rofi
+ARG TARGETPLATFORM
 ARG COMPILE_ROFI="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/rofi
@@ -287,7 +306,8 @@ RUN mkdir -p $TARGETPATH; \
 #######################################################
 #######################################################
 # Build feh
-FROM base AS feh
+FROM --platform=$BUILDPLATFORM base AS feh
+ARG TARGETPLATFORM
 ARG COMPILE_FEH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/feh
@@ -303,7 +323,8 @@ RUN mkdir -p $TARGETPATH; \
 
 
 # Build hsetroot (imlib 应用, 壁纸设置)
-FROM base AS hsetroot
+FROM --platform=$BUILDPLATFORM base AS hsetroot
+ARG TARGETPLATFORM
 ARG COMPILE_HSETROOT="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/hsetroot
@@ -314,7 +335,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build scrot (imlib 截图)
-FROM base AS scrot
+FROM --platform=$BUILDPLATFORM base AS scrot
+ARG TARGETPLATFORM
 ARG COMPILE_SCROT="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/scrot
@@ -326,7 +348,8 @@ RUN mkdir -p $TARGETPATH; \
   test -x ${TARGETPATH}/bin/scrot || exit 1
 
 # Build tint2
-FROM base AS tint2
+FROM --platform=$BUILDPLATFORM base AS tint2
+ARG TARGETPLATFORM
 ARG COMPILE_TINT2="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/tint2
@@ -341,7 +364,8 @@ RUN mkdir -p $TARGETPATH; \
   test -x ${TARGETPATH}/bin/tint2 || exit 1
 
 # Build xlunch
-FROM base AS xlunch
+FROM --platform=$BUILDPLATFORM base AS xlunch
+ARG TARGETPLATFORM
 ARG COMPILE_XLUNCH="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xlunch
@@ -357,7 +381,8 @@ RUN mkdir -p $TARGETPATH; \
 #######################################################
 #######################################################
 # Build lxde
-FROM base AS lxde
+FROM --platform=$BUILDPLATFORM base AS lxde
+ARG TARGETPLATFORM
 ARG COMPILE_LXDE="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/lxde
@@ -370,7 +395,8 @@ RUN mkdir -p $TARGETPATH; \
   \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
-FROM base AS pcmanfm
+FROM --platform=$BUILDPLATFORM base AS pcmanfm
+ARG TARGETPLATFORM
 ARG COMPILE_PCMANFM="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pcmanfm
@@ -386,7 +412,8 @@ RUN mkdir -p $TARGETPATH; \
 
 # Build xfce4 (xfce4settings/thunar/ristretto; GTK2, 共享 xfce 库栈)
 # b_deps: ensure_gtk_libs(最新 gtk2) + dbus/dbus-glib + xfce 库栈(util/conf/ui/exo/garcon) + libexif
-FROM base AS xfce4
+FROM --platform=$BUILDPLATFORM base AS xfce4
+ARG TARGETPLATFORM
 ARG COMPILE_XFCE4="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/xfce4
@@ -404,7 +431,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} /usr/local/static/thunar /usr/local/static/ristretto -type f 2>/dev/null |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build geany
-FROM base AS geany
+FROM --platform=$BUILDPLATFORM base AS geany
+ARG TARGETPLATFORM
 ARG COMPILE_GEANY="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/geany
@@ -418,7 +446,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build engrampa (GTK2 归档管理器; engrampa() 自足, 无独立 b_deps)
-FROM base AS engrampa
+FROM --platform=$BUILDPLATFORM base AS engrampa
+ARG TARGETPLATFORM
 ARG COMPILE_ENGRAMPA="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/engrampa
@@ -428,7 +457,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build gpicview (GTK2 图片查看器)
-FROM base AS gpicview
+FROM --platform=$BUILDPLATFORM base AS gpicview
+ARG TARGETPLATFORM
 ARG COMPILE_GPICVIEW="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/gpicview
@@ -454,7 +484,8 @@ RUN mkdir -p $TARGETPATH; \
 #   ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a /usr/lib/libgiomm-2.4.a;
 
 # basemm for pavucontrol
-FROM basemm AS pulseaudio
+FROM --platform=$BUILDPLATFORM basemm AS pulseaudio
+ARG TARGETPLATFORM
 ARG COMPILE_PULSE="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pulseaudio
@@ -468,7 +499,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3
 
 # Build pavucontrol (GTK2/gtkmm, 需 pulse+gtkmm 栈)
-FROM pulseaudio AS pavucontrol
+FROM --platform=$BUILDPLATFORM pulseaudio AS pavucontrol
+ARG TARGETPLATFORM
 ARG COMPILE_PAVUCONTROL="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pavucontrol
@@ -482,7 +514,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build pasystray (GTK2 托盘, 需 pulse 栈 -> FROM pulseaudio 继承)
-FROM pulseaudio AS pasystray
+FROM --platform=$BUILDPLATFORM pulseaudio AS pasystray
+ARG TARGETPLATFORM
 ARG COMPILE_PASYSTRAY="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/pasystray
@@ -496,7 +529,8 @@ RUN mkdir -p $TARGETPATH; \
 # full = build_gtop + build_wnck + gnome_system_monitor (gtop/wnck 非父级提供, 故直接 full,
 # 不调 b_deps -- 其 ls gtop/wnck 在 set -e 下会因未建而中止)
 # 静态链需 xcb-util (libwnck→startup-notification→xcb-util), 由 w-tint2 xcbutil 补建
-FROM basemm AS sysmonitor
+FROM --platform=$BUILDPLATFORM basemm AS sysmonitor
+ARG TARGETPLATFORM
 ARG COMPILE_SYSMONITOR="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/gsm
@@ -508,7 +542,8 @@ RUN mkdir -p $TARGETPATH; \
 
 
 # Build clipit
-FROM base AS clipit
+FROM --platform=$BUILDPLATFORM base AS clipit
+ARG TARGETPLATFORM
 ARG COMPILE_CLIPIT="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/clipit
@@ -519,7 +554,8 @@ RUN mkdir -p $TARGETPATH; \
   find ${TARGETPATH} -type f |grep -E "/bin|/sbin" |sort |head -3;
 
 # Build dbus (静态 dbus-daemon + libdbus-1.a + dbus-glib; 共享依赖, xfce/ibus 等用)
-FROM base AS dbus
+FROM --platform=$BUILDPLATFORM base AS dbus
+ARG TARGETPLATFORM
 ARG COMPILE_DBUS="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/dbus
@@ -532,7 +568,8 @@ RUN mkdir -p $TARGETPATH; \
 
 # Build ibus (GTK2 输入法: librime/ibus/panel/x11/ibus-rime/setup; 需 dbus+gtk2)
 # 注意: v-ibus/build.sh 是 bash-only (busybox sh 解析失败 line297), 故用 bash 调用
-FROM dbus AS ibus
+FROM --platform=$BUILDPLATFORM dbus AS ibus
+ARG TARGETPLATFORM
 ARG COMPILE_IBUS="yes"
 ENV CONSOLE_LOG=no \
   TARGETPATH=/usr/local/static/ibus
