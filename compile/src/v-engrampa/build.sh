@@ -9,7 +9,36 @@ source /src/common.sh
 # 依赖: gtk+-2.0/glib-2.0/gthread-2.0/gio-unix-2.0 (u-gtk 静态树已就位)
 # 需 --disable-caja-actions (本项目无 caja/MATE 文件管理器, 否则 PKG_CHECK 报错)
 # 参考 lxtask 静态链接 (LIBS0 含 rsvg/croco 供 gdk-pixbuf 内置 svg loader)
+# 2026-11-25 方案二交叉: engrampa(GTK2/autotools/autogen) 共用交叉环境(同 w-xlunch/pavucontrol)。
+# 设 CROSS_HOST/XX_CPPFLAGS: configure 追加 --host、CPPFLAGS 前缀 sysroot; LDFLAGS 全局前缀 sysroot -L。
+# native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+eng_cross(){
+  CROSS_HOST=""; XX_CPPFLAGS=""; XX_LINK_EXTRA=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc/cc_cross 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    # 头/库搜索前缀 sysroot（xx-clang 自带 sysroot, 但 configure 探测/静态 -L 需显式; 双保险）。
+    # LDFLAGS 全局前缀(common.sh 已 export -static...; 追加 -L 供 configure link-test 找 sysroot .a)。
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    XX_CPPFLAGS="-I$XX_SYSROOT/usr/include"
+    # LINK 串里 $(LDFLAGS) 是 shell 命令替换(空), 非 make 变量——native 靠默认库路径没暴露,
+    #   交叉下 sysroot /usr/local/lib 不在默认路径 → 必须显式注入 -L(2026-11-25 实测 rpm2cpio -lrsvg-2 找不到)。
+    XX_LINK_EXTRA="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+    log "engrampa: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function engrampa(){
+  eng_cross
   ENGRAMPA_VER=1.14.1
 
   # autogen 硬性依赖 mate-autogen(mate-common)/yelp-build(yelp-tools)/itstool，缺则 ./autogen.sh 静默失败→无 configure
@@ -77,7 +106,9 @@ function engrampa(){
 
   log "Configuring ENGRAMPA..."
   cd /tmp/engrampa
-  ./autogen.sh
+  # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
+  #   再显式 configure --host。native 原路径不变。
+  [ -n "$XX_CROSS_FILE" ] && NOCONFIGURE=1 ./autogen.sh || ./autogen.sh
   # CPPFLAGS 编入 schema 目录(与 --prefix 编 PKGDATADIR 同法); 由 fr-init.c 的 helper 读取。
   # ENG_SCHEMA_DIR 未定义时 helper 回落 /usr/share/glib-2.0/schemas(健壮兜底)。
   # 2026-11-15: 不用 -DENG_SCHEMA_DIR=\"...\"——make recipe shell 会剥掉引号→编译器得裸 /usr/...→
@@ -92,7 +123,8 @@ EOF
     --disable-caja-actions \
     --disable-packagekit \
     --localedir=$TARGETPATH/share/locale \
-    CPPFLAGS="-include /tmp/engrampa/eng_schema_dir.h"
+    $CROSS_HOST \
+    CPPFLAGS="$XX_CPPFLAGS -include /tmp/engrampa/eng_schema_dir.h"
 
   # ref pcmanfm/lxtask 式 GTK2 静态链
   OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
@@ -108,11 +140,12 @@ EOF
   #   (engrampa_LINK 变量不存在, 程序链接走通用 $(LINK)——曾错覆盖 engrampa_LINK 无效, 改 LINK 后才生效)
   sed -i 's#copy-n-paste/libeggsmclient\.la#copy-n-paste/.libs/libeggsmclient.a#' /tmp/engrampa/src/Makefile 2>/dev/null || true
   make LDFLAGS="$LDFLAGS" FR_LIBS="" \
-    LINK="xx-clang -static -Wl,--strip-all -Wall -O2 $(CFLAGS) $(LDFLAGS) -o \$@" \
+    LINK="xx-clang -static -Wl,--strip-all -Wall -O2 $XX_LINK_EXTRA $(CFLAGS) $(LDFLAGS) -o \$@" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -lintl -Wl,--end-group" 2>&1 \
     || { log "ENGRAMPA make LINK FAILED"; exit 1; }
 
   log "Install ENGRAMPA binary (make 产物, 不再手动直链)..."
+  # 交叉: engrampa 为自足应用(无系统库安装), 产物+数据随 $TARGETPATH 整体迁移, 无 $XX_SYSROOT 可装项。
   mkdir -p $TARGETPATH/bin
   BIN=$(find /tmp/engrampa/src /tmp/engrampa -maxdepth 2 -name engrampa -type f 2>/dev/null | head -1)
   test -n "$BIN" || { log "ENGRAMPA binary MISSING"; exit 1; }
@@ -139,7 +172,14 @@ EOF
     fi
 
   ls -lh $TARGETPATH/bin/engrampa
-  xx-verify --static $TARGETPATH/bin/engrampa || { log "ENGRAMPA xx-verify FAILED"; exit 1; }
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+  #   native 仍走 xx-verify(原路径)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file $TARGETPATH/bin/engrampa | grep -qE "ARM.*statically linked" \
+      || { log "ENGRAMPA file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static $TARGETPATH/bin/engrampa || { log "ENGRAMPA xx-verify FAILED"; exit 1; }
+  fi
 }
 
 case "$1" in
