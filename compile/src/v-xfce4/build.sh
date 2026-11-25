@@ -24,7 +24,7 @@ PKGCONF="/usr/local/static/xfce/lib/pkgconfig:/usr/local/static/exif/lib/pkgconf
 
 # 静态链库集（thunar/ristretto 共用；含 -lexif 对 thunar 无害——未引用不拉入）
 static_gtk_libs() {
-  LIBS="-L/usr/local/static/xfce/lib -L/usr/local/static/exif/lib -L/usr/local/static/dbus/lib -L/usr/local/static/dbus-glib/lib -L/usr/local/lib"
+  LIBS="-L${XX_LIBS_PREFIX:-}/usr/local/static/xfce/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/exif/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/dbus/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/dbus-glib/lib -L${XX_LIBS_PREFIX:-}/usr/local/lib"
   LIBS="$LIBS -Wl,--start-group -lexo-1 -lxfce4ui-1 -lxfconf-0 -lxfce4util -lexif -ldbus-glib-1 -ldbus-1"
   LIBS="$LIBS -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0"
   LIBS="$LIBS -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lgthread-2.0 -lgmodule-2.0 -lcairo -lfontconfig -lfreetype"
@@ -50,9 +50,49 @@ fetch_src() { # name url
   fi
 }
 
+# 2026-11-24 方案二交叉: xfce 模块共用交叉环境（仿 u-gtkmm mm_cross）。
+# 设 CROSS_HOST/XX_DESTDIR/XX_LIBS_PREFIX 供各函数: configure 追加 --host、make install 加 DESTDIR（装 sysroot）、
+#   手工 xx-clang 静态链的 -L 前缀 sysroot（交叉产物 .a 在 sysroot 内，native 路径不可见）。
+# native（未设 TARGETPLATFORM/XX_CROSS_FILE 空）: 变量留空 → 原路径零影响。
+xf_cross(){
+  CROSS_HOST=""; XX_DESTDIR=""; XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    # 顶部 PKGCONF 是 native 路径（/usr/local/static/...）→ 交叉时前缀 sysroot（.pc 经 DESTDIR 落 sysroot）。
+    #   守卫防重复调用二次前缀（sed 匹配 /usr/local/static 子串会再拼 sysroot → 双前缀）。
+    case "$PKGCONF" in "$XX_SYSROOT"/*) ;; *) PKGCONF=$(echo "$PKGCONF" | sed "s|/usr/local/static|$XX_SYSROOT/usr/local/static|g");; esac
+    # 关键: xfce 库栈 .pc 在 /usr/local/static/<lib>/lib/pkgconfig（非系统默认搜索路径）→ PKG_CONFIG_LIBDIR 必须含
+    #   PKGCONF（sysroot 前缀），否则 xfconf/libxfce4ui 等 configure 找不到 libxfce4util-1.0.pc（"not found"）。
+    export PKG_CONFIG_LIBDIR="$PKGCONF:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先（同 u-gtk gtk 坑②）
+    # 交叉 configure run-test 缓存: AC_FUNC_MMAP 的"working mmap"在 cross 下不能 run（cannot run test program
+    #   while cross compiling）→ Linux mmap 可用，显式 yes（exo 实证）。只影响 cross 分支，native 不设。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "xfce: CROSS ($XX_TRIPLE)"
+  fi
+}
+
+# 2026-11-25 交叉: autoconf AC_TRY_RUN(无 cross action) 在 cross 下报
+#   "cannot run test program while cross compiling" 中断 configure（exo strftime %EY 实证；musl 支持 %EY 但
+#   cross 不能 run → 置为 if-false(跳过为失败)，exo 用回退格式，构建不受影响）。
+#   锚定 if test "$cross_compiling" = yes; then :（AC_RUN_IFELSE 专属），不误删 ac_fn_c_check_header 等头检查块。
+# 仅 is-cross 生效；须在 configure 前于源码树根调用（对生成的 configure 打补丁）。
+xx_runfix(){
+  [ -n "$XX_CROSS_FILE" ] || return 0
+  [ -f configure ] || return 0
+  perl -0pi -e 's/(if test "\$cross_compiling" = yes; then :\s*)\{.*?\}\s*as_fn_error\s+\$\?\s+"cannot run test program while cross compiling.*?5;\s*\}\s*(else)/$1$2/gs' configure
+  log "xx_runfix: configure cross run-test neutralized"
+}
+
 function xfce4settings(){
   local VER=4.12.4
   local SRC=/tmp/xfce-build/xfce4-settings-$VER
+  xf_cross
 
   log "Download xfce4-settings..."
   if test -d $SRC; then
@@ -86,9 +126,9 @@ function xfce4settings(){
   log "Configure..."
   cd $SRC
   ./configure --prefix=$TARGETPATH --enable-static --disable-shared \
-    --enable-nls --disable-gtk-doc --disable-libnotify \
+    --enable-nls --disable-gtk-doc --disable-libnotify $CROSS_HOST \
     LDFLAGS="$LDFLAGS" \
-    PKG_CONFIG_PATH="/usr/local/static/xfce/lib/pkgconfig:/usr/local/static/dbus/lib/pkgconfig:/usr/local/static/dbus-glib/lib/pkgconfig" \
+    PKG_CONFIG_PATH="$PKGCONF" \
     || { log "CONFIGURE FAILED"; exit 1; }
 
   # 只编 .o 不触发 CCLD 链接：automake 链接走 libtool 依赖 .la（libICE.la 等缺失）→ 静态链必败，
@@ -107,7 +147,7 @@ function xfce4settings(){
 
   log "Static-link 1 binary (xx-clang -static)..."
   mkdir -p $TARGETPATH/bin
-  LIBS="-L/usr/local/static/xfce/lib -L/usr/local/static/dbus/lib -L/usr/local/static/dbus-glib/lib -L/usr/local/lib"
+  LIBS="-L${XX_LIBS_PREFIX:-}/usr/local/static/xfce/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/dbus/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/dbus-glib/lib -L${XX_LIBS_PREFIX:-}/usr/local/lib"
   LIBS="$LIBS -Wl,--start-group -lexo-1 -lgarcon-gtk2-1 -lgarcon-1 -lxfce4ui-1 -lxfce4kbd-private-2 -lxfconf-0 -lxfce4util -ldbus-glib-1 -ldbus-1"
   LIBS="$LIBS -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0"
   LIBS="$LIBS -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lgthread-2.0 -lcairo -lfontconfig -lfreetype"
@@ -173,7 +213,11 @@ function libexif(){
   local VER=0.6.23
   local SRC=/tmp/xfce-build/libexif-$VER
   local PREFIX=/usr/local/static/exif
-  if test -f $PREFIX/lib/libexif.a; then
+  xf_cross
+  # 交叉: .a 经 DESTDIR 落 sysroot，跳过/校验判 sysroot 路径（native 判 $PREFIX 原路径不变）。
+  local LIBEXIF_A=$PREFIX/lib/libexif.a
+  [ -n "$XX_CROSS_FILE" ] && LIBEXIF_A=$XX_SYSROOT$LIBEXIF_A
+  if test -f $LIBEXIF_A; then
     log "libexif.a present, skip"
     return
   fi
@@ -181,11 +225,13 @@ function libexif(){
   fetch_src libexif-$VER "https://github.com/libexif/libexif/releases/download/v$VER/libexif-$VER.tar.bz2"
   log "Configure libexif (xx-clang static)..."
   cd $SRC
-  CC=xx-clang CFLAGS="$CFLAGS" ./configure --prefix=$PREFIX --enable-static --disable-shared --disable-nls \
+  CC=xx-clang CFLAGS="$CFLAGS" ./configure --prefix=$PREFIX --enable-static --disable-shared --disable-nls $CROSS_HOST \
     || { log "LIBEXIF CONFIGURE FAILED"; exit 1; }
   make 2>&1 || { log "LIBEXIF BUILD FAILED"; exit 1; }
-  make install 2>&1 || { log "LIBEXIF INSTALL FAILED"; exit 1; }
-  test -f $PREFIX/lib/libexif.a || { log "libexif.a not produced"; exit 1; }
+  make install $XX_DESTDIR 2>&1 || { log "LIBEXIF INSTALL FAILED"; exit 1; }
+  # 交叉兜底: 若 make install 未把 .a 落 sysroot（libtool 布局差异），从源码树 cp 到 sysroot /usr/lib（找不到不致命）。
+  cp "$(find $SRC -name libexif.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  test -f $LIBEXIF_A || { log "libexif.a not produced"; exit 1; }
   log "libexif static installed"
 }
 
@@ -193,6 +239,7 @@ function thunar(){
   local VER=1.6.18
   local SRC=/tmp/xfce-build/Thunar-$VER
   local PREFIX=/usr/local/static/thunar
+  xf_cross
 
   log "Download Thunar (文件名大写 T)..."
   fetch_src Thunar-$VER "https://archive.xfce.org/src/xfce/thunar/1.6/Thunar-$VER.tar.bz2"
@@ -215,6 +262,7 @@ function thunar(){
   ./configure --prefix=$PREFIX --enable-static --disable-shared \
     --disable-exif --disable-notifications --disable-gudev \
     --disable-tpa-plugin --disable-wallpaper-plugin --disable-apr-plugin --disable-sbr-plugin \
+    $CROSS_HOST \
     CFLAGS="$CFLAGS -DTHUNARX_STATIC_UCA" \
     LDFLAGS="$LDFLAGS" PKG_CONFIG_PATH="$PKGCONF" \
     || { log "THUNAR CONFIGURE FAILED"; exit 1; }
@@ -271,6 +319,7 @@ function ristretto(){
   local VER=0.8.5
   local SRC=/tmp/xfce-build/ristretto-$VER
   local PREFIX=/usr/local/static/ristretto
+  xf_cross
 
   libexif   # 前置：ristretto 必需 libexif>=0.6.0
 
@@ -290,7 +339,7 @@ function ristretto(){
 
   log "Configure ristretto (UI 手写+UIManager 内嵌 .xml，无 GtkBuilder；nls 保留)..."
   cd $SRC
-  ./configure --prefix=$PREFIX LDFLAGS="$LDFLAGS" PKG_CONFIG_PATH="$PKGCONF" \
+  ./configure --prefix=$PREFIX LDFLAGS="$LDFLAGS" PKG_CONFIG_PATH="$PKGCONF" $CROSS_HOST \
     || { log "RISTRETTO CONFIGURE FAILED"; exit 1; }
 
   log "Make src (localedir=/usr/share/locale；链接失败可容错——pixman/pcre 手工链才给，只用 .o)..."
@@ -327,19 +376,26 @@ function ristretto(){
 function xfce_lib(){
   local NV=$1 URL=$2 CHECK=$3; shift 3
   local PREFIX=/usr/local/static/xfce
-  if test -f $PREFIX/lib/$CHECK; then log "xfce $NV present, skip"; return; fi
+  xf_cross
+  # 交叉: .a 经 DESTDIR 落 sysroot，跳过/校验判 sysroot 路径（native 判 $PREFIX 原路径不变）。
+  local CHK=$PREFIX/lib/$CHECK
+  [ -n "$XX_CROSS_FILE" ] && CHK=$XX_SYSROOT$CHK
+  if test -f $CHK; then log "xfce $NV present, skip"; return; fi
   log "Fetch xfce $NV..."
   fetch_src $NV "$URL"
   local SRC=/tmp/xfce-build/$NV
   log "Configure xfce $NV (xx-clang static)..."
   cd $SRC
-  CC=xx-clang CFLAGS="$CFLAGS" ./configure --prefix=$PREFIX --enable-static --disable-shared "$@" \
+  xx_runfix
+  CC=xx-clang CFLAGS="$CFLAGS" ./configure --prefix=$PREFIX --enable-static --disable-shared $CROSS_HOST "$@" \
     || { log "XFCE CONFIGURE FAILED: $NV"; exit 1; }
   # make/install 允许失败：xfce 包常含 daemon（如 xfconfd），其链接需 pcre/ffi，
   # thunar/ristretto 只需库本身。真正的闸门是下方 $CHECK 存在性检查。
   make -j$(nproc) >/dev/null 2>&1 || log "XFCE MAKE WARN: $NV (daemon/subtarget 失败，继续)"
-  make install >/dev/null 2>&1 || log "XFCE INSTALL WARN: $NV"
-  test -f $PREFIX/lib/$CHECK || { log "XFCE CHECK FAILED: $NV ($CHECK)"; exit 1; }
+  make install $XX_DESTDIR >/dev/null 2>&1 || log "XFCE INSTALL WARN: $NV"
+  # 交叉兜底: 若 make install 未把 .a 落 sysroot（libtool 布局差异），从源码树 cp 到 sysroot /usr/lib（找不到不致命）。
+  cp "$(find $SRC -name "$CHECK" 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  test -f $CHK || { log "XFCE CHECK FAILED: $NV ($CHECK)"; exit 1; }
   log "xfce $NV installed"
 }
 
