@@ -282,6 +282,19 @@ function fontconfig_drop1(){
 function openbox(){
   set -e
   pango_meson #call
+  # 交叉: 清洗 sysroot 里所有 .la——libtool 按 .la 的裸 dependency_libs/libdir 把 -lXrandr/
+  #   -lrsvg-2/-lcroco-0.6 展开成原生绝对路径(/usr/lib/libXrandr.a、/usr/local/lib/*.a, x86 EM:62)
+  #   → "file in wrong format"。解法(同 x-tigervnc 攻坚): ①注释全部 dependency_libs; ②libdir 补
+  #   $XX_SYSROOT 前缀。native(XX_CROSS_FILE 空)跳过, .la 不动。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    find "$XX_SYSROOT/usr/lib" "$XX_SYSROOT/usr/local/lib" -maxdepth 1 -name "*.la" 2>/dev/null | while read -r _la; do
+      sed -i 's/^dependency_libs=/#dependency_libs=/' "$_la"
+      # 幂等: 只给裸 /usr/ 或 /usr/local/ 开头的 libdir 加前缀(已带 $XX_SYSROOT 的跳过, 防重复叠加)
+      sed -i "s|^libdir='/usr/|libdir='$XX_SYSROOT/usr/|" "$_la"
+      sed -i "s|^libdir='/lib/|libdir='$XX_SYSROOT/lib/|" "$_la"
+    done
+    log "openbox: sysroot .la 清洗完成(dependency_libs 注释 + libdir 加 sysroot 前缀)"
+  fi
   env |egrep "FLAGS|clang"
   rm -rf /tmp/openbox; mkdir -p /tmp/openbox
   log "Downloading Openbox..."
@@ -321,7 +334,10 @@ function openbox(){
             -ljpeg -lturbojpeg -ltiff -lwebp -lwebpdecoder -lwebpdemux -lwebpmux -lXdamage \
             -lrsvg-2 -lcroco-0.6 -lgmodule-2.0 -lmount -lblkid -lpixman-1 -lpangocairo-1.0"
           # LDFLAGS=
-          LDFLAGS="$LDFLAGS -Wl,--start-group $OB_LIBS -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
+          # 交叉: rsvg-2/croco-0.6 等 .a 在 $XX_SYSROOT/usr/LOCAL/lib(非 usr/lib), xx-clang --sysroot 默认不搜
+          #   usr/local/lib → link-test 报 cannot find -lrsvg-2 → "C compiler cannot create executables"。
+          #   故 cross 下给 LDFLAGS 前置 sysroot usr/lib + usr/local/lib 两个 -L(native 空 → 原路径零影响)。
+          LDFLAGS="${XX_CROSS_FILE:+-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib }$LDFLAGS -Wl,--start-group $OB_LIBS -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
           --prefix=$INS_PREFIX \
