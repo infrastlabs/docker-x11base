@@ -16,7 +16,38 @@ source /src/common.sh
 #   参考 w-scrot/w-feh imlib2 静态链模式(--start-group 解循环/顺序)。
 export TARGETPATH=${TARGETPATH:-/usr/local/static/xrandr}
 
+# 2026-11-25 方案一交叉: xrandr(autotools/纯 X11) 走共享交叉环境(同 v-engrampa)。
+# CROSS_HOST 使 configure 交叉; PKG_CONFIG 走 sysroot。sysroot 须先有 X11 静态库——Alpine 的
+#   libX11/libXext/libXrender 的 .a 随 *-dev 包, 但 libxcb 需 libxcb-static; **libXrandr.a 无 apk 包**
+#   (libxrandr-static 不存在, libxrandr-dev 只装头+.so, 实测 apk 无 .a) → 复用 openbox 的源码构建
+#   (交叉感知, 装 sysroot; 同 u-gtk b_deps `doExec /src/openbox/build.sh libxrandr`)。
+# native(未设 XX_CROSS_FILE): 变量留空 → 原路径零影响。
+xr_cross(){
+  CROSS_HOST=""; MAKE_CC=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: realloc/malloc/cc_cross 在 cross 下不能 run → 显式 yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    # 头/库搜索前缀 sysroot(双保险: xx-clang 自带 sysroot, configure link-test 需显式 -L)
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    # sysroot 补 X11 静态库(幂等; apk 命中已装则 no-op)
+    xx-apk add libx11-dev libx11-static libxext-dev libxrender-dev libxau-dev libxdmcp-dev libxcb-dev libxcb-static
+    # libXrandr.a 源码构建到 sysroot(同 openbox/u-gtk); 幂等: sysroot 已有则跳过(免重下源码)
+    test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
+    log "xrandr: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 xrandr(){
+  xr_cross
   XRANDR_VER=1.5.4
   TARBALL=/tmp/xrandr-$XRANDR_VER.tar.gz
   SRCDIR=/tmp/xrandr
@@ -42,14 +73,14 @@ xrandr(){
 
   log "Configuring XRANDR..."
   cd $SRCDIR
-  ./configure --prefix=$TARGETPATH 2>&1 || { log "XRANDR configure FAILED"; exit 1; }
+  ./configure --prefix=$TARGETPATH $CROSS_HOST 2>&1 || { log "XRANDR configure FAILED"; exit 1; }
 
   # 静态链全链: pkg-config --static --libs xrandr (含 Xrandr/X11/Xext/Xrender + 传递 xcb/Xau/Xdmcp/pthread)
   # sort -u 去重(顺序无关, 在 --start-group 内); --start-group 解静态循环/顺序问题
   XRANDR_LIBS=$(pkg-config --static --libs xrandr | tr ' ' '\n' | sort -u | tr '\n' ' ')
 
   log "Make XRANDR..."
-  make LDFLAGS="$LDFLAGS" \
+  make $MAKE_CC LDFLAGS="$LDFLAGS" \
     LIBS="-Wl,--start-group $XRANDR_LIBS -Wl,--end-group" 2>&1 \
     || { log "XRANDR build FAILED"; exit 1; }
 
@@ -58,7 +89,14 @@ xrandr(){
 
   log "Verify XRANDR..."
   ls -lh $TARGETPATH/bin/xrandr
-  xx-verify --static $TARGETPATH/bin/xrandr || { log "XRANDR xx-verify FAILED"; exit 1; }
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+  #   native 仍走 xx-verify(原路径)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file $TARGETPATH/bin/xrandr | grep -qE "ARM.*statically linked" \
+      || { log "XRANDR file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static $TARGETPATH/bin/xrandr || { log "XRANDR xx-verify FAILED"; exit 1; }
+  fi
 }
 
 case "$1" in
