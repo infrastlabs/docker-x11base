@@ -57,12 +57,15 @@ RUN mkdir -p $TARGETPATH; \
 # FROM infrastlabs/x11-base:builder AS xdpyprobe
 # ARG TARGETPLATFORM
 COPY src/xdpyprobe /tmp/xdpyprobe
-# RUN apk --no-cache add make clang
-# RUN xx-apk --no-cache add gcc musl-dev libx11-dev libx11-static libxcb-static
-# 
-RUN \
-  CC=xx-clang make -C /tmp/xdpyprobe; \
-  xx-verify --static /tmp/xdpyprobe/xdpyprobe; \
+# 2026-11-25 fix: 交叉(arm/v7,arm64)下 base 仅 xx-apk 装 musl-dev+gcc，sysroot 无 X11 头/静态库
+#   → "fatal error: 'X11/Xlib.h' file not found"（native amd64 靠镜像烘焙的 X11，不触发）。
+#   复用 common.sh 的共享清单 $XX_X11_PKGS（详见 common.sh 顶部注释 + docs 11241320 三章 1.6），
+#   免得各 X11 组件重复维护那份 .a 归属清单。native 已装 → xx-apk 幂等零影响。
+#   另把 '; ' 改 '&&'：原 make 失败被 upx 掩盖，错误归因错到 upx 而非 make，难定位。
+RUN . /src/common.sh && \
+  xx-apk add --no-cache $XX_X11_PKGS && \
+  CC=xx-clang make -C /tmp/xdpyprobe && \
+  xx-verify --static /tmp/xdpyprobe/xdpyprobe && \
   upx /tmp/xdpyprobe/xdpyprobe
 
 
