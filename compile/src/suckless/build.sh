@@ -5,7 +5,33 @@ source /src/common.sh
 
 # pango="-lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0"
 # xrandr="-lXrandr"
-OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft $xrandr -lfontconfig -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz $pango -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" 
+OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft $xrandr -lfontconfig -lfreetype -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz $pango -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
+
+# 2026-11-25 方案一交叉: suckless(st/dwm/dmenu, make-only 无 configure) 走共享交叉环境(同 x-xbindkeys/v-engrampa)。
+# make-only → 无 CROSS_HOST; config.mk 硬编码 "CC = cc"(Makefile 赋值压过 env) → 必须命令行 make $MAKE_CC 顶掉。
+# make 命令行 LDFLAGS= 压过 common.sh export 的 env LDFLAGS → sysroot -L 需显式并进 LDFLAGS。
+# XS 变量承载交叉专属链接前缀(sysroot -L); native(未设 XX_CROSS_FILE) 时 XS 空 → 原路径零影响。
+#   交叉静态传递依赖(X11/xcb/Xau/Xdmcp/Xft/Xrender/freetype/fontconfig 互依赖)用 --start-group 解循环(同 w-scrot/x-xbindkeys)。
+suck_cross(){
+  MAKE_CC=""; XS=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    # sysroot 补静态库(幂等, 已装则 no-op): 顶层 apk add 已覆盖大半, 这里补 dwm/dmenu 额外用到的 X 扩展 .a。
+    #   libxext/libxinerama/libxrandr/libxxf86vm/libxcursor 的 .a 随 *-dev 包; libxcb.a 不在 -dev → libxcb-static。
+    xx-apk add libx11-dev libx11-static libxext-dev libxcb-static libxau-dev libxdmcp-dev \
+      libxft-dev libxrender-dev freetype-dev freetype-static fontconfig-dev fontconfig-static \
+      libxinerama-dev libxrandr-dev libxxf86vm-dev libxcursor-dev
+    log "suckless: CROSS ($XX_TRIPLE)"
+    # 交叉: sysroot -L 前缀(后接各函数原 LDFLAGS 串; 原生已用同一 -l 顺序链接成功, 交叉仅补 ARM .a 搜索路径)
+    XS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+  fi
+}
 
 #
 # Build st
@@ -16,6 +42,7 @@ OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft $xrandr -lfontconfig -lfreetype 
 # master> v084
 # try03, static-build-OK
 function st(){
+  suck_cross
   log "Downloading ST..."
   rm -rf /tmp/st; # mkdir -p /tmp/st
   # down_catfile ${ST_URL} | tar -zx --strip 1 -C /tmp/st
@@ -46,7 +73,8 @@ function st(){
 
   # fontconfig-static@apk>> -luuid
   # -lXXX预备库变多，并不会增加bin体积;
-  make LDFLAGS="$flags $OB_LIBS -luuid"
+  # $MAKE_CC 命令行顶掉 config.mk 硬编码 CC=cc; $XS 交叉 sysroot -L 前缀(native 空)。
+  make $MAKE_CC LDFLAGS="$XS $flags $OB_LIBS -luuid"
 
   log "Install ST..."
   # make;
@@ -54,13 +82,18 @@ function st(){
 
   # view
   ls -lh /tmp/st/
-  xx-verify --static /tmp/st/st
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file /tmp/st/st | grep -qE "ARM.*statically linked" || { log "ST file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static /tmp/st/st || { log "ST xx-verify FAILED"; exit 1; }
+  fi
 }
 
 
 DWM_VER=6.2
 # Makefile> config.mk
 function dwm(){
+  suck_cross
   log "Downloading DWM..."
   rm -rf /tmp/dwm; # mkdir -p /tmp/st
   gitclone git://git.suckless.org/dwm /tmp/dwm --branch=$DWM_VER #;
@@ -82,7 +115,8 @@ function dwm(){
   # /usr/lib/gcc/x86_64-alpine-linux-musl/10.3.1/../../../../lib/libXrender.a(Xrender.o):
 
   # xrandr="-lXrandr"
-  make LDFLAGS="$flags -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid"
+  # $MAKE_CC 命令行顶掉 config.mk 硬编码 CC=cc; $XS 交叉 sysroot -L 前缀(native 空)。
+  make $MAKE_CC LDFLAGS="$XS $flags -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid"
 
 
 
@@ -92,7 +126,11 @@ function dwm(){
 
   # view
   ls -lh /tmp/dwm/
-  xx-verify --static /tmp/dwm/dwm
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file /tmp/dwm/dwm | grep -qE "ARM.*statically linked" || { log "DWM file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static /tmp/dwm/dwm || { log "DWM xx-verify FAILED"; exit 1; }
+  fi
 }
 
 
@@ -104,6 +142,7 @@ function dwm(){
 DMENU_VER=5.0
 # Makefile> config.mk
 function dmenu(){
+  suck_cross
   log "Downloading DMENU..."
   rm -rf /tmp/dmenu; # mkdir -p /tmp/st
   gitclone git://git.suckless.org/dmenu /tmp/dmenu --branch=$DMENU_VER #;
@@ -138,7 +177,8 @@ function dmenu(){
   # # gitac>> handBuild02@newBuilder_02:
   # fontconfig-static@apk>> -luuid 
   # xrandr="-lXrandr"
-  make LDFLAGS="$flags -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid"
+  # $MAKE_CC 命令行顶掉 config.mk 硬编码 CC=cc; $XS 交叉 sysroot -L 前缀(native 空)。
+  make $MAKE_CC LDFLAGS="$XS $flags -lXinerama   -lX11 $xrandr -lXxf86vm -lXcursor -lm -lXinerama -ldl -lrt -lXext -luuid"
 
   log "Install DMENU..."
   # make;
@@ -146,7 +186,11 @@ function dmenu(){
 
   # view
   ls -lh /tmp/dmenu/
-  xx-verify --static /tmp/dmenu/dmenu
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file /tmp/dmenu/dmenu | grep -qE "ARM.*statically linked" || { log "DMENU file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static /tmp/dmenu/dmenu || { log "DMENU xx-verify FAILED"; exit 1; }
+  fi
 }
 
 
@@ -191,6 +235,7 @@ xx-apk --no-cache --no-scripts add \
     libffi-dev \
     xz-dev \
     brotli-static \
+    || { [ -n "$XX_CROSS_FILE" ] && log "suckless: xx-apk 部分包 aarch64 不可用/冲突(所需 .a 已由 suck_cross 装入 sysroot), 容忍继续"; }
 
 # 
 apk add libxcursor-dev #Xrandr@xrdp;
