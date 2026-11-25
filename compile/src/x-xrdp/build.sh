@@ -15,6 +15,62 @@ FDKAAC_VER=2.0.2
 FDKAAC_URL=https://downloads.sourceforge.net/project/opencore-amr/fdk-aac/fdk-aac-${FDKAAC_VER}.tar.gz
 
 #
+# 交叉编译环境(arm64/armv7 via xx-clang)。native(未设 XX_CROSS_FILE): 变量留空 → 原路径零影响。
+# 参考 x-xbindkeys/xbk_cross + v-engrampa/_cross 惯用法。
+# xrdp=autotools: 主 server(xrdp/sesman/chansrv)+子组件 fdkaac 都走 ./configure, 须各补 --host。
+# libXrandr.a 无 apk 包 → 由 libxrandr() 自编进 sysroot(b_deps/full 先跑)。
+# 注: 本脚本不构建 xorgxrdp(Xorg 后端 driver), 故无 xorg 后端需接 --host。
+xrdp_cross(){
+  CROSS_HOST=""; MAKE_CC=""; XX_DESTDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    XX_DESTDIR="$(xx-info sysroot)"   # 子组件(fdkaac)装进 sysroot 供 configure/pkg-config 探测
+    # sysroot 补 X11/静态库(幂等; 命中已装则 no-op)。包名均取自本脚本 native apk 行或实测 Alpine。
+    xx-apk add \
+      libx11-dev libx11-static libxext-dev libxau-dev libxdmcp-dev \
+      libxcb-dev libxcb-static \
+      libxrender-dev libxfixes-dev libxinerama-dev libxrandr-dev \
+      openssl-dev openssl-libs-static fuse-dev fuse-static \
+      fdk-aac-dev opus-dev lame-dev freetype-dev fontconfig-dev pixman-dev
+    log "xrdp: CROSS ($XX_TRIPLE)"
+  fi
+}
+
+# 交叉真验: file 判目标架构(static); native 走 xx-verify(原路径)。
+# xrdp configure 同时 --enable-static + --enable-shared, 产物可能动态链 libcommon——
+#   故交叉下 arch 必判(硬失败), static 仅记录(不硬失败)。bin/ 与 sbin/ 两处都查(版本安装位置不一)。
+# 注: xorgxrdp 后端非本脚本构建, 故不在此校验。
+xrdp_verify(){
+  local b d p
+  for b in xrdp sesman xrdp-chansrv; do
+    p=""
+    for d in $TARGETPATH/sbin $TARGETPATH/bin; do
+      test -x "$d/$b" && { p="$d/$b"; break; }
+    done
+    if [ -z "$p" ]; then
+      log "XRDP verify: $b NOT FOUND (bin/sbin), skip"; continue
+    fi
+    if [ -n "$XX_CROSS_FILE" ]; then
+      file "$p" | grep -qE "ARM|aarch64" \
+        || { log "XRDP $b file 非 ARM/目标架构"; exit 1; }
+      log "XRDP verify OK(cross): $p ($(file -b "$p" | cut -d, -f1-2))"
+    else
+      xx-verify --static "$p" || { log "XRDP $b xx-verify FAILED"; exit 1; }
+    fi
+  done
+}
+
+#
 # Build libXrandr.
 # The static library is not provided by Alpine repository, so we need to build
 # it ourself.
@@ -38,6 +94,7 @@ function libxrandr(){
   make -C /tmp/libxrandr -j$(nproc)
   log "Installing libXrandr..."
   make DESTDIR=$(xx-info sysroot) -C /tmp/libxrandr install
+  xx_la_fix   # 交叉: 修 sysroot .la libdir(防下游按名解析到 native 错架构 .a); native no-op
 }
 
 #
@@ -46,6 +103,7 @@ function libxrandr(){
 #0.9.5 > 0.9.16 > 0.9.19(thunar@gemmi-deb11卡死)
 # 0.9.16 > 0.9.23 #0.9.16@deb12: cc1-openssl3-warn-as-err
 function fdkaac(){
+  xrdp_cross
   # - fdkaac
   # ins fdk-aac:
   # tar -zxf fdk-aac-2.0.2.tar.gz 
@@ -54,9 +112,10 @@ function fdkaac(){
   log "Downloading FDKAAC..."
   down_catfile ${FDKAAC_URL} | tar -zx --strip 1 -C /tmp/fdkaac #| tar -xJ
   log "Configuring FDKAAC..."
-  cd /tmp/fdkaac && ./configure --enable-static
-  make
-  make install
+  cd /tmp/fdkaac && ./configure --enable-static $CROSS_HOST
+  make $MAKE_CC
+  make DESTDIR=$XX_DESTDIR install
+  xx_la_fix   # 交叉: 修 sysroot .la libdir; native(XX_DESTDIR 空)装 /usr/local 原路径
 }
 
 #
@@ -65,9 +124,10 @@ function fdkaac(){
 #0.9.5 > 0.9.16 > 0.9.19(thunar@gemmi-deb11卡死)
 # 0.9.16 > 0.9.23 #0.9.16@deb12: cc1-openssl3-warn-as-err
 function xrdp(){
+  xrdp_cross
   # ./configure
   #  220 apk add pam-dev
-  apk add openssl-dev openssl-libs-static libxcb-static fuse-static 
+  apk add openssl-dev openssl-libs-static libxcb-static fuse-static
   apk add fuse-dev fdk-aac-dev opus-dev lame-dev;
   apk add nasm
 
@@ -78,6 +138,12 @@ function xrdp(){
   # down_catfile ${XRDP_URL} | tar -zx --strip 1 -C /tmp/xrdp
   rm -rf /tmp/xrdp;
   gitclone https://gitee.com/g-system/fk-xrdp /tmp/xrdp --branch=sam-custom
+
+  # 2026-11-25: fk-xrdp 子模块(libpainter/librfxcodec)的 .gitmodules 硬编 ghps.cc 已失效
+  #   (redirection 失败→子模块拉不到→bootstrap/configure 连锁失败)。改写为 ghfast.top(实测可达);
+  #   submodule sync 把新 URL 同步进 .git/config, 随后 ./bootstrap 的 submodule init 才拉得到。
+  sed -i 's|https://ghps.cc/|https://ghfast.top/|g' /tmp/xrdp/.gitmodules
+  git -C /tmp/xrdp submodule sync
 
   log "Configuring XRDP..."
   cd /tmp/xrdp && ./bootstrap;
@@ -123,7 +189,8 @@ function xrdp(){
     --disable-pam \
     --enable-static \
     --enable-shared \
-    --enable-devel-all 
+    --enable-devel-all \
+    $CROSS_HOST
     # LIBS="-lcommon" #c.compiler err
     # LIBS="-lrt -lcommon -lcrypto -lssl "
     # --enable-strict-locations
@@ -191,9 +258,10 @@ function xrdp(){
 
 
   log "make XRDP..."
-  make;
+  make $MAKE_CC;
   log "install XRDP..."
   make install;
+  xrdp_verify
 
   # # libvnc.so
   # cd $TARGETPATH/lib/xrdp
