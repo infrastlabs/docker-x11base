@@ -35,7 +35,32 @@ function Xdamage(){
 #
 # Build xcompmgr
 #
+# 2026-11-25 方案一交叉: xcompmgr(autogen/configure/纯 X11) 走共享交叉环境(同 x-xbindkeys)。
+# Xdamage() 已交叉感知(装 sysroot); xcompmgr 本体此前无交叉环境 → 补 CC=xx-clang/CROSS_HOST/PKG_CONFIG 走 sysroot。
+# native(未设 XX_CROSS_FILE): 变量留空 → 原路径零影响。
+xcompmgr_cross(){
+  CROSS_HOST=""; MAKE_CC=""; XS=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    XS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib "
+    # sysroot 补 X11 静态库(Xcomposite/Xfixes/Xrender 的 .a 随 -dev; libxcb 仅 -static; Xdamage 由 Xdamage() 建入 sysroot)
+    xx-apk add libxcomposite-dev libx11-dev libx11-static libxext-dev libxfixes-dev libxrender-dev libxcb-dev libxcb-static libxau-dev libxdmcp-dev
+    log "xcompmgr: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function xcompmgr(){
+  xcompmgr_cross
   apk add libxcomposite-dev
 
   log "Downloading XCOMPMGR..."
@@ -49,10 +74,10 @@ function xcompmgr(){
     #./configure  --enable-static --prefix=$TARGETPATH
     # make
     # ./configure
-    XCOMPMGR_LIBS="-lXcomposite -L/usr/local/lib -lXdamage -lXfixes -lXrender -lX11 -lXext"
+    XCOMPMGR_LIBS="$XS-lXcomposite -L/usr/local/lib -lXdamage -lXfixes -lXrender -lX11 -lXext"
     # XCOMPMGR_LIBS="$XCOMPMGR_LIBS -lX11-xcb -lXext -lxcb -lXau -lXdmcp" ./configure
-    XCOMPMGR_LIBS="$XCOMPMGR_LIBS -lX11-xcb -lXext -lxcb -lXau -lXdmcp" ./configure --enable-static --prefix=$TARGETPATH
-    make
+    XCOMPMGR_LIBS="$XCOMPMGR_LIBS -lX11-xcb -lXext -lxcb -lXau -lXdmcp" ./configure --enable-static --prefix=$TARGETPATH $CROSS_HOST
+    make $MAKE_CC
 
   log "Install XCOMPMGR..."
   # make;
@@ -60,7 +85,14 @@ function xcompmgr(){
 
   # view
   ls -lh /tmp/xcompmgr/
-  xx-verify --static /tmp/xcompmgr/xcompmgr
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch → 用 file 判 static + 目标架构;
+  #   native 仍走 xx-verify(原路径)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file /tmp/xcompmgr/xcompmgr | grep -qE "ARM.*statically linked" \
+      || { log "XCOMPMGR file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static /tmp/xcompmgr/xcompmgr
+  fi
 }
 
 
