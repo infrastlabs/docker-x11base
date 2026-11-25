@@ -20,6 +20,28 @@ source /src/common.sh
 CLIPIT_VER=1.4.5
 CLIPIT_COMMIT=f35db540c9d3c57b13439d66597736e917e8c9a1
 
+# 2026-11-25 方案二交叉: clipit 栈共用交叉环境(autotools configure + 手工 xx-clang 静态链)。
+# 设 CROSS_HOST/XX_LIBS_PREFIX: configure 追加 --host、手工 xx-clang 静态链的 -L 前缀 sysroot。
+# native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+cl_cross(){
+  CROSS_HOST=""; XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "clipit: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 # xdotool v3.20211022.1 静态化（运行时依赖：clipit 自动粘贴 shell 出 xdotool）
 # 用最后 v3（autotools 静态构建成熟）；v4.20260303.1 是 2026-03 最新但构建系统/依赖未知，暂不用。
 # 缺 libXtst.a（alpine 无 libxtst-static 包）→ 用 freedesktop 官方源码自建（xorg lib，小）。
@@ -73,6 +95,7 @@ xdotool(){
 }
 
 function clipit(){
+  cl_cross
   log "Downloading CLIPIT ($CLIPIT_COMMIT tarball)..."
   cd /tmp
   rm -rf ClipIt
@@ -94,7 +117,13 @@ function clipit(){
   cd /tmp/ClipIt
 
   log "Autogen (autopoint/intltoolize/aclocal/autoconf/autoheader/automake)..."
-  sh autogen.sh 2>&1 || { log "CLIPIT autogen FAILED"; exit 1; }
+  # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
+  #   再显式 configure --host。native 原路径不变。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    NOCONFIGURE=1 sh autogen.sh 2>&1 || { log "CLIPIT autogen FAILED"; exit 1; }
+  else
+    sh autogen.sh 2>&1 || { log "CLIPIT autogen FAILED"; exit 1; }
+  fi
 
   log "Applying GTK2 seat patch (GdkSeat 是 GTK3-only 类型，上游泄漏到 GTK2 分支)..."
   patch -p1 -N < /src/v-clipit/clipit-gtk2-seat.patch 2>/dev/null || { log "CLIPIT seat patch FAILED"; exit 1; }
@@ -105,12 +134,16 @@ function clipit(){
   grep -qE 'gtk_box_new|gtk_widget_render_icon_pixbuf' src/*.c && { log "CLIPIT gtk3-api NOT applied"; exit 1; } || true
 
   log "Configuring CLIPIT (GTK2, static only)..."
-  export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
-  ./configure --prefix=$TARGETPATH --disable-appindicator 2>&1 || { log "CLIPIT configure FAILED"; exit 1; }
+  # 交叉: -L 前缀 sysroot 的 /usr/lib /usr/local/lib（native XX_LIBS_PREFIX 空 = 原路径无 -L）。
+  export LDFLAGS="-Wl,--strip-all -Wl,--as-needed${XX_LIBS_PREFIX:+ -L$XX_LIBS_PREFIX/usr/lib -L$XX_LIBS_PREFIX/usr/local/lib}"
+  ./configure --prefix=$TARGETPATH --disable-appindicator $CROSS_HOST 2>&1 || { log "CLIPIT configure FAILED"; exit 1; }
 
   log "Compiling CLIPIT + 直链链接..."
   # 覆盖 LINK 去 LIBTOOL + 清 clipit_LDADD（含动态 GTK_LIBS，会优先 .so → 动态链），LIBS 补全 gtk2/X11/glib 静态全链
-  CLI_LIBS="-Wl,--start-group \
+  CLI_LIBS="-Wl,--start-group"
+  # 交叉: -L 前缀 sysroot 的 /usr/lib /usr/local/lib（native XX_LIBS_PREFIX 空 = 原路径无 -L）。
+  [ -n "$XX_LIBS_PREFIX" ] && CLI_LIBS="$CLI_LIBS -L$XX_LIBS_PREFIX/usr/lib -L$XX_LIBS_PREFIX/usr/local/lib"
+  CLI_LIBS="$CLI_LIBS \
     -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 \
     -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig \
     -lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lcairo \
@@ -152,7 +185,14 @@ function clipit(){
 
   log "Verify CLIPIT..."
   file $TARGETPATH/bin/clipit
-  xx-verify --static $TARGETPATH/bin/clipit || { log "CLIPIT xx-verify FAILED"; exit 1; }
+  # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+  #   native 仍走 xx-verify(原路径)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file $TARGETPATH/bin/clipit | grep -qE "ARM.*statically linked" \
+      || { log "CLIPIT file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static $TARGETPATH/bin/clipit || { log "CLIPIT xx-verify FAILED"; exit 1; }
+  fi
   strings $TARGETPATH/bin/clipit | grep -q "GTK_ICON_THEME" && echo "strings: GTK_ICON_THEME OK"
   strings $TARGETPATH/bin/clipit | grep -q "rsvg" && echo "strings: rsvg OK"
   # 托盘图标 SVG loader 验证：gdk_pixbuf 静态 SVG 支持
