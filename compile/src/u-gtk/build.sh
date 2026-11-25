@@ -399,7 +399,10 @@ function apkdeps(){
   #   （murrine/下游 lxtask/pcmanfm/geany 的 configure/编译需要；.a 由本脚本源码构建，dev 包无 .a）。
   # 2026-11-25: libjpeg-turbo-static 一并装——Alpine 把 libjpeg.a 拆到 static 包(dev 只 .so+头),
   #   gdk-pixbuf builtin jpeg loader / gsm / gtkmm 静态链需 libjpeg.a(armv7 实测缺→gdkmm generate_extra_defs FAIL)。
-  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev libjpeg-turbo-static
+  # 2026-11-25: libbsd-dev/libmd-dev/libxi-dev 补装——Alpine .a 拆包反复踩坑: bsd/md 的 .a 在 dev(无 -static,
+  #   且 libmd-static 包名不存在, 误装会整笔回滚), xi 的 xi.pc 供 xfce4settings configure(libXi.a 链接不引用);
+  #   thunar/ristretto 链接 -lbsd -lmd、xfce4settings configure 查 Xi 均需(arm64 实测缺→thunar link FAIL/configure FAIL)。
+  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev libjpeg-turbo-static libbsd-dev libmd-dev libxi-dev
   # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
