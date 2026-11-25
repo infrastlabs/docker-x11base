@@ -397,7 +397,9 @@ function apkdeps(){
     gdk-pixbuf-dev pango-dev # librsvg configure 需 gdk-pixbuf-2.0/pangocairo/pangoft2 .pc；gtk+2.0-dev 未传递装这两个（实测 MISS）
   # 2026-11-24 方案二交叉: gtk+2.0-dev 进交叉 sysroot——提供 gtk+-2.0.pc/gdk-x11-2.0.pc + gtk 头
   #   （murrine/下游 lxtask/pcmanfm/geany 的 configure/编译需要；.a 由本脚本源码构建，dev 包无 .a）。
-  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev
+  # 2026-11-25: libjpeg-turbo-static 一并装——Alpine 把 libjpeg.a 拆到 static 包(dev 只 .so+头),
+  #   gdk-pixbuf builtin jpeg loader / gsm / gtkmm 静态链需 libjpeg.a(armv7 实测缺→gdkmm generate_extra_defs FAIL)。
+  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev libjpeg-turbo-static
   # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
