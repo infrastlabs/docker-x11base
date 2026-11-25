@@ -1,0 +1,29 @@
+ARG COMPILE_IMG=alpine-compile
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
+# 交叉版 gtk224: 在 amd64 容器内交叉建 gtk2 栈进 arm64+armv7 sysroot(纯 amd64 镜像, 不做 arm 复合架构)
+# 原 native 版见 Dockerfile.builder.gtk224(跑 bash /src/u-gtk/build.sh b_deps 建 amd64 gtk2)
+  ARG TARGETPLATFORM
+  ENV CACHE=/usr/local/static/.cache
+  ARG NOCACHE
+  RUN echo "NOCACHE.gtk.xx=${NOCACHE}" > /tmp/NOCACHE; \
+    sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.aliyun.com|g' /etc/apk/repositories; \
+    apk update; apk add gawk git;
+  COPY ./tarsrc /tarsrc
+  COPY ./src /src
+  RUN chmod +x /src/**/*.sh; \
+    chmod +x /src/u-gtk/xx-clear.sh
+  # 交叉建整条 gtk2 栈: 循环 arm64 + armv7, 每架构:
+  #   ① 建前清该 sysroot 旧 .a(防串架构污染, libXrandr.a file format not recognized 实测踩过)
+  #   ② sh u-gtk/build.sh b_deps 交叉建整条 gtk2 栈(apkdeps→group1→group2→gdk_pixbuf→gtk→imlib2, 跨 u-gtk/openbox/xcompmgr/w-tint2/w-xlunch)
+  #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
+  # 消费方: 所有 GTK2 应用(lxde/pcmanfm/geany/tint2/xfce4...) 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtk
+  RUN set -e; \
+    for arch in arm64 arm/v7; do \
+      export TARGETPLATFORM=linux/$arch; \
+      . /src/common.sh; \
+      sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+      sh /src/u-gtk/build.sh b_deps; \
+      sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+    done; \
+    unset TARGETPLATFORM
