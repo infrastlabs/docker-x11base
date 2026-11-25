@@ -34,6 +34,10 @@ xrdp_cross(){
     export ac_cv_func_malloc_0_nonnull=yes
     export ac_cv_prog_cc_cross=yes
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    # X11 静态传递依赖: configure 的 AC_PATH_XTRA 用 XrmInitialize() 做链接测试只链 -lX11;
+    #   交叉下解析到静态 libX11.a → 其依赖 xcb_*(xcb_connect/disconnect/...) 在 libxcb.a 未链 → undefined
+    #   → 误报 "please install libx11-dev"(native 用 .so 无此问题)。补 xcb/Xau/Xdmcp/X11-xcb 进 LIBS 供测试链。
+    export LIBS="-lxcb -lXau -lXdmcp -lX11-xcb $LIBS"
     XX_DESTDIR="$(xx-info sysroot)"   # 子组件(fdkaac)装进 sysroot 供 configure/pkg-config 探测
     # sysroot 补 X11/静态库(幂等; 命中已装则 no-op)。包名均取自本脚本 native apk 行或实测 Alpine。
     xx-apk add \
@@ -52,7 +56,8 @@ xrdp_cross(){
 # 注: xorgxrdp 后端非本脚本构建, 故不在此校验。
 xrdp_verify(){
   local b d p
-  for b in xrdp sesman xrdp-chansrv; do
+  # fk-xrdp sam-custom 分支顶层 SUBDIRS 已注释 sesman(不构建), 故只验 xrdp / xrdp-chansrv。
+  for b in xrdp xrdp-chansrv; do
     p=""
     for d in $TARGETPATH/sbin $TARGETPATH/bin; do
       test -x "$d/$b" && { p="$d/$b"; break; }
@@ -105,14 +110,18 @@ function libxrandr(){
 function fdkaac(){
   xrdp_cross
   # - fdkaac
-  # ins fdk-aac:
-  # tar -zxf fdk-aac-2.0.2.tar.gz 
-  # cd fdk-aac-2.0.2/
-  mkdir -p /tmp/fdkaac
-  log "Downloading FDKAAC..."
-  down_catfile ${FDKAAC_URL} | tar -zx --strip 1 -C /tmp/fdkaac #| tar -xJ
+  # 2026-11-25: 源 sourceforge(opencore-amr)整站不可达(超时/DNS), github 无 2.0.2 release tarball。
+  #   改 git clone 指定 tag——优先 gitee fk-fdk-aac(可达/快), tag 为 v2.0.2(带 v 前缀)。
+  #   git 源码无预生成 configure → 须先 ./autogen.sh(autoreconf)生成。
+  # 原下载方式(留档, 现不用):
+  #   down_catfile ${FDKAAC_URL} | tar -zx --strip 1 -C /tmp/fdkaac
+  rm -rf /tmp/fdkaac
+  log "Cloning FDKAAC (gitee fk-fdk-aac v2.0.2)..."
+  gitclone https://gitee.com/g-system/fk-fdk-aac /tmp/fdkaac --branch=v2.0.2
+  log "autogen FDKAAC..."
+  cd /tmp/fdkaac && ./autogen.sh
   log "Configuring FDKAAC..."
-  cd /tmp/fdkaac && ./configure --enable-static $CROSS_HOST
+  ./configure --enable-static $CROSS_HOST
   make $MAKE_CC
   make DESTDIR=$XX_DESTDIR install
   xx_la_fix   # 交叉: 修 sysroot .la libdir; native(XX_DESTDIR 空)装 /usr/local 原路径
@@ -160,7 +169,9 @@ function xrdp(){
   #23 223.0 /usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lXrandr
   #23 223.0 /usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lfuse
   f=sesman/chansrv/Makefile.am
-  sed -i "s^\$(X_PRE_LIBS) -lXfixes -lXrandr -lX11^\$(X_PRE_LIBS) -lXfixes -lXrandr -lX11    -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac^g" $f
+  # 静态传递依赖: -lXrandr(静态.a) 依赖 Xext(XMissingExtension/XextRemoveDisplay) 与 Xrender
+  #   (XRenderSetSubpixelOrder), 不链则 chansrv link undefined。补 -lXext -lXrender。
+  sed -i "s^\$(X_PRE_LIBS) -lXfixes -lXrandr -lX11^\$(X_PRE_LIBS) -lXfixes -lXrandr -lXext -lXrender -lX11    -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac^g" $f
   cat $f |grep lX11 -n
 
   f=sesman/tools/Makefile.am
@@ -171,6 +182,13 @@ function xrdp(){
   f=genkeymap/Makefile.am 
   sed -i "s^\$(X_PRE_LIBS) -lX11^\$(X_PRE_LIBS) -lX11    -lX11-xcb -lxcb -lXdmcp -lXau  -lfdk-aac^g" $f
   cat $f |grep lX11 -n
+
+  # 交叉: keygen 的 install-data-hook 运行 ./xrdp-keygen(已被交叉编成目标架构)在宿主生成 rsakeys.ini
+  #   → ARM/aarch64 二进制 x86 宿主跑不起(syntax error)→ make install 中断。rsakeys.ini 属目标机运行时产物,
+  #   构建期跳过: 中性化 keygen/Makefile.am 的 keygen 调用(cross 下生效; native 无 XX_CROSS_FILE 不动)。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    sed -i "s|^\(\s*\)\./xrdp-keygen |\1true # cross: skip target-arch keygen |" keygen/Makefile.am
+  fi
 
   # --disable-pam \
   # --disable-pam --enable-static===
