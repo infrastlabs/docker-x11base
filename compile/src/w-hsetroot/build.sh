@@ -11,9 +11,26 @@ source /src/common.sh
 # 参考 w-scrot/w-feh imlib2 静态链(--start-group 解循环传递依赖)
 # 注意: 简单 Makefile(非 autotools, 无 configure/autogen), 需 pkg-config + GNU make;
 #       ①C99 编译(hsr-outputs.c/hsetroot.c 有 for 循环初始声明) ②1.0.5 用 xinerama 处理多屏
+
+# 2026-11-25 方案二交叉: hsetroot 纯 Makefile(无 configure), 交叉只需强制 xx-clang + pkg-config 走 sysroot。
+# 设 XX_LIBS_PREFIX 供手工静态链 -L 前缀 sysroot。native(未设 XX_CROSS_FILE) 零影响。
+hs_cross(){
+  XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "hsetroot: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function hsetroot(){
   HSR_VER=1.1.0
   HSR_SRC=/tmp/hsetroot
+  hs_cross
 
   log "Downloading hsetroot..."
   if [ -d $HSR_SRC ] && [ -f $HSR_SRC/Makefile ]; then
@@ -46,7 +63,7 @@ function hsetroot(){
   # 注意: hsetroot 用 make 内置隐式规则(无自定义 link rule), libs 必须放 LDLIBS(在 hsetroot.o 之后),
   # 放 LDFLAGS 会出现在 .o 之前 → 静态库不拉取 → imlib2/X11 undefined。LDFLAGS 勿覆盖。
   make LDFLAGS="$LDFLAGS" \
-    LDLIBS="-L/usr/local/lib -Wl,--start-group -lImlib2 $deps1 $deps2 $deps3 $RSVG_LIBS -lxml2 -lcroco-0.6 -Wl,--end-group" \
+    LDLIBS="-L${XX_LIBS_PREFIX:-}/usr/local/lib -Wl,--start-group -lImlib2 $deps1 $deps2 $deps3 $RSVG_LIBS -lxml2 -lcroco-0.6 -Wl,--end-group" \
     || { log "hsetroot make FAILED"; exit 1; }
 
   log "Install hsetroot..."
