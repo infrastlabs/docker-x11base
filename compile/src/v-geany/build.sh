@@ -11,7 +11,31 @@ source /src/common.sh
 # 并解包 /tmp/geany（离线复用）。正常网络环境走 $GITHUB/geany/geany git clone。
 # 版本 1.37.1 = 最后一个支持 GTK2 的发布（1.38 起删 GTK2；2.0 起强制 GTK3.24）。
 
+# 2026-11-25 方案二交叉: geany 栈(gtk2) 共用交叉环境(autotools configure + 手工 xx-clang++ 静态链)。
+# 设 CROSS_HOST/XX_LIBS_PREFIX: configure 追加 --host、手工 xx-clang++ 静态链的 -L 前缀 sysroot。
+# native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+geany_cross(){
+  CROSS_HOST=""; XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export CXX=xx-clang++
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc/cc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "geany: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function geany(){
+  geany_cross
   log "Downloading GEANY..."
     if [ ! -f /tmp/geany/configure.ac ]; then
       # 离线：host 下载 + docker cp 的 tarball 已解包 /tmp/geany；否则 git clone
@@ -29,12 +53,25 @@ function geany(){
     # 关键：LT_INIT([disable-static]) 默认只出 .so；--enable-static 覆盖之，--disable-shared 强制纯静态。
     # --disable-vte：VTE 是 GTK2 终端组件，非必需；--disable-*-docs 跳过文档。
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
-    ./autogen.sh
+    # 交叉: 头/库搜索前缀 sysroot(仅 is-cross; native 空=原路径零影响)
+    if [ -n "$XX_CROSS_FILE" ]; then
+      export CPPFLAGS="-I$XX_SYSROOT/usr/local/include -I$XX_SYSROOT/usr/include $CPPFLAGS"
+      export LDFLAGS="-L$XX_SYSROOT/usr/local/lib -L$XX_SYSROOT/usr/lib $LDFLAGS"
+    fi
+    # autogen.sh 末尾会自带跑 configure "$@"(见 autogen.sh:99)——native 该次默认 gtk3 能过
+    # (builder 有 gtk3)；交叉 sysroot 只有 gtk2 → 该次 configure 报 gtk+-3.0 未满足必败。
+    # 交叉用 NOCONFIGURE=1 跳过 autogen 内置 configure(autotools 照常生成), 由下方显式
+    #   ./configure --enable-gtk2 --host=... 接管(仅 is-cross; native 原路径零影响)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      NOCONFIGURE=1 ./autogen.sh
+    else
+      ./autogen.sh
+    fi
     ./configure --enable-static --disable-shared \
       --enable-gtk2 \
       --disable-vte \
       --disable-html-docs --disable-pdf-docs --disable-api-docs \
-      --prefix=$TARGETPATH
+      --prefix=$TARGETPATH $CROSS_HOST
 
   log "Compiling GEANY (objects + libgeany.a)..."
     # pcmanfm 式 GTK2 静态链（含 rsvg/croco 供 gdk-pixbuf 内置 svg loader 解析）
@@ -65,22 +102,34 @@ function geany(){
     # 2026-11-14: make install 默认依赖 all(含 geany 二进制), libtool geany_LINK 链 bin 仍踩 loader undefined;
     #   改 install-data 只装数据/库(不装 bin_PROGRAMS), geany 二进制由下方 xx-clang++ -static 手动链。
     make install-data 2>&1 > /dev/null || { log "GEANY install FAILED"; exit 1; }
+    xx_la_fix   # 交叉 .la libdir 修正(仅 is-cross; native 零影响)
 
   log "Static-link geany binary (direct, xx-clang++ -static)..."
     # 静态 libgcc：-lgcc_s 只有 .so，-static 下需 libgcc.a；补一个 libgcc_s.a（copy libgcc.a）兜底。
-    if [ ! -f /usr/lib/libgcc_s.a ]; then
-      GCCDIR=$(dirname $(find /usr/lib/gcc -name libgcc.a | head -1))
-      cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
+    # 交叉: libgcc.a 在 sysroot gcc 目录, libgcc_s.a 落 sysroot(仅 is-cross; native 原路径零影响)。
+    if [ ! -f ${XX_SYSROOT:-}/usr/lib/libgcc_s.a ]; then
+      GCCDIR=$(dirname $(find ${XX_SYSROOT:-}/usr/lib/gcc -name libgcc.a | head -1))
+      cp $GCCDIR/libgcc.a ${XX_SYSROOT:-}/usr/lib/libgcc_s.a
     fi
     cd /tmp/geany/src
     mkdir -p $TARGETPATH/bin
+    # 交叉: 静态链 -L 前缀 sysroot(仅 is-cross; native 空=原路径零影响)
+    XX_LINK_L=""; [ -n "$XX_CROSS_FILE" ] && XX_LINK_L="-L$XX_SYSROOT/usr/local/lib -L$XX_SYSROOT/usr/lib"
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/geany main.o .libs/libgeany.a \
+      $XX_LINK_L \
       -Wl,--start-group -lXinerama -lXfixes -lXrandr -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 $LIBS0 -Wl,--end-group \
       -lintl || { log "GEANY static-link FAILED"; exit 1; }
 
   log "Verify GEANY..."
     file $TARGETPATH/bin/geany
-    xx-verify --static $TARGETPATH/bin/geany || { log "GEANY xx-verify FAILED"; exit 1; }
+    # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+    #   native 仍走 xx-verify(原路径)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      file $TARGETPATH/bin/geany | grep -qE "ARM.*statically linked" \
+        || { log "GEANY file 非 ARM static"; exit 1; }
+    else
+      xx-verify --static $TARGETPATH/bin/geany || { log "GEANY xx-verify FAILED"; exit 1; }
+    fi
 }
 
 case "$1" in
