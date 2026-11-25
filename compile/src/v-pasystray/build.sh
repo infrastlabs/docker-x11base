@@ -28,8 +28,35 @@ source /src/common.sh
 #   → 符号在 libgio-2.0.a 里，无需独立 gio-unix.a。依赖 gio/glib/gobject/gdk-pixbuf（静态栈已就位）。
 # 产物：/usr/lib/libnotify.a + /usr/lib/pkgconfig/libnotify.pc + /usr/include/libnotify/*.h
 LIBNOTIFY_VER=0.8.9
+
+# 2026-11-25 方案二交叉: pasystray 栈(gtk2 + pulse) 共用交叉环境(autotools configure + meson libnotify)。
+# 设 CROSS_HOST/XX_LIBS_PREFIX/PULSE_PC/XX_CROSS_ARGS: configure 追加 --host、手工 xx-clang 静态链的
+#   -L 前缀 sysroot、pulse pkgconfig 前缀 sysroot、libnotify meson --cross-file。
+# native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+ps_cross(){
+  CROSS_HOST=""; XX_LIBS_PREFIX=""; XX_CROSS_ARGS=""
+  PULSE_PC="/usr/local/static/pulseaudio/lib/pkgconfig"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/static/pulseaudio/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    XX_CROSS_ARGS="--cross-file=$XX_CROSS_FILE"
+    PULSE_PC="$XX_SYSROOT/usr/local/static/pulseaudio/lib/pkgconfig"
+    log "pasystray: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 libnotify(){
-  if test -f /usr/lib/libnotify.a; then
+  ps_cross
+  if test -f ${XX_SYSROOT:-}/usr/lib/libnotify.a; then
     log "libnotify.a already present, skip"
     return 0
   fi
@@ -60,19 +87,24 @@ libnotify(){
   test -z "$(grep soversion libnotify/meson.build)" || { log "LIBNOTIFY soversion not removed"; exit 1; }
   test -z "$(grep "subdir('tools')" meson.build)" || { log "LIBNOTIFY tools subdir not removed"; exit 1; }
   # 3. meson 静态构建（disable 可选: tests/introspection/man/gtk_doc/docbook_docs）
-  meson setup build --prefix=/usr --default-library=static \
+  # 交叉: --cross-file + install DESTDIR=sysroot + xx_meson_crossfix 重映射 native -I/-L 到 sysroot。
+  meson setup build --prefix=/usr --default-library=static $XX_CROSS_ARGS \
     -Dintrospection=disabled -Dtests=false -Dman=false -Dgtk_doc=false -Ddocbook_docs=disabled \
     2>&1 || { log "LIBNOTIFY meson setup FAILED"; exit 1; }
+  [ -n "$XX_CROSS_FILE" ] && xx_meson_crossfix build
   meson compile -C build 2>&1 || { log "LIBNOTIFY meson compile FAILED"; exit 1; }
-  meson install -C build 2>&1 || { log "LIBNOTIFY meson install FAILED"; exit 1; }
+  DESTDIR=${XX_SYSROOT:-} meson install -C build 2>&1 || { log "LIBNOTIFY meson install FAILED"; exit 1; }
+  xx_la_fix   # 交叉 .la libdir 修正(仅 is-cross; native 零影响)
   # 4. 验证
-  test -f /usr/lib/libnotify.a || { log "LIBNOTIFY libnotify.a missing"; exit 1; }
-  ls -lh /usr/lib/libnotify.a /usr/lib/pkgconfig/libnotify.pc
-  pkg-config --exists libnotify || { log "LIBNOTIFY pkgconfig not found"; exit 1; }
+  test -f ${XX_SYSROOT:-}/usr/lib/libnotify.a || { log "LIBNOTIFY libnotify.a missing"; exit 1; }
+  ls -lh ${XX_SYSROOT:-}/usr/lib/libnotify.a ${XX_SYSROOT:-}/usr/lib/pkgconfig/libnotify.pc
+  PKG_CONFIG_PATH="$PULSE_PC" PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT" pkg-config --exists libnotify \
+    || { log "LIBNOTIFY pkgconfig not found"; exit 1; }
   log "libnotify done"
 }
 
 function pasystray(){
+  ps_cross
   log "Downloading PASYSTRAY (v0.8.2 tarball)..."
     if [ ! -f /tmp/pasystray/configure.ac ]; then
       if [ -f /tmp/pasystray-0.8.2.tar.gz ]; then
@@ -101,9 +133,9 @@ function pasystray(){
 
   log "Configuring PASYSTRAY (GTK2, static only)..."
     export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
-    PKG_CONFIG_PATH="/usr/local/static/pulseaudio/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+    PKG_CONFIG_PATH="$PULSE_PC${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
       ./configure --with-gtk=2 --disable-avahi --disable-appindicator \
-      --prefix=$TARGETPATH
+      --prefix=$TARGETPATH $CROSS_HOST
 
   log "Compiling PASYSTRAY (13 objects) + 直链链接..."
     # 2026-11-16: 源头修(同 engrampa, 见 11120827-ci-builder-gtk-app-rootfs.md 6.1)——make 链接走 automake $(LINK)(libtool),
@@ -115,12 +147,14 @@ function pasystray(){
       cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
     fi
     # pulsecommon 版本动态获取（源码内部 PA_MAJOR.PA_MINOR=13.13，非分支名 13.99；用已装 .a glob 取）
-    PULSECOMMON=$(basename $(ls /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>/dev/null | head -1) | sed 's/libpulsecommon-//;s/\.a//')
+    # 交叉: pulse 栈 .a 落 sysroot ${XX_LIBS_PREFIX:-} 前缀（native 前缀空=原路径）。
+    PULSECOMMON=$(basename $(ls ${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>/dev/null | head -1) | sed 's/libpulsecommon-//;s/\.a//')
     test -n "$PULSECOMMON" || { log "PULSECOMMON not found"; exit 1; }
     log "PULSECOMMON=$PULSECOMMON"
     # 完整静态链（pulse + gtk + X + glib，start-group 循环；与旧手链同源）
     PST_LIBS="-Wl,--start-group \
-      -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
+      -L${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib/pulseaudio \
+      -L${XX_LIBS_PREFIX:-}/usr/local/lib \
       -lpulse-mainloop-glib -lpulse -lpulsecommon-$PULSECOMMON \
       -lnotify \
       -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 \
@@ -152,7 +186,14 @@ function pasystray(){
 
   log "Verify PASYSTRAY..."
     file $TARGETPATH/bin/pasystray
-    xx-verify --static $TARGETPATH/bin/pasystray || { log "PASYSTRAY xx-verify FAILED"; exit 1; }
+    # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+    #   native 仍走 xx-verify(原路径)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      file $TARGETPATH/bin/pasystray | grep -qE "ARM.*statically linked" \
+        || { log "PASYSTRAY file 非 ARM static"; exit 1; }
+    else
+      xx-verify --static $TARGETPATH/bin/pasystray || { log "PASYSTRAY xx-verify FAILED"; exit 1; }
+    fi
     strings $TARGETPATH/bin/pasystray | grep -q "GTK_ICON_THEME" && echo "strings: GTK_ICON_THEME OK"
     strings $TARGETPATH/bin/pasystray | grep -q "MurrineRcStyle" && echo "strings: murrine OK"
     strings $TARGETPATH/bin/pasystray | grep -q "rsvg" && echo "strings: rsvg OK"
