@@ -6,23 +6,53 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-3 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   ARG NOCACHE
+  # 并行开关: 0=串行(默认, 本机 1.9Gi 安全); 1=并行(仅 CI/大内存, 需 --build-arg PARALLEL_BUILD=1)
+  #   同 Dockerfile.builder.gtk224.xx(2.4.9.2): 逐 arch 独立日志+rc 文件+产库检查点; 本机禁并行(OOM 红线)。
+  #   apk 并行无冲突(2026-11-26, 见 gtk224.xx ②): xx-apk 自带 /var/lock/xx-apk flock + native/cross 不同 --root + --no-cache。
+  ARG PARALLEL_BUILD=0
   RUN echo "NOCACHE.gtkmm.xx=${NOCACHE}" >> /tmp/NOCACHE; \
     apk update; apk add icu-static icu-dev libjpeg-turbo-static jpeg-dev;
   COPY ./tarsrc /tarsrc
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     chmod +x /src/u-gtk/xx-clear.sh
-  # 交叉建 gtkmm 栈: FROM gtk224.xx 继承 gtk2 sysroot; 循环 arm64 + armv7:
-  #   ① 建前清该 sysroot 旧 .a(防串架构污染)
-  #   ② sh u-gtkmm/build.sh full 交叉建 gtkmm 栈(gtkmm/gdkmm/glibmm/giomm/pangomm/atkmm/cairomm/sigc)
+  # 建 gtkmm 栈: FROM gtk224.xx 继承 gtk2 sysroot; 循环 amd64(native) + arm64 + armv7(cross sysroot), 每架构:
+  #   ① 建前清该 sysroot 旧 .a(防串架构污染); amd64 的 XX_SYSROOT 空(跳过)
+  #   ② sh u-gtkmm/build.sh full 建 gtkmm 栈(gtkmm/gdkmm/glibmm/giomm/pangomm/atkmm/cairomm/sigc)
   #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
-  # 消费方: gtkmm 应用(pavucontrol/gsm) 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtkmm
+  # 2026-11-26(2.4.9): amd64 同样纳入——与 gtk224.xx 同法(Option B: native 装 /usr, 应用 Dockerfile 不用改)。
+  # 消费方: gtkmm 应用(pavucontrol/gsm) amd64 走 native /usr, cross 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtkmm
   RUN set -e; \
-    for arch in arm64 arm/v7; do \
-      export TARGETPLATFORM=linux/$arch; \
-      . /src/common.sh; \
-      sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
-      sh /src/u-gtkmm/build.sh full; \
-      sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+    if [ "$PARALLEL_BUILD" = "1" ]; then \
+      for arch in amd64 arm64 arm/v7; do \
+        ( unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
+          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+          sh /src/u-gtkmm/build.sh full > /tmp/gtkmm-$arch.log 2>&1; RC=$?; \
+          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+          echo $RC > /tmp/gtkmm-$arch.rc ) & \
+      done; wait; \
+      for arch in amd64 arm64 arm/v7; do \
+        [ "$(cat /tmp/gtkmm-$arch.rc)" = "0" ] || { echo "FAIL $arch (see /tmp/gtkmm-$arch.log)"; exit 1; }; \
+      done; \
+    else \
+      for arch in amd64 arm64 arm/v7; do \
+        unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
+        export TARGETPLATFORM=linux/$arch; \
+        . /src/common.sh; xx_cross_init; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+        sh /src/u-gtkmm/build.sh full; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+      done; \
+    fi; \
+    for arch in amd64 arm64 arm/v7; do \
+      unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
+      export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
+      case "$arch" in amd64) want=x86-64 ;; arm64) want=aarch64 ;; *) want=EABI ;; esac; \
+      if [ -n "$XX_SYSROOT" ]; then A="$XX_SYSROOT/usr/lib/libgtkmm-2.4.a"; \
+      else A=/usr/lib/libgtkmm-2.4.a; fi; \
+      [ -f "$A" ] || { echo "CHECKPOINT FAIL: gtkmm lib missing for $arch"; exit 1; }; \
+      sh /src/u-gtk/xx-clear.sh archcheck "$A" "$want"; \
     done; \
-    unset TARGETPLATFORM
+    unset TARGETPLATFORM; \
+    # 2026-11-26(2.4.10.2): 构建收尾统一清理(文档/man/pycache/pyc/apk 缓存//tmp 残留)——apkc 规则文件语义对齐 apt path-exclude
+    sh /src/u-gtk/apkc clean
