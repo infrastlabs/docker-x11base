@@ -23,11 +23,30 @@ export TARGETPATH=${TARGETPATH:-/usr/local/static/dunst}
 XSS_VER=1.2.4
 DUNST_VER=1.13.2
 
+# 2026-11-25 方案二交叉: dunst 纯 Makefile(无 configure), 交叉只需强制 xx-clang + pkg-config 走 sysroot
+#   (同 feh_cross/w-xlunch xl_cross)。设 XX_LIBS_PREFIX 供手工静态链 -L 前缀 sysroot。native(未设 XX_CROSS_FILE) 零影响。
+dunst_cross(){
+  XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "dunst: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 # libxscrnsaver: 自建 libXss.a(libXScrnSaver, X11 屏幕保护扩展, dunst 硬依赖)
 # 安装: libXss.a→/usr/local/lib, scrnsaver.h→/usr/local/include/X11/extensions,
 #       xscrnsaver.pc→/usr/local/lib/pkgconfig
 libxscrnsaver(){
-  if test -f /usr/local/lib/libXss.a && test -f /usr/local/lib/pkgconfig/xscrnsaver.pc; then
+  # 交叉: 先设 CC=xx-clang + pkg-config 走 sysroot(其子构建 libXss 也须交叉); native no-op
+  dunst_cross
+  LSS_LIB=/usr/local/lib
+  [ -n "$XX_CROSS_FILE" ] && LSS_LIB="$XX_SYSROOT/usr/local/lib"
+  if test -f $LSS_LIB/libXss.a && test -f $LSS_LIB/pkgconfig/xscrnsaver.pc; then
     log "libXss.a/xscrnsaver.pc already present, skip"
     return 0
   fi
@@ -43,15 +62,25 @@ libxscrnsaver(){
       || { log "XSS download FAILED"; rm -f $XSS_TGZ; exit 1; }; }
   tar xzf $XSS_TGZ
   cd libXScrnSaver-$XSS_VER
-  ./configure --prefix=/usr/local 2>&1 || { log "XSS configure FAILED"; exit 1; }
+  # 交叉(2026-11-25): --host 交叉 + --disable-shared(纯静态, 防交叉下 -shared 链 tool 失败) +
+  #   xorg_cv_malloc0_returns_null=no(XORG_CHECK_MALLOC_ZERO 交叉不能 run 会直接 error; musl malloc(0) 非 NULL→no)
+  #   + make install DESTDIR=$XX_SYSROOT 装 .a/.pc/头 到 sysroot。native(未设 XX_CROSS_FILE) 变量全空→原路径零影响。
+  CROSS_HOST=""; XX_DESTDIR=""; XX_SHARED=""; XSS_CACHE=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    XX_SHARED="--disable-shared"
+    XSS_CACHE="xorg_cv_malloc0_returns_null=no"
+  fi
+  env $XSS_CACHE ./configure --prefix=/usr/local $XX_SHARED $CROSS_HOST 2>&1 || { log "XSS configure FAILED"; exit 1; }
   make 2>&1 || { log "XSS make FAILED"; exit 1; }
-  make install 2>&1 || { log "XSS install FAILED"; exit 1; }
-  test -f /usr/local/lib/libXss.a || { log "XSS libXss.a missing"; exit 1; }
+  make install $XX_DESTDIR 2>&1 || { log "XSS install FAILED"; exit 1; }
+  test -f $LSS_LIB/libXss.a || { log "XSS libXss.a missing"; exit 1; }
   log "libxscrnsaver done"
 }
 
 dunst(){
-  # 依赖守卫: 缺 libXss 先自建
+  # 依赖守卫: 缺 libXss 先自建(libxscrnsaver 内部已调 dunst_cross 设交叉 env)
   libxscrnsaver
 
   DUNST_TGZ=/tmp/dunst-$DUNST_VER.tar.gz
@@ -86,8 +115,16 @@ dunst(){
   # DEFAULT_LDFLAGS(-lm -lrt) + -ldl 一并带上(line36 被跳过后不再自动追加)
   # WAYLAND=0: config.mk 默认开 Wayland(wayland-client/cursor 不在容器), 显式禁用以纯 X11
   # DUNSTIFY=0: 不建 dunstify(需 libnotify, 不在静态栈), 只出 dunst
-  make WAYLAND=0 DUNSTIFY=0 \
-    LDFLAGS="$LDFLAGS -lm -lrt -ldl -Wl,--start-group $DUNST_LIBS -Wl,--end-group" \
+  # 交叉(2026-11-25): 命令行覆写 CC=xx-clang(Makefile 默认 cc, 命令行优先级最高; config.mk 未定 CC) +
+  #   sysroot 库/头前缀 -L/-I(XX_LIBS_PREFIX) 兜底——pkg-config(SYSROOT_DIR) 已把 -I/-L 前缀 sysroot,
+  #   这里再补显式 sysroot /usr/local/lib(librsvg/croco) -L 防遗漏。native 两变量空→原路径零影响。
+  MAKE_CC=""; XX_LDFLAGS_PRE=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    MAKE_CC="CC=xx-clang"
+    XX_LDFLAGS_PRE="-L${XX_LIBS_PREFIX}/usr/local/lib -L${XX_LIBS_PREFIX}/usr/lib -I${XX_LIBS_PREFIX}/usr/include"
+  fi
+  make $MAKE_CC WAYLAND=0 DUNSTIFY=0 \
+    LDFLAGS="$LDFLAGS${XX_LDFLAGS_PRE:+ $XX_LDFLAGS_PRE} -lm -lrt -ldl -Wl,--start-group $DUNST_LIBS -Wl,--end-group" \
     2>&1 || { log "DUNST build FAILED"; exit 1; }
 
   log "Install DUNST..."
