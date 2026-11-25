@@ -24,6 +24,10 @@ FONTCONFIG_URL=https://www.freedesktop.org/software/fontconfig/release/fontconfi
 # export CC=xx-clang
 # export CXX=xx-clang++
 export CC=xx-clang-wrapper
+# 2026-11-26: 提前拷 wrapper 到 /usr/bin——b_deps 组1 pango/libxrandr 并行, libxrandr(configure 用
+#   CC=xx-clang-wrapper) 可能在 pango_meson() 拷 wrapper 前 configure → "xx-clang-wrapper: not found"
+#   (configure: error: C compiler cannot create executables)。脚本一加载即拷, 两个并行进程各自兜底, 无竞态。
+[ -f "$SCRIPT_DIR/xx-clang-wrapper" ] && { \cp -a "$SCRIPT_DIR"/xx-clang-wrapper /usr/bin/; chmod +x /usr/bin/xx-clang-wrapper; }
 
 ROOT_DEST_DIR="/" #/tmp/xx-install> /
 INS_PREFIX=$TARGETPATH
