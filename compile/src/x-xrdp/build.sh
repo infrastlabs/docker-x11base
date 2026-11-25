@@ -81,7 +81,9 @@ xrdp_verify(){
 # it ourself.
 #
 function libxrandr(){
-  mkdir /tmp/libxrandr
+  # rm -rf: 复用上一次(可能 arm64)遗留的 /tmp/libxrandr(其 .o/configure 为旧架构)会让 armv7 也编成 aarch64
+  #   (8s 太快=没真重编)。先清场再解包, 确保 --host=$(xx-clang triple) 生效。
+  rm -rf /tmp/libxrandr; mkdir /tmp/libxrandr
   log "Downloading libXrandr..."
   # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
   down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
