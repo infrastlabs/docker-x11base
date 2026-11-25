@@ -1,10 +1,10 @@
 
 
 - buildx
-  - ubt-builder
-  - deb-builder
+  - ubt-builder `ubt/ubt-builder`
+  - deb-builder `ubt/deb-builder`
   - builder `Dockerfile.builder`
-  - gtk224 `Dockerfile.builder.gtk224> u-gtk/build.sh b_deps`
+  - gtk224 `Dockerfile.builder.gtk224> u-gtk/build.sh b_deps` 转gtk224.xx
     - openbox/build.sh apkdeps
     - openbox/build.sh pango & ##`needed by gtk`
     - openbox/build.sh libxrandr & #`same: x-xrdp/build.sh`
@@ -15,6 +15,18 @@
     - gdk-pixbuf & #`needed by gtk`
     - `--`
     - gtk  
+  - gtkmm224 `Dockerfile.builder.gtkmm224> u-gtkmm/build.sh full` 转gtkmm224.xx
+    - gtkmm
+      - c_mm_common
+      - c_libsigc
+      - 
+      - glibmm &
+      - cairomm &
+      - 
+      - pangomm &
+      - atkmm &
+      - c_gtkmm
+      - c_verify
   - compile
 
 **Dockerfile** `Line:374`
