@@ -402,7 +402,10 @@ function apkdeps(){
   # 2026-11-25: libbsd-dev/libmd-dev/libxi-dev 补装——Alpine .a 拆包反复踩坑: bsd/md 的 .a 在 dev(无 -static,
   #   且 libmd-static 包名不存在, 误装会整笔回滚), xi 的 xi.pc 供 xfce4settings configure(libXi.a 链接不引用);
   #   thunar/ristretto 链接 -lbsd -lmd、xfce4settings configure 查 Xi 均需(arm64 实测缺→thunar link FAIL/configure FAIL)。
-  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev libjpeg-turbo-static libbsd-dev libmd-dev libxi-dev
+  # 2026-11-25 补: libwebp-static/libzstd-static/curl-static——gdk-pixbuf webp/zstd loader + libtiff Libs.private
+  #   拉 -lwebp/-lzstd(gtk2 应用 gpicview/geany/dunst/clipit/engrampa link FAIL)、feh 链 -lcurl;
+  #   Alpine 把 .a 拆到 -static 包(dev 只 .so+头), 缺则 "cannot find -lwebp/-lzstd/-lcurl"(arm64 实测)。
+  [ -n "$XX_CROSS_FILE" ] && xx-apk --no-cache --no-scripts add gtk+2.0-dev libjpeg-turbo-static libbsd-dev libmd-dev libxi-dev libwebp-static libzstd-static curl-static
   # 注: gtk-doc 提供 gtkdocize, 供 w-tint2 的 libcroco autogen.sh 用 (b_deps 组1 前已装)。
 }
 
