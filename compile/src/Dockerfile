@@ -4,7 +4,7 @@ ARG REPO=
 # buildx(CI)自动注入真实 build 平台;本地 docker build 用 --build-arg BUILDPLATFORM=linux/amd64 传入。
 ARG BUILDPLATFORM
 # split to basemm, for former validate: like geany with gtk's theme/icon/print/input/..
-FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
+FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-3 AS base
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git; \
@@ -16,7 +16,7 @@ FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224
   COPY ./src /src
   RUN chmod +x /src/**/*.sh; \
     ls -lh /src/**/*.sh
-FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-2 AS basemm
+FROM --platform=$BUILDPLATFORM ${REPO}infrastlabs/x11-base:alpine-builder-gtkmm224-3 AS basemm
   ARG TARGETPLATFORM
   ENV CACHE=/usr/local/static/.cache
   RUN apk update; apk add gawk git; \
