@@ -23,8 +23,48 @@ XLUNCH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_V
 
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2-1.7.4.tar.gz
 # https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2_loaders-1.7.4.tar.gz
+
+# 2026-11-25 方案二交叉: w-xlunch 栈共用交叉环境(imlib2 + xlunch 同链)。
+# 设 CROSS_HOST/XX_DESTDIR/XX_LIBS_PREFIX + x 头库 sysroot 前缀 供 imlib2/xlunch 函数:
+#   configure 追加 --host、make install 加 DESTDIR(装 sysroot)、手工 xx-clang 静态链的 -L 前缀 sysroot。
+# native(未设 TARGETPLATFORM/XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+xl_cross(){
+  CROSS_HOST=""; XX_DESTDIR=""; XX_LIBS_PREFIX=""
+  XINC=/usr/include/X11; XLIB=/usr/lib/; IMLIB2_STATIC=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    # imlib2 configure --x-includes/--x-libraries 是 native 绝对路径, 交叉下 xx-clang 会误读 build 机头/库
+    #   → 前缀 sysroot; 纯静态目标 --disable-shared 防交叉下 -static 链共享 tool 失败。
+    XINC="$XX_SYSROOT/usr/include/X11"; XLIB="$XX_SYSROOT/usr/lib/"
+    IMLIB2_STATIC="--enable-static --disable-shared"
+    XX_DESTDIR="DESTDIR=$XX_SYSROOT"
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "xlunch: CROSS ($XX_TRIPLE)"
+  fi
+}
+
+# 2026-11-25 交叉: imlib2 1.12.7 tarball 自带旧 config.sub 不识 aarch64/armv7-alpine-linux-musl
+#   (configure: host system type Invalid configuration) → 用 automake 新版替换。
+# 仅 is-cross 生效; native 零影响。须在 clone 后、configure 前于源码树根调用。
+xx_config_sub_fix(){
+  [ -n "$XX_CROSS_FILE" ] || return 0
+  for f in config.sub config.guess; do
+    cp /usr/share/automake-1.16/$f "$f" 2>/dev/null || cp /usr/share/autoconf/build-aux/$f "$f" 2>/dev/null || true
+  done
+}
+
 function imlib2(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  xl_cross
   apk add xorg-server-dev
 
   # 
@@ -35,17 +75,19 @@ function imlib2(){
   cd /tmp/imlib2
     # export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #去-static: 无a库生成
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
-    # ./configure; 
+    # ./configure;
+    xx_config_sub_fix   # 旧 config.sub 不识 aarch64/armv7-alpine-linux-musl(仅 is-cross)
     ./configure --with-x \
-      --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
-      --without-heif --without-jxl ; 
+      --x-includes=$XINC --x-libraries=$XLIB \
+      --without-heif --without-jxl $IMLIB2_STATIC $CROSS_HOST ; 
     # make; make install;
 
   log "Compiling imlib2..."
   make
 
   log "Installing imlib2..."
-  make install
+  make install $XX_DESTDIR
+  xx_la_fix   # 交叉下 .la libdir 修正为 sysroot 相对(仅 is-cross; native 零影响)
 
   # 静态内置 loader：musl/静态下 dlopen 的外部 loader 全部失效
   # （含 PNG），故内嵌 png + svg 两个 loader 进 libImlib2.a
@@ -125,7 +167,7 @@ PYEOF
     -c /tmp/imlib2/src/lib/loaders.c -o /tmp/builtin/loaders.o
   # 不再 ar r 直改系统 /usr/local/lib/libImlib2.a（魔改系统库，隐式影响其他 imlib2 链接者）；
   # 拷贝到私有归档再注入 loader，xlunch 链接 -L/tmp/builtin -lImlib2 优先取用（2026-11-08 整改）。
-  cp /usr/local/lib/libImlib2.a /tmp/builtin/libImlib2.a
+  cp ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a /tmp/builtin/libImlib2.a
   ar r /tmp/builtin/libImlib2.a \
     /tmp/builtin/loaders.o /tmp/builtin/png.o /tmp/builtin/svg.o /tmp/builtin/jpeg.o \
     /tmp/builtin/ldrs_util.o /tmp/builtin/exif.o
@@ -133,7 +175,7 @@ PYEOF
   # 2026-11-15: 注入版再覆盖 /usr/local/lib——base 烘焙后 5 个 w-xxx 裸 -lImlib2 即取注入库
   #   （本容器内 imlib2 链接者仅 w-xxx，无"其他链接者"；与二章 1.5-2"覆盖系统库"方案一致，
   #   免去逐 app 改 -L/tmp/builtin 与 -L 顺序坑）。
-  cp -f /tmp/builtin/libImlib2.a /usr/local/lib/libImlib2.a
+  cp -f /tmp/builtin/libImlib2.a ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a
 }
 
 #
@@ -141,6 +183,7 @@ PYEOF
 # export TARGETPATH=/usr/local/static/xlunch
 function xlunch(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  xl_cross
   apk add hicolor-icon-theme #need hicolor
   # ref: xcompmgr
   apk add cairo-static expat-static fribidi-static glib-static graphite2-static harfbuzz-static
@@ -169,7 +212,7 @@ function xlunch(){
     # 过滤缺库的 -lzstd -ltiff（gdk-pixbuf 非必需 io）
     RSVG_LIBS=$(pkg-config --static --libs librsvg-2.0 cairo pangocairo | tr ' ' '\n' | grep -vE '^-l(zstd|tiff)$' | tr '\n' ' ')
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext  -lfreetype -lpng   -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-    make LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
+    make LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L${XX_LIBS_PREFIX:-}/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
 
   log "Install XLUNCH..."
   # make;
