@@ -284,7 +284,7 @@ tigervnc_cross(){
     _march="$(grep "^cpu_family" "$XX_CROSS_FILE" 2>/dev/null | head -1 | sed "s/.*= *'\\([^']*\\)'.*/\\1/")"
     case "$_march" in
       aarch64) _tpf="linux/arm64" ;;
-      arm)     _tpf="linux/arm/v7" ;;
+      arm|armv7l) _tpf="linux/arm/v7" ;;
       *)       _tpf="linux/$_march" ;;
     esac
     TARGETPLATFORM="${TARGETPLATFORM:-$_tpf}"
