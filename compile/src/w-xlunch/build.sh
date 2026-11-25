@@ -35,7 +35,7 @@ xl_cross(){
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
@@ -68,6 +68,10 @@ function imlib2(){
   apk add xorg-server-dev
 
   # 
+  # 2026-11-25: 交叉下清 /tmp/imlib2——旧树(他 arch 的 .o)被 make 复用会产出 mixed-arch libImlib2.a
+  #   (arm64 实测 33/46 armv7 成员→feh/xlunch link "file in wrong format"; CI 容器 /tmp 全新无此患,
+  #   本地同容器换架构重建会踩; 交叉限定不改 native)。tarball 走 down_catfile 缓存, 重下不费网络。
+  [ -n "$XX_CROSS_FILE" ] && rm -rf /tmp/imlib2
   mkdir -p /tmp/imlib2
   log "Downloading imlib2..."
   # curl -# -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C /tmp/imlib2
@@ -212,7 +216,11 @@ function xlunch(){
     # 过滤缺库的 -lzstd -ltiff（gdk-pixbuf 非必需 io）
     RSVG_LIBS=$(pkg-config --static --libs librsvg-2.0 cairo pangocairo | tr ' ' '\n' | grep -vE '^-l(zstd|tiff)$' | tr '\n' ' ')
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext  -lfreetype -lpng   -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
-    make LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L${XX_LIBS_PREFIX:-}/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
+    # 2026-11-25: xlunch Makefile 硬编码 CC = gcc（make 中 Makefile 变量赋值优先于环境变量，
+    #   xl_cross 里 export CC=xx-clang 覆盖不到）→ 交叉须命令行覆盖（优先级最高）。
+    #   native 不加（Makefile CC=gcc 原路径零影响）。
+    MAKE_CC=""; [ -n "$XX_CROSS_FILE" ] && MAKE_CC="CC=xx-clang"
+    make $MAKE_CC LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L${XX_LIBS_PREFIX:-}/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
 
   log "Install XLUNCH..."
   # make;
