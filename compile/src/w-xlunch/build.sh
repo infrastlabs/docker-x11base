@@ -21,9 +21,6 @@ IMLIB2_URL=https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/${
 XLUNCH_VER=v5.10.6
 XLUNCH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}/xrdp-${XRDP_VER}.tar.gz
 
-# https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2-1.7.4.tar.gz
-# https://master.dl.sourceforge.net/project/enlightenment/imlib2-src/1.7.4/imlib2_loaders-1.7.4.tar.gz
-
 # 2026-11-25 方案二交叉: w-xlunch 栈共用交叉环境(imlib2 + xlunch 同链)。
 # 设 CROSS_HOST/XX_DESTDIR/XX_LIBS_PREFIX + x 头库 sysroot 前缀 供 imlib2/xlunch 函数:
 #   configure 追加 --host、make install 加 DESTDIR(装 sysroot)、手工 xx-clang 静态链的 -L 前缀 sysroot。
