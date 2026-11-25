@@ -6,12 +6,28 @@ source /src/common.sh
 FEH_VER=3.13.1
 FEH_URL=${gh}https://github.com/neutrinolabs/xrdp/releases/download/v${XRDP_VER}/xrdp-${XRDP_VER}.tar.gz
 
+# 2026-11-25 方案二交叉: feh 纯 Makefile(无 configure), 交叉只需强制 xx-clang + pkg-config 走 sysroot。
+# 设 XX_LIBS_PREFIX 供手工静态链 -L 前缀 sysroot。native(未设 XX_CROSS_FILE) 零影响。
+feh_cross(){
+  XX_LIBS_PREFIX=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    log "feh: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 #
 # Build feh
 # export TARGETPATH=/usr/local/static/feh
 function feh(){
   # ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
   apk add libxt-dev curl-dev curl-static
+  feh_cross
 
   log "Downloading FEH..."
   rm -rf /tmp/fk-feh; # mkdir -p /tmp/fk-feh ##feh> fk-feh
@@ -37,7 +53,7 @@ function feh(){
     # make
     export DESTDIR= PREFIX=$TARGETPATH
     export curl=false exif=0 magic=0 #xinerama=0 
-    make clean; make LDFLAGS="-static -L/usr/local/lib -Wl,--strip-all $deps1 $deps2 $deps3 "
+    make clean; make LDFLAGS="-static -L${XX_LIBS_PREFIX:-}/usr/local/lib -Wl,--strip-all $deps1 $deps2 $deps3 "
 
     log "Install FEH..."
     # make-install
