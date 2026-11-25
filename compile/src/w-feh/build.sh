@@ -13,7 +13,7 @@ feh_cross(){
   if [ -n "$XX_CROSS_FILE" ]; then
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_LIBS_PREFIX="$XX_SYSROOT"
