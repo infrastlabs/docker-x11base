@@ -41,12 +41,41 @@ source /src/common.sh
 GPICVIEW_VER=0.3.1
 GPICVIEW_URL="https://gitee.com/g-system/fk-lxde-gpicview/archive/refs/tags/$GPICVIEW_VER.tar.gz"
 
+# 2026-11-25 方案二交叉: gpicview 栈(gtk2) 交叉环境(autotools configure)。
+# 设 CROSS_HOST/LINK_L/CFG_L/CFG_I: configure 追加 --host + sysroot 头库搜索、
+#   手工 xx-clang 静态链的 -L 前缀 sysroot。
+# native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+gpv_cross(){
+  CROSS_HOST=""; LINK_L=""; CFG_L=""; CFG_I=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    # 交叉: sysroot 头库搜索前缀(xx-clang 目标 arm, 不搜 build 机 /usr)。
+    CFG_I="-I$XX_SYSROOT/usr/include -I$XX_SYSROOT/usr/local/include"
+    CFG_L="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+    LINK_L="$CFG_L"
+    log "gpicview: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function gpicview(){
   # 不硬编码: Dockerfile stage 已设 TARGETPATH=/usr/local/static/gpicview; 回退仅兜底(common.sh 默认 static_temp1, 独立构建须显式 TARGETPATH)
   export TARGETPATH=${TARGETPATH:-/usr/local/static/gpicview}
+  gpv_cross
   # configure 测试程序须能链上（非静态）gtk；最终 make 用 ORIG_LDFLAGS（--static）
   ORIG_LDFLAGS="$LDFLAGS"
-  export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+  export LDFLAGS="$CFG_L -Wl,--strip-all -Wl,--as-needed"
+  # 交叉: 头库搜索加 sysroot 前缀（xx-clang 目标 arm，不搜 build 机 /usr）
+  [ -n "$XX_CROSS_FILE" ] && export CPPFLAGS="$CFG_I ${CPPFLAGS:-}"
 
   log "Fetch gpicview $GPICVIEW_VER source (offline tarball 优先)..."
     rm -rf /tmp/gpicview; mkdir -p /tmp/gpicview
@@ -64,12 +93,18 @@ function gpicview(){
     grep -q "return FALSE" src/main-win.c || { log "return FALSE missing"; exit 1; }
 
   log "Bootstrap (autogen.sh, git-tag tarball 无 configure)..."
-    ./autogen.sh >/tmp/gpv-autogen.log 2>&1 \
-      || { log "autogen FAILED"; tail -20 /tmp/gpv-autogen.log; exit 1; }
+    # 交叉: NOCONFIGURE=1 只生成 configure 不运行（autogen 末尾自动 run configure 会误用 native 工具链）
+    if [ -n "$XX_CROSS_FILE" ]; then
+      NOCONFIGURE=1 ./autogen.sh >/tmp/gpv-autogen.log 2>&1 \
+        || { log "autogen FAILED"; tail -20 /tmp/gpv-autogen.log; exit 1; }
+    else
+      ./autogen.sh >/tmp/gpv-autogen.log 2>&1 \
+        || { log "autogen FAILED"; tail -20 /tmp/gpv-autogen.log; exit 1; }
+    fi
     test -x configure || { log "configure script missing"; exit 1; }
 
   log "Configure (GTK2 默认; --enable-gtk3 不传=no)..."
-    ./configure --prefix=$TARGETPATH >/tmp/gpv-cfg.log 2>&1 \
+    ./configure $CROSS_HOST --prefix=$TARGETPATH >/tmp/gpv-cfg.log 2>&1 \
       || { log "configure FAILED"; tail -25 /tmp/gpv-cfg.log; exit 1; }
 
   log "Compile objects (make -C src 只编目标文件，不触 libtool 链)..."
@@ -95,6 +130,7 @@ function gpicview(){
       gpicview-working-area.o gpicview-ptk-menu.o gpicview-file-dlgs.o gpicview-jpeg-tran.o \
       gpicview-tran-supp.o gpicview-pref.o gpicview-jhead.o gpicview-exif.o gpicview-jpgfile.o \
       -Wl,--start-group \
+      $LINK_L \
       $GTK_LIBS \
       -lXrandr -lXcomposite -lXdamage -lXfixes -lXcursor -lXinerama \
       -ljpeg -lrsvg-2 -lcroco-0.6 -lxml2 -llzma \
@@ -131,7 +167,14 @@ function gpicview(){
 
   log "Verify..."
     file $TARGETPATH/bin/gpicview
-    xx-verify --static $TARGETPATH/bin/gpicview || { log "xx-verify FAILED"; exit 1; }
+    # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+    #   native 仍走 xx-verify(原路径)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      file $TARGETPATH/bin/gpicview | grep -qE "ARM.*statically linked" \
+        || { log "gpicview file 非 ARM static"; exit 1; }
+    else
+      xx-verify --static $TARGETPATH/bin/gpicview || { log "xx-verify FAILED"; exit 1; }
+    fi
     grep -c "undefined reference\|attempted static link" /tmp/gpv-link.log | grep -qx 0 \
       || { log "undef count != 0"; exit 1; }
     ls -lh $TARGETPATH/bin/gpicview
