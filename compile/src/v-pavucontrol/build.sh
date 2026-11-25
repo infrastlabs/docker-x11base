@@ -18,8 +18,33 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pavucontrol}"
 #   docker cp 到 /tmp/pavucontrol-3.0.tar.gz 并解包 /tmp/pavucontrol（离线复用）。
 #   正常网络环境走 $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz（down_catfile）。
 
+# 2026-11-25 方案二交叉: pavucontrol 栈(gtkmm + pulse) 共用交叉环境(autotools)。
+# 设 CROSS_HOST/XX_LIBS_PREFIX/PULSE_PC: configure 追加 --host、手工 xx-clang++ 静态链的
+#   -L 前缀 sysroot、pulse pkgconfig 前缀 sysroot。native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
+pv_cross(){
+  CROSS_HOST=""; XX_LIBS_PREFIX=""
+  PULSE_PC="/usr/local/static/pulseaudio/lib/pkgconfig"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    export CC=xx-clang
+    export CXX=xx-clang++
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/static/pulseaudio/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
+    # 交叉 configure run-test 缓存: mmap/realloc/malloc 在 cross 下不能 run → 显式 yes。
+    export ac_cv_func_mmap_fixed_mapped=yes
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    XX_LIBS_PREFIX="$XX_SYSROOT"
+    PULSE_PC="$XX_SYSROOT/usr/local/static/pulseaudio/lib/pkgconfig"
+    log "pavucontrol: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function pavucontrol(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
+  pv_cross
   log "Downloading PAVUCONTROL (v3.0 tarball)..."
     if [ ! -f /tmp/pavucontrol/configure.ac ]; then
       if [ -f /tmp/pavucontrol-3.0.tar.gz ]; then
@@ -45,17 +70,19 @@ function pavucontrol(){
       || true
 
   log "Autogen (tarball has no generated configure)..."
-    ./autogen.sh
+    # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
+    #   再显式 configure --host。native 原路径不变。
+    [ -n "$XX_CROSS_FILE" ] && NOCONFIGURE=1 ./autogen.sh || ./autogen.sh
 
   log "Configuring PAVUCONTROL (GTK2, static only)..."
-    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
+    export LDFLAGS="-Wl,--strip-all -Wl,--as-needed -L${XX_LIBS_PREFIX:-}/usr/local/lib"
     OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi" #ref tmux-3
     ex0="-lgmodule-2.0 -lgobject-2.0 -lgpg-error -lgraphite2 -lpixman-1 -ljpeg -luuid -lmount -lpcre -lblkid -lXcomposite"
     ex1="-lfontconfig -lgio-2.0 -lcairo -lXdamage"
     LIBS0="-lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
-    LIBS="$LIBS0" PKG_CONFIG_PATH="/usr/local/static/pulseaudio/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+    LIBS="$LIBS0" PKG_CONFIG_PATH="$PULSE_PC${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
       ./configure --disable-gtk3 --enable-static --disable-shared \
-      --prefix=$TARGETPATH
+      --prefix=$TARGETPATH $CROSS_HOST
 
   log "Compiling PAVUCONTROL (12 objects) + 直链链接..."
     # 2026-11-16: 源头修(同 engrampa/pasystray, 见 11120827-ci-builder-gtk-app-rootfs.md 6.1)——make 链接
@@ -69,7 +96,8 @@ function pavucontrol(){
       cp $GCCDIR/libgcc.a /usr/lib/libgcc_s.a
     fi
     # pulsecommon 版本动态获取（源码内部 PA_MAJOR.PA_MINOR=13.13，非分支名 13.99；用已装 .a glob 取）
-    PULSECOMMON=$(basename $(ls /usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>/dev/null | head -1) | sed 's/libpulsecommon-//;s/\.a//')
+    # 交叉: pulse 栈 .a 落 sysroot ${XX_LIBS_PREFIX:-} 前缀（native 前缀空=原路径）。
+    PULSECOMMON=$(basename $(ls ${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib/pulseaudio/libpulsecommon-*.a 2>/dev/null | head -1) | sed 's/libpulsecommon-//;s/\.a//')
     test -n "$PULSECOMMON" || { log "PULSECOMMON not found"; exit 1; }
     log "PULSECOMMON=$PULSECOMMON"
     # GTK2 print 后端（file/lpr）由静态 libgtk 提供（-DGTK_PRINT_BACKENDS="file,lpr"，-u 强制 6 符号
@@ -79,8 +107,8 @@ function pavucontrol(){
       -Wl,-u,_gtk_print_backend_lpr_init -Wl,-u,_gtk_print_backend_lpr_exit -Wl,-u,_gtk_print_backend_lpr_create \
       -Wl,--start-group \
       -lgtkmm-2.4 -latkmm-1.6 -lgdkmm-2.4 -lgiomm-2.4 -lpangomm-1.4 -lglibmm-2.4 -lcairomm-1.0 -lsigc-2.0 \
-      -L/usr/local/lib \
-      -L/usr/local/static/pulseaudio/lib -L/usr/local/static/pulseaudio/lib/pulseaudio \
+      -L${XX_LIBS_PREFIX:-}/usr/local/lib \
+      -L${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib -L${XX_LIBS_PREFIX:-}/usr/local/static/pulseaudio/lib/pulseaudio \
       -lpulse-mainloop-glib -lpulse -lpulsecommon-$PULSECOMMON \
       -lXinerama -lXrandr -lXfixes -lstdc++ -lsupc++ -lgcc -lgcc_eh -lgthread-2.0 \
       $LIBS0 \
@@ -112,7 +140,14 @@ function pavucontrol(){
 
   log "Verify PAVUCONTROL..."
     file $TARGETPATH/bin/pavucontrol
-    xx-verify --static $TARGETPATH/bin/pavucontrol || { log "PAVUCONTROL xx-verify FAILED"; exit 1; }
+    # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判 static + 目标架构;
+    #   native 仍走 xx-verify(原路径)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      file $TARGETPATH/bin/pavucontrol | grep -qE "ARM.*statically linked" \
+        || { log "PAVUCONTROL file 非 ARM static"; exit 1; }
+    else
+      xx-verify --static $TARGETPATH/bin/pavucontrol || { log "PAVUCONTROL xx-verify FAILED"; exit 1; }
+    fi
     strings $TARGETPATH/bin/pavucontrol | grep -q "GTK_ICON_THEME" && echo "strings: GTK_ICON_THEME OK"
     strings $TARGETPATH/bin/pavucontrol | grep -q "MurrineRcStyle" && echo "strings: murrine OK"
     strings $TARGETPATH/bin/pavucontrol | grep -q "rsvg" && echo "strings: rsvg OK"
