@@ -5,7 +5,50 @@ source /src/common.sh
 #
 # Build fluxbox
 #
+
+# 2026-11-25 交叉: fluxbox(C++/autotools) 走共享交叉环境(同 x-xbindkeys/x-xrandr/openbox)。
+# 本脚本(build.sh.xft.sh)是 Dockerfile 实调的(--enable-imlib2); imlib2 静态库两 sysroot 已有(ARM)。
+# fluxbox=C++ → 除 CC 外还须 CXX=xx-clang++ + ac_cv_prog_cxx_cross=yes。
+# libtool 链接会经 sysroot .la 的 dependency_libs/libdir 拖入原生 .a(x86) → 须清洗(同 openbox 4.7.1)。
+# native(未设 XX_CROSS_FILE): CROSS_HOST/MAKE_CC 留空 → 原路径零影响。
+fb_cross(){
+  CROSS_HOST=""; MAKE_CC=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    MAKE_CC="CC=xx-clang"
+    export CC=xx-clang
+    export CXX=xx-clang++            # fluxbox=C++: 交叉须 C++ 编译器
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    unset PKG_CONFIG_PATH
+    export ac_cv_func_realloc_0_nonnull=yes
+    export ac_cv_func_malloc_0_nonnull=yes
+    export ac_cv_prog_cc_cross=yes
+    export ac_cv_prog_cxx_cross=yes   # C++ 交叉: configure cxx link-test 亦不能 run
+    export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
+    # armv7: Ewmh.cc 等 C++11 narrowing(unsigned int→long)被 clang 当 error → 交叉下关掉该诊断
+    #   (arm64 不触发; 仅 cross 生效, native 零影响)。
+    export CXXFLAGS="-Wno-c++11-narrowing $CXXFLAGS"
+    # sysroot 补 fribidi/xpm/xml2/X11 静态库(幂等)
+    xx-apk add fribidi-dev fribidi-static libxpm-dev libxml2-dev expat-static \
+      fontconfig-dev fontconfig-static freetype-dev \
+      libx11-dev libx11-static libxext-dev libxrender-dev libxau-dev libxdmcp-dev libxcb-dev libxcb-static \
+      libxrandr-dev libxinerama-dev 2>/dev/null || true
+    # libXrandr.a 无 apk 包 → 源码构建到 sysroot(同 x-xrandr/openbox); 幂等
+    test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
+    # 清洗 sysroot .la(防 libtool 拖原生 .a): 注释 dependency_libs + 裸 libdir 补 sysroot 前缀(幂等)
+    find "$XX_SYSROOT/usr/lib" "$XX_SYSROOT/usr/local/lib" -maxdepth 1 -name "*.la" 2>/dev/null | while read -r _la; do
+      sed -i 's/^dependency_libs=/#dependency_libs=/' "$_la"
+      sed -i "s|^libdir='/usr/|libdir='$XX_SYSROOT/usr/|" "$_la"
+      sed -i "s|^libdir='/lib/|libdir='$XX_SYSROOT/lib/|" "$_la"
+    done
+    log "fluxbox: CROSS ($XX_TRIPLE)"
+  fi
+}
+
 function fluxbox(){
+  fb_cross
   apk add libxml2-dev expat-static 
 
   log "Downloading FLUXBOX..."
@@ -51,6 +94,8 @@ function fluxbox(){
 
   # ref: ./configure -h
   ./configure \
+    --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
+    --host=$(xx-info triple) \
     --prefix=$TARGETPATH \
     --disable-dependency-tracking \
     --disable-silent-rules \
@@ -78,8 +123,16 @@ function fluxbox(){
     
 
   make clean
-  # make LDFLAGS="-static"
-  make LDFLAGS="-static" LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
+  if [ -n "$XX_CROSS_FILE" ]; then
+    # 交叉: 静态传递依赖 --start-group 解循环; 不 clobber LDFLAGS(用 $LDFLAGS 追加 sysroot -L)。
+    FB_LIBS="-Wl,--start-group -lX11 -lXext -lXrandr -lXrender -lxcb -lXau -lXdmcp -lXinerama \
+      -lImlib2 -lX11-xcb -lxcb-shm -lfribidi -lfontconfig -lfreetype -lXft -lXpm \
+      -lexpat -lxml2 -luuid -lpng -lz -lbz2 -lbrotlidec -lbrotlicommon -lpthread -lm -Wl,--end-group"
+    make $MAKE_CC LDFLAGS="$LDFLAGS -static" LIBS="$FB_LIBS" \
+      || { log "FLUXBOX cross build FAILED"; exit 1; }
+  else
+    make LDFLAGS="-static" LIBS="-lxcb -lXdmcp -lXau -lpthread $EX_LIBS"
+  fi
 
   log "Install FLUXBOX..."
   # make;
@@ -87,7 +140,12 @@ function fluxbox(){
 
   # view
   ls -lh /tmp/fluxbox/
-  xx-verify --static /tmp/fluxbox/fluxbox
+  if [ -n "$XX_CROSS_FILE" ]; then
+    file /tmp/fluxbox/fluxbox | grep -qE "ARM.*statically linked" \
+      || { log "FLUXBOX file 非 ARM static"; exit 1; }
+  else
+    xx-verify --static /tmp/fluxbox/fluxbox || { log "FLUXBOX xx-verify FAILED"; exit 1; }
+  fi
 }
 
 
