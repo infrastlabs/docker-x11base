@@ -1,0 +1,28 @@
+ARG COMPILE_IMG=alpine-compile
+ARG REPO=
+FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-3 AS base
+# 交叉版 gtkmm224: FROM gtk224.xx(继承交叉 gtk2 sysroot), 只交叉补 gtkmm 栈(纯 amd64 镜像)
+# 原 native 版见 Dockerfile.builder.gtkmm224(FROM gtk224-2 + u-gtkmm/build.sh full 建 amd64 gtkmm)
+  ARG TARGETPLATFORM
+  ENV CACHE=/usr/local/static/.cache
+  ARG NOCACHE
+  RUN echo "NOCACHE.gtkmm.xx=${NOCACHE}" >> /tmp/NOCACHE; \
+    apk update; apk add icu-static icu-dev libjpeg-turbo-static jpeg-dev;
+  COPY ./tarsrc /tarsrc
+  COPY ./src /src
+  RUN chmod +x /src/**/*.sh; \
+    chmod +x /src/u-gtk/xx-clear.sh
+  # 交叉建 gtkmm 栈: FROM gtk224.xx 继承 gtk2 sysroot; 循环 arm64 + armv7:
+  #   ① 建前清该 sysroot 旧 .a(防串架构污染)
+  #   ② sh u-gtkmm/build.sh full 交叉建 gtkmm 栈(gtkmm/gdkmm/glibmm/giomm/pangomm/atkmm/cairomm/sigc)
+  #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
+  # 消费方: gtkmm 应用(pavucontrol/gsm) 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtkmm
+  RUN set -e; \
+    for arch in arm64 arm/v7; do \
+      export TARGETPLATFORM=linux/$arch; \
+      . /src/common.sh; \
+      sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+      sh /src/u-gtkmm/build.sh full; \
+      sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
+    done; \
+    unset TARGETPLATFORM
