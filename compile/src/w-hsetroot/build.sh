@@ -19,7 +19,7 @@ hs_cross(){
   if [ -n "$XX_CROSS_FILE" ]; then
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
-    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
     export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
     unset PKG_CONFIG_PATH   # native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_LIBS_PREFIX="$XX_SYSROOT"
@@ -67,6 +67,10 @@ function hsetroot(){
     || { log "hsetroot make FAILED"; exit 1; }
 
   log "Install hsetroot..."
+  # 2026-11-25 交叉: Makefile install 用 install -Dst(-s 调 native strip, 不能 strip ARM ELF→
+  #   "Unable to recognise the format") → 交叉去掉 -s(二进制已由 LDFLAGS -Wl,--strip-all strip)。
+  #   native 不改, 零影响。
+  [ -n "$XX_CROSS_FILE" ] && sed -i 's/install -Dst /install -Dt /' Makefile
   make install PREFIX=$TARGETPATH || { log "hsetroot install FAILED"; exit 1; }
 
   ls -lh $TARGETPATH/bin/hsetroot $TARGETPATH/bin/hsr-outputs
