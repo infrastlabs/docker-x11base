@@ -31,7 +31,7 @@ source /src/common.sh
 #   * 静态 LDFLAGS（--static）会让 configure 的 pkg-config 测试程序（非静态 libs）失败 →
 #     configure 阶段用非静态 LDFLAGS；对象编译/手动链用 ORIG_LDFLAGS（含 --static）。
 #   * 网络坑：容器外网不可达 → 宿主 curl 下载 tarball + docker cp 到容器
-#     /tmp/gpicview-<ver>.tar.gz；build.sh 优先用离线 tarball。主源转存 gitee
+#     $SRCROOT/gpicview-<ver>.tar.gz；build.sh 优先用离线 tarball。主源转存 gitee
 #     g-system/fk-lxde-gpicview（以 gitee 为准；vers.txt 同步）。
 #   * 手装漏 pref-dlg.ui → 点 Preferences 崩：edit_preferences() 用 GtkBuilder 从
 #     PACKAGE_DATA_DIR "/gpicview/ui/pref-dlg.ui"（= $prefix/share/gpicview/ui/）加载，
@@ -78,14 +78,14 @@ function gpicview(){
   [ -n "$XX_CROSS_FILE" ] && export CPPFLAGS="$CFG_I ${CPPFLAGS:-}"
 
   log "Fetch gpicview $GPICVIEW_VER source (offline tarball 优先)..."
-    rm -rf /tmp/gpicview; mkdir -p /tmp/gpicview
-    if [ -f /tmp/gpicview-$GPICVIEW_VER.tar.gz ]; then
-      tar xzf /tmp/gpicview-$GPICVIEW_VER.tar.gz -C /tmp/gpicview
+    rm -rf $SRCROOT/gpicview; mkdir -p $SRCROOT/gpicview
+    if [ -f $SRCROOT/gpicview-$GPICVIEW_VER.tar.gz ]; then
+      tar xzf $SRCROOT/gpicview-$GPICVIEW_VER.tar.gz -C $SRCROOT/gpicview
     else
-      down_catfile $GPICVIEW_URL | tar xz -C /tmp/gpicview
+      down_catfile $GPICVIEW_URL | tar xz -C $SRCROOT/gpicview
     fi
-    SRCDIR=/tmp/gpicview/gpicview-$GPICVIEW_VER
-    [ -d "$SRCDIR" ] || SRCDIR=/tmp/gpicview/fk-lxde-gpicview-$GPICVIEW_VER
+    SRCDIR=$SRCROOT/gpicview/gpicview-$GPICVIEW_VER
+    [ -d "$SRCDIR" ] || SRCDIR=$SRCROOT/gpicview/fk-lxde-gpicview-$GPICVIEW_VER
     test -d "$SRCDIR" || { log "source MISSING"; exit 1; }
     cd "$SRCDIR"
 
@@ -95,17 +95,17 @@ function gpicview(){
   log "Bootstrap (autogen.sh, git-tag tarball 无 configure)..."
     # 交叉: NOCONFIGURE=1 只生成 configure 不运行（autogen 末尾自动 run configure 会误用 native 工具链）
     if [ -n "$XX_CROSS_FILE" ]; then
-      NOCONFIGURE=1 ./autogen.sh >/tmp/gpv-autogen.log 2>&1 \
-        || { log "autogen FAILED"; tail -20 /tmp/gpv-autogen.log; exit 1; }
+      NOCONFIGURE=1 ./autogen.sh >$OTHLOG/gpv-autogen.log 2>&1 \
+        || { log "autogen FAILED"; tail -20 $OTHLOG/gpv-autogen.log; exit 1; }
     else
-      ./autogen.sh >/tmp/gpv-autogen.log 2>&1 \
-        || { log "autogen FAILED"; tail -20 /tmp/gpv-autogen.log; exit 1; }
+      ./autogen.sh >$OTHLOG/gpv-autogen.log 2>&1 \
+        || { log "autogen FAILED"; tail -20 $OTHLOG/gpv-autogen.log; exit 1; }
     fi
     test -x configure || { log "configure script missing"; exit 1; }
 
   log "Configure (GTK2 默认; --enable-gtk3 不传=no)..."
-    ./configure $CROSS_HOST --prefix=$TARGETPATH >/tmp/gpv-cfg.log 2>&1 \
-      || { log "configure FAILED"; tail -25 /tmp/gpv-cfg.log; exit 1; }
+    ./configure $CROSS_HOST --prefix=$TARGETPATH >$OTHLOG/gpv-cfg.log 2>&1 \
+      || { log "configure FAILED"; tail -25 $OTHLOG/gpv-cfg.log; exit 1; }
 
   log "Compile objects (make -C src 只编目标文件，不触 libtool 链)..."
     # 注意：gpicview 用 LT_INIT(libtool)，make 链会把它传的 -Wl,--start-group 拆散
@@ -115,8 +115,8 @@ function gpicview(){
       gpicview-gpicview.o gpicview-image-list.o gpicview-main-win.o gpicview-image-view.o \
       gpicview-working-area.o gpicview-ptk-menu.o gpicview-file-dlgs.o gpicview-jpeg-tran.o \
       gpicview-tran-supp.o gpicview-pref.o gpicview-jhead.o gpicview-exif.o gpicview-jpgfile.o \
-      >/tmp/gpv-make.log 2>&1 \
-      || { log "objects build FAILED"; tail -20 /tmp/gpv-make.log; exit 1; }
+      >$OTHLOG/gpv-make.log 2>&1 \
+      || { log "objects build FAILED"; tail -20 $OTHLOG/gpv-make.log; exit 1; }
     test -f src/gpicview-main-win.o || { log "objects MISSING"; exit 1; }
 
   log "Static-link gpicview (manual xx-clang -static + --start-group, 绕过 libtool)..."
@@ -134,8 +134,8 @@ function gpicview(){
       $GTK_LIBS \
       -lXrandr -lXcomposite -lXdamage -lXfixes -lXcursor -lXinerama \
       -ljpeg -lrsvg-2 -lcroco-0.6 -lxml2 -llzma \
-      -Wl,--end-group >/tmp/gpv-link.log 2>&1 \
-      || { log "static-link FAILED"; tail -20 /tmp/gpv-link.log; exit 1; }
+      -Wl,--end-group >$OTHLOG/gpv-link.log 2>&1 \
+      || { log "static-link FAILED"; tail -20 $OTHLOG/gpv-link.log; exit 1; }
     test -f gpicview || { log "gpicview binary MISSING"; exit 1; }
 
   log "Install (binary + desktop + icon; make install 会重链失败，手装)..."
@@ -175,7 +175,7 @@ function gpicview(){
     else
       xx-verify --static $TARGETPATH/bin/gpicview || { log "xx-verify FAILED"; exit 1; }
     fi
-    grep -c "undefined reference\|attempted static link" /tmp/gpv-link.log | grep -qx 0 \
+    grep -c "undefined reference\|attempted static link" $OTHLOG/gpv-link.log | grep -qx 0 \
       || { log "undef count != 0"; exit 1; }
     ls -lh $TARGETPATH/bin/gpicview
 }
