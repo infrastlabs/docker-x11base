@@ -18,6 +18,9 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   #     注: 曾用 LOGROOT 把日志与源码树分两根+WS 用 UGTK_NS(native/aarch64/armv7l) 与 tag 两套命名 → amd64
   #     rc 写 native/ 校验读 amd64/ 找不到(CI 二跑挂); 现统一 $tag 单一 $WS 根治。本机禁并行(OOM 红线)。
   ARG PARALLEL_BUILD=0
+  # 要构建的架构列表(空格分隔)——一行切换调试: 全量 "amd64 arm64 armv7", 单架构 "armv7"/"arm64" 等。
+  #   armv7 在下方 RUN 内 sed 转译为 arm/v7(TARGETPLATFORM 用), tag=arm-v7; 调用时也可 --build-arg ARCHS="armv7"。
+  ARG ARCHS="amd64,arm64,armv7"
   RUN echo "NOCACHE.gtk.xx=${NOCACHE}" > /tmp/NOCACHE; \
     sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.aliyun.com|g' /etc/apk/repositories; \
     apk update; apk add gawk git;
@@ -32,7 +35,7 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   # 2026-11-25(2.4.9): amd64 必须纳入——base(alpine-builder)只有 apk 的 amd64 gtk2 .so 无静态 .a,
   #   原 amd64 静态 gtk2 只在旧 gtk224-2; amd64 native 装 /usr(Option B, 应用 Dockerfile 不用改)。
   RUN set -e; \
-    ARCHS="amd64 arm64 arm/v7"; \
+    ARCHS=$(echo "$ARCHS" | sed 's|armv7|arm/v7|g; s|,| |g'); \
     if [ "$PARALLEL_BUILD" = "1" ]; then \
     for arch in $ARCHS; do \
       case "$arch" in arm/v7) tag=arm-v7 ;; *) tag=$arch ;; esac; \

@@ -18,6 +18,7 @@ NS=infrastlabs
 ARCH=${2:-arm64}                                   # 提示用(实际两架构都建, arm64 先跑); 构建平台恒 amd64
 PLATFORM="linux/amd64"                             # 构建平台=amd64(同 buildx.sh L191 交叉模式); 交叉目标由 Dockerfile 循环 xx-clang 决定
 PARALLEL_BUILD=${PARALLEL_BUILD:-0}                # 0=串行(默认, 本机 1.9Gi 红线安全); 1=3 路并行(仅 CI/大内存, 见 2.4.9.2 风险)
+ARCHS=${ARCHS:-amd64,arm64,armv7}                  # 要构建的架构(逗号分隔, 一行切换调试: 全量/amd64/arm64/armv7); armv7 由 Dockerfile 内部转译 arm/v7
 builddate=$(date +%Y-%m-%d_%H:%M:%S)
 
 case "$1" in
@@ -40,6 +41,7 @@ docker build \
   --build-arg REPO=$REPO/ \
   --build-arg NOCACHE=$builddate \
   --build-arg PARALLEL_BUILD=$PARALLEL_BUILD \
+  --build-arg ARCHS="$ARCHS" \
   --platform $PLATFORM \
   -t "$REPO/$NS/$img" \
   -f "$df" . 
