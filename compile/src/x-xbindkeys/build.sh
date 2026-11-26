@@ -41,8 +41,8 @@ export TARGETPATH=${TARGETPATH:-/usr/local/static/xbindkeys}
 function xbindkeys(){
   xbk_cross
   XBK_VER=1.8.7
-  SRC=/tmp/xbindkeys-$XBK_VER
-  TGZ=/tmp/xbindkeys-$XBK_VER.tar.gz
+  SRC=$SRCROOT/xbindkeys-$XBK_VER
+  TGZ=$SRCROOT/xbindkeys-$XBK_VER.tar.gz
 
   log "Downloading XBINDKEYS..."
   if test -d $SRC; then
@@ -51,7 +51,7 @@ function xbindkeys(){
     # 1. 离线预置 tarball 优先 (宿主 cp / Dockerfile COPY); 2. nongnu 官网 down_catfile 兜底
     test -s $TGZ || { \
       log "no staged tarball, try nongnu.org ..."; \
-      curl -# -k -fSL --connect-timeout 10 --max-time 120 -o $TGZ \
+      curl -s -k -fSL --connect-timeout 10 --max-time 120 -o $TGZ \
         https://www.nongnu.org/xbindkeys/xbindkeys-$XBK_VER.tar.gz \
         || { log "XBINDKEYS download FAILED"; rm -f $TGZ; exit 1; }; \
     }
