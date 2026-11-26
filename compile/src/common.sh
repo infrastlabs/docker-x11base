@@ -194,6 +194,20 @@ function log {
     echo -e "\n\n>>> [${UGTK_NS:-?}] $*"
 }
 
+# apk: native apk 包装器——并行(WS_LOCK=1)时多分支抢同一 /lib/apk/db/lock, 撞锁 rc=99 ELOCKED
+#   "temporary error (try again later)"。采用 B 方案(flock 串行化, 见 doc 3.3.2.1): 先抢全局锁
+#   /tmp/apk-parallel.lock 再跑真 apk, 跑完释放——确定性拿锁、无重试空等(native apk add 本身快, 3 分支排队几秒)。
+#   串行(无 WS_LOCK, PARALLEL_BUILD=0)零开销直通。仅包装 native apk(各分支 apkdeps 都跑, 抢同一 lock);
+#   xx-apk(cross)自带 /var/lock/xx-apk flock 串行化不冲突, 不动。
+#   openbox/build.sh 等均 source common.sh → 此 apk() 覆盖 PATH 里的 apk 二进制, 调用点零改动。
+#   真 apk 二进制【在定义本函数前】用 command -v 解析存 REAL_APK(此刻无同名函数, 不递归; 容器= /sbin/apk)。
+#   不能用 /proc/$$/exe 同目录推导——容器 bash 在 /bin/bash 但 apk 在 /sbin/apk(不同目录, 实测踩过)。
+REAL_APK=$(command -v apk 2>/dev/null)
+function apk {
+  if [ -z "$WS_LOCK" ]; then "$REAL_APK" "$@"; return $?; fi
+  flock /tmp/apk-parallel.lock "$REAL_APK" "$@"
+}
+
 
 # export CC=clang
 # export CXX=clang++
