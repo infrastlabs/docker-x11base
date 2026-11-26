@@ -188,11 +188,11 @@ function gtk(){
   log "Preparing gtk source tree..."
   branch="--branch=2.24.33"
   local GTK=/tmp/gtk
-  # 2026-11-24 方案二交叉: 用独立源码树(/tmp/gtk-cross)避免污染 native 增量树; 设 autotools 交叉环境
+  # 2026-11-24 方案二交叉: 用独立源码树($WS/gtk-cross)避免污染 native 增量树; 设 autotools 交叉环境
   #   （强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot）。
   CROSS_HOST=""
   if [ -n "$XX_CROSS_FILE" ]; then
-    GTK=/tmp/gtk-cross
+    GTK=$WS/gtk-cross
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
@@ -319,8 +319,10 @@ function gtk(){
     MURRINE_GIT="${MURRINE_GIT:-https://gitee.com/g-system/fk-murrine}"
     # ④ murrine 缓存: 已有构建树则复用, make 增量; 否则全新 clone+configure。
     git config --global --add safe.directory /tmp/murrine 2>/dev/null || true
-    # 2026-11-24 方案二交叉: murrine 独立树(/tmp/murrine-cross) + 交叉编译(--host + 强制宿主 pkg-config)
-    MURRINE=/tmp/murrine; [ -n "$XX_CROSS_FILE" ] && MURRINE=/tmp/murrine-cross
+    git config --global --add safe.directory "$WS/murrine-cross" 2>/dev/null || true
+    # 2026-11-24 方案二交叉: murrine 独立树 + 交叉编译(--host + 强制宿主 pkg-config)
+    # 2026-11-26(3.1.2): cross 树收进 $WS/murrine-cross(并行隔离); native 仍 /tmp/murrine。
+    MURRINE=/tmp/murrine; [ -n "$XX_CROSS_FILE" ] && MURRINE=$WS/murrine-cross
     if [ -d "$MURRINE/.git" ] && [ -f "$MURRINE/config.status" ]; then
       log "Reuse $MURRINE (incremental)"
       ( cd "$MURRINE" && unset LDFLAGS; make -j$(nproc) )
