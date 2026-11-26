@@ -49,7 +49,7 @@ XDO_VER=v3.20211022.1
 XTST_VER=1.2.4
 libxtst(){
   test -f /usr/lib/libXtst.a && { log "libXtst.a already present, skip"; return 0; }
-  XTST_TGZ=/tmp/libXtst-$XTST_VER.tar.gz
+  XTST_TGZ=$SRCROOT/libXtst-$XTST_VER.tar.gz
   cd /tmp && rm -rf libXtst-*
   # x.org 官方 tarball（上游在 gitlab.freedesktop.org，github 无镜像）；ghfast github 兜底
   test -s $XTST_TGZ || curl -fsSL https://www.x.org/releases/individual/lib/libXtst-$XTST_VER.tar.gz > $XTST_TGZ 2>/dev/null || true
@@ -69,7 +69,7 @@ libxtst(){
 xdotool(){
   test -x /usr/local/static/xdotool/bin/xdotool && { log "xdotool already present, skip"; return 0; }
   libxtst || exit 1
-  XDO_TGZ=/tmp/xdotool-$XDO_VER.tar.gz
+  XDO_TGZ=$SRCROOT/xdotool-$XDO_VER.tar.gz
   XDO_DIR=xdotool-$(echo $XDO_VER | sed 's/^v//')   # github archive 顶层无 v 前缀
   cd /tmp
   rm -rf $XDO_DIR
@@ -101,20 +101,20 @@ function clipit(){
   rm -rf ClipIt
   mkdir -p ClipIt
   # ① tarsrc 缓存（gitee x11base-tarsrc *clipit/）② github commit tarball 兜底
-  if [ -f /tmp/clipit.tar.gz ]; then
-    tar xzf /tmp/clipit.tar.gz -C /tmp
-    rm -rf /tmp/ClipIt
-    mv /tmp/ClipIt-f35db540c9d3c57b13439d66597736e917e8c9a1 /tmp/ClipIt
+  if [ -f $SRCROOT/clipit.tar.gz ]; then
+    tar xzf $SRCROOT/clipit.tar.gz -C /tmp
+    rm -rf $SRCROOT/ClipIt
+    mv $SRCROOT/ClipIt-f35db540c9d3c57b13439d66597736e917e8c9a1 $SRCROOT/ClipIt
   else
     down_catfile $GITHUB/CristianHenzel/ClipIt/archive/$CLIPIT_COMMIT.tar.gz 2>/dev/null \
-      | tar xz --strip 1 -C /tmp/ClipIt || true
-    test -s /tmp/ClipIt/configure.ac || { \
+      | tar xz --strip 1 -C $SRCROOT/ClipIt || true
+    test -s $SRCROOT/ClipIt/configure.ac || { \
       log "CLIPIT download/extract FAILED, retry ghfast proxy..."; \
       curl -fsSL https://ghfast.top/$GITHUB/CristianHenzel/ClipIt/archive/$CLIPIT_COMMIT.tar.gz \
-        | tar xz --strip 1 -C /tmp/ClipIt 2>/dev/null || { log "CLIPIT FAILED"; exit 1; }; }
+        | tar xz --strip 1 -C $SRCROOT/ClipIt 2>/dev/null || { log "CLIPIT FAILED"; exit 1; }; }
   fi
-  test -s /tmp/ClipIt/configure.ac || { log "CLIPIT source MISSING"; exit 1; }
-  cd /tmp/ClipIt
+  test -s $SRCROOT/ClipIt/configure.ac || { log "CLIPIT source MISSING"; exit 1; }
+  cd $SRCROOT/ClipIt
 
   log "Autogen (autopoint/intltoolize/aclocal/autoconf/autoheader/automake)..."
   # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
@@ -161,7 +161,7 @@ function clipit(){
   make -j$(nproc) LINK="xx-clang -static -no-pie -Wl,--strip-all -Wall -O2 -Os -o \$@" \
     clipit_LDADD="" LIBS="$CLI_LIBS" 2>&1 || { log "CLIPIT make LINK FAILED"; exit 1; }
   mkdir -p $TARGETPATH/bin
-  BIN=$(find /tmp/ClipIt -name clipit -type f -perm -u+x 2>/dev/null | head -1)
+  BIN=$(find $SRCROOT/ClipIt -name clipit -type f -perm -u+x 2>/dev/null | head -1)
   test -n "$BIN" || { log "CLIPIT binary MISSING"; exit 1; }
   cp -f "$BIN" $TARGETPATH/bin/clipit
 
@@ -169,16 +169,16 @@ function clipit(){
   mkdir -p $TARGETPATH/share/applications $TARGETPATH/share/icons/hicolor/scalable/apps $TARGETPATH/share/clipit
   # desktop：configure/intltool 已生成 data/*.desktop（.desktop.in → .desktop）
   for f in clipit.desktop clipit-startup.desktop; do
-    src=$(find /tmp/ClipIt/data -name "$f" 2>/dev/null | head -1)
+    src=$(find $SRCROOT/ClipIt/data -name "$f" 2>/dev/null | head -1)
     test -n "$src" && cp -f "$src" $TARGETPATH/share/applications/ 2>/dev/null || true
   done
-  cp -f /tmp/ClipIt/data/clipit-trayicon.svg /tmp/ClipIt/data/clipit-trayicon-offline.svg \
+  cp -f $SRCROOT/ClipIt/data/clipit-trayicon.svg $SRCROOT/ClipIt/data/clipit-trayicon-offline.svg \
     $TARGETPATH/share/icons/hicolor/scalable/apps/
 
   log "Install CLIPIT zh_CN locale (.mo via msgfmt)..."
-  if [ -f /tmp/ClipIt/po/zh_CN.po ]; then
+  if [ -f $SRCROOT/ClipIt/po/zh_CN.po ]; then
     mkdir -p $TARGETPATH/share/locale/zh_CN/LC_MESSAGES
-    msgfmt -o $TARGETPATH/share/locale/zh_CN/LC_MESSAGES/clipit.mo /tmp/ClipIt/po/zh_CN.po \
+    msgfmt -o $TARGETPATH/share/locale/zh_CN/LC_MESSAGES/clipit.mo $SRCROOT/ClipIt/po/zh_CN.po \
       || { log "CLIPIT msgfmt FAILED"; exit 1; }
     ls -lh $TARGETPATH/share/locale/zh_CN/LC_MESSAGES/clipit.mo
   fi
