@@ -22,6 +22,9 @@ if [ -z "$WS" ]; then
   WS_BASE="${WS_BASE:-/tmp/ws}"
   WS="$WS_BASE-${UGTK_NS}"
 fi
+# 2026-11-27(4.1.3): 源码树根——与 common.sh 同法(在 WS 兜底前判定, 串行落 /tmp)。供 intermediate 清 $SRCROOT 树。
+SRCROOT="${WS:+$WS/src}"
+: "${SRCROOT:=/tmp}"
 
 log() { echo ">>> [${UGTK_NS:-?}] xx-clear: $*"; }
 
@@ -40,12 +43,14 @@ case "$cmd" in
     find "$prefix" -name "*.la.bak" -delete 2>/dev/null || true
     find "$prefix" -name ".libs"  -type d -exec rm -rf {} + 2>/dev/null || true
     find "$prefix" -name ".deps"  -type d -exec rm -rf {} + 2>/dev/null || true
-    # 2) 工作区 $WS 下的交叉源码树(2026-11-26 3.1.2 收进 $WS, 并行隔离)。只清本 $WS, 不碰别的分支。
-    #    native-only 树(/tmp/gtk gtkmm imlib2...)不在 cross 路径清理(交叉一次成形不留, 无需)。
-    set -f   # 关 glob: $WS 无匹配时不展开字面量, 避免误删
-    rm -rf "$WS"/gtk "$WS"/gtk-cross "$WS"/murrine-cross "$WS"/gtkmm-src "$WS"/gtkmm \
-           "$WS"/imlib2 "$WS"/libxrandr "$WS"/libcroco "$WS"/pango "$WS"/atk \
-           "$WS"/gdk-pixbuf "$WS"/librsvg "$WS"/cairo 2>/dev/null || true
+    # 2) 工作区源码树(2026-11-27 4.1.3 收进 $SRCROOT, 并行隔离)。只清本 $SRCROOT, 不碰别的分支。
+    #    native-only 树(/tmp/gtk gtkmm imlib2...)不在 cross 路径清理(交叉一次成形不留, 无需);
+    #    串行(无 WS) SRCROOT=/tmp, 但 intermediate 仅在并行分支调用(见 Dockerfile .xx)故串行不触发。
+    set -f   # 关 glob: $SRCROOT 无匹配时不展开字面量, 避免误删
+    rm -rf "$SRCROOT"/gtk "$SRCROOT"/murrine "$SRCROOT"/gtkmm-src "$SRCROOT"/gtkmm \
+           "$SRCROOT"/imlib2 "$SRCROOT"/libxrandr "$SRCROOT"/libcroco "$SRCROOT"/pango "$SRCROOT"/atk \
+           "$SRCROOT"/gdk-pixbuf "$SRCROOT"/librsvg "$SRCROOT"/cairo \
+           "$WS"/gtk-cross "$WS"/murrine-cross 2>/dev/null || true
     set +f
     # 2026-11-26 订正(3.1.2): 旧版在此 rm -rf /tmp/gtk-cross 与 /tmp/murrine-cross——并行下会删掉
     #   其它分支正在编译的树(根因 C), 现已收进 $WS, 上面只清本 $WS 副本即可。
