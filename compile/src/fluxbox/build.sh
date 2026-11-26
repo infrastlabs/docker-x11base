@@ -43,13 +43,13 @@ fb_cross(){
 function fluxbox(){
   fb_cross
   log "Downloading FLUXBOX..."
-  rm -rf /tmp/fluxbox; # mkdir -p /tmp/fluxbox
-  # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C /tmp/fluxbox
+  rm -rf $SRCROOT/fluxbox; # mkdir -p $SRCROOT/fluxbox
+  # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C $SRCROOT/fluxbox
   # https://dl.suckless.org/fluxbox/fluxbox-0.8.4.tar.gz
   # branch="--branch=$FLUXBOX_VER"
-  gitclone https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox $branch #;
+  gitclone https://gitee.com/g-system/fk-fluxbox $SRCROOT/fluxbox $branch #;
   log "Configuring FLUXBOX..."
-  cd /tmp/fluxbox #&& ./bootstrap;
+  cd $SRCROOT/fluxbox #&& ./bootstrap;
 
   # ref: suckless/build.sh
   # flags="-static -lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
@@ -94,14 +94,14 @@ function fluxbox(){
   make install;
 
   # view
-  ls -lh /tmp/fluxbox/
+  ls -lh $SRCROOT/fluxbox/
   # 交叉真验: xx-verify 按 build 架构校验, 交叉产物(ARM) 必报 mismatch → 用 file 判 static+目标架构;
-  #   native 仍走 xx-verify(原路径)。产物= /tmp/fluxbox/fluxbox。
+  #   native 仍走 xx-verify(原路径)。产物= $SRCROOT/fluxbox/fluxbox。
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/fluxbox/fluxbox | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/fluxbox/fluxbox | grep -qE "ARM.*statically linked" \
       || { log "FLUXBOX file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/fluxbox/fluxbox || { log "FLUXBOX xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/fluxbox/fluxbox || { log "FLUXBOX xx-verify FAILED"; exit 1; }
   fi
 }
 
