@@ -21,8 +21,5 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder-gtk224-2 AS base
   # gtkmm 栈(7组件+mm-common)静态, 供 pavucontrol/gsm 复用(--prefix=/usr, .a 落 /usr/lib); ICU 供 rime(ibus-rime) 链
   RUN bash /src/u-gtkmm/build.sh full
   RUN \
-    # 缓存复用前提: 保留 /tmp/gtk + /tmp/gtkmm-src + /tmp/imlib2 源树(增量 .o/config.status, 同 gtk 复用)与 .cache 下载缓存,
-    # /usr/lib/*.a 成品绝对保留(§5.2 gtk2 .a 禁清); 只清可清中间产物: apk 包缓存 / 构建日志 / 坏(0字节)下载缓存.
-    rm -rf /var/cache/apk/* /root/.cache; \
-    rm -f /tmp/*.log /tmp/*.out /usr/local/static/.cache/libexif-0.6.23.tar.bz2
+    # 2026-11-27(4.1.5 R1): 原「保留 /tmp/gtk + /tmp/gtkmm-src + /tmp/imlib2 源树做增量复用」机制废弃——\n    #   SRCROOT 落地后源码树归 $SRCROOT(串行=/tmp, 并行=$WS/src), 增量复用判断在脚本内(.git+config.status),\n    #   不再依赖跨 stage 保留 /tmp/gtk 等; /usr/lib/*.a 成品绝对保留(§5.2 gtk2 .a 禁清); 只清可清中间产物.\n    rm -rf /var/cache/apk/* /root/.cache; \\\n    rm -f /tmp/*.log /tmp/*.out /usr/local/static/.cache/libexif-0.6.23.tar.bz2
 
