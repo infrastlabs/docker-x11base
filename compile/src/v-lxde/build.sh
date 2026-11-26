@@ -11,12 +11,12 @@ function lxappearance(){
 # apk add hicolor-icon-theme #need hicolor
 
   log "Downloading LXAPPEARANCE..."
-  rm -rf /tmp/lxappearance; # mkdir -p /tmp/lxappearance
-  # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxappearance
+  rm -rf $SRCROOT/lxappearance; # mkdir -p $SRCROOT/lxappearance
+  # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C $SRCROOT/lxappearance
   # branch="--branch=$LXAPPEARANCE_VER"
-  gitclone https://gitee.com/g-system/fk-lxappearance /tmp/lxappearance $branch #;
+  gitclone https://gitee.com/g-system/fk-lxappearance $SRCROOT/lxappearance $branch #;
   log "Configuring LXAPPEARANCE..."
-  cd /tmp/lxappearance #&& ./bootstrap;
+  cd $SRCROOT/lxappearance #&& ./bootstrap;
   ./autogen.sh
   ./configure --prefix=$TARGETPATH \
   --enable-man=no \
@@ -27,7 +27,7 @@ function lxappearance(){
 
   # ENABLE_DBUS err
   # 4  vi src/lxappearance.c
-  # 5  vi /tmp/lxappearance/src/lxappearance.c ##注释后，编译过了;
+  # 5  vi $SRCROOT/lxappearance/src/lxappearance.c ##注释后，编译过了;
   # >> 手动拷贝>> 运行 GModule-Critical错误依旧(assertion 'module'!='NULL')2条
 
   # ref pcmanfm
@@ -48,19 +48,19 @@ function lxappearance(){
   make install; #不用install? need
 
   # view
-  ls -lh /tmp/lxappearance/
-  xx-verify --static /tmp/lxappearance/src/lxappearance
+  ls -lh $SRCROOT/lxappearance/
+  xx-verify --static $SRCROOT/lxappearance/src/lxappearance
 }
 
 function lxtask(){
   log "Downloading LXTASK..."
-  rm -rf /tmp/lxtask; # mkdir -p /tmp/lxtask
-  # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C /tmp/lxtask
+  rm -rf $SRCROOT/lxtask; # mkdir -p $SRCROOT/lxtask
+  # down_catfile ${LXAPPEARANCE_URL} | tar -zx --strip 1 -C $SRCROOT/lxtask
   LXTASK_VER=0.1.12   # 2026-11-23 改用 tag（原 master 分支）；0.1.12 是上游最新 GTK2 tag
   branch="--branch=$LXTASK_VER"
-  gitclone https://gitee.com/g-system/fk-lxtask /tmp/lxtask $branch #;
+  gitclone https://gitee.com/g-system/fk-lxtask $SRCROOT/lxtask $branch #;
   log "Configuring LXTASK..."
-  cd /tmp/lxtask #&& ./bootstrap;
+  cd $SRCROOT/lxtask #&& ./bootstrap;
   # 2026-11-24 方案二交叉: 强制宿主 pkg-config(同 gtk 坑①) + --host 交叉 + LDFLAGS 补 -L sysroot/usr/local(librsvg/libcroco 装 /usr/local)
   CROSS_HOST=""; X_LIBDIR=""
   if [ -n "$XX_CROSS_FILE" ]; then
@@ -93,18 +93,18 @@ function lxtask(){
   make install || { log "LXTASK install FAILED"; exit 1; }
 
   log "Install LXTASK locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
-    if [ -d /tmp/lxtask/po ]; then
-      for p in /tmp/lxtask/po/*.po; do
+    if [ -d $SRCROOT/lxtask/po ]; then
+      for p in $SRCROOT/lxtask/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/lxtask.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
-      log "locales installed: $(ls /tmp/lxtask/po/*.po | wc -l) langs"
+      log "locales installed: $(ls $SRCROOT/lxtask/po/*.po | wc -l) langs"
     fi
 
   # view
-  ls -lh /tmp/lxtask/
+  ls -lh $SRCROOT/lxtask/
   ls -lh $TARGETPATH/bin/lxtask
   xx-verify --static $TARGETPATH/bin/lxtask || { log "LXTASK xx-verify FAILED"; exit 1; }
 }
