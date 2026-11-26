@@ -25,6 +25,11 @@ git config --global --get http.sslVerify >/dev/null 2>&1 || git config --global 
 
 
 # rm -rf $LOGS; #avoid deleted @batch-mode
+# 2026-11-27(4.1.4/4.1.5): tarsrc/下载缓存共享写——三架构并行抢同一缓存, 用全局锁串行化(与 apk-parallel.lock 并列)。
+#   锁范围最小化(只包下载/写缓存段); 缓存命中读不加锁; cachesrc_log 用独立锁文件(防与 tarsrc 锁嵌套死锁)。
+TARSRC_LOCK=${TARSRC_LOCK:-/tmp/tarsrc-parallel.lock}
+CACHESRC_LOCK=${CACHESRC_LOCK:-/tmp/cachesrc-parallel.lock}
+
 function down_catfile(){
   CACHE=${TARGETPATH:+$TARGETPATH/../.cache}; test -n "$CACHE" || CACHE=/tmp/.cache; mkdir -p $CACHE #移到func内; gitac/syncer.sh调用时vm内执行 会权限故障; TARGETPATH 空(如 u-gtkmm)兜底 /tmp/.cache
   _t0=$(_now_ms)
@@ -38,6 +43,7 @@ function down_catfile(){
   TARSRC=${TARSRC:-/src/../tarsrc}
   if test "$comp" != "default"; then
     (
+      flock 9
       # tarsrc 仓库标识用 README.md（2026-11-16：原 .git 判断，改为 README.md——允许 compile/.dockerignore 排除 tarsrc/.git 省 ~112M 镜像层，仍能识别仓库）
       test -s "$TARSRC/README.md" || git clone --depth=1 https://gitee.com/infrastlabs/x11base-tarsrc "$TARSRC" >/dev/null 2>&1
       test -s "$TARSRC/README.md" || exit 0
@@ -58,19 +64,23 @@ function down_catfile(){
       fi
       hit=$(find "$TARSRC" -name "$file" -type f 2>/dev/null | head -1)
       test -n "$hit" && { cp "$hit" "$CACHE/$file"; cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" tarsrc "$ver" "$url" "$_ms" "$hit"; }
-    ) >/dev/null 2>&1 || true
+    ) 9>"$TARSRC_LOCK" >/dev/null 2>&1 || true
   fi
   # ② 无则源头下载（tarsrc 命中后 CACHE 已有则不 curl；_curl_ran 区分真 curl 以记日志）
+  #   2026-11-27(4.1.5 P2/C2): 锁内二次判定——拿锁再 test -s, 防两架构同 curl 交错写坏; 锁范围最小化。
   _curl_ran=0
-  test -s $CACHE/$file || { curl -# -k -fSL $url > $CACHE/$file; _curl_ran=1; }
-  _ms=$(( $(_now_ms)-_t0 ))
-  if test $_curl_ran -eq 1; then
-    if test -s "$CACHE/$file"; then
-      cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" net "$ver" "$url" "$_ms" "$CACHE/$file"
-    else
-      cachesrc_log downcatfile "$comp" "$file" 0B net-fail "$ver" "$url" "$_ms" "$CACHE/$file"
+  (
+    flock 9
+    test -s $CACHE/$file || { curl -s -k -fSL $url > $CACHE/$file; _curl_ran=1; }
+    _ms=$(( $(_now_ms)-_t0 ))
+    if test $_curl_ran -eq 1; then
+      if test -s "$CACHE/$file"; then
+        cachesrc_log downcatfile "$comp" "$file" "$(stat -c%s "$CACHE/$file")B" net "$ver" "$url" "$_ms" "$CACHE/$file"
+      else
+        cachesrc_log downcatfile "$comp" "$file" 0B net-fail "$ver" "$url" "$_ms" "$CACHE/$file"
+      fi
     fi
-  fi
+  ) 9>"$TARSRC_LOCK" 2>/dev/null || true
   cat $CACHE/$file
 }
 # cachesrc_log: gitclone/down_catfile 缓存与下载明细日志（用户 2026-11-14）——增量追加 /usr/local/static/.logs/cachesrc/<文件名>.log，每次调用一行。
@@ -80,26 +90,30 @@ function down_catfile(){
 #   耗时=真实毫秒(带 ms 后缀)；字段由调用方传 8 参：组件|包|大小|hit|ver|url|耗时ms|路径（内部重排+转换）。
 # 调用: cachesrc_log <文件名> <组件> <包> <大小> <hit> <ver> <url> <耗时ms> <路径>  增量>>追加不清空；首行写表头；同目录不同文件（gitclone / downcatfile 各一）。
 cachesrc_log(){
-  _clog=/usr/local/static/.logs/cachesrc/$1.log
-  shift
-  _ts=$(date '+%Y-%m-%d %H:%M:%S')
-  _c=$1; _p=$2; _s=$3; _h=$4; _v=$5; _u=$6; _m=$7; _d=$8
-  mkdir -p "$(dirname "$_clog")" 2>/dev/null || true
-  # 表头（首行，2026-11-15 加强：顶行非表头即补——原"文件为空才写"遇 CI 烘焙层已含旧格式数据行且无表头时不生效）
-  _hd='时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径'
-  if test -s "$_clog"; then
-    test "$(head -1 "$_clog")" = "$_hd" || { { echo "$_hd"; cat "$_clog"; } > "$_clog.tmp" && mv "$_clog.tmp" "$_clog"; }
-  else
-    echo "$_hd" > "$_clog"
-  fi
-  # 缓存命中列：统一 CACHE/MISS/FAIL 直观状态；来源列保留原标识细节
-  case "$_h" in
-    gitcache|tarsrc) _st=CACHE ;;
-    net)             _st=MISS ;;
-    net-fail)        _st=FAIL ;;
-    *)               _st="$_h" ;;
-  esac
-  echo "$_ts|$_c|$_p|$_v|$_s|$_st|${_m}ms|$_h|$_u|$_d" >> "$_clog"
+  # 2026-11-27(4.1.5): 独立锁文件(与 tarsrc 锁不同, 防嵌套死锁) + .tmp 加 $$ 唯一化/原子 mv——多进程并发补表头不互踩。
+  (
+    flock 9
+    _clog=/usr/local/static/.logs/cachesrc/$1.log
+    shift
+    _ts=$(date '+%Y-%m-%d %H:%M:%S')
+    _c=$1; _p=$2; _s=$3; _h=$4; _v=$5; _u=$6; _m=$7; _d=$8
+    mkdir -p "$(dirname "$_clog")" 2>/dev/null || true
+    # 表头（首行，2026-11-15 加强：顶行非表头即补——原"文件为空才写"遇 CI 烘焙层已含旧格式数据行且无表头时不生效）
+    _hd='时间|组件|包|ver|大小|缓存命中|耗时|来源|url|路径'
+    if test -s "$_clog"; then
+      test "$(head -1 "$_clog")" = "$_hd" || { { echo "$_hd"; cat "$_clog"; } > "$_clog.tmp.$$" && mv "$_clog.tmp.$$" "$_clog"; }
+    else
+      echo "$_hd" > "$_clog"
+    fi
+    # 缓存命中列：统一 CACHE/MISS/FAIL 直观状态；来源列保留原标识细节
+    case "$_h" in
+      gitcache|tarsrc) _st=CACHE ;;
+      net)             _st=MISS ;;
+      net-fail)        _st=FAIL ;;
+      *)               _st="$_h" ;;
+    esac
+    echo "$_ts|$_c|$_p|$_v|$_s|$_st|${_m}ms|$_h|$_u|$_d" >> "$_clog"
+  ) 9>"$CACHESRC_LOCK" 2>/dev/null || true
 }
 # _now_ms: 单调时钟毫秒（/proc/uptime 秒.小数*1000；busybox date 无 %N 故不用 date，保证快速命中耗时也真实记录）
 _now_ms(){ awk '{printf "%d",$1*1000}' /proc/uptime 2>/dev/null || echo 0; }
@@ -171,9 +185,10 @@ gitclone() {
   else git clone --depth=1 "$_url" "$_dir" || _clone_rc=$?; fi
   _ms=$(( $(_now_ms)-_t0 ))
   # 克隆成功后打 tar.gz 快照（2026-11-14 起仅 .git，docs 5.5；只存不推，用户手动推送 tarsrc）
+  #   2026-11-27(4.1.5 P1): 写临时 + 原子 mv——读者永不见半截快照; 叠加 tarsrc 锁(三架构写同名 _gz)。
   if test -d "$_dir/.git"; then
     mkdir -p "$(dirname "$_gz")"
-    tar czf "$_gz" -C "$_dir" .git
+    ( flock 9; { tar czf "$_gz.tmp.$$" -C "$_dir" .git && mv "$_gz.tmp.$$" "$_gz"; } || rm -f "$_gz.tmp.$$"; ) 9>"$TARSRC_LOCK" 2>/dev/null || true
     _size=$(stat -c%s "$_gz" 2>/dev/null)B
     cachesrc_log gitclone "$_comp" "$_comp.$_repo-$_ver.tar.gz" "$_size" net "$_ver" "$_url" "$_ms" "$_dir"
   else
@@ -337,6 +352,16 @@ export XX_X11_PKGS="libx11-dev libx11-static libxcb-dev libxcb-static libxau-dev
 #   (tag=amd64/arm64/arm-v7, 唯一 arch 标识), 本脚本【尊重已设 $WS 不覆盖】——源码树/日志/.rc/cross-file
 #   全在该 $WS 下, 单一工作区。仅当 $WS 未设时才按 ${WS_BASE:-/tmp/ws}-$UGTK_NS 兜底(串行/native 单分支)。
 export UGTK_NS="${UGTK_NS:-native}"
+# 2026-11-27(4.1.3): 源码树根。并行(Dockerfile 已 export WS)收进 $WS/src 做架构隔离;
+#   串行(WS 未设)落 /tmp, 与原有 /tmp/<comp> 逐字节一致。必须在下面 WS 兜底块之前派生,
+#   否则串行会被算成 /tmp/ws-native/src(行为变更)。
+export SRCROOT="${WS:+$WS/src}"
+: "${SRCROOT:=/tmp}"
+mkdir -p "$SRCROOT" 2>/dev/null || true
+# 2026-11-27(4.1.5 P3): 其余(非 doExec/oneBuild)构建日志——per-arch 独立 .logs/oth/<UGTK_NS>/。
+#   各脚本用 $OTHLOG/<名>.log; 目录在此一次建好。TARGETPATH 空(u-gtkmm)回退 /tmp。
+export OTHLOG="${TARGETPATH:-/tmp}/../.logs/oth/$UGTK_NS"
+mkdir -p "$OTHLOG" 2>/dev/null || true
 if [ -z "$WS" ]; then
   export WS_BASE="${WS_BASE:-/tmp/ws}"
   export WS="$WS_BASE-${UGTK_NS}"
