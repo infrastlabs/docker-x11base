@@ -27,16 +27,16 @@ GNOME=https://download.gnome.org/sources
 # 离线 tarball 优先 /tmp，否则 /_ext（docker mount），否则下载
 fetch(){
   name=$1; path=$2
-  mkdir -p /tmp/gsm-deps
-  for cand in /tmp/gsm-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.gsm-deps/$name \
+  mkdir -p $SRCROOT/gsm-deps
+  for cand in $SRCROOT/gsm-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.gsm-deps/$name \
              /_ext/home/headless/xm-zs01/docker-x11base/.gsm/$name; do
-    if [ -f "$cand" ]; then echo "use $cand"; cp "$cand" /tmp/gsm-deps/$name; break; fi
+    if [ -f "$cand" ]; then echo "use $cand"; cp "$cand" $SRCROOT/gsm-deps/$name; break; fi
   done
-  if [ -f /tmp/gsm-deps/$name ]; then
+  if [ -f $SRCROOT/gsm-deps/$name ]; then
     echo "unpack $name (offline)"; 
-    case $name in *.xz) tar xJf /tmp/gsm-deps/$name -C /tmp/gsm-build;; *.gz) tar xzf /tmp/gsm-deps/$name -C /tmp/gsm-build;; *) tar xjf /tmp/gsm-deps/$name -C /tmp/gsm-build;; esac
+    case $name in *.xz) tar xJf $SRCROOT/gsm-deps/$name -C $SRCROOT/gsm-build;; *.gz) tar xzf $SRCROOT/gsm-deps/$name -C $SRCROOT/gsm-build;; *) tar xjf $SRCROOT/gsm-deps/$name -C $SRCROOT/gsm-build;; esac
   else
-    echo "download $name"; down_catfile $path | tar -xJ -C /tmp/gsm-build 2>/dev/null || down_catfile $path | tar -xj -C /tmp/gsm-build 2>/dev/null || down_catfile $path | tar -xz -C /tmp/gsm-build
+    echo "download $name"; down_catfile $path | tar -xJ -C $SRCROOT/gsm-build 2>/dev/null || down_catfile $path | tar -xj -C $SRCROOT/gsm-build 2>/dev/null || down_catfile $path | tar -xz -C $SRCROOT/gsm-build
   fi
 }
 
@@ -83,12 +83,12 @@ build_gtop(){
     log "reuse existing libgtop-2.0.a (skip build)"; return 0
   fi
   log "Build libgtop-2.40.0 static..."
-    mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libgtop-2.40.0
+    mkdir -p $SRCROOT/gsm-build; rm -rf $SRCROOT/gsm-build/libgtop-2.40.0
     fetch libgtop-2.40.0.tar.xz $GNOME/libgtop/2.40/libgtop-2.40.0.tar.xz
-    cd /tmp/gsm-build/libgtop-2.40.0
+    cd $SRCROOT/gsm-build/libgtop-2.40.0
     xx_config_sub_fix
-    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gtop $CROSS_HOST >/tmp/gtop-cfg.log 2>&1 || true
-    make -j$(nproc) >/tmp/gtop-make.log 2>&1 || true   # gir/introspect 用静态 glib 缺 -lpcre，会失败但 .a 已产出
+    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gtop $CROSS_HOST >$OTHLOG/gtop-cfg.log 2>&1 || true
+    make -j$(nproc) >$OTHLOG/gtop-make.log 2>&1 || true   # gir/introspect 用静态 glib 缺 -lpcre，会失败但 .a 已产出
     test -f lib/.libs/libgtop-2.0.a || { log "libgtop-2.0.a MISSING"; exit 1; }
     mkdir -p ${XX_SYSROOT:-}/usr/local/static/gtop/lib/pkgconfig ${XX_SYSROOT:-}/usr/local/static/gtop/include/libgtop-2.0
     cp lib/.libs/libgtop-2.0.a ${XX_SYSROOT:-}/usr/local/static/gtop/lib/
@@ -108,17 +108,17 @@ build_wnck(){
     log "reuse existing libwnck-1.a (skip build)"; return 0
   fi
   log "Build libwnck-2.30.7 static (no Xres, conditional)..."
-    mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/libwnck-2.30.7
+    mkdir -p $SRCROOT/gsm-build; rm -rf $SRCROOT/gsm-build/libwnck-2.30.7
     fetch libwnck-2.30.7.tar.xz $GNOME/libwnck/2.30/libwnck-2.30.7.tar.xz
-    cd /tmp/gsm-build/libwnck-2.30.7
+    cd $SRCROOT/gsm-build/libwnck-2.30.7
     xx_config_sub_fix
-    ./configure --enable-static --disable-shared --disable-gtk-doc --prefix=/usr/local/static/wnck $CROSS_HOST >/tmp/wnck-cfg.log 2>&1 || true
+    ./configure --enable-static --disable-shared --disable-gtk-doc --prefix=/usr/local/static/wnck $CROSS_HOST >$OTHLOG/wnck-cfg.log 2>&1 || true
     ./config.status >/dev/null 2>&1 || true
     # 2026-11-24 交叉: apk gdk.h 声明 gdk_error_trap_push/pop 为函数，但交叉 u-gtk 的 libgdk 只导出 IA__gdk_error_trap_push/pop
     #   （GDK_COMPILATION 内部别名）→ libwnck 引用裸 gdk_error_trap_* 在 gsm 链时未定义。编译期 -D 把裸名映射到 IA__（仅 is-cross；native 无此问题）。
     WNCK_CFLAGS=""
     [ -n "$XX_CROSS_FILE" ] && WNCK_CFLAGS="-Dgdk_error_trap_push=IA__gdk_error_trap_push -Dgdk_error_trap_pop=IA__gdk_error_trap_pop"
-    make -j$(nproc) CFLAGS="$CFLAGS $WNCK_CFLAGS" >/tmp/wnck-make.log 2>&1 || true  # 测试程序缺 -ljpeg/-lxcb 等会失败，但 libwnck-1.a 已产出
+    make -j$(nproc) CFLAGS="$CFLAGS $WNCK_CFLAGS" >$OTHLOG/wnck-make.log 2>&1 || true  # 测试程序缺 -ljpeg/-lxcb 等会失败，但 libwnck-1.a 已产出
     test -f libwnck/.libs/libwnck-1.a || { log "libwnck-1.a MISSING"; exit 1; }
     mkdir -p ${XX_SYSROOT:-}/usr/local/static/wnck/lib/pkgconfig ${XX_SYSROOT:-}/usr/local/static/wnck/include/libwnck-1.0/libwnck
     cp libwnck/.libs/libwnck-1.a ${XX_SYSROOT:-}/usr/local/static/wnck/lib/
@@ -136,14 +136,14 @@ build_startup_notification(){
     log "reuse existing libstartup-notification-1.a (skip build)"; return 0
   fi
   log "Build startup-notification-0.12 static..."
-    mkdir -p /tmp/gsm-build; rm -rf /tmp/gsm-build/startup-notification-0.12
+    mkdir -p $SRCROOT/gsm-build; rm -rf $SRCROOT/gsm-build/startup-notification-0.12
     fetch startup-notification-0.12.tar.gz \
       https://www.freedesktop.org/software/startup-notification/releases/startup-notification-0.12.tar.gz
-    cd /tmp/gsm-build/startup-notification-0.12
+    cd $SRCROOT/gsm-build/startup-notification-0.12
     xx_config_sub_fix
-    ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST >/tmp/sn-cfg.log 2>&1 || true
-    make -j$(nproc) LIBS="-lXau -lXdmcp" >/tmp/sn-make.log 2>&1 || true
-    make install ${XX_DESTDIR:-} >/tmp/sn-inst.log 2>&1 || true
+    ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST >$OTHLOG/sn-cfg.log 2>&1 || true
+    make -j$(nproc) LIBS="-lXau -lXdmcp" >$OTHLOG/sn-make.log 2>&1 || true
+    make install ${XX_DESTDIR:-} >$OTHLOG/sn-inst.log 2>&1 || true
     # libtool install-exec 不装 .a(同 u-gtkmm 坑③) -> 手动 cp 兜底落 sysroot /usr/local/lib
     [ -f ${XX_SYSROOT:-}/usr/local/lib/libstartup-notification-1.a ] || cp "$(find . -name libstartup-notification-1.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/local/lib/ 2>/dev/null || true
     xx_la_fix
@@ -175,23 +175,23 @@ function gnome_system_monitor(){
 
   log "Download/unpack GSM (2.28.2 tarball)..."
     # 复用已就绪源码（configure 通过且 Makefile 已生成），避免每次 rm+重下（网络抖动/离线）
-    if [ -f /tmp/gsm-build/gsm/Makefile ] && [ -f /tmp/gsm-build/gsm/src/procman.cpp ]; then
-      log "reuse existing /tmp/gsm-build/gsm source (skip download)"
+    if [ -f $SRCROOT/gsm-build/gsm/Makefile ] && [ -f $SRCROOT/gsm-build/gsm/src/procman.cpp ]; then
+      log "reuse existing $SRCROOT/gsm-build/gsm source (skip download)"
     else
-      rm -rf /tmp/gsm-build/gsm; mkdir -p /tmp/gsm-build
+      rm -rf $SRCROOT/gsm-build/gsm; mkdir -p $SRCROOT/gsm-build
       # gsm 源码已在 /_ext/.gsm/gnome-system-monitor-2.28.2（已打 gconf patch）
       if [ -d /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 ]; then
-        cp -r /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 /tmp/gsm-build/gsm
+        cp -r /_ext/home/headless/xm-zs01/docker-x11base/.gsm/gnome-system-monitor-2.28.2 $SRCROOT/gsm-build/gsm
       else
-        mkdir -p /tmp/gsm-build/gsm
+        mkdir -p $SRCROOT/gsm-build/gsm
         down_catfile $GNOME/gnome-system-monitor/2.28/gnome-system-monitor-2.28.2.tar.bz2 \
-          | tar -xj --strip 1 -C /tmp/gsm-build/gsm
-        cd /tmp/gsm-build/gsm
+          | tar -xj --strip 1 -C $SRCROOT/gsm-build/gsm
+        cd $SRCROOT/gsm-build/gsm
         git apply /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null \
           || patch -p1 < /src/v-sysmonitor/gsm-gconf-keyfile.patch 2>/dev/null || true
       fi
     fi
-    cd /tmp/gsm-build/gsm
+    cd $SRCROOT/gsm-build/gsm
     # 磁盘 tab 卡顿修复 patch（两分支统一应用；.gsm 源码亦不含，见 2026-11-08）
     git apply /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null \
       || patch -p1 < /src/v-sysmonitor/gsm-disk-icon-static.patch 2>/dev/null || true
@@ -209,9 +209,9 @@ function gnome_system_monitor(){
 
   log "Configuring GSM (GTK2, static only)..."
     xx_config_sub_fix
-    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm $CROSS_HOST >/tmp/gsm-cfg.log 2>&1 || true
-    test -f Makefile || ./config.status >/tmp/gsm-cs.log 2>&1
-    test -f Makefile || { log "GSM configure FAILED"; tail -20 /tmp/gsm-cfg.log; exit 1; }
+    ./configure --enable-static --disable-shared --prefix=/usr/local/static/gsm $CROSS_HOST >$OTHLOG/gsm-cfg.log 2>&1 || true
+    test -f Makefile || ./config.status >$OTHLOG/gsm-cs.log 2>&1
+    test -f Makefile || { log "GSM configure FAILED"; tail -20 $OTHLOG/gsm-cfg.log; exit 1; }
     # 2.28.2 旧 automake：configure 未替换 GCONF_SCHEMAS_INSTALL_TRUE/FALSE 条件
     # （src/Makefile 残留 @...@ 字面量 → make "missing separator"）。只编对象，剥掉条件前缀即可
     # （install-data-local 规则冗余但仅 install 用，不影响编译；/_ext/.gsm 预打源码已失，落回官方 tarball 触发）。
@@ -220,7 +220,7 @@ function gnome_system_monitor(){
 
   log "Compiling GSM objects (-std=c++11; link step later)..."
     make -j$(nproc) CFLAGS="-Os -fomit-frame-pointer" CXXFLAGS="-Wall -std=c++11 -Os -fomit-frame-pointer" \
-      >/tmp/gsm-make.log 2>&1 || true   # 链接会失败（静态链缺 lib），对象已产出
+      >$OTHLOG/gsm-make.log 2>&1 || true   # 链接会失败（静态链缺 lib），对象已产出
     test -f src/procman.o || { log "GSM objects MISSING"; exit 1; }
 
   log "Static-link GSM (direct, xx-clang++ -static)..."
@@ -235,8 +235,8 @@ function gnome_system_monitor(){
     ex1="-lfontconfig -lgio-2.0 -lcairo -lXdamage"
     LIBS0="-lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
     mkdir -p $TARGETPATH/bin
-    # 2026-11-24 交叉: xcb-util 交叉产物经 make install DESTDIR=$XX_SYSROOT 落 sysroot /usr/local/lib（非源码树 /tmp/xcb-util/src/.libs，那是 native 构建期路径）→ 与 startup-notification 共用 -L 即可
-    cd /tmp/gsm-build/gsm/src
+    # 2026-11-24 交叉: xcb-util 交叉产物经 make install DESTDIR=$XX_SYSROOT 落 sysroot /usr/local/lib（非源码树 $SRCROOT/xcb-util/src/.libs，那是 native 构建期路径）→ 与 startup-notification 共用 -L 即可
+    cd $SRCROOT/gsm-build/gsm/src
     xx-clang++ -static -Wl,--strip-all -o $TARGETPATH/bin/gnome-system-monitor \
       *.o \
       -Wl,-u,_gtk_print_backend_file_init -Wl,-u,_gtk_print_backend_file_exit -Wl,-u,_gtk_print_backend_file_create \
@@ -253,20 +253,20 @@ function gnome_system_monitor(){
 
   log "Install GSM data (desktop + pixmaps; make install 会重链失败，手装)..."
     mkdir -p $TARGETPATH/share/applications $TARGETPATH/share/pixmaps/gnome-system-monitor
-    sed "s/^_Name=/Name=/;s/^_Comment=/Comment=/" /tmp/gsm-build/gsm/gnome-system-monitor.desktop.in \
+    sed "s/^_Name=/Name=/;s/^_Comment=/Comment=/" $SRCROOT/gsm-build/gsm/gnome-system-monitor.desktop.in \
       > $TARGETPATH/share/applications/gnome-system-monitor.desktop
-    cp /tmp/gsm-build/gsm/pixmaps/side.png $TARGETPATH/share/pixmaps/gnome-system-monitor/
-    cp /tmp/gsm-build/gsm/pixmaps/download.svg /tmp/gsm-build/gsm/pixmaps/upload.svg $TARGETPATH/share/pixmaps/gnome-system-monitor/ 2>/dev/null || true
+    cp $SRCROOT/gsm-build/gsm/pixmaps/side.png $TARGETPATH/share/pixmaps/gnome-system-monitor/
+    cp $SRCROOT/gsm-build/gsm/pixmaps/download.svg $SRCROOT/gsm-build/gsm/pixmaps/upload.svg $TARGETPATH/share/pixmaps/gnome-system-monitor/ 2>/dev/null || true
 
   log "Install GSM locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
-    if [ -d /tmp/gsm-build/gsm/po ]; then
-      for p in /tmp/gsm-build/gsm/po/*.po; do
+    if [ -d $SRCROOT/gsm-build/gsm/po ]; then
+      for p in $SRCROOT/gsm-build/gsm/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/gnome-system-monitor.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
-      log "locales installed: $(ls /tmp/gsm-build/gsm/po/*.po | wc -l) langs"
+      log "locales installed: $(ls $SRCROOT/gsm-build/gsm/po/*.po | wc -l) langs"
     fi
 
   log "Verify GSM..."
@@ -296,7 +296,7 @@ b_deps)
     # 静态库依赖检查
     echo "== gtop/wnck =="; ls /usr/local/static/gtop/lib/libgtop-2.0.a /usr/local/static/wnck/lib/libwnck-1.a 2>&1
     echo "== gtkmm stack =="; ls /usr/lib/libgtkmm-2.4.a /usr/lib/libglibmm-2.4.a 2>&1
-    echo "== xcb-util (startup-notification 依赖) =="; ls /tmp/xcb-util/src/.libs/libxcb-util.a 2>&1
+    echo "== xcb-util (startup-notification 依赖) =="; ls $SRCROOT/xcb-util/src/.libs/libxcb-util.a 2>&1
     echo "== startup-notification =="; ls /usr/local/lib/libstartup-notification-1.a 2>&1
     ;;
 *) #compile
