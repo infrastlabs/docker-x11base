@@ -47,37 +47,37 @@ function engrampa(){
   which mate-autogen >/dev/null || { log "mate-autogen MISSING (apk add mate-common)"; exit 1; }
 
   log "Downloading ENGRAMPA..."
-  if test -d /tmp/engrampa/.git; then
+  if test -d $SRCROOT/engrampa/.git; then
     log "engrampa source already present, skip clone"
   else
-    rm -rf /tmp/engrampa
+    rm -rf $SRCROOT/engrampa
     branch="--branch=v$ENGRAMPA_VER"
-    gitclone https://gitee.com/g-system/fk-engrampa /tmp/engrampa $branch
+    gitclone https://gitee.com/g-system/fk-engrampa $SRCROOT/engrampa $branch
   fi
 
   # apply glib g_ptr_array_copy dead-code patch (系统 glib>=2.32 三参 API 与 engrampa 自带单参冲突)
   PATCH_DIR=$(dirname "$0")
-  if grep -q "g_ptr_array_copy             (GPtrArray" /tmp/engrampa/src/glib-utils.h; then
+  if grep -q "g_ptr_array_copy             (GPtrArray" $SRCROOT/engrampa/src/glib-utils.h; then
     log "Apply glib-g_ptr_array_copy patch..."
-    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-1.14.1-glib-g_ptr_array_copy.patch" || { log "PATCH FAILED"; exit 1; }
+    patch -p1 -d $SRCROOT/engrampa < "$PATCH_DIR/engrampa-1.14.1-glib-g_ptr_array_copy.patch" || { log "PATCH FAILED"; exit 1; }
   else
     log "glib-g_ptr_array_copy patch already applied"
   fi
 
   # apply localedir patch: configure.ac 硬编码 LOCALEDIR=${prefix}/share/locale, 忽略 --localedir
   # 改 ${localedir} 使 --localedir=/usr/share/locale 生效 (静态版中文/多语言路径)
-  if grep -q 'AC_DEFINE_UNQUOTED(LOCALEDIR, "${ac_default_prefix}/' /tmp/engrampa/configure.ac; then
+  if grep -q 'AC_DEFINE_UNQUOTED(LOCALEDIR, "${ac_default_prefix}/' $SRCROOT/engrampa/configure.ac; then
     log "Apply localedir patch..."
-    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-1.14.1-localedir.patch" || { log "LOCALEDIR PATCH FAILED"; exit 1; }
+    patch -p1 -d $SRCROOT/engrampa < "$PATCH_DIR/engrampa-1.14.1-localedir.patch" || { log "LOCALEDIR PATCH FAILED"; exit 1; }
   else
     log "localedir patch already applied"
   fi
 
   # 去重复全局定义：main.c 重定义了 fr-init.h 已 extern 的 WindowList/ForceDirectoryCreation
   # （fr-init.c 已定义）→ 静态链 multiple definition；去掉定义即可免 --allow-multiple-definition。
-  if grep -qE 'WindowList[[:space:]]*=[[:space:]]*NULL' /tmp/engrampa/src/main.c; then
+  if grep -qE 'WindowList[[:space:]]*=[[:space:]]*NULL' $SRCROOT/engrampa/src/main.c; then
     log "Apply dup-globals patch..."
-    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-dup-globals.patch" || { log "DUP-GLOBALS PATCH FAILED"; exit 1; }
+    patch -p1 -d $SRCROOT/engrampa < "$PATCH_DIR/engrampa-dup-globals.patch" || { log "DUP-GLOBALS PATCH FAILED"; exit 1; }
   else
     log "dup-globals patch already applied"
   fi
@@ -86,26 +86,26 @@ function engrampa(){
   # g_settings_new → eng_settings_new(helper: g_settings_new_full + 自定义 schema source),
   # 运行时免 XDG_DATA_DIRS/GSETTINGS_SCHEMA_DIR; 产物随 $TARGETPATH 整体可迁移。
   # 详见 docs/2026/11110827-ci-builder-gtk-app.md 5.3.3.1(API 签名/20 调用点/只读目录已验)。
-  if grep -q "^eng_settings_new (const char \*schema)" /tmp/engrampa/src/fr-init.c; then
+  if grep -q "^eng_settings_new (const char \*schema)" $SRCROOT/engrampa/src/fr-init.c; then
     log "eng-settings-schema patch already applied"
   else
     log "Apply eng-settings-schema patch..."
-    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-eng-settings-schema.patch" || { log "ENG-SETTINGS-SCHEMA PATCH FAILED"; exit 1; }
+    patch -p1 -d $SRCROOT/engrampa < "$PATCH_DIR/engrampa-eng-settings-schema.patch" || { log "ENG-SETTINGS-SCHEMA PATCH FAILED"; exit 1; }
   fi
 
   # apply null-schema-source patch: fr-window.c 直接 g_settings_schema_source_get_default()+lookup() 在
   #   无 XDG_DATA_DIRS(默认源 NULL) 时断言崩溃——这是绕过 eng_settings_new 的唯一漏网点(2026-11-20 实跑发现)。
   #   守卫: schema_source NULL → caja_schema=NULL, 跳过 Caja 集成(settings_caja 后续均有 if 守卫);
   #   产物仍自足 $TARGETPATH 内 schema(可迁移), 无需装系统默认路径。
-  if grep -q "schema_source ? g_settings_schema_source_lookup" /tmp/engrampa/src/fr-window.c; then
+  if grep -q "schema_source ? g_settings_schema_source_lookup" $SRCROOT/engrampa/src/fr-window.c; then
     log "null-schema-source patch already applied"
   else
     log "Apply null-schema-source patch..."
-    patch -p1 -d /tmp/engrampa < "$PATCH_DIR/engrampa-null-schema-source.patch" || { log "NULL-SCHEMA-SOURCE PATCH FAILED"; exit 1; }
+    patch -p1 -d $SRCROOT/engrampa < "$PATCH_DIR/engrampa-null-schema-source.patch" || { log "NULL-SCHEMA-SOURCE PATCH FAILED"; exit 1; }
   fi
 
   log "Configuring ENGRAMPA..."
-  cd /tmp/engrampa
+  cd $SRCROOT/engrampa
   # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
   #   再显式 configure --host。native 原路径不变。
   [ -n "$XX_CROSS_FILE" ] && NOCONFIGURE=1 ./autogen.sh || ./autogen.sh
@@ -114,8 +114,8 @@ function engrampa(){
   # 2026-11-15: 不用 -DENG_SCHEMA_DIR=\"...\"——make recipe shell 会剥掉引号→编译器得裸 /usr/...→
   #   fr-init.c:682 "use of undeclared identifier 'usr'"（LIBTOOL=true 掩盖的潜伏 bug，CI 干净树复现）。
   #   改 -include 头文件：头文件内容写带引号的字符串字面量，无 shell 引号剥离问题（-include 是简单路径参数）。
-  mkdir -p /tmp/engrampa
-  cat > /tmp/engrampa/eng_schema_dir.h <<EOF
+  mkdir -p $SRCROOT/engrampa
+  cat > $SRCROOT/engrampa/eng_schema_dir.h <<EOF
 #define ENG_SCHEMA_DIR "$TARGETPATH/share/glib-2.0/schemas"
 EOF
   ./configure --prefix=$TARGETPATH \
@@ -124,7 +124,7 @@ EOF
     --disable-packagekit \
     --localedir=$TARGETPATH/share/locale \
     $CROSS_HOST \
-    CPPFLAGS="$XX_CPPFLAGS -include /tmp/engrampa/eng_schema_dir.h"
+    CPPFLAGS="$XX_CPPFLAGS -include $SRCROOT/engrampa/eng_schema_dir.h"
 
   # ref pcmanfm/lxtask 式 GTK2 静态链
   OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lfreetype -lpng -lXrender -lXcursor -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon -lintl -lfribidi -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpcre -lgraphite2 -lffi"
@@ -138,7 +138,7 @@ EOF
   #   LIBTOOL: 拆 --start-group+按 .la 重排→海量 undefined, 旧靠 || log warn 容错+手动 xx-clang 直链 = 屏蔽);
   #   覆盖 LINK 去 LIBTOOL 直链 + LDADD 的 libeggsmclient.la 换 .libs/.a(clang 不认识 .la 格式), make 期即链接成功。
   #   (engrampa_LINK 变量不存在, 程序链接走通用 $(LINK)——曾错覆盖 engrampa_LINK 无效, 改 LINK 后才生效)
-  sed -i 's#copy-n-paste/libeggsmclient\.la#copy-n-paste/.libs/libeggsmclient.a#' /tmp/engrampa/src/Makefile 2>/dev/null || true
+  sed -i 's#copy-n-paste/libeggsmclient\.la#copy-n-paste/.libs/libeggsmclient.a#' $SRCROOT/engrampa/src/Makefile 2>/dev/null || true
   make LDFLAGS="$LDFLAGS" FR_LIBS="" \
     LINK="xx-clang -static -Wl,--strip-all -Wall -O2 $XX_LINK_EXTRA $(CFLAGS) $(LDFLAGS) -o \$@" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -lintl -Wl,--end-group" 2>&1 \
@@ -147,7 +147,7 @@ EOF
   log "Install ENGRAMPA binary (make 产物, 不再手动直链)..."
   # 交叉: engrampa 为自足应用(无系统库安装), 产物+数据随 $TARGETPATH 整体迁移, 无 $XX_SYSROOT 可装项。
   mkdir -p $TARGETPATH/bin
-  BIN=$(find /tmp/engrampa/src /tmp/engrampa -maxdepth 2 -name engrampa -type f 2>/dev/null | head -1)
+  BIN=$(find $SRCROOT/engrampa/src $SRCROOT/engrampa -maxdepth 2 -name engrampa -type f 2>/dev/null | head -1)
   test -n "$BIN" || { log "ENGRAMPA binary MISSING"; exit 1; }
   cp -f "$BIN" $TARGETPATH/bin/engrampa
 
@@ -157,18 +157,18 @@ EOF
     #   (与安装目录同体, 装系统 /usr/share 不可迁移已撤)。glib-compile-schemas 生成 gschemas.compiled(xml+compiled
     #   同目录自足可迁移; GLib 优先读 compiled 加速)。运行时由部署层统一 XDG_DATA_DIRS 覆盖该目录(一次指定全部组件)。
     mkdir -p $TARGETPATH/share/glib-2.0/schemas
-    cp -f /tmp/engrampa/data/org.mate.engrampa.gschema.xml $TARGETPATH/share/glib-2.0/schemas/ 2>/dev/null || log "schema copy warn"
+    cp -f $SRCROOT/engrampa/data/org.mate.engrampa.gschema.xml $TARGETPATH/share/glib-2.0/schemas/ 2>/dev/null || log "schema copy warn"
     glib-compile-schemas $TARGETPATH/share/glib-2.0/schemas 2>/dev/null || log "glib-compile-schemas warn"
 
   log "Install ENGRAMPA locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
-    if [ -d /tmp/engrampa/po ]; then
-      for p in /tmp/engrampa/po/*.po; do
+    if [ -d $SRCROOT/engrampa/po ]; then
+      for p in $SRCROOT/engrampa/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/engrampa.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
-      log "locales installed: $(ls /tmp/engrampa/po/*.po | wc -l) langs"
+      log "locales installed: $(ls $SRCROOT/engrampa/po/*.po | wc -l) langs"
     fi
 
   ls -lh $TARGETPATH/bin/engrampa
