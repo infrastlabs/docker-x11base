@@ -81,15 +81,15 @@ xrdp_verify(){
 # it ourself.
 #
 function libxrandr(){
-  # rm -rf: 复用上一次(可能 arm64)遗留的 /tmp/libxrandr(其 .o/configure 为旧架构)会让 armv7 也编成 aarch64
+  # rm -rf: 复用上一次(可能 arm64)遗留的 $SRCROOT/libxrandr(其 .o/configure 为旧架构)会让 armv7 也编成 aarch64
   #   (8s 太快=没真重编)。先清场再解包, 确保 --host=$(xx-clang triple) 生效。
-  rm -rf /tmp/libxrandr; mkdir /tmp/libxrandr
+  rm -rf $SRCROOT/libxrandr; mkdir $SRCROOT/libxrandr
   log "Downloading libXrandr..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
-  down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libxrandr
+  down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libxrandr
   log "Configuring libXrandr..."
   (
-      cd /tmp/libxrandr && LDFLAGS= ./configure \
+      cd $SRCROOT/libxrandr && LDFLAGS= ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
           --prefix=/usr \
@@ -98,9 +98,9 @@ function libxrandr(){
           --enable-malloc0returnsnull \
   )
   log "Compiling libXrandr..."
-  make -C /tmp/libxrandr -j$(nproc)
+  make -C $SRCROOT/libxrandr -j$(nproc)
   log "Installing libXrandr..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libxrandr install
+  make DESTDIR=$(xx-info sysroot) -C $SRCROOT/libxrandr install
   xx_la_fix   # 交叉: 修 sysroot .la libdir(防下游按名解析到 native 错架构 .a); native no-op
 }
 
@@ -116,12 +116,12 @@ function fdkaac(){
   #   改 git clone 指定 tag——优先 gitee fk-fdk-aac(可达/快), tag 为 v2.0.2(带 v 前缀)。
   #   git 源码无预生成 configure → 须先 ./autogen.sh(autoreconf)生成。
   # 原下载方式(留档, 现不用):
-  #   down_catfile ${FDKAAC_URL} | tar -zx --strip 1 -C /tmp/fdkaac
-  rm -rf /tmp/fdkaac
+  #   down_catfile ${FDKAAC_URL} | tar -zx --strip 1 -C $SRCROOT/fdkaac
+  rm -rf $SRCROOT/fdkaac
   log "Cloning FDKAAC (gitee fk-fdk-aac v2.0.2)..."
-  gitclone https://gitee.com/g-system/fk-fdk-aac /tmp/fdkaac --branch=v2.0.2
+  gitclone https://gitee.com/g-system/fk-fdk-aac $SRCROOT/fdkaac --branch=v2.0.2
   log "autogen FDKAAC..."
-  cd /tmp/fdkaac && ./autogen.sh
+  cd $SRCROOT/fdkaac && ./autogen.sh
   log "Configuring FDKAAC..."
   ./configure --enable-static $CROSS_HOST
   make $MAKE_CC
@@ -143,21 +143,21 @@ function xrdp(){
   apk add nasm
 
   # tar -zxf $CACHE/xrdp-${XRDP_VER}.tar.gz -C /tmp;\
-  # cd /tmp/xrdp-${ver};\
-  rm -rf /tmp/xrdp; mkdir -p /tmp/xrdp
+  # cd $SRCROOT/xrdp-${ver};\
+  rm -rf $SRCROOT/xrdp; mkdir -p $SRCROOT/xrdp
   log "Downloading XRDP..."
-  # down_catfile ${XRDP_URL} | tar -zx --strip 1 -C /tmp/xrdp
-  rm -rf /tmp/xrdp;
-  gitclone https://gitee.com/g-system/fk-xrdp /tmp/xrdp --branch=sam-custom
+  # down_catfile ${XRDP_URL} | tar -zx --strip 1 -C $SRCROOT/xrdp
+  rm -rf $SRCROOT/xrdp;
+  gitclone https://gitee.com/g-system/fk-xrdp $SRCROOT/xrdp --branch=sam-custom
 
   # 2026-11-25: fk-xrdp 子模块(libpainter/librfxcodec)的 .gitmodules 硬编 ghps.cc 已失效
   #   (redirection 失败→子模块拉不到→bootstrap/configure 连锁失败)。改写为 ghfast.top(实测可达);
   #   submodule sync 把新 URL 同步进 .git/config, 随后 ./bootstrap 的 submodule init 才拉得到。
-  sed -i 's|https://ghps.cc/|https://ghfast.top/|g' /tmp/xrdp/.gitmodules
-  git -C /tmp/xrdp submodule sync
+  sed -i 's|https://ghps.cc/|https://ghfast.top/|g' $SRCROOT/xrdp/.gitmodules
+  git -C $SRCROOT/xrdp submodule sync
 
   log "Configuring XRDP..."
-  cd /tmp/xrdp && ./bootstrap;
+  cd $SRCROOT/xrdp && ./bootstrap;
 
   # fix code
   # #define _GNU_SOURCE=Musl fixes by maxice8 · Pull Request #1673 · neutrinolabs/xrdp
@@ -166,7 +166,7 @@ function xrdp(){
 
   # before ./configure
   # deps:
-  #23 222.8 make[2]: Entering directory '/tmp/xrdp/sesman/chansrv'
+  #23 222.8 make[2]: Entering directory '$SRCROOT/xrdp/sesman/chansrv'
   #23 222.8   CCLD     xrdp-chansrv
   #23 223.0 /usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lXrandr
   #23 223.0 /usr/bin/x86_64-alpine-linux-musl-ld: cannot find -lfuse
