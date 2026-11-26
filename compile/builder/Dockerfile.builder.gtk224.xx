@@ -11,6 +11,12 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   #   ②apk 并行【实测无冲突】(2026-11-26): cross xx-apk 自带 /var/lock/xx-apk flock 全局互斥(arm64/armv7 互串);
   #     native amd64 与 cross 各用不同 --root → 不同 /lib/apk/db/lock; 本链路 xx-apk 均 --no-cache(无共享缓存写),
   #     native 的 /var/cache/apk 与 cross --no-cache 不交集 → 并行安全。仅内存红线决定串/并。
+  #   ③单一工作区 $WS(2026-11-26 3.1.2, CI 二跑按用户拍板重构): 每分支 export WS=/tmp/ws-gtk224-$tag
+  #     (tag=amd64/arm64/arm-v7, case 杀斜杠修根因A), 源码树/cross-file/日志/.rc 全在该 $WS 下(单一工作区,
+  #     各架构增删改互不影响)。common.sh/xx_cross_init/xx-clear.sh 均【尊重已 export 的 $WS 不覆盖】;
+  #     串行(PARALLEL_BUILD=0)不设 $WS → 各脚本按 WS_BASE-$UGTK_NS 兜底(行为不变)。失败 tail -60 dump(缺陷D)。
+  #     注: 曾用 LOGROOT 把日志与源码树分两根+WS 用 UGTK_NS(native/aarch64/armv7l) 与 tag 两套命名 → amd64
+  #     rc 写 native/ 校验读 amd64/ 找不到(CI 二跑挂); 现统一 $tag 单一 $WS 根治。本机禁并行(OOM 红线)。
   ARG PARALLEL_BUILD=0
   RUN echo "NOCACHE.gtk.xx=${NOCACHE}" > /tmp/NOCACHE; \
     sed -i 's|http://mirrors.ustc.edu.cn|https://mirrors.aliyun.com|g' /etc/apk/repositories; \
@@ -25,21 +31,32 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
   # 2026-11-25(2.4.9): amd64 必须纳入——base(alpine-builder)只有 apk 的 amd64 gtk2 .so 无静态 .a,
   #   原 amd64 静态 gtk2 只在旧 gtk224-2; amd64 native 装 /usr(Option B, 应用 Dockerfile 不用改)。
-  # 消费方: 所有 GTK2 应用(lxde/pcmanfm/geany/tint2/xfce4...) amd64 走 native /usr, cross 经 PKG_CONFIG_LIBDIR 指向 sysroot 复用, 不重跑 u-gtk
   RUN set -e; \
+    ARCHS="amd64 arm64 arm/v7"; \
     if [ "$PARALLEL_BUILD" = "1" ]; then \
-      for arch in amd64 arm64 arm/v7; do \
-        ( unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
-          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
-          sh /src/u-gtk/build.sh b_deps > /tmp/gtk-$arch.log 2>&1; RC=$?; \
-          [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
-          echo $RC > /tmp/gtk-$arch.rc ) & \
-      done; wait; \
-      for arch in amd64 arm64 arm/v7; do \
-        [ "$(cat /tmp/gtk-$arch.rc)" = "0" ] || { echo "FAIL $arch (see /tmp/gtk-$arch.log)"; exit 1; }; \
-      done; \
+    for arch in $ARCHS; do \
+      case "$arch" in arm/v7) tag=arm-v7 ;; *) tag=$arch ;; esac; \
+      export WS=/tmp/ws-gtk224-$tag; \
+      mkdir -p $WS/logs; \
+      echo $$ >> $WS/logs/pids; \
+      ( unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; export TARGETPLATFORM=linux/$arch; export WS_LOCK=1; . /src/common.sh; xx_cross_init; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
+        sh /src/u-gtk/build.sh b_deps > $WS/logs/$tag.log 2>&1; RC=$?; \
+        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT" || RC=1; \
+        echo $RC > $WS/logs/$tag.rc; \
+        [ "$RC" = 0 ] || { echo "tag=$tag" > $WS/logs/FAIL_ARCH; kill 0 2>/dev/null; exit 1; } ) & \
+    done; wait; \
+    FA=$(cat /tmp/ws-gtk224-*/logs/FAIL_ARCH 2>/dev/null); \
+    if [ -n "$FA" ]; then eval "$FA"; \
+      echo "FAIL $tag (fast-fail):"; tail -60 /tmp/ws-gtk224-$tag/logs/$tag.log; exit 1; \
+    fi; \
+    for arch in $ARCHS; do \
+      case "$arch" in arm/v7) tag=arm-v7 ;; *) tag=$arch ;; esac; \
+      LOG=/tmp/ws-gtk224-$tag/logs/$tag.log; \
+      [ "$(cat /tmp/ws-gtk224-$tag/logs/$tag.rc)" = "0" ] || { echo "FAIL $arch:"; tail -60 $LOG; exit 1; }; \
+    done; \
     else \
-      for arch in amd64 arm64 arm/v7; do \
+      for arch in $ARCHS; do \
         unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
         export TARGETPLATFORM=linux/$arch; \
         . /src/common.sh; xx_cross_init; \
@@ -48,7 +65,7 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
         [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
       done; \
     fi; \
-    for arch in amd64 arm64 arm/v7; do \
+    for arch in $ARCHS; do \
       unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; \
       export TARGETPLATFORM=linux/$arch; . /src/common.sh; xx_cross_init; \
       case "$arch" in amd64) want=x86-64 ;; arm64) want=aarch64 ;; *) want=EABI ;; esac; \
