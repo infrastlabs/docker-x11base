@@ -14,13 +14,13 @@ gh=https://ghfast.top/
 # Build libvncserver
 #
 function libvncserver(){
-  # mkdir -p /tmp/libvncserver
+  # mkdir -p $SRCROOT/libvncserver
   log "Downloading LIBVNCSERVER..."
-  # down_catfile ${LIBVNCSERVER_URL} | tar -zx --strip 1 -C /tmp/libvncserver #| tar -xJ
-  rm -rf /tmp/libvncserver
-  gitclone https://gitee.com/g-system/fk-libvnc-libvncserver /tmp/libvncserver --branch=LibVNCServer-0.9.13
+  # down_catfile ${LIBVNCSERVER_URL} | tar -zx --strip 1 -C $SRCROOT/libvncserver #| tar -xJ
+  rm -rf $SRCROOT/libvncserver
+  gitclone https://gitee.com/g-system/fk-libvnc-libvncserver $SRCROOT/libvncserver --branch=LibVNCServer-0.9.13
   log "Configuring LIBVNCSERVER..."
-  cd /tmp/libvncserver
+  cd $SRCROOT/libvncserver
   # 交叉(aarch64/armv7): cmake 交叉编译出 ARM libvncserver.a/libvncclient.a → 手动装 sysroot。
   #   不整 make/make install——那会连带编 examples(client_examples/backchannel 等)+test/* 可执行,
   #   它们交叉 link 失败(host ld + ARM libpng.so "wrong format")。x11vnc 只需两个 .a + 头。
@@ -42,12 +42,12 @@ function libvncserver(){
       -DWITH_X11=OFF -DWITH_GNUTLS=OFF -DWITH_OPENSSL=ON -DWITH_GCRYPT=OFF \
       -DWITH_ZLIB=ON -DWITH_LZ4=ON -DWITH_THREADS=ON \
       -DWITH_GTK=OFF -DWITH_SDL=OFF -DWITH_FFMPEG=OFF \
-      -DBUILD_TESTS=OFF > /tmp/lv_cmake.log 2>&1 \
-      || { log "LIBVNCSERVER cross cmake FAILED"; tail -20 /tmp/lv_cmake.log; exit 1; }
+      -DBUILD_TESTS=OFF > $OTHLOG/lv_cmake.log 2>&1 \
+      || { log "LIBVNCSERVER cross cmake FAILED"; tail -20 $OTHLOG/lv_cmake.log; exit 1; }
     log "Compiling LIBVNCSERVER libs (cross)..."
     # 只编两个库 target(跳过 examples/tests 可执行)
-    make vncserver vncclient -j$(nproc) > /tmp/lv_make.log 2>&1 \
-      || { log "LIBVNCSERVER cross make FAILED"; tail -20 /tmp/lv_make.log; exit 1; }
+    make vncserver vncclient -j$(nproc) > $OTHLOG/lv_make.log 2>&1 \
+      || { log "LIBVNCSERVER cross make FAILED"; tail -20 $OTHLOG/lv_make.log; exit 1; }
     log "Installing LIBVNCSERVER libs+headers (cross -> sysroot)..."
     for _a in libvncserver libvncclient; do
       _f=$(find . -name "$_a.a" | head -1)
@@ -61,7 +61,7 @@ function libvncserver(){
     xx_la_fix
     test -f "$XX_SYSROOT/usr/lib/libvncserver.a" || { log "LIBVNCSERVER: sysroot 缺 libvncserver.a"; exit 1; }
     find $XX_SYSROOT |egrep "libvnc.*\.a$"
-    cd /tmp/libvncserver
+    cd $SRCROOT/libvncserver
     return 0
   fi
   # native: 装入构建容器 build-arch /usr
@@ -80,7 +80,7 @@ function libvncserver(){
   log "Installing LIBVNCSERVER..."
   make install
   # view
-  find /tmp/libvncserver |egrep "\.a$"
+  find $SRCROOT/libvncserver |egrep "\.a$"
   find /usr |egrep "libvnc.*\.a$"
 }
 
@@ -109,19 +109,19 @@ function libxtst(){
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
     log "libxtst: CROSS ($XX_TRIPLE)"
   fi
-  # mkdir -p /tmp/libxtst
+  # mkdir -p $SRCROOT/libxtst
   log "Downloading LIBXTST..."
-  rm -rf /tmp/libxtst
-  # down_catfile ${LIBXTST_URL} | tar -zx --strip 1 -C /tmp/libxtst #| tar -xJ
-  gitclone https://gitee.com/g-system/fk-xorg-libxtst /tmp/libxtst --branch=libXtst-1.2.3
+  rm -rf $SRCROOT/libxtst
+  # down_catfile ${LIBXTST_URL} | tar -zx --strip 1 -C $SRCROOT/libxtst #| tar -xJ
+  gitclone https://gitee.com/g-system/fk-xorg-libxtst $SRCROOT/libxtst --branch=libXtst-1.2.3
   log "Configuring LIBXTST..."
-  cd /tmp/libxtst && autoreconf -fiv && ./configure --enable-static $CROSS_HOST
+  cd $SRCROOT/libxtst && autoreconf -fiv && ./configure --enable-static $CROSS_HOST
   log "Compiling LIBXTST..."
   make
   log "Installing LIBXTST..."
   make install $XX_DESTDIR
   # view
-  find /tmp/libxtst |egrep "\.a$"
+  find $SRCROOT/libxtst |egrep "\.a$"
   find /usr |egrep "libXtst\.a$"
 }
 #   sysroot 内的 ARM 静态库, 这里只补 apk 有包的部分; libvncserver.a 无 apk 静态包 → 见下 test。
@@ -166,12 +166,12 @@ function x11vnc(){
   apk add libvncserver-dev
 
   log "Downloading X11VNC..."
-  rm -rf /tmp/x11vnc; mkdir -p /tmp/x11vnc
-  # down_catfile ${X11VNC_URL} | tar -zx --strip 1 -C /tmp/x11vnc
-  gitclone https://gitee.com/g-system/fk-libvnc-x11vnc /tmp/x11vnc --branch=fix-152
+  rm -rf $SRCROOT/x11vnc; mkdir -p $SRCROOT/x11vnc
+  # down_catfile ${X11VNC_URL} | tar -zx --strip 1 -C $SRCROOT/x11vnc
+  gitclone https://gitee.com/g-system/fk-libvnc-x11vnc $SRCROOT/x11vnc --branch=fix-152
 
   log "Configuring X11VNC..."
-  cd /tmp/x11vnc;
+  cd $SRCROOT/x11vnc;
     autoreconf -fiv
 
     flags="-lXft -lX11 -lxcb -lXau -lfontconfig -lfreetype -lXrender -lXdmcp -lpng -lexpat -lxml2 -lz -lbz2 -lbrotlidec -lbrotlicommon"
@@ -217,14 +217,14 @@ function x11vnc(){
   make $MAKE_CC install;
 
   # view
-  ls -lh /tmp/x11vnc/src/x11vnc
+  ls -lh $SRCROOT/x11vnc/src/x11vnc
   # 交叉真验: xx-verify 按构建架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判
   #   static + 目标架构; native 仍走 xx-verify(原路径)。
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/x11vnc/src/x11vnc | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/x11vnc/src/x11vnc | grep -qE "ARM.*statically linked" \
       || { log "X11VNC file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/x11vnc/src/x11vnc || { log "X11VNC xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/x11vnc/src/x11vnc || { log "X11VNC xx-verify FAILED"; exit 1; }
   fi
 }
 
