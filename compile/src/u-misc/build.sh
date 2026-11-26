@@ -47,11 +47,11 @@ um_verify(){
 function su_exec(){
   um_cross
   log "Downloading SU-EXEC..."
-  rm -rf /tmp/su-exec; # mkdir -p /tmp/su-exec
+  rm -rf $SRCROOT/su-exec; # mkdir -p $SRCROOT/su-exec
   # branch="--branch=$XLUNCH_VER"
-  gitclone https://gitee.com/g-system/fk-su-exec /tmp/su-exec $branch #;
+  gitclone https://gitee.com/g-system/fk-su-exec $SRCROOT/su-exec $branch #;
   log "Configuring SU-EXEC..."
-  cd /tmp/su-exec #&& ./bootstrap;
+  cd $SRCROOT/su-exec #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
 
     # make
@@ -63,8 +63,8 @@ function su_exec(){
   \cp -a su-exec-static $TARGETPATH/bin/su-exec
   
   # view
-  ls -lh /tmp/su-exec/
-  um_verify /tmp/su-exec/su-exec-static
+  ls -lh $SRCROOT/su-exec/
+  um_verify $SRCROOT/su-exec/su-exec-static
 }
 
 #
@@ -73,11 +73,11 @@ function su_exec(){
 function lrzsz(){
   um_cross
   log "Downloading LRZSZ..."
-  rm -rf /tmp/lrzsz; # mkdir -p /tmp/lrzsz
+  rm -rf $SRCROOT/lrzsz; # mkdir -p $SRCROOT/lrzsz
   # branch="--branch=$LRZSZ_VER"
-  gitclone https://gitee.com/g-system/fk-lrzsz /tmp/lrzsz $branch #;
+  gitclone https://gitee.com/g-system/fk-lrzsz $SRCROOT/lrzsz $branch #;
   log "Configuring LRZSZ..."
-  cd /tmp/lrzsz #&& ./bootstrap;
+  cd $SRCROOT/lrzsz #&& ./bootstrap;
     autoconf 
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
     ./configure --enable-static --disable-shared --without-libintl-prefix --prefix=$TARGETPATH $CROSS_HOST #ref src/fluxbox/build.sh
@@ -92,9 +92,9 @@ function lrzsz(){
   rm -f $TARGETPATH/bin/{lrb,lrx,lsb,lsx} #lxb lxx: same with lrz/lsz
 
   # view
-  ls -lh /tmp/lrzsz/
+  ls -lh $SRCROOT/lrzsz/
   # src/lrz src/lsz
-  um_verify /tmp/lrzsz/src/lrz /tmp/lrzsz/src/lsz
+  um_verify $SRCROOT/lrzsz/src/lrz $SRCROOT/lrzsz/src/lsz
 }
 
 #
@@ -104,11 +104,11 @@ function n2n(){
   apk add zstd-static
 
   log "Downloading N2N..."
-  rm -rf /tmp/n2n; # mkdir -p /tmp/n2n
+  rm -rf $SRCROOT/n2n; # mkdir -p $SRCROOT/n2n
   # branch="--branch=$N2N_VER"
-  gitclone https://gitee.com/g-system/fk-lucktu-n2n /tmp/n2n $branch #;
+  gitclone https://gitee.com/g-system/fk-lucktu-n2n $SRCROOT/n2n $branch #;
   log "Configuring N2N..."
-  cd /tmp/n2n #&& ./bootstrap;
+  cd $SRCROOT/n2n #&& ./bootstrap;
     bash autogen.sh 
     ./configure  --enable-static --prefix=$TARGETPATH $CROSS_HOST ##无./configure|autoconf
 
@@ -123,7 +123,7 @@ function n2n(){
   log "Install N2N..."
   # make;
   # make install; #--prefix不生效;
-    # /tmp/n2n # make install
+    # $SRCROOT/n2n # make install
     # echo "MANDIR=/usr/share/man"
     # MANDIR=/usr/share/man
     # mkdir -p /usr/sbin /usr/share/man/man1 /usr/share/man/man7 /usr/share/man/man8
@@ -133,12 +133,12 @@ function n2n(){
     # install -m644 supernode.1.gz /usr/share/man/man1/
     # install -m644 n2n.7.gz /usr/share/man/man7/
     # make -C tools install
-    # make[1]: Entering directory '/tmp/n2n/tools'
+    # make[1]: Entering directory '$SRCROOT/n2n/tools'
     # Makefile:40: warning: ignoring prerequisites on suffix rule definition
     # install -m755 n2n-benchmark /usr/sbin/
-    # make[1]: Leaving directory '/tmp/n2n/tools'  
+    # make[1]: Leaving directory '$SRCROOT/n2n/tools'  
   mkdir -p $TARGETPATH/sbin/ $TARGETPATH/share/man/{man1,man7,man8}/
-  # \cp -a /tmp/n2n/edge /tmp/n2n/supernode $TARGETPATH/sbin/
+  # \cp -a $SRCROOT/n2n/edge $SRCROOT/n2n/supernode $TARGETPATH/sbin/
     install -m755 supernode $TARGETPATH/sbin/
     install -m755 edge $TARGETPATH/sbin/
     install -m644 supernode.1.gz $TARGETPATH/share/man/man1/
@@ -147,8 +147,8 @@ function n2n(){
     install -m755 tools/n2n-benchmark $TARGETPATH/sbin/
 
   # view
-  ls -lh /tmp/n2n/
-  um_verify /tmp/n2n/edge /tmp/n2n/supernode
+  ls -lh $SRCROOT/n2n/
+  um_verify $SRCROOT/n2n/edge $SRCROOT/n2n/supernode
 }
 
 #
@@ -158,11 +158,11 @@ function tinc(){
   apk add lzo-dev openssl-dev texinfo openssl-libs-static
 
   log "Downloading TINC..."
-  rm -rf /tmp/tinc; # mkdir -p /tmp/tinc
+  rm -rf $SRCROOT/tinc; # mkdir -p $SRCROOT/tinc
   # branch="--branch=$TINC_VER"
-  gitclone https://gitee.com/g-system/fk-tinc /tmp/tinc $branch #;
+  gitclone https://gitee.com/g-system/fk-tinc $SRCROOT/tinc $branch #;
   log "Configuring TINC..."
-  cd /tmp/tinc #&& ./bootstrap;
+  cd $SRCROOT/tinc #&& ./bootstrap;
     autoreconf -if
     ./configure  --enable-static --prefix=$TARGETPATH $CROSS_HOST ##无./configure|autoconf
 
@@ -178,8 +178,8 @@ function tinc(){
   make install;
 
   # view
-  ls -lh /tmp/tinc/
-  um_verify /tmp/tinc/src/tincd
+  ls -lh $SRCROOT/tinc/
+  um_verify $SRCROOT/tinc/src/tincd
 }
 
 
