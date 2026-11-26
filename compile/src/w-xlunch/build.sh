@@ -65,15 +65,15 @@ function imlib2(){
   apk add xorg-server-dev
 
   # 
-  # 2026-11-25: 交叉下清 /tmp/imlib2——旧树(他 arch 的 .o)被 make 复用会产出 mixed-arch libImlib2.a
+  # 2026-11-25: 交叉下清 $SRCROOT/imlib2——旧树(他 arch 的 .o)被 make 复用会产出 mixed-arch libImlib2.a
   #   (arm64 实测 33/46 armv7 成员→feh/xlunch link "file in wrong format"; CI 容器 /tmp 全新无此患,
   #   本地同容器换架构重建会踩; 交叉限定不改 native)。tarball 走 down_catfile 缓存, 重下不费网络。
-  [ -n "$XX_CROSS_FILE" ] && rm -rf /tmp/imlib2
-  mkdir -p /tmp/imlib2
+  [ -n "$XX_CROSS_FILE" ] && rm -rf $SRCROOT/imlib2
+  mkdir -p $SRCROOT/imlib2
   log "Downloading imlib2..."
-  # curl -# -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C /tmp/imlib2
-  down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/imlib2
-  cd /tmp/imlib2
+  # curl -s -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C $SRCROOT/imlib2
+  down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C $SRCROOT/imlib2
+  cd $SRCROOT/imlib2
     # export LDFLAGS="-Wl,--as-needed -Wl,--strip-all" #去-static: 无a库生成
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
     # ./configure;
@@ -94,9 +94,9 @@ function imlib2(){
   # （含 PNG），故内嵌 png + svg 两个 loader 进 libImlib2.a
   log "Building builtin loaders (png+svg)..."
   cp -f "$SCRIPT_DIR/loader_svg.c" \
-     /tmp/imlib2/src/modules/loaders/loader_svg.c
+     $SRCROOT/imlib2/src/modules/loaders/loader_svg.c
   python3 - <<'PYEOF'
-p = "/tmp/imlib2/src/lib/loaders.c"
+p = "$SRCROOT/imlib2/src/lib/loaders.c"
 s = open(p).read()
 if "png_loader" in s:
     print("loaders.c already patched")
@@ -143,40 +143,40 @@ else:
     open(p, "w").write(s)
     print("loaders.c patched")
 PYEOF
-  INC="-I/tmp/imlib2 -I/tmp/imlib2/src/lib -I/tmp/imlib2/src/modules/loaders"
+  INC="-I$SRCROOT/imlib2 -I$SRCROOT/imlib2/src/lib -I$SRCROOT/imlib2/src/modules/loaders"
   RSVG_CFLAGS=$(pkg-config --cflags librsvg-2.0)
-  mkdir -p /tmp/builtin
+  mkdir -p $SRCROOT/builtin
   # 1.12.7: loader 源尾部导出全局符号 `loader`(ImlibLoaderModule)，三 loader 同链会符号冲突；
   #   -Dloader=xxx 重命名导出符号（等价 1.7.4 的 -Dload2=png_load2 手法）。
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
     -Dloader=png_loader \
-    -c /tmp/imlib2/src/modules/loaders/loader_png.c -o /tmp/builtin/png.o
+    -c $SRCROOT/imlib2/src/modules/loaders/loader_png.c -o $SRCROOT/builtin/png.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC $RSVG_CFLAGS \
     -Dloader=svg_loader \
-    -c /tmp/imlib2/src/modules/loaders/loader_svg.c -o /tmp/builtin/svg.o
+    -c $SRCROOT/imlib2/src/modules/loaders/loader_svg.c -o $SRCROOT/builtin/svg.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
     -Dloader=jpeg_loader \
-    -c /tmp/imlib2/src/modules/loaders/loader_jpeg.c -o /tmp/builtin/jpeg.o
+    -c $SRCROOT/imlib2/src/modules/loaders/loader_jpeg.c -o $SRCROOT/builtin/jpeg.o
   # 1.12.7 新增：loader 模块辅助源（非主库）——ldrs_util.c 定义 get_saver_params
   #   （loader_png/jpeg save 引用）、exif.c 定义 exif_parse（loader_jpeg 引用）。
   #   不编入则 builtin loader 链出 undefined reference（2026-11-23 实测）。
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
-    -c /tmp/imlib2/src/modules/loaders/ldrs_util.c -o /tmp/builtin/ldrs_util.o
+    -c $SRCROOT/imlib2/src/modules/loaders/ldrs_util.c -o $SRCROOT/builtin/ldrs_util.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
-    -c /tmp/imlib2/src/modules/loaders/exif.c -o /tmp/builtin/exif.o
+    -c $SRCROOT/imlib2/src/modules/loaders/exif.c -o $SRCROOT/builtin/exif.o
   xx-clang -Os -fomit-frame-pointer -DHAVE_CONFIG_H $INC \
-    -c /tmp/imlib2/src/lib/loaders.c -o /tmp/builtin/loaders.o
+    -c $SRCROOT/imlib2/src/lib/loaders.c -o $SRCROOT/builtin/loaders.o
   # 不再 ar r 直改系统 /usr/local/lib/libImlib2.a（魔改系统库，隐式影响其他 imlib2 链接者）；
-  # 拷贝到私有归档再注入 loader，xlunch 链接 -L/tmp/builtin -lImlib2 优先取用（2026-11-08 整改）。
-  cp ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a /tmp/builtin/libImlib2.a
-  ar r /tmp/builtin/libImlib2.a \
-    /tmp/builtin/loaders.o /tmp/builtin/png.o /tmp/builtin/svg.o /tmp/builtin/jpeg.o \
-    /tmp/builtin/ldrs_util.o /tmp/builtin/exif.o
-  ranlib /tmp/builtin/libImlib2.a
+  # 拷贝到私有归档再注入 loader，xlunch 链接 -L$SRCROOT/builtin -lImlib2 优先取用（2026-11-08 整改）。
+  cp ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a $SRCROOT/builtin/libImlib2.a
+  ar r $SRCROOT/builtin/libImlib2.a \
+    $SRCROOT/builtin/loaders.o $SRCROOT/builtin/png.o $SRCROOT/builtin/svg.o $SRCROOT/builtin/jpeg.o \
+    $SRCROOT/builtin/ldrs_util.o $SRCROOT/builtin/exif.o
+  ranlib $SRCROOT/builtin/libImlib2.a
   # 2026-11-15: 注入版再覆盖 /usr/local/lib——base 烘焙后 5 个 w-xxx 裸 -lImlib2 即取注入库
   #   （本容器内 imlib2 链接者仅 w-xxx，无"其他链接者"；与二章 1.5-2"覆盖系统库"方案一致，
-  #   免去逐 app 改 -L/tmp/builtin 与 -L 顺序坑）。
-  cp -f /tmp/builtin/libImlib2.a ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a
+  #   免去逐 app 改 -L$SRCROOT/builtin 与 -L 顺序坑）。
+  cp -f $SRCROOT/builtin/libImlib2.a ${XX_SYSROOT:-}/usr/local/lib/libImlib2.a
 }
 
 #
@@ -191,13 +191,13 @@ function xlunch(){
   apk add libxml2-dev ##>> -lxml2 -llzma 
 
   log "Downloading XLUNCH..."
-  rm -rf /tmp/xlunch; # mkdir -p /tmp/xlunch
-  # down_catfile ${XLUNCH_URL} | tar -zx --strip 1 -C /tmp/xlunch
+  rm -rf $SRCROOT/xlunch; # mkdir -p $SRCROOT/xlunch
+  # down_catfile ${XLUNCH_URL} | tar -zx --strip 1 -C $SRCROOT/xlunch
   # branch="--branch=$XLUNCH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/xlunch
-  gitclone https://gitee.com/g-system/fk-xlunch /tmp/xlunch --branch=$XLUNCH_VER #;
+  gitclone https://gitee.com/g-system/fk-xlunch $SRCROOT/xlunch --branch=$XLUNCH_VER #;
   log "Configuring XLUNCH..."
-  cd /tmp/xlunch #&& ./bootstrap;
+  cd $SRCROOT/xlunch #&& ./bootstrap;
     # ./configure  --enable-static --prefix=$TARGETPATH ##无./configure|autoconf
     test -s ./Makefile-bk1 || cat Makefile > Makefile-bk1
     cat Makefile-bk1 |sed "s^DESTDIR)/usr^DESTDIR)$TARGETPATH^g" > Makefile
@@ -217,15 +217,15 @@ function xlunch(){
     #   xl_cross 里 export CC=xx-clang 覆盖不到）→ 交叉须命令行覆盖（优先级最高）。
     #   native 不加（Makefile CC=gcc 原路径零影响）。
     MAKE_CC=""; [ -n "$XX_CROSS_FILE" ] && MAKE_CC="CC=xx-clang"
-    make $MAKE_CC LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L/tmp/builtin -lImlib2 -L${XX_LIBS_PREFIX:-}/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
+    make $MAKE_CC LDFLAGS="-static --static -Wl,--strip-all -Wl,--start-group -L$SRCROOT/builtin -lImlib2 -L${XX_LIBS_PREFIX:-}/usr/local/lib $RSVG_LIBS -lxml2 -lcroco-0.6 $OB_LIBS -lX11-xcb -lxcb-shm -Wl,--end-group" xlunch #default>> all: xlunch entries.dsv
 
   log "Install XLUNCH..."
   # make;
   make install; #不用install? need
 
   # view
-  ls -lh /tmp/xlunch/
-  xx-verify --static /tmp/xlunch/xlunch
+  ls -lh $SRCROOT/xlunch/
+  xx-verify --static $SRCROOT/xlunch/xlunch
 }
 
 
