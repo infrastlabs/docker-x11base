@@ -74,11 +74,11 @@ function libfm(){
 
 
   log "Downloading libfm..."
-  # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/libfm
+  # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C $SRCROOT/libfm
   branch="--branch=1.3.1" #1.3.2
   branch="--branch=1.4.1" # #ok with automake @alpine315; 2026-11-23 升级(配套 pcmanfm 1.4.0)
-  rm -rf /tmp/libfm; gitclone https://gitee.com/g-system/fk-libfm /tmp/libfm $branch
-  cd /tmp/libfm
+  rm -rf $SRCROOT/libfm; gitclone https://gitee.com/g-system/fk-libfm $SRCROOT/libfm $branch
+  cd $SRCROOT/libfm
     # FIX: 默认 quick_exec=TRUE（desktop/可执行文件直接执行不弹确认框，2026-11-08）
     git apply /src/v-pcmanfm/libfm-quickexec.patch
     # 2026-11-23 项目场景: 屏蔽 cdrom/usb 侧栏设备（当下及项目用不着，按名称/挂载点过滤）
@@ -122,11 +122,11 @@ function libfm(){
   # 2026-11-15 补: make install 因 bin_PROGRAMS(libfm-pref-apps/lxshortcut)失败中断 → 头文件只装了 fm-actions.h;
   #   手动平铺拷全部源码头文件到 /usr/local/include/libfm-1.0/(libfm 头互 include 为平铺式 "fm-xxx.h", 无子目录路径)。
   mkdir -p ${XX_SYSROOT:-}/usr/local/include/libfm-1.0
-  find /tmp/libfm/src -name "*.h" -exec cp -f {} ${XX_SYSROOT:-}/usr/local/include/libfm-1.0/ \; \
+  find $SRCROOT/libfm/src -name "*.h" -exec cp -f {} ${XX_SYSROOT:-}/usr/local/include/libfm-1.0/ \; \
     || log "manual libfm headers copy warn (平铺拷贝)"
   # 2026-11-15 补: make install 中断 → pkg-config .pc 也没装(menu_cache/pcmanfm 的 configure 需 libfm-extra.pc/libfm.pc)——手动拷(prefix=/usr/local 与落点一致)
   mkdir -p ${XX_SYSROOT:-}/usr/local/lib/pkgconfig
-  cp -f /tmp/libfm/libfm.pc /tmp/libfm/libfm-extra.pc /tmp/libfm/libfm-gtk.pc ${XX_SYSROOT:-}/usr/local/lib/pkgconfig/ \
+  cp -f $SRCROOT/libfm/libfm.pc $SRCROOT/libfm/libfm-extra.pc $SRCROOT/libfm/libfm-gtk.pc ${XX_SYSROOT:-}/usr/local/lib/pkgconfig/ \
     || log "manual libfm .pc copy warn"
 
   \cp -a ${XX_SYSROOT:-}/usr/local/lib/libfm.a ${XX_SYSROOT:-}/usr/local/lib/libfm-gtk.a ${XX_SYSROOT:-}/usr/lib/ ##拷贝两个静态库到/usr/lib
@@ -137,19 +137,19 @@ function libfm(){
 
   log "Install libfm UI (GtkBuilder file-prop.ui/app-chooser.ui 等，PACKAGE_UI_DIR=$TARGETPATH/share/libfm/ui；漏装则属性框/openwith 崩)..."
     mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui
-    cp -f /tmp/libfm/data/ui/*.ui ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui/ 2>/dev/null \
+    cp -f $SRCROOT/libfm/data/ui/*.ui ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui/ 2>/dev/null \
       || log "manual libfm ui copy warn"
     ls ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui/ 2>/dev/null | head
 
   log "Install libfm locale (静态 LOCALEDIR=$TARGETPATH/share/locale；libfm 域=libfm，右键菜单由 libfm 构建，漏装则菜单英文)..."
-    if [ -d /tmp/libfm/po ]; then
-      for p in /tmp/libfm/po/*.po; do
+    if [ -d $SRCROOT/libfm/po ]; then
+      for p in $SRCROOT/libfm/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES/libfm.mo 2>/dev/null \
           || log "libfm msgfmt warn: $lang"
       done
-      log "libfm locales installed: $(ls /tmp/libfm/po/*.po | wc -l) langs"
+      log "libfm locales installed: $(ls $SRCROOT/libfm/po/*.po | wc -l) langs"
     fi
 
   # 2026-11-14: menu_cache 段编不过——menu-tags.h:22 include <libfm/fm-extra.h>;
@@ -186,8 +186,8 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   # branch="--branch=1.1.0" #default master [1.1.0:294commits@ubt2004; master:297commits@ff]
   # repo=$GITHUB/lxde/menu-cache
   branch="--branch=1.1.1" #2026-11-23 升级
-  rm -rf /tmp/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache /tmp/menu-cache $branch
-  cd /tmp/menu-cache
+  rm -rf $SRCROOT/menu-cache; gitclone https://gitee.com/g-system/fk-menu-cache $SRCROOT/menu-cache $branch
+  cd $SRCROOT/menu-cache
     # attempted static link of dynamic object `/usr/local/lib/libfm-extra.so'
     # 2026-11-23: LDFLAGS 补 -static——否则 menu-cached daemon 动态链接 glib(rootfs 无共享库起不来); 勿覆盖 common.sh 的 --static
     export LDFLAGS="-static -Wl,--strip-all -Wl,--as-needed"
@@ -217,7 +217,7 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   # 2026-11-23: 静态链接 menu-cached(daemon)——libtool 产物动态链接 glib, rootfs 无共享库起不来;
   #   fork_server 检查 $libexecdir/menu-cached, 漏静态链则 OpenWith g_error 崩(5.3.2)
   log "static link menu-cached (daemon)..."
-  cd /tmp/menu-cache
+  cd $SRCROOT/menu-cache
   if [ -f menu-cache-daemon/menu-cached.o ]; then
     mkdir -p ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache
     ${CC:-gcc} -static -o ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache/menu-cached \
@@ -236,7 +236,7 @@ function menu_cache(){ ##依赖libfm-extra @libfm
 #
 # 
 # checking whether the C compiler works... no
-# configure: error: in `/tmp/pcmanfm':
+# configure: error: in `$SRCROOT/pcmanfm':
 # configure: error: C compiler cannot create executables
 # See `config.log' for more details
 # 
@@ -268,12 +268,12 @@ function pcmanfm(){
 
   fm_cross
   log "Downloading PCMANFM..."
-  rm -rf /tmp/pcmanfm; # mkdir -p /tmp/pcmanfm
-  # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C /tmp/pcmanfm
+  rm -rf $SRCROOT/pcmanfm; # mkdir -p $SRCROOT/pcmanfm
+  # down_catfile ${PCMANFM_URL} | tar -zx --strip 1 -C $SRCROOT/pcmanfm
   branch="--branch=1.4.0" #2026-11-23 升级
-  rm -rf /tmp/pcmanfm; gitclone https://gitee.com/g-system/fk-pcmanfm /tmp/pcmanfm $branch #;
+  rm -rf $SRCROOT/pcmanfm; gitclone https://gitee.com/g-system/fk-pcmanfm $SRCROOT/pcmanfm $branch #;
   log "Configuring PCMANFM..."
-  cd /tmp/pcmanfm #&& ./bootstrap;
+  cd $SRCROOT/pcmanfm #&& ./bootstrap;
     # FIX: 静态链接修复 (2026-11-05): 信号pipe读端非阻塞(问题3 SIGTERM不杀) + GTK类型强制注册(问题1+2 GtkBuilder加载失败)
     git apply /src/v-pcmanfm/pcmanfm-staticfix.patch
     # FIX: 中文 localedir (2026-11-06): Makefile.am 硬编码 PACKAGE_LOCALE_DIR=$(prefix)/share/locale, 忽略 --localedir
@@ -323,21 +323,21 @@ function pcmanfm(){
     make install ${XX_DESTDIR:-} 2>&1 > /dev/null
 
   log "Install PCMANFM locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
-    if [ -d /tmp/pcmanfm/po ]; then
-      for p in /tmp/pcmanfm/po/*.po; do
+    if [ -d $SRCROOT/pcmanfm/po ]; then
+      for p in $SRCROOT/pcmanfm/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES/pcmanfm.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
-      log "locales installed: $(ls /tmp/pcmanfm/po/*.po | wc -l) langs"
+      log "locales installed: $(ls $SRCROOT/pcmanfm/po/*.po | wc -l) langs"
     fi
 
   # view
   ls -lh ${XX_SYSROOT:-}$TARGETPATH/bin/pcmanfm
   # FIX: 产包需含UI(问题1+2): make install已装到TARGETPATH/share/pcmanfm/ui; 打包时须整体拷贝TARGETPATH(含share)
   ls ${XX_SYSROOT:-}$TARGETPATH/share/pcmanfm/ui/
-  xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/pcmanfm #/tmp/pcmanfm/src/pcmanfm
+  xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/pcmanfm #$SRCROOT/pcmanfm/src/pcmanfm
 }
 
 function apkdeps(){
