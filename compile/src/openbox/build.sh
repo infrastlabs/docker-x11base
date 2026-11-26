@@ -26,8 +26,15 @@ FONTCONFIG_URL=https://www.freedesktop.org/software/fontconfig/release/fontconfi
 export CC=xx-clang-wrapper
 # 2026-11-26: 提前拷 wrapper 到 /usr/bin——b_deps 组1 pango/libxrandr 并行, libxrandr(configure 用
 #   CC=xx-clang-wrapper) 可能在 pango_meson() 拷 wrapper 前 configure → "xx-clang-wrapper: not found"
-#   (configure: error: C compiler cannot create executables)。脚本一加载即拷, 两个并行进程各自兜底, 无竞态。
-[ -f "$SCRIPT_DIR/xx-clang-wrapper" ] && { \cp -a "$SCRIPT_DIR"/xx-clang-wrapper /usr/bin/; chmod +x /usr/bin/xx-clang-wrapper; }
+#   (configure: error: C compiler cannot create executables)。脚本一加载即拷。
+# 2026-11-27 修正: 原「两个并行进程各自兜底, 无竞态」不成立——组1 的 pango/libxrandr 两分支 source 本脚本
+#   同时 cp 同一文件, 后到者撞 "cp: can't open '/usr/bin/xx-clang-wrapper': File exists"(rc=1, set -e 退出),
+#   8 并发实测 1/8 必现(顺序跑两次 cp 均 rc=0, 查不出)。两边拷的是同一内容 → 先判存在性, 不存在才 cp;
+#   仍输掉那一次 cp 无害(赢家已就位), || true 吞掉否则 set -e 直接退出。
+if [ ! -x /usr/bin/xx-clang-wrapper ] && [ -f "$SCRIPT_DIR/xx-clang-wrapper" ]; then
+  \cp -a "$SCRIPT_DIR"/xx-clang-wrapper /usr/bin/ 2>/dev/null || true
+  chmod +x /usr/bin/xx-clang-wrapper 2>/dev/null || true
+fi
 
 ROOT_DEST_DIR="/" #/tmp/xx-install> /
 INS_PREFIX=$TARGETPATH
