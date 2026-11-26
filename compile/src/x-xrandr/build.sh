@@ -49,8 +49,8 @@ xr_cross(){
 xrandr(){
   xr_cross
   XRANDR_VER=1.5.4
-  TARBALL=/tmp/xrandr-$XRANDR_VER.tar.gz
-  SRCDIR=/tmp/xrandr
+  TARBALL=$SRCROOT/xrandr-$XRANDR_VER.tar.gz
+  SRCDIR=$SRCROOT/xrandr
 
   log "Downloading XRANDR $XRANDR_VER..."
   if test -d $SRCDIR/.git || test -d $SRCDIR/configure; then
@@ -58,12 +58,12 @@ xrandr(){
   else
     rm -rf $SRCDIR $TARBALL
     # 1. xorg 官网 tarball (最优先); 2. gitlab 归档 (兜底)
-    if curl -# -k -fSL --connect-timeout 20 -o $TARBALL \
+    if curl -s -k -fSL --connect-timeout 20 -o $TARBALL \
         https://www.x.org/releases/individual/app/xrandr-$XRANDR_VER.tar.gz; then
       log "downloaded from x.org"
     else
       log "x.org failed, fallback to gitlab..."
-      curl -# -k -fSL --connect-timeout 20 -o $TARBALL \
+      curl -s -k -fSL --connect-timeout 20 -o $TARBALL \
         https://gitlab.freedesktop.org/xorg/app/xrandr/-/archive/xrandr-$XRANDR_VER/xrandr-$XRANDR_VER.tar.gz || { log "XRANDR download FAILED"; exit 1; }
       log "downloaded from gitlab"
     fi
