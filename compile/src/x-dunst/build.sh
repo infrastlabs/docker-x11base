@@ -50,14 +50,14 @@ libxscrnsaver(){
     log "libXss.a/xscrnsaver.pc already present, skip"
     return 0
   fi
-  XSS_TGZ=/tmp/libXScrnSaver-$XSS_VER.tar.gz
+  XSS_TGZ=$SRCROOT/libXScrnSaver-$XSS_VER.tar.gz
   log "Building libxscrnsaver (libXss) $XSS_VER..."
   cd /tmp
   rm -rf libXScrnSaver-$XSS_VER
   # 1. 离线预置 tarball(/tmp, 宿主 cp)优先; 2. x.org 官网兜底
   test -s $XSS_TGZ || { \
     log "no staged xscrnsaver tarball, try x.org ..."; \
-    curl -# -k -fSL --connect-timeout 20 --max-time 180 -o $XSS_TGZ \
+    curl -s -k -fSL --connect-timeout 20 --max-time 180 -o $XSS_TGZ \
       https://www.x.org/releases/individual/lib/libXScrnSaver-$XSS_VER.tar.gz \
       || { log "XSS download FAILED"; rm -f $XSS_TGZ; exit 1; }; }
   tar xzf $XSS_TGZ
@@ -83,8 +83,8 @@ dunst(){
   # 依赖守卫: 缺 libXss 先自建(libxscrnsaver 内部已调 dunst_cross 设交叉 env)
   libxscrnsaver
 
-  DUNST_TGZ=/tmp/dunst-$DUNST_VER.tar.gz
-  SRCDIR=/tmp/dunst
+  DUNST_TGZ=$SRCROOT/dunst-$DUNST_VER.tar.gz
+  SRCDIR=$SRCROOT/dunst
 
   log "Downloading DUNST $DUNST_VER..."
   if test -d $SRCDIR/.git || test -f $SRCDIR/Makefile; then
