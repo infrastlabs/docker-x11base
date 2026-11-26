@@ -199,7 +199,9 @@ function log {
 # export CXX=clang++
 # 通过$1, 调用各xx/build.sh内对应的: imlib2, xlunch等方法块;
 function oneBuild(){
-    LOGS=$TARGETPATH/../.logs; mkdir -p $LOGS
+    # 2026-11-26(3.1.5): ${LOGS:-...} 尊重外部已导出 LOGS(全仓无此用法, 仅防御)；回退值加 /$UGTK_NS 区分架构,
+    #   并行三分支各自 .logs/<arch>/doExec 树, 根治 doExec_check 串味; 不再无条件覆盖(原 LOGS=$TARGETPATH/../.logs)。
+    LOGS="${LOGS:-$TARGETPATH/../.logs/$UGTK_NS}"; mkdir -p $LOGS
     # $1 |tee $LOGS/$1.log
     # env |sort #view
     echo -e "\n$1, start building.."
@@ -233,7 +235,7 @@ function doExec(){
   local caller=${DOEXEC_CALLER:-default}
   # 2026-11-13: 日志从 /tmp/doExec 并入 .logs(=TARGETPATH/../.logs)，构建后仍保留(否则失败组件日志丢失，见文档五章1.6)
   : ${TARGETPATH:=/tmp}
-  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  LOGS=${LOGS:-$TARGETPATH/../.logs/$UGTK_NS}; mkdir -p $LOGS
   local elog=$LOGS/doExec/$caller; mkdir -p $elog
   [ -f "$cmd" ] && cmd="bash $cmd"
   local lf=$elog/$(printf '%s' "$cmd $args" | sed 's/[^A-Za-z0-9_.-]/_/g; s/__*/_/g; s/^_//; s/_$//' | cut -c1-120).log
@@ -253,7 +255,7 @@ function doExec(){
 # doExec_mark: 写并发组边界标记（结果文件只增不清 -> 留痕；MARK 之后为本组记录）。
 function doExec_mark(){
   : ${TARGETPATH:=/tmp}
-  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS/doExec/${DOEXEC_CALLER:-default}
+  LOGS=${LOGS:-$TARGETPATH/../.logs/$UGTK_NS}; mkdir -p $LOGS/doExec/${DOEXEC_CALLER:-default}
   echo "# MARK $*" >> $LOGS/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
 }
 
@@ -261,7 +263,7 @@ function doExec_mark(){
 # 精准识别: 只读最后一个 # MARK 行之后的记录（前组留痕不清、不误判当前组）。
 function doExec_check(){
   : ${TARGETPATH:=/tmp}
-  LOGS=${LOGS:-$TARGETPATH/../.logs}; mkdir -p $LOGS
+  LOGS=${LOGS:-$TARGETPATH/../.logs/$UGTK_NS}; mkdir -p $LOGS
   local f=$LOGS/doExec/${DOEXEC_CALLER:-default}/_exec_result.txt
   [ -f "$f" ] || return 0
   local start=$(grep -n '^# MARK ' "$f" | tail -1 | cut -d: -f1)
@@ -317,9 +319,9 @@ export XX_X11_PKGS="libx11-dev libx11-static libxcb-dev libxcb-static libxau-dev
 # cross-file 要点：pkgconfig key 无连字符；cpu_family 用 march(aarch64 非 arm64)；sys_root 使 meson 设 PKG_CONFIG_SYSROOT_DIR。
 # 2026-11-26(3.1.2): 并行工作区隔离——UGTK_NS(per-arch 名) + WS(工作区根 = ${WS_BASE:-/tmp/ws}-$UGTK_NS)。
 #   native 也设(函数外，native 无 XX_MARCH → UGTK_NS=native)，交叉在 xx_cross_init 内按 march 覆盖。
-#   调用方(Dockerfile 分支)设 WS_BASE=/tmp/ws-gtk224 区分链路，本脚本只追加 -$UGTK_NS → 三分支各用
-#   /tmp/ws-gtk224-{native,aarch64,armv7l}，互不影响；串行(PARALLEL_BUILD=0)同样走 $WS(单分支，行为不变)。
-#   供 u-gtk/u-gtkmm/xx-clear 把源码树/日志/中间产物/xx-cross-file 全收进 $WS 子目录。
+#   调用方(Dockerfile 并行分支)设 WS_BASE=/tmp/ws-gtk224 区分链路，本脚本只追加 -$UGTK_NS → 三分支各用
+#   /tmp/ws-gtk224-{native,aarch64,armv7l}，互不影响；串行/native 不设 WS_BASE → 退 /tmp/ws-$UGTK_NS(单分支，行为不变)。
+#   供 u-gtk/u-gtkmm/xx-clear 把源码树/中间产物/xx-cross-file 全收进 $WS 子目录。
 export UGTK_NS="${UGTK_NS:-native}"
 export WS_BASE="${WS_BASE:-/tmp/ws}"
 export WS="$WS_BASE-${UGTK_NS}"
@@ -394,3 +396,8 @@ xx_la_fix(){
   log "xx_la_fix: $n .la libdir/dependency_libs -> sysroot 相对"
 }
 xx_cross_init
+# 2026-11-26(3.1.5): doExec/oneBuild 日志按架构隔离——不加导出，改由各函数回退值带 /$UGTK_NS 子目录：
+#   LOGS=${LOGS:-$TARGETPATH/../.logs/$UGTK_NS}。三并行分支 TARGETPATH 相同 → 旧默认共用一棵 .logs/doExec 树，
+#   _exec_result.txt/# MARK 交错 + doExec_check 只读「最后一个 MARK 后」读到别的架构 rc → 串味误判(致命)；
+#   加 /$UGTK_NS 后各架构独立(native→.logs/native, aarch64, armv7l)，上层 .logs 目录不变(用户拍板)。
+#   嵌套脚本 re-source common.sh 时 UGTK_NS 已导出，回退值一致、LOGS 已导出不覆盖。
