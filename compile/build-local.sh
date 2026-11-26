@@ -46,5 +46,15 @@ docker build \
   -t "$REPO/$NS/$img" \
   -f "$df" . 
 
+# 2026-11-26(3.4.3): 镜像无条件建成(方案A exit 0), 读容器内 /report/u-gtk-*.txt 判成败
+REPORT=$(docker run --rm "$REPO/$NS/$img" sh -c "cat /report/u-gtk-*.txt" 2>/dev/null || true)
+if [ -z "$REPORT" ] || echo "$REPORT" | grep -q "CONCLUSION: FAILED"; then
+  echo ">>> $1 静态产物分析: FAILED (详见报告)"
+  [ -n "$REPORT" ] && echo "$REPORT" || echo "!! 无 /report/u-gtk-*.txt 报告"
+  exit 1
+else
+  echo ">>> $1 静态产物分析: SUCCESS"
+fi
+
 echo ">>> DONE: $REPO/$NS/$img ($PLATFORM)"
 docker images "$REPO/$NS/$img"
