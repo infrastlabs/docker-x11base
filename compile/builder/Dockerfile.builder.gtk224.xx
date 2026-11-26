@@ -34,8 +34,8 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
   #   ③ 建后清中间产物 + /tmp 源码树, 只留 .a/.pc/include/.la
   # 2026-11-25(2.4.9): amd64 必须纳入——base(alpine-builder)只有 apk 的 amd64 gtk2 .so 无静态 .a,
   #   原 amd64 静态 gtk2 只在旧 gtk224-2; amd64 native 装 /usr(Option B, 应用 Dockerfile 不用改)。
-  RUN set -e; \
-    ARCHS=$(echo "$ARCHS" | sed 's|armv7|arm/v7|g; s|,| |g'); \
+  RUN ARCHS=$(echo "$ARCHS" | sed 's|armv7|arm/v7|g; s|,| |g'); \
+    ( set -e; \
     if [ "$PARALLEL_BUILD" = "1" ]; then \
     for arch in $ARCHS; do \
       case "$arch" in arm/v7) tag=arm-v7 ;; *) tag=$arch ;; esac; \
@@ -45,7 +45,7 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
       ( unset XX_SYSROOT XX_CROSS_FILE XX_TRIPLE XX_MARCH; export TARGETPLATFORM=linux/$arch; export WS_LOCK=1; . /src/common.sh; xx_cross_init; \
         [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh staticlib "$XX_SYSROOT"; \
         sh /src/u-gtk/build.sh b_deps > $WS/logs/$tag.log 2>&1; RC=$?; \
-        [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT" || RC=1; \
+        [ "$RC" = 0 ] && [ -n "$XX_SYSROOT" ] && sh /src/u-gtk/xx-clear.sh intermediate "$XX_SYSROOT"; \
         echo $RC > $WS/logs/$tag.rc; \
         [ "$RC" = 0 ] || { echo "tag=$tag" > $WS/logs/FAIL_ARCH; kill 0 2>/dev/null; exit 1; } ) & \
     done; wait; \
@@ -79,4 +79,12 @@ FROM ${REPO}infrastlabs/x11-base:alpine-builder AS base
     done; \
     unset TARGETPLATFORM; \
     # 2026-11-26(2.4.10.2): 构建收尾统一清理(文档/man/pycache/pyc/apk 缓存//tmp 残留)——apkc 规则文件语义对齐 apt path-exclude
-    sh /src/u-gtk/apkc clean
+    sh /src/u-gtk/apkc clean \
+  ); \
+  mkdir -p /report; for arch in $ARCHS; do \
+    case "$arch" in arm/v7) tag=arm-v7 ;; *) tag=$arch ;; esac; \
+    export WS=/tmp/ws-gtk224-$tag; export WS_LOCK=1; \
+    echo sh /src/u-gtk/analyze.sh gtk224 "$arch"; \
+    sh /src/u-gtk/analyze.sh gtk224 "$arch" > /report/u-gtk-$tag.txt 2>&1; \
+  done; \
+  exit 0
