@@ -44,14 +44,14 @@ suck_cross(){
 function st(){
   suck_cross
   log "Downloading ST..."
-  rm -rf /tmp/st; # mkdir -p /tmp/st
-  # down_catfile ${ST_URL} | tar -zx --strip 1 -C /tmp/st
+  rm -rf $SRCROOT/st; # mkdir -p $SRCROOT/st
+  # down_catfile ${ST_URL} | tar -zx --strip 1 -C $SRCROOT/st
   ST_VER=br-luke-st
   # https://dl.suckless.org/st/st-0.8.4.tar.gz
   # git://git.suckless.org/st
-  gitclone https://gitee.com/g-system/fk-suckless-st /tmp/st --branch=$ST_VER
+  gitclone https://gitee.com/g-system/fk-suckless-st $SRCROOT/st --branch=$ST_VER
   log "Configuring ST..."
-  cd /tmp/st #&& ./bootstrap;
+  cd $SRCROOT/st #&& ./bootstrap;
 
   # PREFIX
   sed -i "s^PREFIX =.*^PREFIX = $TARGETPATH^g" config.mk
@@ -81,11 +81,11 @@ function st(){
   make install;
 
   # view
-  ls -lh /tmp/st/
+  ls -lh $SRCROOT/st/
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/st/st | grep -qE "ARM.*statically linked" || { log "ST file 非 ARM static"; exit 1; }
+    file $SRCROOT/st/st | grep -qE "ARM.*statically linked" || { log "ST file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/st/st || { log "ST xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/st/st || { log "ST xx-verify FAILED"; exit 1; }
   fi
 }
 
@@ -95,10 +95,10 @@ DWM_VER=6.2
 function dwm(){
   suck_cross
   log "Downloading DWM..."
-  rm -rf /tmp/dwm; # mkdir -p /tmp/st
-  gitclone git://git.suckless.org/dwm /tmp/dwm --branch=$DWM_VER #;
+  rm -rf $SRCROOT/dwm; # mkdir -p $SRCROOT/st
+  gitclone git://git.suckless.org/dwm $SRCROOT/dwm --branch=$DWM_VER #;
   log "Configuring DWM..."
-  cd /tmp/dwm #&& ./bootstrap;
+  cd $SRCROOT/dwm #&& ./bootstrap;
 
   # PREFIX
   sed -i "s^PREFIX =.*^PREFIX = $TARGETPATH^g" config.mk
@@ -125,11 +125,11 @@ function dwm(){
   make install;
 
   # view
-  ls -lh /tmp/dwm/
+  ls -lh $SRCROOT/dwm/
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/dwm/dwm | grep -qE "ARM.*statically linked" || { log "DWM file 非 ARM static"; exit 1; }
+    file $SRCROOT/dwm/dwm | grep -qE "ARM.*statically linked" || { log "DWM file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/dwm/dwm || { log "DWM xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/dwm/dwm || { log "DWM xx-verify FAILED"; exit 1; }
   fi
 }
 
@@ -144,10 +144,10 @@ DMENU_VER=5.0
 function dmenu(){
   suck_cross
   log "Downloading DMENU..."
-  rm -rf /tmp/dmenu; # mkdir -p /tmp/st
-  gitclone git://git.suckless.org/dmenu /tmp/dmenu --branch=$DMENU_VER #;
+  rm -rf $SRCROOT/dmenu; # mkdir -p $SRCROOT/st
+  gitclone git://git.suckless.org/dmenu $SRCROOT/dmenu --branch=$DMENU_VER #;
   log "Configuring DMENU..."
-  cd /tmp/dmenu #&& ./bootstrap;
+  cd $SRCROOT/dmenu #&& ./bootstrap;
 
   # PREFIX
   sed -i "s^PREFIX =.*^PREFIX = $TARGETPATH^g" config.mk
@@ -185,11 +185,11 @@ function dmenu(){
   make install;
 
   # view
-  ls -lh /tmp/dmenu/
+  ls -lh $SRCROOT/dmenu/
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/dmenu/dmenu | grep -qE "ARM.*statically linked" || { log "DMENU file 非 ARM static"; exit 1; }
+    file $SRCROOT/dmenu/dmenu | grep -qE "ARM.*statically linked" || { log "DMENU file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/dmenu/dmenu || { log "DMENU xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/dmenu/dmenu || { log "DMENU xx-verify FAILED"; exit 1; }
   fi
 }
 
