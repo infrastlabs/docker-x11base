@@ -29,15 +29,15 @@ hs_cross(){
 
 function hsetroot(){
   HSR_VER=1.1.0
-  HSR_SRC=/tmp/hsetroot
+  HSR_SRC=$SRCROOT/hsetroot
   hs_cross
 
   log "Downloading hsetroot..."
   if [ -d $HSR_SRC ] && [ -f $HSR_SRC/Makefile ]; then
     log "hsetroot source already present, skip download"
-  elif [ -f /tmp/hsetroot-1.0.5.tar.gz ]; then
+  elif [ -f $SRCROOT/hsetroot-1.0.5.tar.gz ]; then
     rm -rf $HSR_SRC; mkdir -p $HSR_SRC
-    tar xzf /tmp/hsetroot-1.0.5.tar.gz --strip 1 -C $HSR_SRC
+    tar xzf $SRCROOT/hsetroot-1.0.5.tar.gz --strip 1 -C $HSR_SRC
   else
     rm -rf $HSR_SRC
     # github tag 在此环境挂死; 用 gitee 镜像(g-system/fk-hsetroot, master = himdel 1.0.5 代码, 含 -root)
