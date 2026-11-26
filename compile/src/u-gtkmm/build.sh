@@ -29,9 +29,9 @@ fetch(){
   # local：两路并行 fetch 互不覆盖 name（否则全局变量会串）
   local name=$1
   if [ -f /tmp/gtkmm-stack/$name.tar.xz ]; then
-    tar xJf /tmp/gtkmm-stack/$name.tar.xz -C /tmp/gtkmm-src
+    tar xJf /tmp/gtkmm-stack/$name.tar.xz -C $WS/gtkmm-src
   else
-    down_catfile $GNOME/$2/$3/$name.tar.xz | tar -xJ -C /tmp/gtkmm-src
+    down_catfile $GNOME/$2/$3/$name.tar.xz | tar -xJ -C $WS/gtkmm-src
   fi
 }
 
@@ -96,7 +96,7 @@ function c_mm_common(){
   set -e; export LDFLAGS="-Wl,--as-needed"
   log "Build mm-common (0.9.12, 宏)..."
   fetch mm-common-0.9.12 mm-common 0.9
-  cd /tmp/gtkmm-src/mm-common-0.9.12
+  cd $WS/gtkmm-src/mm-common-0.9.12
   ./configure --prefix=/usr; make -j${PARALLEL_JOBS:-$(nproc)}; make install
 }
 
@@ -105,7 +105,7 @@ function c_libsigc(){
   mm_cross
   log "Build libsigc++-2.0 (2.10.8)..."
   fetch libsigc++-2.10.8 libsigc++ 2.10
-  cd /tmp/gtkmm-src/libsigc++-2.10.8
+  cd $WS/gtkmm-src/libsigc++-2.10.8
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
@@ -119,7 +119,7 @@ function c_glibmm(){
   mm_cross
   log "Build glibmm/giomm (2.48.1)..."
   fetch glibmm-2.48.1 glibmm 2.48
-  cd /tmp/gtkmm-src/glibmm-2.48.1
+  cd $WS/gtkmm-src/glibmm-2.48.1
   git apply /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || true
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
@@ -134,7 +134,7 @@ function c_cairomm(){
   mm_cross
   log "Build cairomm-1.0 (1.12.0)..."
   fetch cairomm-1.12.0 cairomm 1.12
-  cd /tmp/gtkmm-src/cairomm-1.12.0
+  cd $WS/gtkmm-src/cairomm-1.12.0
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
@@ -147,7 +147,7 @@ function c_pangomm(){
   mm_cross
   log "Build pangomm-1.4 (2.40.0)..."
   fetch pangomm-2.40.0 pangomm 2.40
-  cd /tmp/gtkmm-src/pangomm-2.40.0
+  cd $WS/gtkmm-src/pangomm-2.40.0
   git apply /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || true
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
@@ -161,7 +161,7 @@ function c_atkmm(){
   mm_cross
   log "Build atkmm-1.6 (2.24.2)..."
   fetch atkmm-2.24.2 atkmm 2.24
-  cd /tmp/gtkmm-src/atkmm-2.24.2
+  cd $WS/gtkmm-src/atkmm-2.24.2
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
@@ -174,7 +174,7 @@ function c_gtkmm(){
   mm_cross
   log "Build gtkmm-2.4/gdkmm-2.4 (2.24.5)..."
   fetch gtkmm-2.24.5 gtkmm 2.24
-  cd /tmp/gtkmm-src/gtkmm-2.24.5
+  cd $WS/gtkmm-src/gtkmm-2.24.5
   mkcfg
   ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   # 2026-11-15: 方案 A(u-gtk 库层 png/jpeg/svg loader 编入 libgdk_pixbuf-2.0.a)后,
@@ -220,7 +220,7 @@ function gtkmm(){
   pc_alias
 
   log "Prep: gtkmm 源目录..."
-    rm -rf /tmp/gtkmm-src; mkdir -p /tmp/gtkmm-src
+    rm -rf $WS/gtkmm-src; mkdir -p $WS/gtkmm-src
 
   # 并行化调度（A-E 阶段，依赖尊重，最多 2 路）：
   #   A/B 串行（轻量小件）→ C 两路（glibmm∥cairomm）→ D 两路（pangomm∥atkmm）→ E gtkmm（最重，单独）
