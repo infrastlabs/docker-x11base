@@ -38,14 +38,14 @@ function libcroco(){
     log "libcroco: CROSS ($XX_TRIPLE)"
   fi
 
-  mkdir -p /tmp/libcroco
+  mkdir -p $SRCROOT/libcroco
   log "Downloading libcroco..."
-  # rm -rf /tmp/libcroco; git clone --depth=1 $branch $repo /tmp/libcroco
-  # cd /tmp/libcroco
-  # down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C /tmp/libcroco
+  # rm -rf $SRCROOT/libcroco; git clone --depth=1 $branch $repo $SRCROOT/libcroco
+  # cd $SRCROOT/libcroco
+  # down_catfile ${LIBCROCO_URL} | tar -Jx --strip 1 -C $SRCROOT/libcroco
   branch="--branch=0.6.13"
-  rm -rf /tmp/libcroco; gitclone https://gitee.com/g-system/fk-libcroco /tmp/libcroco $branch
-  cd /tmp/libcroco
+  rm -rf $SRCROOT/libcroco; gitclone https://gitee.com/g-system/fk-libcroco $SRCROOT/libcroco $branch
+  cd $SRCROOT/libcroco
   # cd libcroco-0.6.13
   # NOCONFIGURE=1: GNOME autogen.sh 无参自动跑 configure（交叉下不带 --host 报 cannot run C compiled programs）
   if [ -n "$XX_CROSS_FILE" ]; then
@@ -130,8 +130,8 @@ function librsvg(){
   # git clone $GITHUB/GNOME/librsvg
   # git checkout 2.40.21 #2.50.7
   branch="--branch=2.40.21"
-  rm -rf /tmp/librsvg; gitclone https://gitee.com/g-system/fk-librsvg /tmp/librsvg $branch
-  cd /tmp/librsvg
+  rm -rf $SRCROOT/librsvg; gitclone https://gitee.com/g-system/fk-librsvg $SRCROOT/librsvg $branch
+  cd $SRCROOT/librsvg
   # NOCONFIGURE=1: GNOME autogen.sh 无参自动跑 configure（交叉下不带 --host 报 cannot run C compiled programs）
   if [ -n "$XX_CROSS_FILE" ]; then
     NOCONFIGURE=1 ./autogen.sh
@@ -191,8 +191,8 @@ function xcbutil(){
     log "xcbutil: CROSS ($XX_TRIPLE)"
   fi
   log "Downloading xcb_util..."
-  rm -rf /tmp/xcb-util; gitclone https://gitee.com/g-system/fk-xcb__util /tmp/xcb-util $branch
-  cd /tmp/xcb-util
+  rm -rf $SRCROOT/xcb-util; gitclone https://gitee.com/g-system/fk-xcb__util $SRCROOT/xcb-util $branch
+  cd $SRCROOT/xcb-util
   # git clone $GITHUB/freedesktop-unofficial-mirror/xcb__util
   # cd xcb__util/
   apk add util-macros libtool automake autoconf #ubt: xorg-macros
@@ -257,8 +257,8 @@ function libxi(){
   fi
   # git clone $GITHUB/aleax/libxi
   log "Downloading libxi..."
-  rm -rf /tmp/libxi; gitclone https://gitee.com/g-system/fk-libxi /tmp/libxi $branch
-  cd /tmp/libxi
+  rm -rf $SRCROOT/libxi; gitclone https://gitee.com/g-system/fk-libxi $SRCROOT/libxi $branch
+  cd $SRCROOT/libxi
   # 交叉下 autogen 自动 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1 + 显式 configure。
   if [ -n "$XX_CROSS_FILE" ]; then
     NOCONFIGURE=1 ./autogen.sh
@@ -354,13 +354,13 @@ function tint2(){
 
 
   log "Downloading TINT2..."
-  rm -rf /tmp/tint2; # mkdir -p /tmp/tint2
-  # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C /tmp/tint2
+  rm -rf $SRCROOT/tint2; # mkdir -p $SRCROOT/tint2
+  # down_catfile ${TINT2_URL} | tar -zx --strip 1 -C $SRCROOT/tint2
   branch="--branch=16.7"
   # repo=$GITHUB/o9000/tint2
-  rm -rf /tmp/tint2; gitclone https://gitee.com/g-system/fk-tint2 /tmp/tint2 $branch #;
+  rm -rf $SRCROOT/tint2; gitclone https://gitee.com/g-system/fk-tint2 $SRCROOT/tint2 $branch #;
   log "Configuring TINT2..."
-  cd /tmp/tint2 #&& ./bootstrap;
+  cd $SRCROOT/tint2 #&& ./bootstrap;
     # sed -i "s^bash extra/genentries^#bash extra/genentries^g" Makefile
     
     mkdir -p build; cd build
@@ -427,7 +427,7 @@ function tint2(){
       export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
       export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
       unset PKG_CONFIG_PATH
-      T2_TC=/tmp/tint2/toolchain.cmake
+      T2_TC=$SRCROOT/tint2/toolchain.cmake
       cat > $T2_TC <<EOF
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR ${XX_TRIPLE})
@@ -447,7 +447,7 @@ EOF
     cmake $T2_TC .. --install-prefix=$TARGETPATH
 
     # make
-      # b1d491eb5ac5:/tmp/tint2/build# cat Makefile  |wc
+      # b1d491eb5ac5:$SRCROOT/tint2/build# cat Makefile  |wc
       #   1450      4108     48291
       # 重名方法改名 strnappend02;
       sed -i "s/strnappend/strnappend02/g" ../src/battery/battery.c 
@@ -484,9 +484,9 @@ EOF
 
 
   # view
-  ls -lh /tmp/tint2/
-  xx-verify --static /tmp/tint2/build/tint2
-  xx-verify --static /tmp/tint2/build/src/tint2conf/tint2conf
+  ls -lh $SRCROOT/tint2/
+  xx-verify --static $SRCROOT/tint2/build/tint2
+  xx-verify --static $SRCROOT/tint2/build/src/tint2conf/tint2conf
 }
 
 
