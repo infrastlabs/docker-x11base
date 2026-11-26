@@ -423,6 +423,7 @@ full)
     echo "emp";
     ;;
 b_deps)
+    # exit 0 #dbg: for quick return with ci-build
     doExec apkdeps || exit 1   # u-gtk 的 apkdeps 放最前: 含 gtk-doc(gtkdocize), 供组1 libcroco autogen.sh 用
     doExec /src/openbox/build.sh apkdeps || exit 1   # openbox 依赖(静态库链); 不动
     doExec_mark "group1: pango libxrandr Xdamage libcroco"   # 组边界: 留痕不清, check 只读本组
@@ -442,7 +443,7 @@ b_deps)
     
     # imlib2 框架级图片库: 5 个 w-* 应用(feh/scrot/hsetroot/tint2/xlunch)共用; 直接调 w-xlunch 定制构建(内置 PNG/SVG/JPEG loader 嵌入),
     # 避免各 w-* stage 重复下载+编译(~4次/镜像); 产物 /usr/local/lib/libImlib2.a
-    bash /src/w-xlunch/build.sh imlib2;
+    doExec /src/w-xlunch/build.sh imlib2 || exit 1
 
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
