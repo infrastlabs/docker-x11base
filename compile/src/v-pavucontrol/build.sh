@@ -15,7 +15,7 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-v-pavucontrol}"
 # 版本 3.0 = 最后 GTK2 版（--disable-gtk3 走 gtkmm-2.4 分支）。
 #
 # 网络坑（2026-11-05）：容器外网不可达（ghfast.top 失效），host 走 gh-proxy.com 下 tarball
-#   docker cp 到 /tmp/pavucontrol-3.0.tar.gz 并解包 /tmp/pavucontrol（离线复用）。
+#   docker cp 到 $SRCROOT/pavucontrol-3.0.tar.gz 并解包 $SRCROOT/pavucontrol（离线复用）。
 #   正常网络环境走 $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz（down_catfile）。
 
 # 2026-11-25 方案二交叉: pavucontrol 栈(gtkmm + pulse) 共用交叉环境(autotools)。
@@ -46,18 +46,18 @@ function pavucontrol(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   pv_cross
   log "Downloading PAVUCONTROL (v3.0 tarball)..."
-    if [ ! -f /tmp/pavucontrol/configure.ac ]; then
-      if [ -f /tmp/pavucontrol-3.0.tar.gz ]; then
-        rm -rf /tmp/pavucontrol; mkdir -p /tmp/pavucontrol
-        tar xzf /tmp/pavucontrol-3.0.tar.gz -C /tmp
-        rm -rf /tmp/pavucontrol; mv /tmp/pavucontrol-3.0 /tmp/pavucontrol
+    if [ ! -f $SRCROOT/pavucontrol/configure.ac ]; then
+      if [ -f $SRCROOT/pavucontrol-3.0.tar.gz ]; then
+        rm -rf $SRCROOT/pavucontrol; mkdir -p $SRCROOT/pavucontrol
+        tar xzf $SRCROOT/pavucontrol-3.0.tar.gz -C /tmp
+        rm -rf $SRCROOT/pavucontrol; mv $SRCROOT/pavucontrol-3.0 $SRCROOT/pavucontrol
       else
-        rm -rf /tmp/pavucontrol; mkdir -p /tmp/pavucontrol
+        rm -rf $SRCROOT/pavucontrol; mkdir -p $SRCROOT/pavucontrol
         down_catfile $GITHUB/pulseaudio/pavucontrol/archive/refs/tags/v3.0.tar.gz \
-          | tar -xz --strip 1 -C /tmp/pavucontrol
+          | tar -xz --strip 1 -C $SRCROOT/pavucontrol
       fi
     fi
-    cd /tmp/pavucontrol
+    cd $SRCROOT/pavucontrol
 
   log "Applying canberra patch (drop libcanberra-gtk, 4 places)..."
     git apply /src/v-pavucontrol/pavucontrol-canberra.patch 2>/dev/null \
@@ -114,28 +114,28 @@ function pavucontrol(){
       $LIBS0 \
       -Wl,--end-group \
       -lintl"
-    cd /tmp/pavucontrol/src
+    cd $SRCROOT/pavucontrol/src
     make -j$(nproc) pavucontrol_LINK="xx-clang++ -static -no-pie -Wl,--strip-all -Wall -O2 -Os -o \$@" \
       PULSE_LIBS="" GUILIBS_LIBS="" LIBS="$PC_LIBS" 2>&1 || { log "PAVUCONTROL make LINK FAILED"; exit 1; }
     mkdir -p $TARGETPATH/bin
-    BIN=$(find /tmp/pavucontrol -name pavucontrol -type f -perm -u+x 2>/dev/null | head -1)
+    BIN=$(find $SRCROOT/pavucontrol -name pavucontrol -type f -perm -u+x 2>/dev/null | head -1)
     test -n "$BIN" || { log "PAVUCONTROL binary MISSING"; exit 1; }
     cp -f "$BIN" $TARGETPATH/bin/pavucontrol
 
   log "Install PAVUCONTROL data (glade + desktop; make install 会重链失败，手装)..."
     mkdir -p $TARGETPATH/share/pavucontrol $TARGETPATH/share/applications
-    cp /tmp/pavucontrol/src/pavucontrol.glade $TARGETPATH/share/pavucontrol/
-    cp /tmp/pavucontrol/src/pavucontrol.desktop $TARGETPATH/share/applications/
+    cp $SRCROOT/pavucontrol/src/pavucontrol.glade $TARGETPATH/share/pavucontrol/
+    cp $SRCROOT/pavucontrol/src/pavucontrol.desktop $TARGETPATH/share/applications/
 
   log "Install PAVUCONTROL locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
-    if [ -d /tmp/pavucontrol/po ]; then
-      for p in /tmp/pavucontrol/po/*.po; do
+    if [ -d $SRCROOT/pavucontrol/po ]; then
+      for p in $SRCROOT/pavucontrol/po/*.po; do
         lang=$(basename "$p" .po)
         mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
         msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/pavucontrol.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
-      log "locales installed: $(ls /tmp/pavucontrol/po/*.po | wc -l) langs"
+      log "locales installed: $(ls $SRCROOT/pavucontrol/po/*.po | wc -l) langs"
     fi
 
   log "Verify PAVUCONTROL..."
