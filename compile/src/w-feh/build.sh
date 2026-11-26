@@ -30,13 +30,13 @@ function feh(){
   feh_cross
 
   log "Downloading FEH..."
-  rm -rf /tmp/fk-feh; # mkdir -p /tmp/fk-feh ##feh> fk-feh
-  # down_catfile ${FEH_URL} | tar -zx --strip 1 -C /tmp/fk-feh
+  rm -rf $SRCROOT/fk-feh; # mkdir -p $SRCROOT/fk-feh ##feh> fk-feh
+  # down_catfile ${FEH_URL} | tar -zx --strip 1 -C $SRCROOT/fk-feh
   # branch="--branch=$FEH_VER"
   # repo=https://hub.nuaa.cf/Tomas-M/feh
-  gitclone https://gitee.com/g-system/fk-feh /tmp/fk-feh --branch=$FEH_VER #;
+  gitclone https://gitee.com/g-system/fk-feh $SRCROOT/fk-feh --branch=$FEH_VER #;
   log "Configuring FEH..."
-  cd /tmp/fk-feh #&& ./bootstrap;
+  cd $SRCROOT/fk-feh #&& ./bootstrap;
   # 2026-11-15: gitclone 缓存仓库无 tag → `git describe --dirty` 报 "fatal: No names found" 刷屏(CI 实测)。
   #   sed 加 2>/dev/null 消 stderr + || echo 兜底版本(不再调失败还报错)。
   sed -i "s|^VERSION ?= \${shell git describe --dirty}|VERSION ?= \${shell git describe --dirty 2>/dev/null \|\| echo ${FEH_VER}}|" config.mk
@@ -60,8 +60,8 @@ function feh(){
     make install;
 
   # view
-  ls -lh /tmp/fk-feh/src/feh
-  xx-verify --static /tmp/fk-feh/src/feh
+  ls -lh $SRCROOT/fk-feh/src/feh
+  xx-verify --static $SRCROOT/fk-feh/src/feh
 }
 
 
