@@ -23,13 +23,13 @@ export DOEXEC_CALLER="${DOEXEC_CALLER:-u-gtkmm}"
 #   mm-common → libsigc++ → { glibmm ∥ cairomm } → { pangomm ∥ atkmm } → gtkmm
 #   4 个并行坑处理: fetch name 改 local / cd 子 shell 隔离 / doExec_check 逐 rc / 只 2 路(gtkmm 单独)。
 
-# 源 tarball 优先离线复用 /tmp/gtkmm-stack/*.tar.xz，否则 download.gnome.org
+# 源 tarball 优先离线复用 $SRCROOT/gtkmm-stack/*.tar.xz，否则 download.gnome.org
 GNOME=https://download.gnome.org/sources
 fetch(){
   # local：两路并行 fetch 互不覆盖 name（否则全局变量会串）
   local name=$1
-  if [ -f /tmp/gtkmm-stack/$name.tar.xz ]; then
-    tar xJf /tmp/gtkmm-stack/$name.tar.xz -C $WS/gtkmm-src
+  if [ -f $SRCROOT/gtkmm-stack/$name.tar.xz ]; then
+    tar xJf $SRCROOT/gtkmm-stack/$name.tar.xz -C $WS/gtkmm-src
   else
     down_catfile $GNOME/$2/$3/$name.tar.xz | tar -xJ -C $WS/gtkmm-src
   fi
@@ -276,7 +276,7 @@ full)
     doExec gtkmm   # 调路口 doExec 包装整个 gtkmm() 方法块(全量落日志+白名单回显+错误码); 函数内 set -e 保失败终止
     ;;
 b_deps)
-    # GTK2 静态库(u-gtk)已在 base; 此栈额外需: 源码 tarball 可在 /tmp/gtkmm-stack 或走 down_catfile
+    # GTK2 静态库(u-gtk)已在 base; 此栈额外需: 源码 tarball 可在 $SRCROOT/gtkmm-stack 或走 down_catfile
     echo "base GTK2:"; ls /usr/lib/libgtk-x11-2.0.a 2>&1
     echo "u-gtk pc (非版本化, 需别名):"; ls /usr/lib/pkgconfig/pango.pc /usr/lib/pkgconfig/atk.pc 2>&1
     ;;
