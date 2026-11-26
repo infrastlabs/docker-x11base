@@ -122,7 +122,7 @@ function c_glibmm(){
   cd /tmp/gtkmm-src/glibmm-2.48.1
   git apply /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/glibmm-gprivate.patch 2>/dev/null || true
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
   [ -f ${XX_SYSROOT:-}/usr/lib/libglibmm-2.4.a ] || cp "$(find . -name libglibmm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
   [ -f ${XX_SYSROOT:-}/usr/lib/libgiomm-2.4.a ] || cp "$(find . -name libgiomm-2.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
@@ -136,7 +136,7 @@ function c_cairomm(){
   fetch cairomm-1.12.0 cairomm 1.12
   cd /tmp/gtkmm-src/cairomm-1.12.0
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
   [ -f ${XX_SYSROOT:-}/usr/lib/libcairomm-1.0.a ] || cp "$(find . -name libcairomm-1.0.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
   xx_la_fix
@@ -150,7 +150,7 @@ function c_pangomm(){
   cd /tmp/gtkmm-src/pangomm-2.40.0
   git apply /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || patch -p1 < /src/u-gtkmm/pangomm-pango-markup.patch 2>/dev/null || true
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
   [ -f ${XX_SYSROOT:-}/usr/lib/libpangomm-1.4.a ] || cp "$(find . -name libpangomm-1.4.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
   xx_la_fix
@@ -163,7 +163,7 @@ function c_atkmm(){
   fetch atkmm-2.24.2 atkmm 2.24
   cd /tmp/gtkmm-src/atkmm-2.24.2
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   make -j${PARALLEL_JOBS:-$(nproc)}; make install ${XX_DESTDIR:-}
   [ -f ${XX_SYSROOT:-}/usr/lib/libatkmm-1.6.a ] || cp "$(find . -name libatkmm-1.6.a 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/
   xx_la_fix
@@ -176,7 +176,7 @@ function c_gtkmm(){
   fetch gtkmm-2.24.5 gtkmm 2.24
   cd /tmp/gtkmm-src/gtkmm-2.24.5
   mkcfg
-  ./configure --enable-static --disable-shared --prefix=/usr $CROSS_HOST
+  ./configure --enable-static --disable-shared --disable-documentation --prefix=/usr $CROSS_HOST
   # 2026-11-15: 方案 A(u-gtk 库层 png/jpeg/svg loader 编入 libgdk_pixbuf-2.0.a)后,
   #   gdkmm 构建期工具 tools/extra_defs_gen/generate_extra_defs 链接 $(GTKMM_LIBS)
   #   (configure 取 pkg-config 非 static, 不展开 Requires.private → 缺 loader 依赖)
