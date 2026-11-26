@@ -14,8 +14,8 @@ function atk(){ ##@meson
   branch="--branch=ATK_2_35_1" #ATK_2_36_0  [2.35.1@ubt2004; 2.36.0@alpine315]
   branch="--branch=ATK_2_36_0"
   # 源码源切到 gitee 镜像: GNOME/atk 仓库已归档消失(github 404), 改由 g-system/fk-atk 提供 (tag ATK_2_36_0)
-  rm -rf /tmp/atk; gitclone https://gitee.com/g-system/fk-atk /tmp/atk $branch
-  cd /tmp/atk
+  rm -rf $SRCROOT/atk; gitclone https://gitee.com/g-system/fk-atk $SRCROOT/atk $branch
+  cd $SRCROOT/atk
     # [44/53] Linking static target atk/libatk-1.0.a
     # [45/53] Linking target atk/libatk-1.0.so.0.23510.1 ##err attempted static link of dynamic object '/usr/lib/libglib-2.0.so'
     # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
@@ -48,8 +48,8 @@ function gdk_pixbuf(){ ##@meson
   branch="--branch=2.40.0" #2.42.8 [2.40.0@ubt2004; 2.42.8@alpine315]
   branch="--branch=2.42.8"
   # 源码源切到 gitee 镜像 g-system/fk-gdk-pixbuf (tag 2.42.8 镜像内已确认)
-  rm -rf /tmp/gdk-pixbuf; gitclone https://gitee.com/g-system/fk-gdk-pixbuf /tmp/gdk-pixbuf $branch
-  cd /tmp/gdk-pixbuf
+  rm -rf $SRCROOT/gdk-pixbuf; gitclone https://gitee.com/g-system/fk-gdk-pixbuf $SRCROOT/gdk-pixbuf $branch
+  cd $SRCROOT/gdk-pixbuf
   log "Patching gdk-pixbuf (builtin svg loader)..."
     patch -p1 < /src/u-gtk/gdk-pixbuf-2.42.8-lxtask-static.patch || { log "GDKPIXBUF PATCH FAILED"; exit 1; }
     # 2026-11-14 方案A：库层 svg 注册根治——注册函数导出 + get_type 必然调用（patch hunk 行号不稳，内联 python 修缮，不依赖补丁格式）
@@ -125,17 +125,17 @@ PYEOF
 function gtk_ibus_a2(){
   # 方案A2(2026-11-07 定案+实测通过): 把 ibus im 模块静态注册进 libgtk-x11-2.0.a。
   # 前置: IBUS_BUILD 指向已构建的 ibus 源码树(client/gtk2/.libs 三对象 + src/.libs/libibus-1.0.a),
-  # 默认 /tmp/ibus; 产物缺失则跳过(基座 gtk 仍可用)。最终合并进 ./gtk/.libs/libgtk-x11-2.0.a。
+  # 默认 $SRCROOT/ibus; 产物缺失则跳过(基座 gtk 仍可用)。最终合并进 ./gtk/.libs/libgtk-x11-2.0.a。
   # 说明: gtkimmodule.o 用 make -n 捕获编译命令+追加 -DINCLUDE_IM_ibus 重编; ibusim.o 用守卫
   # 补丁+ -DINCLUDE_IM_ibus 重编(排除 g_module_check_init, 避免与 murrine_theme_main.o 冲突);
   # 其余 ibus 对象/libibus.a 直接取自 IBUS_BUILD 构建产物, ar r 按名合并。
-  local IBUS="${IBUS_BUILD:-/tmp/ibus}"
-  local OBJ=/tmp/ibus-a2-merge
+  local IBUS="${IBUS_BUILD:-$SRCROOT/ibus}"
+  local OBJ=$SRCROOT/ibus-a2-merge
   git config --global --add safe.directory "$IBUS" 2>/dev/null || true
   [ -f "$IBUS/client/gtk2/.libs/im_ibus_la-ibusim.o" ] || { log "A2 SKIP: ibus module objects NOT found ($IBUS)"; return 0; }
   [ -f "$IBUS/src/.libs/libibus-1.0.a" ] || { log "A2 SKIP: libibus-1.0.a NOT found ($IBUS)"; return 0; }
   log "A2: merge ibus im module -> ./gtk/.libs/libgtk-x11-2.0.a (IBUS=$IBUS)"
-  rm -rf "$OBJ"; mkdir -p "$OBJ"; cd /tmp/gtk
+  rm -rf "$OBJ"; mkdir -p "$OBJ"; cd $SRCROOT/gtk
   # 1) gtkimmodule.c: 加 INCLUDE_IM_ibus do_builtin(ibus)
   grep -q "do_builtin (ibus)" gtk/gtkimmodule.c || patch -p1 < /src/u-gtk/gtk-ibus-builtin.patch || { log "A2 gtk patch FAILED"; exit 1; }
   # 2) 重编 gtkimmodule.o (继承配置宏 + INCLUDE_IM_ibus)
@@ -145,7 +145,7 @@ function gtk_ibus_a2(){
   CMD=$(printf '%s' "$CMD" | sed -n 's#^.* xx-clang #xx-clang #p')
   CMD=$(printf '%s' "$CMD" | sed "s#-o gtkimmodule\.lo#-o $OBJ/gtkimmodule.o#; s#-DINCLUDE_IM_xim#-DINCLUDE_IM_xim -DINCLUDE_IM_ibus#")
   [ -n "$CMD" ] || { log "A2 FAIL: gtkimmodule compile cmd NOT captured"; exit 1; }
-  ( cd /tmp/gtk/gtk && eval "$CMD" ) || { log "A2 FAIL: gtkimmodule.o compile"; exit 1; }
+  ( cd $SRCROOT/gtk/gtk && eval "$CMD" ) || { log "A2 FAIL: gtkimmodule.o compile"; exit 1; }
   # 3) glue: im_module_* -> _gtk_immodule_ibus_*
   xx-clang $(pkg-config --cflags gtk+-2.0) -c /src/u-gtk/ibus-builtin-glue.c -o "$OBJ/ibus-builtin.o" || { log "A2 FAIL: glue compile"; exit 1; }
   # 4) ibusim.o: 守卫补丁 + -DINCLUDE_IM_ibus 重编
@@ -187,12 +187,12 @@ function gtk(){
 
   log "Preparing gtk source tree..."
   branch="--branch=2.24.33"
-  local GTK=/tmp/gtk
-  # 2026-11-24 方案二交叉: 用独立源码树($WS/gtk-cross)避免污染 native 增量树; 设 autotools 交叉环境
-  #   （强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot）。
+  local GTK=$SRCROOT/gtk
+  # 2026-11-27(4.1.5 ④): 交叉与 native 统一用 $SRCROOT/gtk(串行=/tmp/gtk, 并行=$WS/src/gtk);
+  #   设 autotools 交叉环境(强制宿主 pkg-config——xx 交叉 pkg-config 忽略 PKG_CONFIG_LIBDIR; --host 交叉; 装 sysroot)。
   CROSS_HOST=""
   if [ -n "$XX_CROSS_FILE" ]; then
-    GTK=$WS/gtk-cross
+    GTK=$SRCROOT/gtk
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
     export PKG_CONFIG=/usr/bin/pkg-config
@@ -214,7 +214,7 @@ function gtk(){
   #    复用判定需 .git(能 checkout 还原) + config.status(已 configure 过)。
   #    当前 broken 状态(无 .git 或半成品)会被丢弃重 clone。
   if [ -d "$GTK/.git" ] && [ -f "$GTK/config.status" ]; then
-    log "Reuse /tmp/gtk source tree (incremental)"
+    log "Reuse $SRCROOT/gtk source tree (incremental)"
     cd "$GTK"
   else
     log "Fresh clone gtk (no usable cache)"
@@ -318,11 +318,10 @@ function gtk(){
     # 源码源切到 gitee 镜像 g-system/fk-murrine (master); 环境变量 MURRINE_GIT 仍可覆盖
     MURRINE_GIT="${MURRINE_GIT:-https://gitee.com/g-system/fk-murrine}"
     # ④ murrine 缓存: 已有构建树则复用, make 增量; 否则全新 clone+configure。
-    git config --global --add safe.directory /tmp/murrine 2>/dev/null || true
-    git config --global --add safe.directory "$WS/murrine-cross" 2>/dev/null || true
-    # 2026-11-24 方案二交叉: murrine 独立树 + 交叉编译(--host + 强制宿主 pkg-config)
-    # 2026-11-26(3.1.2): cross 树收进 $WS/murrine-cross(并行隔离); native 仍 /tmp/murrine。
-    MURRINE=/tmp/murrine; [ -n "$XX_CROSS_FILE" ] && MURRINE=$WS/murrine-cross
+    git config --global --add safe.directory $SRCROOT/murrine 2>/dev/null || true
+    git config --global --add safe.directory "$SRCROOT/murrine" 2>/dev/null || true
+    # 2026-11-27(4.1.5 ④): 交叉与 native 统一 $SRCROOT/murrine(串行=/tmp/murrine, 并行=$WS/src/murrine)。
+    MURRINE=$SRCROOT/murrine
     if [ -d "$MURRINE/.git" ] && [ -f "$MURRINE/config.status" ]; then
       log "Reuse $MURRINE (incremental)"
       ( cd "$MURRINE" && unset LDFLAGS; make -j$(nproc) )
