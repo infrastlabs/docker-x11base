@@ -1,0 +1,147 @@
+#!/bin/sh
+# apkc — apk 裁剪工具（apk add 后按规则清理，对齐 apt path-exclude 语义）
+# 与 u-gtk/build.sh、xx-clear.sh 同目录；独立工具，不改动任何原构建逻辑。
+#
+# 背景:
+#   Alpine apk 无文件级裁剪机制（/etc/apk/ 只有 arch keys protected_paths.d repositories world，
+#   无 excludes 配置文件，整包解包不支持过滤）；参考 distros/src/Dockerfile.apt-ubuntu L43-49 的
+#   /etc/dpkg/dpkg.cfg.d/excludes（path-exclude /usr/share/doc/* man/* locale/* ...）语义，自实现。
+#
+# 用法:
+#   apkc add <pkg...>   # apk add 后按规则清理（对齐 apt Apt::Clean-Installed 行为）
+#   apkc clean          # 只跑清理，回报 freed=xxxK / yyy files
+#   apkc rule-add <pat> # 追加一条 path-exclude 规则
+#   apkc rules           # 打印当前规则
+#
+# 规则文件: /etc/apkc/excludes（缺失时按默认规则自举）
+#   path-exclude /usr/share/doc/*      支持 * ? 通配（** 视同 *，case 语义下 * 已跨 /）
+#
+# 安全边界:
+#   - add 不扫 /tmp（构建期源码树 /tmp/gtk-cross 等在跑，清了就炸）；clean 才额外扫 /tmp。
+#   - 只删文件，只在「规则前缀无通配的锚定目录」内删空目录；.a/.pc/include/.la/crt*.o 不在规则内，绝不受影响。
+#   - 清理失败不报错（|| true），不阻塞镜像构建。
+
+set -e
+# 关键：关 pathname expansion。否则 `set -- $PATLIST` 会把规则模式当 glob 展开成匹配到的目录名
+# （实测 busybox ash：argc 变 12、`*/share/doc/*` 展开成 `usr/share/doc/xxx`），规则即失效。
+set -f
+
+RULES=${APKC_RULES:-/etc/apkc/excludes}
+ROOTS_ADD="/usr /opt /root /var"
+# 交叉 sysroot 与 native /usr 同为本镜像主体，一并纳入（否则 gtkmm 文档 3 prefix 只清到 native 那份）
+ROOTS_SYSROOT="/aarch64-alpine-linux-musl /armv7-alpine-linux-musleabihf"
+ROOTS_CLEAN_EXTRA="/tmp"
+LIST=/tmp/.apkc-list
+
+log() { echo ">>> apkc: $*"; }
+
+rules_default() {
+  mkdir -p "$(dirname "$RULES")"
+  cat > "$RULES" <<'EOF'
+path-exclude **/share/doc/*
+path-exclude **/share/man/*
+path-exclude **/__pycache__/*
+path-exclude **/*.pyc
+path-exclude /var/cache/apk/*
+path-exclude /tmp/*
+EOF
+}
+
+# 规则 → 模式列表（每规则一个模式，空格分隔）；** 归一为 *
+# 实测（2026-11-26，Alpine busybox ash）：case 的 ${VAR} 展开是【单个模式串】，
+#   内含 | 不被当模式列表分隔（NOMATCH-VAR2 实测）→ 必须逐规则单独 case，不能用 PATS="a|b|c" 拼串。
+load_patterns() {
+  PATLIST=""
+  while IFS= read -r line; do
+    case "$line" in ''|\#*) continue ;; esac
+    case "$line" in path-exclude\ *) pat=${line#path-exclude } ;; *) continue ;; esac
+    pat=$(printf '%s' "$pat" | sed 's/\*\*/\*/g')
+    PATLIST="$PATLIST$pat "
+  done < "$RULES"
+}
+
+# 锚定目录 = 规则末段 /* 之前的前缀（前缀无通配才可删空目录）
+load_anchors() {
+  ANCHORS=""
+  while IFS= read -r line; do
+    case "$line" in ''|\#*) continue ;; esac
+    case "$line" in path-exclude\ *) pat=${line#path-exclude } ;; *) continue ;; esac
+    case "$pat" in */) : ;; *) continue ;; esac
+    pre=${pat%/*}
+    case "$pre" in
+      *[![:alnum:]/._-]*) continue ;;   # 前缀含 * 或 ? → 非锚定，跳过
+    esac
+    case "$pre" in */*) : ;; *) continue ;; esac
+    ANCHORS="$ANCHORS $pre"
+  done < "$RULES"
+}
+
+do_clean() { # $@ = 额外 root（clean 传 /tmp）
+  extra="$*"
+  [ -f "$RULES" ] || { log "rules missing -> defaults"; rules_default; }
+  load_patterns
+  load_anchors
+  [ -n "$PATLIST" ] || { log "no rules"; return 0; }
+
+  # 位置参数 = 各规则模式（ash 单模式展开才生效，见 load_patterns 注释）
+  set -- $PATLIST
+
+  ROOTS="$ROOTS_ADD $ROOTS_SYSROOT $extra"
+  r=""
+  for d in $ROOTS; do [ -d "$d" ] && r="$r $d"; done
+  [ -n "$r" ] || { log "no roots"; return 0; }
+
+  # 0) 清前总量（K）——用 root 前后 du 差值计体积，比逐文件 du 准（能反映删空目录的回收）
+  before=$(du -skc $r 2>/dev/null | tail -1 | cut -f1)
+  [ -n "$before" ] || before=0
+
+  # 1) 逐规则命中（首个命中即收）
+  find $r -xdev -type f 2>/dev/null | while IFS= read -r f; do
+    for pat in "$@"; do
+      case "$f" in $pat) printf '%s\n' "$f"; break ;; esac
+    done
+  done > "$LIST"
+  n=$(wc -l < "$LIST")
+  [ "$n" -gt 0 ] || { log "cleaned: 0 files, 0.0MB freed"; return 0; }
+
+  # 2) 删除
+  xargs -r rm -f -- < "$LIST"
+  rm -f "$LIST"
+
+  # 3) 只删锚定目录内的空目录（不递归到无关路径）；-mindepth 1 保锚点自身(/tmp 等)不被删空
+  for a in $ANCHORS; do
+    [ -d "$a" ] && find "$a" -mindepth 1 -depth -type d -empty -delete 2>/dev/null || true
+  done
+
+  after=$(du -skc $r 2>/dev/null | tail -1 | cut -f1)
+  [ -n "$after" ] || after=0
+  freed=$((before - after))
+  [ "$freed" -lt 0 ] && freed=0
+  freed_mb=$(awk -v k="$freed" 'BEGIN{printf "%.1f", k/1024}')
+  log "cleaned: ${n} files, ${freed_mb}MB freed"
+}
+
+cmd=${1:-}; shift || true
+case "$cmd" in
+  add)
+    [ "$#" -gt 0 ] || { echo "usage: $0 add <pkg...>" >&2; exit 1; }
+    apk add "$@"
+    do_clean
+    ;;
+  clean)
+    do_clean $ROOTS_CLEAN_EXTRA
+    ;;
+  rule-add)
+    [ -f "$RULES" ] || rules_default
+    for p in "$@"; do echo "path-exclude $p" >> "$RULES"; done
+    log "rules: $RULES"
+    ;;
+  rules)
+    [ -f "$RULES" ] || rules_default
+    cat "$RULES"
+    ;;
+  *)
+    echo "usage: $0 {add <pkg...>|clean|rule-add <pat...>|rules}" >&2
+    exit 1
+    ;;
+esac
