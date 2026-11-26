@@ -8,7 +8,7 @@ source /src/common.sh
 #
 # 组件目录 compile/src/x-dbus；构建容器 builder-obox（Alpine musl）。
 # 版本 1.12.26（最后 1.12.x；1.14 起 meson 构建，1.12 是经典 autotools、静态链友好）。
-# 网络坑：容器外网不可达，host 下载 tarball 放 /_ext/tmp/（docker mount 可见）或 /tmp/dbus-deps。
+# 网络坑：容器外网不可达，host 下载 tarball 放 /_ext/tmp/（docker mount 可见）或 $SRCROOT/dbus-deps。
 #
 # 产物（/usr/local/static/dbus/）：
 #   bin/dbus-daemon        静态（xx-clang -static，--version 可跑，session bus 实测通过）
@@ -34,36 +34,36 @@ DBUS_GLIB_URL=https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-$DBUS_GL
 # 离线 tarball 优先 /tmp，否则 /_ext（docker mount），否则下载
 fetch(){
   name=dbus-$DBUS_VER.tar.gz
-  mkdir -p /tmp/dbus-deps
-  for cand in /tmp/dbus-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.dbus-deps/$name \
+  mkdir -p $SRCROOT/dbus-deps
+  for cand in $SRCROOT/dbus-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.dbus-deps/$name \
              /_ext/tmp/$name; do
-    if [ -f "$cand" ] && [ "$cand" != "/tmp/dbus-deps/$name" ]; then
-      echo "use $cand"; cp "$cand" /tmp/dbus-deps/$name; break
+    if [ -f "$cand" ] && [ "$cand" != "$SRCROOT/dbus-deps/$name" ]; then
+      echo "use $cand"; cp "$cand" $SRCROOT/dbus-deps/$name; break
     fi
   done
-  if [ -f /tmp/dbus-deps/$name ]; then
+  if [ -f $SRCROOT/dbus-deps/$name ]; then
     echo "unpack $name (offline)"
-    tar xzf /tmp/dbus-deps/$name -C /tmp/dbus-build
+    tar xzf $SRCROOT/dbus-deps/$name -C $SRCROOT/dbus-build
   else
-    echo "download $name"; down_catfile $DBUS_URL | tar xz -C /tmp/dbus-build
+    echo "download $name"; down_catfile $DBUS_URL | tar xz -C $SRCROOT/dbus-build
   fi
 }
 
 # dbus-glib tarball 离线优先 /tmp / .gsm-deps / .dbus-deps，否则下载
 fetch_glib(){
   name=dbus-glib-$DBUS_GLIB_VER.tar.gz
-  mkdir -p /tmp/dbus-deps
-  for cand in /tmp/dbus-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.gsm-deps/$name \
+  mkdir -p $SRCROOT/dbus-deps
+  for cand in $SRCROOT/dbus-deps/$name /_ext/home/headless/xm-zs01/docker-x11base/.gsm-deps/$name \
              /_ext/home/headless/xm-zs01/docker-x11base/.dbus-deps/$name; do
-    if [ -f "$cand" ] && [ "$cand" != "/tmp/dbus-deps/$name" ]; then
-      echo "use $cand"; cp "$cand" /tmp/dbus-deps/$name; break
+    if [ -f "$cand" ] && [ "$cand" != "$SRCROOT/dbus-deps/$name" ]; then
+      echo "use $cand"; cp "$cand" $SRCROOT/dbus-deps/$name; break
     fi
   done
-  if [ -f /tmp/dbus-deps/$name ]; then
+  if [ -f $SRCROOT/dbus-deps/$name ]; then
     echo "unpack $name (offline)"
-    tar xzf /tmp/dbus-deps/$name -C /tmp/dbus-build
+    tar xzf $SRCROOT/dbus-deps/$name -C $SRCROOT/dbus-build
   else
-    echo "download $name"; down_catfile $DBUS_GLIB_URL | tar xz -C /tmp/dbus-build
+    echo "download $name"; down_catfile $DBUS_GLIB_URL | tar xz -C $SRCROOT/dbus-build
   fi
 }
 
@@ -95,19 +95,19 @@ function dbus(){
   export LDFLAGS="-Wl,--strip-all -Wl,--as-needed"
 
   log "Download/unpack dbus-$DBUS_VER..."
-    mkdir -p /tmp/dbus-build; rm -rf /tmp/dbus-build/dbus-$DBUS_VER
+    mkdir -p $SRCROOT/dbus-build; rm -rf $SRCROOT/dbus-build/dbus-$DBUS_VER
     fetch
-    cd /tmp/dbus-build/dbus-$DBUS_VER
+    cd $SRCROOT/dbus-build/dbus-$DBUS_VER
 
   log "Configuring dbus (static only, minimal)..."
     ./configure --enable-static --disable-shared \
       --disable-systemd --disable-selinux --disable-elogind \
       --disable-glib --disable-tests --disable-docs --disable-man \
-      --prefix=$TARGETPATH >/tmp/dbus-cfg.log 2>&1 || true
-    test -f Makefile || { log "dbus configure FAILED"; tail -20 /tmp/dbus-cfg.log; exit 1; }
+      --prefix=$TARGETPATH >$OTHLOG/dbus-cfg.log 2>&1 || true
+    test -f Makefile || { log "dbus configure FAILED"; tail -20 $OTHLOG/dbus-cfg.log; exit 1; }
 
   log "Compiling dbus (libdbus-1.a + daemon objects)..."
-    make -j$(nproc) >/tmp/dbus-make.log 2>&1 || true   # daemon 仍动态，静态靠后面手工链
+    make -j$(nproc) >$OTHLOG/dbus-make.log 2>&1 || true   # daemon 仍动态，静态靠后面手工链
     test -f dbus/.libs/libdbus-1.a || { log "libdbus-1.a MISSING"; exit 1; }
 
   log "Install dbus static (manual, 免 make install 重链失败)..."
@@ -144,21 +144,21 @@ function dbus(){
 # dbus-send：dbus 自带 CLI 发送工具（tools/dbus-send.c），静态链 libdbus-1.a。
 # 用途：① 通知发送端（发 org.freedesktop.Notifications.Notify）；② 解锁 dunstctl——其是 shell 脚本，
 #   运行期 command -v dbus-send 硬依赖（无则 die）。产物 bin/dbus-send。
-# 依赖 dbus() 先跑（/tmp/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
+# 依赖 dbus() 先跑（$SRCROOT/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
 # 链接对象：tools/dbus-print-message.o + dbus-send.o + tool-common.o（tools/Makefile am_dbus_send_OBJECTS）；
 #   静态链要点同 dbus-daemon——xx-clang -static 手工链（libtool 不认 LDFLAGS=-static）。
 #   私有依赖同 libdbus-1.a：-lexpat -lpthread -ldl -lm（dbus-1.pc Libs.private 已补，见 dbus()）。
 function dbus_send(){
   # 调用方须预置 TARGETPATH=/usr/local/static/dbus（同 dbus()）
   export TARGETPATH=${TARGETPATH:-/usr/local/static/dbus}
-  cd /tmp/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
+  cd $SRCROOT/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
   test -f dbus/.libs/libdbus-1.a || { log "libdbus-1.a missing, run dbus() first"; exit 1; }
 
   log "Build dbus-send objects (tools/*.o)..."
     make -j$(nproc) tools/dbus-print-message.o tools/dbus-send.o tools/tool-common.o \
-     >/tmp/dbus-send-make.log 2>&1 || true
+     >$OTHLOG/dbus-send-make.log 2>&1 || true
     test -f tools/dbus-send.o && test -f tools/dbus-print-message.o && test -f tools/tool-common.o \
-     || { log "dbus-send objects MISSING"; tail -20 /tmp/dbus-send-make.log; exit 1; }
+     || { log "dbus-send objects MISSING"; tail -20 $OTHLOG/dbus-send-make.log; exit 1; }
 
   log "Static-link dbus-send (xx-clang -static, 手工)..."
     mkdir -p $TARGETPATH/bin
@@ -177,19 +177,19 @@ function dbus_send(){
 # dbus-launch：dbus 自带 bus 启动辅助（tools/dbus-launch.c，C 程序非脚本），
 # 用途：启动 dbus-daemon 并输出 DBUS_SESSION_BUS_ADDRESS（`eval $(dbus-launch --sh-syntax)`），
 #   会话/脚本/调试常用（entry.sh 亦引用 dbus-launch）。产物 bin/dbus-launch。
-# 依赖 dbus() 先跑（/tmp/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
+# 依赖 dbus() 先跑（$SRCROOT/dbus-build/dbus-$DBUS_VER + libdbus-1.a 就位）。
 # 链接对象：tools/dbus-launch.o（tools/Makefile am_dbus_launch_OBJECTS）；静态链同 dbus-daemon——
 #   xx-clang -static 手工链，私有依赖 -lexpat -lpthread -ldl -lm。
 function dbus_launch(){
   export TARGETPATH=${TARGETPATH:-/usr/local/static/dbus}
-  cd /tmp/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
+  cd $SRCROOT/dbus-build/dbus-$DBUS_VER 2>/dev/null || { log "dbus source not built, run dbus() first"; exit 1; }
   test -f dbus/.libs/libdbus-1.a || { log "libdbus-1.a missing, run dbus() first"; exit 1; }
 
   log "Build dbus-launch objects (tools/*.o)..."
     make -j$(nproc) tools/dbus_launch-dbus-launch.o tools/dbus_launch-dbus-launch-x11.o tools/dbus_launch-tool-common.o \
-     >/tmp/dbus-launch-make.log 2>&1 || true
+     >$OTHLOG/dbus-launch-make.log 2>&1 || true
     test -f tools/dbus_launch-dbus-launch.o \
-     || { log "dbus_launch-dbus-launch.o MISSING"; tail -20 /tmp/dbus-launch-make.log; exit 1; }
+     || { log "dbus_launch-dbus-launch.o MISSING"; tail -20 $OTHLOG/dbus-launch-make.log; exit 1; }
 
   log "Static-link dbus-launch (xx-clang -static, 手工)..."
     mkdir -p $TARGETPATH/bin
@@ -218,18 +218,18 @@ function dbus_glib(){
   export PKG_CONFIG_PATH="${DBUS_PC_PATH:-/usr/local/static/dbus/lib/pkgconfig}:$PKG_CONFIG_PATH"
 
   log "Download/unpack dbus-glib-$DBUS_GLIB_VER..."
-    mkdir -p /tmp/dbus-build; rm -rf /tmp/dbus-build/dbus-glib-$DBUS_GLIB_VER
+    mkdir -p $SRCROOT/dbus-build; rm -rf $SRCROOT/dbus-build/dbus-glib-$DBUS_GLIB_VER
     fetch_glib
-    cd /tmp/dbus-build/dbus-glib-$DBUS_GLIB_VER
+    cd $SRCROOT/dbus-build/dbus-glib-$DBUS_GLIB_VER
 
   log "Configuring dbus-glib (static only)..."
     ./configure --enable-static --disable-shared --prefix=$TARGETPATH $CROSS_HOST \
-      >/tmp/dbusglib-cfg.log 2>&1 || true
-    test -f Makefile || { log "dbus-glib configure FAILED"; tail -20 /tmp/dbusglib-cfg.log; exit 1; }
+      >$OTHLOG/dbusglib-cfg.log 2>&1 || true
+    test -f Makefile || { log "dbus-glib configure FAILED"; tail -20 $OTHLOG/dbusglib-cfg.log; exit 1; }
 
   log "Compiling dbus-glib (libdbus-glib-1.a)..."
-    make -j$(nproc) >/tmp/dbusglib-make.log 2>&1 || true
-    test -f dbus/.libs/libdbus-glib-1.a || { log "libdbus-glib-1.a MISSING"; tail -20 /tmp/dbusglib-make.log; exit 1; }
+    make -j$(nproc) >$OTHLOG/dbusglib-make.log 2>&1 || true
+    test -f dbus/.libs/libdbus-glib-1.a || { log "libdbus-glib-1.a MISSING"; tail -20 $OTHLOG/dbusglib-make.log; exit 1; }
 
   log "Install dbus-glib static (manual, 免 make install 重链失败)..."
     # 头文件装到 $(includedir)/dbus-1.0/dbus/（= libdbus_glibdir，与 dbus 自身头同目录），
@@ -263,21 +263,21 @@ function dbus_1_16_4(){
   DBUS_VER_NEW=1.16.4
   log "Download/unpack dbus-$DBUS_VER_NEW (meson)..."
     name=dbus-$DBUS_VER_NEW.tar.xz
-    mkdir -p /tmp/dbus-deps /tmp/dbus-build
-    rm -rf /tmp/dbus-build/dbus-$DBUS_VER_NEW
-    for cand in /tmp/dbus-deps/$name /_ext/tmp/$name; do
-      if [ -f "$cand" ] && [ "$cand" != "/tmp/dbus-deps/$name" ]; then
-        echo "use $cand"; cp "$cand" /tmp/dbus-deps/$name; break
+    mkdir -p $SRCROOT/dbus-deps $SRCROOT/dbus-build
+    rm -rf $SRCROOT/dbus-build/dbus-$DBUS_VER_NEW
+    for cand in $SRCROOT/dbus-deps/$name /_ext/tmp/$name; do
+      if [ -f "$cand" ] && [ "$cand" != "$SRCROOT/dbus-deps/$name" ]; then
+        echo "use $cand"; cp "$cand" $SRCROOT/dbus-deps/$name; break
       fi
     done
-    if [ -f /tmp/dbus-deps/$name ]; then
+    if [ -f $SRCROOT/dbus-deps/$name ]; then
       echo "unpack $name (offline)"
-      tar xJf /tmp/dbus-deps/$name -C /tmp/dbus-build
+      tar xJf $SRCROOT/dbus-deps/$name -C $SRCROOT/dbus-build
     else
       echo "download $name"
-      down_catfile https://dbus.freedesktop.org/releases/dbus/$name | tar xJ -C /tmp/dbus-build
+      down_catfile https://dbus.freedesktop.org/releases/dbus/$name | tar xJ -C $SRCROOT/dbus-build
     fi
-    cd /tmp/dbus-build/dbus-$DBUS_VER_NEW
+    cd $SRCROOT/dbus-build/dbus-$DBUS_VER_NEW
 
   log "Patch meson.build: expat 强制静态（libexpat.a，否则 Meson 用 libexpat.so 与 -static 冲突）..."
     sed -i "s/        'expat',/        'expat',\n        static: true,/" meson.build
@@ -294,16 +294,16 @@ function dbus_1_16_4(){
       -Dmodular_tests=disabled -Dinstalled_tests=false -Dintrusive_tests=false \
       -Dxml_docs=disabled -Ddoxygen_docs=disabled -Dducktype_docs=disabled \
       -Dasserts=false -Dchecks=true \
-      $XX_CROSS_ARGS --prefix=$TARGETPATH >/tmp/dbus164-meson.log 2>&1 \
-      || { log "dbus 1.16.4 meson setup FAILED"; tail -25 /tmp/dbus164-meson.log; exit 1; }
+      $XX_CROSS_ARGS --prefix=$TARGETPATH >$OTHLOG/dbus164-meson.log 2>&1 \
+      || { log "dbus 1.16.4 meson setup FAILED"; tail -25 $OTHLOG/dbus164-meson.log; exit 1; }
 
   log "Ninja build dbus 1.16.4 (仅产品 target，避测试程序链动态库)..."
-    ninja -C build bus/dbus-daemon tools/dbus-send tools/dbus-launch dbus/libdbus-1.a >/tmp/dbus164-ninja.log 2>&1 \
-      || { log "dbus 1.16.4 ninja FAILED"; tail -30 /tmp/dbus164-ninja.log; exit 1; }
+    ninja -C build bus/dbus-daemon tools/dbus-send tools/dbus-launch dbus/libdbus-1.a >$OTHLOG/dbus164-ninja.log 2>&1 \
+      || { log "dbus 1.16.4 ninja FAILED"; tail -30 $OTHLOG/dbus164-ninja.log; exit 1; }
 
   log "Install dbus 1.16.4 (ninja install, ${XX_SYSROOT:-native}...)"
-    env ${XX_DESTDIR:-} ninja -C build install >/tmp/dbus164-inst.log 2>&1 \
-      || { log "dbus 1.16.4 install FAILED"; tail -20 /tmp/dbus164-inst.log; exit 1; }
+    env ${XX_DESTDIR:-} ninja -C build install >$OTHLOG/dbus164-inst.log 2>&1 \
+      || { log "dbus 1.16.4 install FAILED"; tail -20 $OTHLOG/dbus164-inst.log; exit 1; }
 
   log "Patch dbus-1.pc Libs.private (expat/pthread/dl/m)..."
     PC=${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig/dbus-1.pc
