@@ -7,8 +7,8 @@ source /src/common.sh
 # Build geany 1.37.1 (GTK2, Scintilla=C++) 静态
 #
 # 网络坑（2026-11-05）：builder 容器外网不可达（DNS 通、git/curl 全挂），ghfast.top 已失效。
-# 实测 host 走 gh-proxy.com 可下载 tarball；本容器内已由 host 下载 + docker cp 到 /tmp/geany-1.37.1.tar.gz
-# 并解包 /tmp/geany（离线复用）。正常网络环境走 $GITHUB/geany/geany git clone。
+# 实测 host 走 gh-proxy.com 可下载 tarball；本容器内已由 host 下载 + docker cp 到 $SRCROOT/geany-1.37.1.tar.gz
+# 并解包 $SRCROOT/geany（离线复用）。正常网络环境走 $GITHUB/geany/geany git clone。
 # 版本 1.37.1 = 最后一个支持 GTK2 的发布（1.38 起删 GTK2；2.0 起强制 GTK3.24）。
 
 # 2026-11-25 方案二交叉: geany 栈(gtk2) 共用交叉环境(autotools configure + 手工 xx-clang++ 静态链)。
@@ -37,17 +37,17 @@ geany_cross(){
 function geany(){
   geany_cross
   log "Downloading GEANY..."
-    if [ ! -f /tmp/geany/configure.ac ]; then
-      # 离线：host 下载 + docker cp 的 tarball 已解包 /tmp/geany；否则 git clone
-      if [ -f /tmp/geany-1.37.1.tar.gz ]; then
-        rm -rf /tmp/geany; mkdir -p /tmp/geany
-        tar xzf /tmp/geany-1.37.1.tar.gz -C /tmp/geany --strip-components=1
+    if [ ! -f $SRCROOT/geany/configure.ac ]; then
+      # 离线：host 下载 + docker cp 的 tarball 已解包 $SRCROOT/geany；否则 git clone
+      if [ -f $SRCROOT/geany-1.37.1.tar.gz ]; then
+        rm -rf $SRCROOT/geany; mkdir -p $SRCROOT/geany
+        tar xzf $SRCROOT/geany-1.37.1.tar.gz -C $SRCROOT/geany --strip-components=1
       else
-        rm -rf /tmp/geany
-        gitclone https://gitee.com/g-system/fk-geany /tmp/geany --branch=1.37.1
+        rm -rf $SRCROOT/geany
+        gitclone https://gitee.com/g-system/fk-geany $SRCROOT/geany --branch=1.37.1
       fi
     fi
-    cd /tmp/geany
+    cd $SRCROOT/geany
 
   log "Configuring GEANY (static only, no shared)..."
     # 关键：LT_INIT([disable-static]) 默认只出 .so；--enable-static 覆盖之，--disable-shared 强制纯静态。
@@ -111,7 +111,7 @@ function geany(){
       GCCDIR=$(dirname $(find ${XX_SYSROOT:-}/usr/lib/gcc -name libgcc.a | head -1))
       cp $GCCDIR/libgcc.a ${XX_SYSROOT:-}/usr/lib/libgcc_s.a
     fi
-    cd /tmp/geany/src
+    cd $SRCROOT/geany/src
     mkdir -p $TARGETPATH/bin
     # 交叉: 静态链 -L 前缀 sysroot(仅 is-cross; native 空=原路径零影响)
     XX_LINK_L=""; [ -n "$XX_CROSS_FILE" ] && XX_LINK_L="-L$XX_SYSROOT/usr/local/lib -L$XX_SYSROOT/usr/lib"
