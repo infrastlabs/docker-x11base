@@ -79,88 +79,88 @@ px_cross(){
 function libogg(){
   px_cross
   log "Downloading libOgg..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
-  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libogg
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libogg
+  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libogg
   branch="--branch=v1.3.5"
   repo=https://gitee.com/g-system/fk-xiph-ogg #$GITHUB/xiph/ogg
-  rm -rf /tmp/libogg; gitclone $repo /tmp/libogg $branch
+  rm -rf $SRCROOT/libogg; gitclone $repo $SRCROOT/libogg $branch
   log "Configuring libOgg..."
   (
-      cd /tmp/libogg
+      cd $SRCROOT/libogg
       bash autogen.sh
       ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libOgg..."
-  make -C /tmp/libogg -j$(nproc)
+  make -C $SRCROOT/libogg -j$(nproc)
   log "Installing libOgg..."
-  make -C /tmp/libogg install ${XX_DESTDIR:-}
-  cp "$(find /tmp/libogg -name 'libogg.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  make -C $SRCROOT/libogg install ${XX_DESTDIR:-}
+  cp "$(find $SRCROOT/libogg -name 'libogg.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
   xx_la_fix
 }
 
 function libflac(){
   px_cross
   log "Downloading libFLAC..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
-  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libflac
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libflac
+  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libflac
   branch="--branch=1.3.4"
   repo=https://gitee.com/g-system/fk-xiph-flac #$GITHUB/xiph/flac
-  rm -rf /tmp/libflac; gitclone $repo /tmp/libflac $branch
+  rm -rf $SRCROOT/libflac; gitclone $repo $SRCROOT/libflac $branch
   log "Configuring libFLAC..."
   (
-      cd /tmp/libflac
+      cd $SRCROOT/libflac
       bash autogen.sh
       ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libFLAC..."
-  make -C /tmp/libflac -j$(nproc)
+  make -C $SRCROOT/libflac -j$(nproc)
   log "Installing libFLAC..."
-  make -C /tmp/libflac install ${XX_DESTDIR:-}
-  cp "$(find /tmp/libflac -name 'libFLAC.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  make -C $SRCROOT/libflac install ${XX_DESTDIR:-}
+  cp "$(find $SRCROOT/libflac -name 'libFLAC.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
   xx_la_fix
 }
 
 function libvorbis(){
   px_cross
   log "Downloading libVorbis..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
-  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libvorbis
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libvorbis
+  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libvorbis
   branch="--branch=v1.3.7"
   repo=https://gitee.com/g-system/fk-xiph-vorbis #$GITHUB/xiph/vorbis
-  rm -rf /tmp/libvorbis; gitclone $repo /tmp/libvorbis $branch
+  rm -rf $SRCROOT/libvorbis; gitclone $repo $SRCROOT/libvorbis $branch
   log "Configuring libVorbis..."
   (
-      cd /tmp/libvorbis
+      cd $SRCROOT/libvorbis
       bash autogen.sh
       ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libVorbis..."
-  make -C /tmp/libvorbis -j$(nproc)
+  make -C $SRCROOT/libvorbis -j$(nproc)
   log "Installing libVorbis..."
-  make -C /tmp/libvorbis install ${XX_DESTDIR:-}
-  for _a in $(find /tmp/libvorbis -name 'libvorbis*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
+  make -C $SRCROOT/libvorbis install ${XX_DESTDIR:-}
+  for _a in $(find $SRCROOT/libvorbis -name 'libvorbis*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
   xx_la_fix
 }
 
 function libopus(){
   px_cross
   log "Downloading libOpus..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
-  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libopus
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libopus
+  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libopus
   branch="--branch=v1.3.1"
   repo=https://gitee.com/g-system/fk-xiph-opus #$GITHUB/xiph/opus
-  rm -rf /tmp/libopus; gitclone $repo /tmp/libopus $branch
+  rm -rf $SRCROOT/libopus; gitclone $repo $SRCROOT/libopus $branch
   log "Configuring libOpus..."
   (
-      cd /tmp/libopus
+      cd $SRCROOT/libopus
       bash autogen.sh
       ./configure --enable-static --disable-shared $CROSS_HOST
   )
   log "Compiling libOpus..."
-  make -C /tmp/libopus -j$(nproc)
+  make -C $SRCROOT/libopus -j$(nproc)
   log "Installing libOpus..."
-  make -C /tmp/libopus install ${XX_DESTDIR:-}
-  cp "$(find /tmp/libopus -name 'libopus.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  make -C $SRCROOT/libopus install ${XX_DESTDIR:-}
+  cp "$(find $SRCROOT/libopus -name 'libopus.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
   xx_la_fix
 }
 
@@ -169,14 +169,14 @@ function libopus(){
 function libsndfile(){
   px_cross
   log "Downloading libSndfile..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
-  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libsndfile
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libsndfile
+  # down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libsndfile
   branch="--branch=1.0.31"
   repo=https://gitee.com/g-system/fk-libsndfile #$GITHUB/libsndfile/libsndfile
-  rm -rf /tmp/libsndfile; gitclone $repo /tmp/libsndfile $branch
+  rm -rf $SRCROOT/libsndfile; gitclone $repo $SRCROOT/libsndfile $branch
   log "Configuring libSndfile..."
   (
-      cd /tmp/libsndfile
+      cd $SRCROOT/libsndfile
       sed -i "s/autogen --version/echo autogen --version/g" autogen.sh
       apk add python2 #
       bash autogen.sh
@@ -187,10 +187,10 @@ function libsndfile(){
       sed -i "s/autogen/echo autogen/g" Makefile #fix
   )
   log "Compiling libSndfile..."
-  make -C /tmp/libsndfile -j$(nproc)
+  make -C $SRCROOT/libsndfile -j$(nproc)
   log "Installing libSndfile..."
-  make -C /tmp/libsndfile install ${XX_DESTDIR:-}
-  cp "$(find /tmp/libsndfile -name 'libsndfile.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
+  make -C $SRCROOT/libsndfile install ${XX_DESTDIR:-}
+  cp "$(find $SRCROOT/libsndfile -name 'libsndfile.a' 2>/dev/null | head -1)" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true
   xx_la_fix
 }
 
@@ -200,14 +200,14 @@ function libsndfile(){
 function pulseaudio(){
   px_cross
   log "Downloading PULSEAUDIO..."
-  rm -rf /tmp/pulseaudio; # mkdir -p /tmp/pulseaudio
-  # down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C /tmp/pulseaudio
+  rm -rf $SRCROOT/pulseaudio; # mkdir -p $SRCROOT/pulseaudio
+  # down_catfile ${PULSEAUDIO_URL} | tar -zx --strip 1 -C $SRCROOT/pulseaudio
   PULSEAUDIO_VER=br-v13-99-3 #v16.99.1  v15.99.1  v14.99.2
   branch="--branch=$PULSEAUDIO_VER"
   # --depth=1 ##./git-version-gen .tarball-version
-  gitclone https://gitee.com/g-system/fk-pulseaudio /tmp/pulseaudio $branch #;
+  gitclone https://gitee.com/g-system/fk-pulseaudio $SRCROOT/pulseaudio $branch #;
   log "Configuring PULSEAUDIO..."
-  cd /tmp/pulseaudio #&& ./bootstrap;
+  cd $SRCROOT/pulseaudio #&& ./bootstrap;
   # 2026-11-16: CI 干净环境 git-version-gen failed 根因——gitclone 快照恢复的 .git 无 version tag
   # (git describe 失败) 且无 .tarball-version; configure.ac:24 用 m4_esyscmd(./git-version-gen .tarball-version),
   # 只要存在 .tarball-version(内容数字开头) 即读它、不依赖 git describe。此处显式生成绕过。
@@ -229,13 +229,13 @@ function pulseaudio(){
   log "Install PULSEAUDIO..."
   # make;
   make install ${XX_DESTDIR:-};
-  for _a in $(find /tmp/pulseaudio/src -name 'libpulse*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
+  for _a in $(find $SRCROOT/pulseaudio/src -name 'libpulse*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
   xx_la_fix
 
   # view
-  ls -lh /tmp/pulseaudio/src/pa*
-  xx-verify --static /tmp/pulseaudio/src/pulseaudio
-  xx-verify --static /tmp/pulseaudio/src/pactl
+  ls -lh $SRCROOT/pulseaudio/src/pa*
+  xx-verify --static $SRCROOT/pulseaudio/src/pulseaudio
+  xx-verify --static $SRCROOT/pulseaudio/src/pactl
 }
 
 
