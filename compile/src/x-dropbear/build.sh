@@ -7,7 +7,7 @@ source /src/common.sh
 # 静态链接 libxcrypt 内嵌 yescrypt/sha512 等，兼顾新旧发行版。
 # 版本 v4.4.28（musl 上验证可用；INCLUDE_* 无默认值，须手动生成 crypt-hashes.h）。
 LIBXCRYPT_VER=4.4.28
-LIBXCRYPT_DIR=/tmp/libxcrypt
+LIBXCRYPT_DIR=$SRCROOT/libxcrypt
 LIBXCRYPT_ALL="yescrypt,gost_yescrypt,scrypt,bcrypt,bcrypt_y,bcrypt_a,bcrypt_x,sha512crypt,sha256crypt,sha1crypt,sunmd5,md5crypt,nt,bsdicrypt,bigcrypt,descrypt"
 
 #
@@ -68,10 +68,10 @@ function libxcrypt(){
 function dropbear_2024_86(){
   db_cross
   log "Downloading DROPBEAR (2024.86)..."
-  rm -rf /tmp/dropbear
-  gitclone https://gitee.com/g-system/fk-dropbear /tmp/dropbear --branch=DROPBEAR_2024.86
+  rm -rf $SRCROOT/dropbear
+  gitclone https://gitee.com/g-system/fk-dropbear $SRCROOT/dropbear --branch=DROPBEAR_2024.86
   log "Configuring DROPBEAR (2024.86)..."
-  cd /tmp/dropbear
+  cd $SRCROOT/dropbear
   # libcrypt.a 前置 whole-archive 到 LDFLAGS——crypt 定义在对象之前, ld 绑定 libxcrypt 的 crypt（yescrypt）
   #   --allow-multiple-definition：musl libc.a 自带 crypt，需允许多重定义
   LDFLAGS="$LDFLAGS -Wl,--allow-multiple-definition $LIBXCRYPT_DIR/.libs/libcrypt.a" \
@@ -81,16 +81,16 @@ function dropbear_2024_86(){
     LIBS="-lz"
   log "Install DROPBEAR (2024.86)..."
   make install
-  ls -lh /tmp/dropbear/
+  ls -lh $SRCROOT/dropbear/
   # 交叉真验: xx-verify 按 build 架构(amd64)校验, 交叉产物(ARM)必 mismatch → 用 file; native 仍走 xx-verify。
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/dropbear/dropbear | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/dropbear/dropbear | grep -qE "ARM.*statically linked" \
       || { log "DROPBEAR file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/dropbear/dropbear || { log "DROPBEAR xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/dropbear/dropbear || { log "DROPBEAR xx-verify FAILED"; exit 1; }
   fi
   # 兜底：确认真链入 libxcrypt 的 yescrypt（musl 的 crypt 无此符号；产物被 --strip-all 剥符号表，用 strings 查 "$y$"）。
-  strings -n 3 /tmp/dropbear/dropbear | grep -qx '\$y\$' \
+  strings -n 3 $SRCROOT/dropbear/dropbear | grep -qx '\$y\$' \
     || { echo "!! dropbear 未含 yescrypt（libxcrypt 失败）"; exit 1; }
 }
 
@@ -98,10 +98,10 @@ function dropbear_2024_86(){
 function dropbear_2026_94(){
   db_cross
   log "Downloading DROPBEAR (2026.94)..."
-  rm -rf /tmp/dropbear
-  gitclone https://github.com/mkj/dropbear /tmp/dropbear --branch=DROPBEAR_2026.94
+  rm -rf $SRCROOT/dropbear
+  gitclone https://github.com/mkj/dropbear $SRCROOT/dropbear --branch=DROPBEAR_2026.94
   log "Configuring DROPBEAR (2026.94)..."
-  cd /tmp/dropbear
+  cd $SRCROOT/dropbear
   # 2025.87+ 默认禁 SHA-1（hmac-sha1/ssh-rsa/group14-sha1）→ Xshell 4 断连；localoptions.h 显式保留三件套。
   log "Preserve SHA-1 trio (Xshell 4 compat) for 2026.94..."
   printf "#ifndef DROPBEAR_LOCALOPTIONS_H\n#define DROPBEAR_LOCALOPTIONS_H\n#define DROPBEAR_SHA1_HMAC 1\n#define DROPBEAR_RSA_SHA1 1\n#define DROPBEAR_DH_GROUP14_SHA1 1\n#endif\n" > localoptions.h
@@ -114,16 +114,16 @@ function dropbear_2026_94(){
     LIBS="-lz"
   log "Install DROPBEAR (2026.94)..."
   make install
-  ls -lh /tmp/dropbear/
+  ls -lh $SRCROOT/dropbear/
   # 交叉真验: xx-verify 按 build 架构(amd64)校验, 交叉产物(ARM)必 mismatch → 用 file; native 仍走 xx-verify。
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/dropbear/dropbear | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/dropbear/dropbear | grep -qE "ARM.*statically linked" \
       || { log "DROPBEAR file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/dropbear/dropbear || { log "DROPBEAR xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/dropbear/dropbear || { log "DROPBEAR xx-verify FAILED"; exit 1; }
   fi
   # 兜底：确认真链入 libxcrypt 的 yescrypt（musl 的 crypt 无此符号；产物被 --strip-all 剥符号表，用 strings 查 "$y$"）。
-  strings -n 3 /tmp/dropbear/dropbear | grep -qx '\$y\$' \
+  strings -n 3 $SRCROOT/dropbear/dropbear | grep -qx '\$y\$' \
     || { echo "!! dropbear 未含 yescrypt（libxcrypt 失败）"; exit 1; }
 }
 
@@ -142,7 +142,7 @@ full)
     ;;
 b_deps)
     # 2026-11-16: libxcrypt 前置另放 b_deps——Dockerfile dropbear stage 先调 b_deps 再 dropbear
-    #   （原只调 dropbear 单组件，未建 /tmp/libxcrypt/.libs/libcrypt.a → 无 yescrypt，登录 authFail）
+    #   （原只调 dropbear 单组件，未建 $SRCROOT/libxcrypt/.libs/libcrypt.a → 无 yescrypt，登录 authFail）
     doExec libxcrypt || exit 1
     ;;
 *) #compile
