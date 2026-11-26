@@ -104,10 +104,10 @@ build_dep(){
   if test "$all_exist" = "1"; then log "reuse existing $libs (skip build)"; return 0; fi
   get_src "$tarball" "$@" || return 1
   log "Building $libs (from $tarball) ..."
-  rm -rf /tmp/build-$srcdir
-  mkdir -p /tmp/build-$srcdir
-  tar xzf /tmp/$tarball -C /tmp/build-$srcdir --strip-components=1
-  cd /tmp/build-$srcdir
+  rm -rf $SRCROOT/build-$srcdir
+  mkdir -p $SRCROOT/build-$srcdir
+  tar xzf /tmp/$tarball -C $SRCROOT/build-$srcdir --strip-components=1
+  cd $SRCROOT/build-$srcdir
   test -x ./configure || { autoreconf -fi 2>&1 || { log "autoreconf FAILED: $srcdir"; return 1; }; }
   # 2026-11-25 交叉: --host + DESTDIR 落 sysroot; native CROSS_HOST/XX_DESTDIR 空零影响.
   ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST 2>&1 \
@@ -138,14 +138,14 @@ build_xkbcommon_cross(){
   fi
   local BASE="https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.15/main/$XX_MARCH"
   log "xkbcommon cross: fetch dev+static from $BASE"
-  curl -sSL --connect-timeout 20 -o /tmp/xx-xkbcommon-APKINDEX.tar.gz "$BASE/APKINDEX.tar.gz" \
+  curl -sSL --connect-timeout 20 -o $SRCROOT/xx-xkbcommon-APKINDEX.tar.gz "$BASE/APKINDEX.tar.gz" \
     || { log "xkbcommon: APKINDEX dl fail"; return 1; }
-  tar xzf /tmp/xx-xkbcommon-APKINDEX.tar.gz -O APKINDEX > /tmp/xx-xkbcommon-APKINDEX 2>/dev/null \
+  tar xzf $SRCROOT/xx-xkbcommon-APKINDEX.tar.gz -O APKINDEX > $SRCROOT/xx-xkbcommon-APKINDEX 2>/dev/null \
     || { log "xkbcommon: APKINDEX extract fail"; return 1; }
   for p in libxkbcommon-dev libxkbcommon-static; do
-    local V=$(grep -A1 "^P:$p$" /tmp/xx-xkbcommon-APKINDEX 2>/dev/null | grep "^V:" | head -1 | sed 's/^V://')
+    local V=$(grep -A1 "^P:$p$" $SRCROOT/xx-xkbcommon-APKINDEX 2>/dev/null | grep "^V:" | head -1 | sed 's/^V://')
     test -n "$V" || { log "xkbcommon: $p version not found"; return 1; }
-    local apkf=/tmp/xx-$p-$V.apk
+    local apkf=$SRCROOT/xx-$p-$V.apk
     curl -sSL --connect-timeout 20 -o "$apkf" "$BASE/$p-$V.apk" || { log "xkbcommon: $p dl fail"; return 1; }
     tar xzf "$apkf" -C "$S" 2>/dev/null || { log "xkbcommon: $p extract fail"; return 1; }
   done
@@ -223,10 +223,10 @@ build_xcb_imdkit(){
   get_src xcb-imdkit-1.0.9.tar.gz \
     https://github.com/fcitx/xcb-imdkit/archive/refs/tags/1.0.9.tar.gz || return 1
   log "Building xcb-imdkit 1.0.9 ..."
-  rm -rf /tmp/build-xcb-imdkit
-  mkdir -p /tmp/build-xcb-imdkit
-  tar xzf /tmp/xcb-imdkit-1.0.9.tar.gz -C /tmp/build-xcb-imdkit --strip-components=1
-  cd /tmp/build-xcb-imdkit
+  rm -rf $SRCROOT/build-xcb-imdkit
+  mkdir -p $SRCROOT/build-xcb-imdkit
+  tar xzf $SRCROOT/xcb-imdkit-1.0.9.tar.gz -C $SRCROOT/build-xcb-imdkit --strip-components=1
+  cd $SRCROOT/build-xcb-imdkit
   rm -rf build && mkdir build && cd build
   # 静态构建: 源码 add_library(xcb-imdkit SHARED ...) 硬编码 SHARED, BUILD_SHARED_LIBS=OFF 无效
   #   -> sed 改 STATIC(在源码 src/CMakeLists.txt); USE_SYSTEM_UTHASH=Off 用内置 uthash/
@@ -235,7 +235,7 @@ build_xcb_imdkit(){
   # 2026-11-25 交叉: cmake toolchain 文件(xx-clang + sysroot + 只找 .a; native 不生成不传, 零影响).
   XX_TC=""
   if [ -n "$XX_CROSS_FILE" ]; then
-    cat > /tmp/xcb-imdkit-toolchain.cmake <<EOF
+    cat > $SRCROOT/xcb-imdkit-toolchain.cmake <<EOF
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR $XX_TRIPLE)
 set(CMAKE_C_COMPILER /usr/bin/xx-clang)
@@ -247,7 +247,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
-    XX_TC="-DCMAKE_TOOLCHAIN_FILE=/tmp/xcb-imdkit-toolchain.cmake"
+    XX_TC="-DCMAKE_TOOLCHAIN_FILE=$SRCROOT/xcb-imdkit-toolchain.cmake"
     log "xcb-imdkit: CROSS toolchain ($XX_TRIPLE)"
   fi
   cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DUSE_SYSTEM_UTHASH=OFF \
@@ -277,18 +277,18 @@ rofi(){
     https://github.com/davatorium/rofi/archive/refs/tags/$ROFI_VER.tar.gz \
     || return 1
   log "Extracting rofi $ROFI_VER ..."
-  rm -rf /tmp/rofi-$ROFI_VER /tmp/rofi-build
-  mkdir -p /tmp/rofi-$ROFI_VER
-  tar xzf /tmp/rofi-$ROFI_VER.tar.gz -C /tmp/rofi-$ROFI_VER --strip-components=1
-  cd /tmp/rofi-$ROFI_VER
+  rm -rf $SRCROOT/rofi-$ROFI_VER $SRCROOT/rofi-build
+  mkdir -p $SRCROOT/rofi-$ROFI_VER
+  tar xzf $SRCROOT/rofi-$ROFI_VER.tar.gz -C $SRCROOT/rofi-$ROFI_VER --strip-components=1
+  cd $SRCROOT/rofi-$ROFI_VER
 
   # rofi github tarball 不含 git 子模块(subprojects/libgwater, libnkutils 为空)
   # -> 单独取子模块源码填回 (rofi 2.1.1: libgwater d86f990(同2.0.0)/libnkutils d436ee7(2.1.1 更新, asan 修复);
   #    文档 11051758 九章原法; 2026-11-15 改: master 版会让 meson 0.59 丢 rofi 目标, 须用固定提交版)
   get_src libgwater.tar.gz https://github.com/sardemff7/libgwater/archive/d86f990.tar.gz
   get_src libnkutils.tar.gz https://github.com/sardemff7/libnkutils/archive/d436ee7.tar.gz
-  tar xzf /tmp/libgwater.tar.gz -C /tmp/rofi-$ROFI_VER/subprojects
-  tar xzf /tmp/libnkutils.tar.gz -C /tmp/rofi-$ROFI_VER/subprojects
+  tar xzf $SRCROOT/libgwater.tar.gz -C $SRCROOT/rofi-$ROFI_VER/subprojects
+  tar xzf $SRCROOT/libnkutils.tar.gz -C $SRCROOT/rofi-$ROFI_VER/subprojects
   # github 归档为 <repo>-<suffix>/ 结构(master 或固定提交 SHA, 如 libgwater-d86f990),
   # 离线/自制 tarball 为 <repo>/ 结构 -> 统一为 <repo>/
   # 2026-11-15 修复(两处): rofi tarball 自带空占位子目录(git 子模块占位) → 直接 mv 会因目标存在而压入内部,
@@ -311,7 +311,7 @@ rofi(){
   # (pcre/ffi/intl/png... 传递静态依赖), 否则静态链必 undefined reference.
   # 关键: meson 默认把 -lfoo 解析成 .so 全路径(即使 pkg-config --static),
   # 故把 --libs 输出里的 -lfoo 一律换成存在的 .a 绝对路径, 强制静态链。
-  cat > /tmp/pkgconfig-static.tpl <<'EOF'
+  cat > $SRCROOT/pkgconfig-static.tpl <<'EOF'
 #!/bin/sh
 out=$(/usr/bin/pkg-config --static "$@")
 case " $* " in
@@ -342,9 +342,9 @@ done | tr '\n' ' '
 printf ' @@EXTRA@@'
 EOF
   # 2026-11-25 交叉: XX_LIBDIRS/XX_EXTRA_LIBS 由 rofi_cross 注入 sysroot 路径(native 原路径零影响)。
-  sed -e "s|@@LIBDIRS@@|$XX_LIBDIRS|" -e "s|@@EXTRA@@|$XX_EXTRA_LIBS|" /tmp/pkgconfig-static.tpl > /tmp/pkgconfig-static
-  chmod +x /tmp/pkgconfig-static
-  export PKG_CONFIG=/tmp/pkgconfig-static
+  sed -e "s|@@LIBDIRS@@|$XX_LIBDIRS|" -e "s|@@EXTRA@@|$XX_EXTRA_LIBS|" $SRCROOT/pkgconfig-static.tpl > $SRCROOT/pkgconfig-static
+  chmod +x $SRCROOT/pkgconfig-static
+  export PKG_CONFIG=$SRCROOT/pkgconfig-static
   export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 
   # 2026-11-25 交叉: meson 0.59 HOST pkg-config 只认 cross-file [binaries] pkgconfig(env PKG_CONFIG 无效,
@@ -352,8 +352,8 @@ EOF
   #   否则 Libs.private 不解析, 静态链必 undefined。native 走 env PKG_CONFIG(原路径), 不生成。
   XX_CROSS_ARGS=""
   if [ -n "$XX_CROSS_FILE" ]; then
-    ROFI_CROSS=/tmp/xx-cross-rofi.ini
-    sed "s|pkgconfig = '/usr/bin/pkg-config'|pkgconfig = '/tmp/pkgconfig-static'|" "$XX_CROSS_FILE" > "$ROFI_CROSS"
+    ROFI_CROSS=$SRCROOT/xx-cross-rofi.ini
+    sed "s|pkgconfig = '/usr/bin/pkg-config'|pkgconfig = '$SRCROOT/pkgconfig-static'|" "$XX_CROSS_FILE" > "$ROFI_CROSS"
     XX_CROSS_ARGS="--cross-file=$ROFI_CROSS"
   fi
 
@@ -363,7 +363,7 @@ EOF
   # 2026-11-25 功能开关全开(用户拍板): xcb 后端 + drun/window 模式 + imdkit 输入法 + giolaunch;
   #   dmenu/run/combi/ssh/script/filebrowser 无条件编入(非选项); wayland(非 xcb 后端)/check(测试) 不适用禁用。
   log "meson setup (xcb=enabled wayland=disabled imdkit=true drun=true window=true giolaunch=true check=disabled) ..."
-  meson setup /tmp/rofi-build $XX_CROSS_ARGS \
+  meson setup $SRCROOT/rofi-build $XX_CROSS_ARGS \
     -Dwayland=disabled -Dxcb=enabled -Dimdkit=true -Dcheck=disabled \
     -Ddrun=true -Dwindow=true -Dgiolaunch=true \
     -Dprefix=$TARGETPATH \
@@ -373,24 +373,24 @@ EOF
 
   # 交叉: 重映射 native /usr(/usr/local) 头/库到 sysroot(armv7 ILP32 gdk_pixbuf 阻塞根因, 方案二)。
   if [ -n "$XX_CROSS_FILE" ]; then
-    xx_meson_crossfix /tmp/rofi-build
+    xx_meson_crossfix $SRCROOT/rofi-build
     # libnkutils nk-git-version-native 是 native:true 目标(在 build 机跑), xx_meson_crossfix 把其 -I/-L
     #   也重映射到 sysroot -> native cc 链 ARM .so (file in wrong format)。恢复该 native 目标 /usr 路径。
     #   编译/build 行含目标名 → sed 直接恢复; LINK_ARGS 行紧随 build 行但不带目标名 → awk 联动恢复。
-    sed -i '/nk-git-version-native/ s|'"${XX_SYSROOT%/}"'/usr/|/usr/|g' /tmp/rofi-build/build.ninja
+    sed -i '/nk-git-version-native/ s|'"${XX_SYSROOT%/}"'/usr/|/usr/|g' $SRCROOT/rofi-build/build.ninja
     awk -v S="${XX_SYSROOT%/}" '
       /nk-git-version-native: c_LINKER_FOR_BUILD/ { nxt=1 }
       nxt && /LINK_ARGS/ { gsub(S "/usr/", "/usr/"); nxt=0 }
       { print }
-    ' /tmp/rofi-build/build.ninja > /tmp/rofi-build/build.ninja.tmp \
-      && mv /tmp/rofi-build/build.ninja.tmp /tmp/rofi-build/build.ninja
+    ' $SRCROOT/rofi-build/build.ninja > $SRCROOT/rofi-build/build.ninja.tmp \
+      && mv $SRCROOT/rofi-build/build.ninja.tmp $SRCROOT/rofi-build/build.ninja
   fi
 
   log "ninja ..."
-  ninja -C /tmp/rofi-build 2>&1 || { log "ninja FAILED"; exit 1; }
+  ninja -C $SRCROOT/rofi-build 2>&1 || { log "ninja FAILED"; exit 1; }
 
   log "install ..."
-  ninja -C /tmp/rofi-build install 2>&1 || { log "install FAILED"; exit 1; }
+  ninja -C $SRCROOT/rofi-build install 2>&1 || { log "install FAILED"; exit 1; }
 
   log "Verify rofi ..."
   ls -lh $TARGETPATH/bin/rofi
