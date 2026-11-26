@@ -52,13 +52,13 @@ function fluxbox(){
   apk add libxml2-dev expat-static 
 
   log "Downloading FLUXBOX..."
-  rm -rf /tmp/fluxbox; # mkdir -p /tmp/fluxbox
-  # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C /tmp/fluxbox
+  rm -rf $SRCROOT/fluxbox; # mkdir -p $SRCROOT/fluxbox
+  # down_catfile ${FLUXBOX_URL} | tar -zx --strip 1 -C $SRCROOT/fluxbox
   # https://dl.suckless.org/fluxbox/fluxbox-0.8.4.tar.gz
   # branch="--branch=$FLUXBOX_VER"
-  gitclone https://gitee.com/g-system/fk-fluxbox /tmp/fluxbox $branch #;
+  gitclone https://gitee.com/g-system/fk-fluxbox $SRCROOT/fluxbox $branch #;
   log "Configuring FLUXBOX..."
-  cd /tmp/fluxbox #&& ./bootstrap;
+  cd $SRCROOT/fluxbox #&& ./bootstrap;
 
   # ref: suckless/build.sh
   # OB_LIBS=""
@@ -139,12 +139,12 @@ function fluxbox(){
   make install;
 
   # view
-  ls -lh /tmp/fluxbox/
+  ls -lh $SRCROOT/fluxbox/
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/fluxbox/fluxbox | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/fluxbox/fluxbox | grep -qE "ARM.*statically linked" \
       || { log "FLUXBOX file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/fluxbox/fluxbox || { log "FLUXBOX xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/fluxbox/fluxbox || { log "FLUXBOX xx-verify FAILED"; exit 1; }
   fi
 }
 
@@ -182,7 +182,7 @@ git pull
 export TARGETPATH=/usr
 bash _ex/fontconfig/build.sh 
 # bash _ex/fontconfig/build.sh
-cp /tmp/fontconfig-install/usr/lib/libfontconfig.a /usr/lib/
+cp $SRCROOT/fontconfig-install/usr/lib/libfontconfig.a /usr/lib/
 bash x-xrdp/build.sh libxrandr #不指定，内部即需要
 bash fluxbox/build.sh.xft.sh fluxbox
 
@@ -195,6 +195,6 @@ export DISPLAY=:21
 
 # 启动OK; 无font错 (fluxbox@alpine: 之前已装??:未装 @buidler)
 # 之前的export TARGETPATH=/usr<< fontconfig; 导致直接装在usr下面了
-/mnt2/docker-x11base/compile/src # ls -lh /tmp/fluxbox/fluxbox
--rwxr-xr-x    1 root     root       12.0M Nov  7 14:59 /tmp/fluxbox/fluxbox
-/mnt2/docker-x11base/compile/src # /tmp/fluxbox/fluxbox
+/mnt2/docker-x11base/compile/src # ls -lh $SRCROOT/fluxbox/fluxbox
+-rwxr-xr-x    1 root     root       12.0M Nov  7 14:59 $SRCROOT/fluxbox/fluxbox
+/mnt2/docker-x11base/compile/src # $SRCROOT/fluxbox/fluxbox
