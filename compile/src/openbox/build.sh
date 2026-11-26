@@ -92,8 +92,13 @@ FONTCONFIG_INS_PREFIX=$TARGETPATH
 # wrapper detects this scenario and fixes arguments.
 function pango_meson(){
   export CC=xx-clang-wrapper
-  \cp -a "$SCRIPT_DIR"/xx-clang-wrapper /usr/bin/
-  chmod +x /usr/bin/xx-clang-wrapper
+  # 2026-11-27: 同文件顶部(:35)同一坑的第二处——openbox() case(:300) 无条件调 pango_meson,
+  #   group1 pango 分支与别的 openbox 分支可能并发进这里, 后到者撞 "File exists"(rc=1, set -e 退出)。
+  #   内容一致 → 先判存在性, 输掉那次 || true 吞掉(细节见 3.5.1)。
+  if [ ! -x /usr/bin/xx-clang-wrapper ]; then
+    \cp -a "$SCRIPT_DIR"/xx-clang-wrapper /usr/bin/ 2>/dev/null || true
+    chmod +x /usr/bin/xx-clang-wrapper 2>/dev/null || true
+  fi
 
   # Create the meson cross compile file.
   echo "[binaries]
