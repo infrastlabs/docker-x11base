@@ -11,7 +11,7 @@ source /src/common.sh
 # 可选组件全禁：avahi/notify/appindicator（静态链无对应库；x11 保留做托盘/热键）。
 #
 # 网络坑（2026-11-06）：容器外网 github 已通；若不通 host 下 tarball docker cp 到
-#   /tmp/pasystray-0.8.2.tar.gz 离线复用（正常走 $GITHUB/christophgysin/pasystray/.../0.8.2.tar.gz）。
+#   $SRCROOT/pasystray-0.8.2.tar.gz 离线复用（正常走 $GITHUB/christophgysin/pasystray/.../0.8.2.tar.gz）。
 #
 # 关键坑（实测 2026-11-06，见 docs/2026/11051633-v-pavucontrol.md §三）：
 #   1. make 链接必然失败：Makefile 的 PULSEAUDIO_LIBS 缺 -lpulsecommon-13.0
@@ -60,7 +60,7 @@ libnotify(){
     log "libnotify.a already present, skip"
     return 0
   fi
-  LN_TGZ=/tmp/libnotify-$LIBNOTIFY_VER.tar.gz
+  LN_TGZ=$SRCROOT/libnotify-$LIBNOTIFY_VER.tar.gz
   log "Building libnotify (static) $LIBNOTIFY_VER..."
   cd /tmp
   rm -rf libnotify-$LIBNOTIFY_VER
@@ -106,18 +106,18 @@ libnotify(){
 function pasystray(){
   ps_cross
   log "Downloading PASYSTRAY (v0.8.2 tarball)..."
-    if [ ! -f /tmp/pasystray/configure.ac ]; then
-      if [ -f /tmp/pasystray-0.8.2.tar.gz ]; then
-        rm -rf /tmp/pasystray; mkdir -p /tmp/pasystray
-        tar xzf /tmp/pasystray-0.8.2.tar.gz -C /tmp
-        rm -rf /tmp/pasystray; mv /tmp/pasystray-0.8.2 /tmp/pasystray
+    if [ ! -f $SRCROOT/pasystray/configure.ac ]; then
+      if [ -f $SRCROOT/pasystray-0.8.2.tar.gz ]; then
+        rm -rf $SRCROOT/pasystray; mkdir -p $SRCROOT/pasystray
+        tar xzf $SRCROOT/pasystray-0.8.2.tar.gz -C /tmp
+        rm -rf $SRCROOT/pasystray; mv $SRCROOT/pasystray-0.8.2 $SRCROOT/pasystray
       else
-        rm -rf /tmp/pasystray; mkdir -p /tmp/pasystray
+        rm -rf $SRCROOT/pasystray; mkdir -p $SRCROOT/pasystray
         down_catfile $GITHUB/christophgysin/pasystray/archive/refs/tags/0.8.2.tar.gz \
-          | tar -xz --strip 1 -C /tmp/pasystray
+          | tar -xz --strip 1 -C $SRCROOT/pasystray
       fi
     fi
-    cd /tmp/pasystray
+    cd $SRCROOT/pasystray
 
   log "Applying glade type-registration patch (static GTK2 GtkBuilder)..."
     patch -p1 -N < /src/v-pasystray/pasystray-glade-types.patch 2>/dev/null || true
@@ -169,14 +169,14 @@ function pasystray(){
     make -j$(nproc) pasystray_LINK="xx-clang -static -no-pie -Wl,--strip-all -Wall -O2 -Os -o \$@" \
       LIBS="$PST_LIBS" 2>&1 || { log "PASYSTRAY make LINK FAILED"; exit 1; }
     mkdir -p $TARGETPATH/bin
-    BIN=$(find /tmp/pasystray -name pasystray -type f -perm -u+x 2>/dev/null | head -1)
+    BIN=$(find $SRCROOT/pasystray -name pasystray -type f -perm -u+x 2>/dev/null | head -1)
     test -n "$BIN" || { log "PASYSTRAY binary MISSING"; exit 1; }
     cp -f "$BIN" $TARGETPATH/bin/pasystray
 
   log "Install PASYSTRAY data (glade + desktop; make install 会重链失败，手装)..."
     mkdir -p $TARGETPATH/share/pasystray $TARGETPATH/share/applications
-    cp /tmp/pasystray/src/pasystray.gtk2.glade $TARGETPATH/share/pasystray/
-    cp /tmp/pasystray/data/pasystray.desktop $TARGETPATH/share/applications/
+    cp $SRCROOT/pasystray/src/pasystray.gtk2.glade $TARGETPATH/share/pasystray/
+    cp $SRCROOT/pasystray/data/pasystray.desktop $TARGETPATH/share/applications/
 
   log "Install PASYSTRAY zh_CN locale (.mo via msgfmt)..."
     mkdir -p $TARGETPATH/share/locale/zh_CN/LC_MESSAGES
