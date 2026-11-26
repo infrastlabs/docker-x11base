@@ -14,7 +14,7 @@ XSERVER_VERSION=1.20.14
 # XSERVER_VERSION=1.20.7
 
 
-# root@10155d90a9ce:/tmp/tigervnc/unix/xserver# dpkg -l |egrep "gnutls|xfont2|fontenc|tasn|shmf" |egrep "dev|shmf|xfont2"
+# root@10155d90a9ce:$SRCROOT/tigervnc/unix/xserver# dpkg -l |egrep "gnutls|xfont2|fontenc|tasn|shmf" |egrep "dev|shmf|xfont2"
 # ii  libfontenc-dev:amd64            1:1.1.4-1                      amd64        X11 font encoding library (development headers)
 # ii  libgnutls28-dev:amd64           3.7.9-2                        amd64        GNU TLS library - development files
 # ii  libtasn1-6-dev:amd64            4.19.0-2                       amd64        Manage ASN.1 structures (development)
@@ -67,7 +67,7 @@ test -z "$TARGETPATH" && export TARGETPATH=/opt/base
 ROOT_DEST_DIR="/" #/tmp/xx-install> /
 INS_PREFIX=$TARGETPATH
 # 
-XKB_DEST_DIR="/tmp/xkb-install" #final: /tmp/xkb-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
+XKB_DEST_DIR="$SRCROOT/xkb-install" #final: $SRCROOT/xkb-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
 XKB_REF_PATH=$TARGETPATH
 
 #
@@ -130,12 +130,12 @@ XKB_REF_PATH=$TARGETPATH
 #
 function gnutls(){
   tigervnc_cross
-  mkdir -p /tmp/gnutls
+  mkdir -p $SRCROOT/gnutls
   log "Downloading GNU TLS..."
-  down_catfile ${GNUTLS_URL} | tar -xJ --strip 1 -C /tmp/gnutls
+  down_catfile ${GNUTLS_URL} | tar -xJ --strip 1 -C $SRCROOT/gnutls
   log "Configuring GNU TLS..."
   (
-      cd /tmp/gnutls && ./configure \
+      cd $SRCROOT/gnutls && ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$(xx-info triple) \
           $CROSS_HOST \
@@ -151,9 +151,9 @@ function gnutls(){
           --disable-shared \
   )
   log "Compiling GNU TLS..."
-  make $MAKE_CC -C /tmp/gnutls -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/gnutls -j$(nproc)
   log "Installing GNU TLS..."
-  make DESTDIR=$XX_SYSROOT -C /tmp/gnutls install
+  make DESTDIR=$XX_SYSROOT -C $SRCROOT/gnutls install
 }
 
 #
@@ -163,12 +163,12 @@ function gnutls(){
 #
 function libxfont2(){
   tigervnc_cross
-  mkdir -p /tmp/libxfont2
+  mkdir -p $SRCROOT/libxfont2
   log "Downloading libXfont2..."
-  down_catfile ${LIBXFONT2_URL} | tar -xz --strip 1 -C /tmp/libxfont2
+  down_catfile ${LIBXFONT2_URL} | tar -xz --strip 1 -C $SRCROOT/libxfont2
   log "Configuring libXfont2..."
   (
-      cd /tmp/libxfont2 && ./configure \
+      cd $SRCROOT/libxfont2 && ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$(xx-info triple) \
           $CROSS_HOST \
@@ -179,10 +179,10 @@ function libxfont2(){
           --disable-shared \
   )
   log "Compiling libXfont2..."
-  sed 's/^noinst_PROGRAMS = /#noinst_PROGRAMS = /' -i /tmp/libxfont2/Makefile.in
-  make $MAKE_CC -C /tmp/libxfont2 -j$(nproc)
+  sed 's/^noinst_PROGRAMS = /#noinst_PROGRAMS = /' -i $SRCROOT/libxfont2/Makefile.in
+  make $MAKE_CC -C $SRCROOT/libxfont2 -j$(nproc)
   log "Installing libXfont2..."
-  make DESTDIR=$XX_SYSROOT -C /tmp/libxfont2 install
+  make DESTDIR=$XX_SYSROOT -C $SRCROOT/libxfont2 install
 }
 
 #
@@ -192,12 +192,12 @@ function libxfont2(){
 #
 function libfontenc(){
   tigervnc_cross
-  mkdir -p /tmp/libfontenc
+  mkdir -p $SRCROOT/libfontenc
   log "Downloading libfontenc..."
-  down_catfile ${LIBFONTENC_URL} | tar -xz --strip 1 -C /tmp/libfontenc
+  down_catfile ${LIBFONTENC_URL} | tar -xz --strip 1 -C $SRCROOT/libfontenc
   log "Configuring libfontenc..."
   (
-      cd /tmp/libfontenc && ./configure \
+      cd $SRCROOT/libfontenc && ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$(xx-info triple) \
           $CROSS_HOST \
@@ -206,9 +206,9 @@ function libfontenc(){
           --disable-shared \
   )
   log "Compiling libfontenc..."
-  make $MAKE_CC -C /tmp/libfontenc -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/libfontenc -j$(nproc)
   log "Installing libfontenc..."
-  make DESTDIR=$XX_SYSROOT -C /tmp/libfontenc install
+  make DESTDIR=$XX_SYSROOT -C $SRCROOT/libfontenc install
 }
 
 #
@@ -218,12 +218,12 @@ function libfontenc(){
 #
 function libtasn1(){
   tigervnc_cross
-  mkdir -p /tmp/libtasn1
+  mkdir -p $SRCROOT/libtasn1
   log "Downloading libtasn1..."
-  down_catfile ${LIBTASN1_URL} | tar -xz --strip 1 -C /tmp/libtasn1
+  down_catfile ${LIBTASN1_URL} | tar -xz --strip 1 -C $SRCROOT/libtasn1
   log "Configuring libtasn1..."
   (
-      cd /tmp/libtasn1 && CFLAGS="$CFLAGS -Wno-error=inline" ./configure \
+      cd $SRCROOT/libtasn1 && CFLAGS="$CFLAGS -Wno-error=inline" ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$(xx-info triple) \
           $CROSS_HOST \
@@ -231,9 +231,9 @@ function libtasn1(){
           --disable-shared \
   )
   log "Compiling libtasn1..."
-  make $MAKE_CC -C /tmp/libtasn1 -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/libtasn1 -j$(nproc)
   log "Installing libtasn1..."
-  make DESTDIR=$XX_SYSROOT -C /tmp/libtasn1 install
+  make DESTDIR=$XX_SYSROOT -C $SRCROOT/libtasn1 install
 }
 
 #
@@ -243,12 +243,12 @@ function libtasn1(){
 #
 function libxshmfence(){
   tigervnc_cross
-  mkdir -p /tmp/libxshmfence
+  mkdir -p $SRCROOT/libxshmfence
   log "Downloading libxshmfence..."
-  down_catfile ${LIBXSHMFENCE_URL} | tar -xz --strip 1 -C /tmp/libxshmfence
+  down_catfile ${LIBXSHMFENCE_URL} | tar -xz --strip 1 -C $SRCROOT/libxshmfence
   log "Configuring libxshmfence..."
   (
-      cd /tmp/libxshmfence && ./configure \
+      cd $SRCROOT/libxshmfence && ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$(xx-info triple) \
           $CROSS_HOST \
@@ -257,9 +257,9 @@ function libxshmfence(){
           --enable-futex \
   )
   log "Compiling libxshmfence..."
-  make $MAKE_CC -C /tmp/libxshmfence -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/libxshmfence -j$(nproc)
   log "Installing libxshmfence..."
-  make DESTDIR=$XX_SYSROOT -C /tmp/libxshmfence install
+  make DESTDIR=$XX_SYSROOT -C $SRCROOT/libxshmfence install
 }
 
 # libxkbfile: 直接用 sysroot apk 包（libxkbfile-dev，无需源码建）
@@ -328,29 +328,29 @@ tigervnc_cross(){
 #
 function tigervnc(){
   tigervnc_cross
-  rm -rf /tmp/tigervnc; mkdir -p /tmp/tigervnc
+  rm -rf $SRCROOT/tigervnc; mkdir -p $SRCROOT/tigervnc
   log "Downloading TigerVNC..."
-  down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C /tmp/tigervnc
+  down_catfile ${TIGERVNC_URL} | tar -xz --strip 1 -C $SRCROOT/tigervnc
   log "Downloading Xorg server..."
-  down_catfile ${XSERVER_URL} | tar -xz --strip 1 -C /tmp/tigervnc/unix/xserver
+  down_catfile ${XSERVER_URL} | tar -xz --strip 1 -C $SRCROOT/tigervnc/unix/xserver
 
   log "Patching TigerVNC..."
   # Apply the TigerVNC patch against the X server.
-  patch -p1 -d /tmp/tigervnc/unix/xserver < /tmp/tigervnc/unix/xserver120.patch
+  patch -p1 -d $SRCROOT/tigervnc/unix/xserver < $SRCROOT/tigervnc/unix/xserver120.patch
 
   # Build a static binary of vncpasswd.
-  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/vncpasswd-static.patch
+  patch -p1 -d $SRCROOT/tigervnc < "$SCRIPT_DIR"/vncpasswd-static.patch
   # Disable PAM support.
-  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/disable-pam.patch
+  patch -p1 -d $SRCROOT/tigervnc < "$SCRIPT_DIR"/disable-pam.patch
   # Fix static build.
-  patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/static-build.patch
-  # patch -p1 -d /tmp/tigervnc < "$SCRIPT_DIR"/tigervnc-1.12.0-configuration_fixes-1.patch
+  patch -p1 -d $SRCROOT/tigervnc < "$SCRIPT_DIR"/static-build.patch
+  # patch -p1 -d $SRCROOT/tigervnc < "$SCRIPT_DIR"/tigervnc-1.12.0-configuration_fixes-1.patch
 
   log "Configuring TigerVNC..."
   (
       # https://github.com/TigerVNC/tigervnc/issues/998
       # -DENABLE_GNUTLS=ON \
-      cd /tmp/tigervnc && cmake -G "Unix Makefiles" \
+      cd $SRCROOT/tigervnc && cmake -G "Unix Makefiles" \
           $(xx-clang --print-cmake-defines) \
           -DCMAKE_FIND_ROOT_PATH=$(xx-info sysroot) \
           -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
@@ -367,14 +367,14 @@ function tigervnc(){
   )
 
   log "Compiling TigerVNC common libraries and tools..."
-  make $MAKE_CC -C /tmp/tigervnc/common -j$(nproc)
-  make $MAKE_CC -C /tmp/tigervnc/unix/common -j$(nproc)
-  make $MAKE_CC -C /tmp/tigervnc/unix/vncpasswd -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/tigervnc/common -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/tigervnc/unix/common -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/tigervnc/unix/vncpasswd -j$(nproc)
 
   log "Configuring TigerVNC server..."
-  autoreconf -fiv /tmp/tigervnc/unix/xserver
+  autoreconf -fiv $SRCROOT/tigervnc/unix/xserver
   (
-      cd /tmp/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
+      cd $SRCROOT/tigervnc/unix/xserver && CFLAGS="$CFLAGS -Wno-implicit-function-declaration" ./configure \
           --build=$(TARGETPLATFORM='' xx-info triple) \
           --host=$XX_TRIPLE \
           --prefix=$INS_PREFIX \
@@ -427,7 +427,7 @@ function tigervnc(){
 
   # Remove all automatic dependencies on libraries and manually define them to
   # have the correct order.
-  find /tmp/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
+  find $SRCROOT/tigervnc -name "*.la" -exec sed 's/^dependency_libs/#dependency_libs/' -i {} ';'
   # 交叉: sysroot 里 .la 的 libdir 是裸 /usr/local/lib(libtool 在依赖构建时被 DESTDIR 剥掉前缀)
   #   → xserver 链接经 libtool 解析 -lfontenc/-ltasn1 等时找裸 /usr/local/lib/*.a(clang 找不到)。
   #   给 sysroot 的 .la libdir 补 sysroot 前缀。native(XX_CROSS_FILE 空)跳过, .la 不动。
@@ -438,14 +438,14 @@ function tigervnc(){
     # xserver configure 经 pkg-config 探测得到裸 -L/usr/local/lib(容器 amd64 真实目录，
     #   内有同名 .la/libXfont2 等 → libtool 优先命中并拼出裸 .a 路径)。
     #   交叉下换成 sysroot 的两个 -L，避免命中容器 amd64 库。
-    find /tmp/tigervnc/unix/xserver -name "Makefile" \
+    find $SRCROOT/tigervnc/unix/xserver -name "Makefile" \
       -exec sed -i "s|-L/usr/local/lib|-L$XX_SYSROOT/usr/local/lib -L$XX_SYSROOT/usr/lib|g" {} '+'
     log "tigervnc: xserver Makefile 裸 -L/usr/local/lib → sysroot -L"
   fi
-  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i $SRCROOT/tigervnc/unix/xserver/hw/vnc/Makefile
   # 
   # #  -lbrotlidec -lbrotlicommon
-  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  # sed 's/^XSERVER_SYS_LIBS = .*/XSERVER_SYS_LIBS = -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lz -lbz2 -lgnutls -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd/' -i $SRCROOT/tigervnc/unix/xserver/hw/vnc/Makefile
   # 
   # -lgnutls 
   # XSERVER_SYS_LIBS: 静态链接顺序敏感(freetype/fontenc/Xfont2/png/z 互依赖)，
@@ -458,16 +458,16 @@ function tigervnc(){
     _SYSLIBS="-Wl,--start-group -lXau -lXdmcp -lpixman-1 -ljpeg -lXfont2 -lfreetype -lfontenc -lpng16 -lbrotlidec -lbrotlicommon -lz -lbz2 -lhogweed -lgmp -lnettle -lunistring -ltasn1 -lbsd -lmd -Wl,--end-group"
     _XLL=""
   fi
-  sed "s|^XSERVER_SYS_LIBS = .*|XSERVER_SYS_LIBS = ${_XLL} ${_SYSLIBS}|" -i /tmp/tigervnc/unix/xserver/hw/vnc/Makefile
+  sed "s|^XSERVER_SYS_LIBS = .*|XSERVER_SYS_LIBS = ${_XLL} ${_SYSLIBS}|" -i $SRCROOT/tigervnc/unix/xserver/hw/vnc/Makefile
 
   log "Compiling TigerVNC server..."
-  make $MAKE_CC -C /tmp/tigervnc/unix/xserver -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/tigervnc/unix/xserver -j$(nproc)
 
   log "Installing TigerVNC server..."
-  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/xserver install
+  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C $SRCROOT/tigervnc/unix/xserver install
 
   log "Installing TigerVNC vncpasswd tool..."
-  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C /tmp/tigervnc/unix/vncpasswd install
+  make $MAKE_CC DESTDIR=$ROOT_DEST_DIR -C $SRCROOT/tigervnc/unix/vncpasswd install
 
   # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch——用 file 判
   #   static + 目标架构; native 仍走 xx-verify(原路径)。产物 = Xvnc + vncpasswd。
@@ -486,18 +486,18 @@ function tigervnc(){
 # Build XKeyboardConfig.
 #
 function xkb(){
-  mkdir -p /tmp/xkb
+  mkdir -p $SRCROOT/xkb
   log "Downloading XKeyboardConfig..."
-  down_catfile ${XKEYBOARDCONFIG_URL} | tar -xj --strip 1 -C /tmp/xkb
+  down_catfile ${XKEYBOARDCONFIG_URL} | tar -xj --strip 1 -C $SRCROOT/xkb
   log "Configuring XKeyboardConfig..."
   (
-      # cd /tmp/xkb && abuild-meson . build
-      cd /tmp/xkb && meson . build
+      # cd $SRCROOT/xkb && abuild-meson . build
+      cd $SRCROOT/xkb && meson . build
   )
   log "Compiling XKeyboardConfig..."
-  meson compile -C /tmp/xkb/build
+  meson compile -C $SRCROOT/xkb/build
   log "Installing XKeyboardConfig..."
-  DESTDIR="$XKB_DEST_DIR" meson install --no-rebuild -C /tmp/xkb/build
+  DESTDIR="$XKB_DEST_DIR" meson install --no-rebuild -C $SRCROOT/xkb/build
 
   log "Stripping XKeyboardConfig..."
   # We keep only the files needed by Xvnc.
@@ -534,7 +534,7 @@ function xkb(){
       rules/evdev
   "
 
-  # alpine: Installing /tmp/xkb/types/README to /tmp/xkb-install/usr/local/share/X11/xkb/types
+  # alpine: Installing $SRCROOT/xkb/types/README to $SRCROOT/xkb-install/usr/local/share/X11/xkb/types
   xkbDir=/usr/local/share/X11/xkb
   find $XKB_DEST_DIR$xkbDir -mindepth 2 -maxdepth 2 -type d -print -exec rm -r {} ';'
   find $XKB_DEST_DIR$xkbDir -mindepth 1 ! -type d $(printf "! -wholename $XKB_DEST_DIR$xkbDir/%s " $(echo "$TO_KEEP")) -print -delete
@@ -547,14 +547,14 @@ function xkb(){
 # Build xkbcomp.
 #
 function xkbcomp(){
-  mkdir -p /tmp/xkbcomp
+  mkdir -p $SRCROOT/xkbcomp
   log "Downloading xkbcomp..."
-  down_catfile ${XKBCOMP_URL} | tar -xj --strip 1 -C /tmp/xkbcomp
+  down_catfile ${XKBCOMP_URL} | tar -xj --strip 1 -C $SRCROOT/xkbcomp
 
   log "Configuring xkbcomp..."
   (
       LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" && \
-      cd /tmp/xkbcomp && \
+      cd $SRCROOT/xkbcomp && \
       LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all -Wl,--start-group -lX11 -lxcb -lXdmcp -lXau -Wl,--end-group" LIBS="$LDFLAGS" ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
@@ -563,10 +563,10 @@ function xkbcomp(){
   )
 
   log "Compiling xkbcomp..."
-  make $MAKE_CC -C /tmp/xkbcomp -j$(nproc)
+  make $MAKE_CC -C $SRCROOT/xkbcomp -j$(nproc)
 
   log "Installing xkbcomp..."
-  make DESTDIR=$ROOT_DEST_DIR -C /tmp/xkbcomp install
+  make DESTDIR=$ROOT_DEST_DIR -C $SRCROOT/xkbcomp install
 }
 
 
