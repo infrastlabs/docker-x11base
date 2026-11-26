@@ -191,7 +191,7 @@ function print_time_cost(){
 	}' 2>&1 | tee -a $logfile
 }
 function log {
-    echo -e "\n\n>>> $*"
+    echo -e "\n\n>>> [${UGTK_NS:-?}] $*"
 }
 
 
@@ -317,14 +317,16 @@ export XX_X11_PKGS="libx11-dev libx11-static libxcb-dev libxcb-static libxau-dev
 # 兼容：xx-info 不存在 或 is-cross 非 0 → 直接 return（native 原路径，零影响）。
 # 判据=执行 arch(uname -m) vs target arch（xx-info is-cross）——非 BUILDPLATFORM!=TARGETPLATFORM（qemu 下后者恒真会误判）。
 # cross-file 要点：pkgconfig key 无连字符；cpu_family 用 march(aarch64 非 arm64)；sys_root 使 meson 设 PKG_CONFIG_SYSROOT_DIR。
-# 2026-11-26(3.1.2): 并行工作区隔离——UGTK_NS(per-arch 名) + WS(工作区根 = ${WS_BASE:-/tmp/ws}-$UGTK_NS)。
+# 2026-11-26(3.1.2): 并行工作区隔离——UGTK_NS(per-arch 名) + WS(工作区根)。
 #   native 也设(函数外，native 无 XX_MARCH → UGTK_NS=native)，交叉在 xx_cross_init 内按 march 覆盖。
-#   调用方(Dockerfile 并行分支)设 WS_BASE=/tmp/ws-gtk224 区分链路，本脚本只追加 -$UGTK_NS → 三分支各用
-#   /tmp/ws-gtk224-{native,aarch64,armv7l}，互不影响；串行/native 不设 WS_BASE → 退 /tmp/ws-$UGTK_NS(单分支，行为不变)。
-#   供 u-gtk/u-gtkmm/xx-clear 把源码树/中间产物/xx-cross-file 全收进 $WS 子目录。
+# 2026-11-26(CI 二跑修复, 用户拍板单一 $WS): 调用方(Dockerfile 并行分支)export WS=/tmp/ws-<链>-$tag
+#   (tag=amd64/arm64/arm-v7, 唯一 arch 标识), 本脚本【尊重已设 $WS 不覆盖】——源码树/日志/.rc/cross-file
+#   全在该 $WS 下, 单一工作区。仅当 $WS 未设时才按 ${WS_BASE:-/tmp/ws}-$UGTK_NS 兜底(串行/native 单分支)。
 export UGTK_NS="${UGTK_NS:-native}"
-export WS_BASE="${WS_BASE:-/tmp/ws}"
-export WS="$WS_BASE-${UGTK_NS}"
+if [ -z "$WS" ]; then
+  export WS_BASE="${WS_BASE:-/tmp/ws}"
+  export WS="$WS_BASE-${UGTK_NS}"
+fi
 mkdir -p "$WS" 2>/dev/null || true
 xx_cross_init(){
   command -v xx-info >/dev/null 2>&1 || return 0
@@ -333,8 +335,12 @@ xx_cross_init(){
   export XX_TRIPLE=$(xx-info triple)
   export XX_MARCH=$(xx-info march)
   export UGTK_NS="$XX_MARCH"
-  export WS_BASE="${WS_BASE:-/tmp/ws}"
-  export WS="$WS_BASE-${UGTK_NS}"
+  # 单一 $WS(3.1.2 CI 二跑): 并行子 shell 设 WS_LOCK=1 → 尊重 Dockerfile 的 $WS(/tmp/ws-<链>-$tag) 不覆盖;
+  #   串行(无 WS_LOCK)按 march 重算 WS, 保证每架构各用各的(否则 arch1 的 WS 残留害 arch2)。
+  if [ -z "$WS_LOCK" ]; then
+    export WS_BASE="${WS_BASE:-/tmp/ws}"
+    export WS="$WS_BASE-${UGTK_NS}"
+  fi
   mkdir -p "$WS" 2>/dev/null || true
   export XX_CROSS_FILE=$WS/xx-cross-${XX_MARCH}.ini
   cat > "$XX_CROSS_FILE" <<EOF
