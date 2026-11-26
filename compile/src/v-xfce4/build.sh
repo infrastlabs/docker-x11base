@@ -39,14 +39,14 @@ static_gtk_libs() {
 # 偶发不通，但 .a 已装则跳过下载）
 fetch_src() { # name url
   local name=$1 url=$2
-  if test -d /tmp/xfce-build/$name; then
+  if test -d $SRCROOT/xfce-build/$name; then
     log "source present, skip download"
   else
-    mkdir -p /tmp/xfce-build
+    mkdir -p $SRCROOT/xfce-build
     local TARBALL=$TARGETPATH/../.cache/$name.tar.bz2
     mkdir -p $(dirname "$TARBALL")
     test -s $TARBALL || down_catfile "$url" > $TARBALL
-    tar xjf $TARBALL -C /tmp/xfce-build || { log "TARBALL EXTRACT FAILED: $name"; exit 1; }
+    tar xjf $TARBALL -C $SRCROOT/xfce-build || { log "TARBALL EXTRACT FAILED: $name"; exit 1; }
   fi
 }
 
@@ -91,18 +91,18 @@ xx_runfix(){
 
 function xfce4settings(){
   local VER=4.12.4
-  local SRC=/tmp/xfce-build/xfce4-settings-$VER
+  local SRC=$SRCROOT/xfce-build/xfce4-settings-$VER
   xf_cross
 
   log "Download xfce4-settings..."
   if test -d $SRC; then
     log "source present, skip download"
   else
-    mkdir -p /tmp/xfce-build
+    mkdir -p $SRCROOT/xfce-build
     TARBALL=$TARGETPATH/../.cache/xfce4-settings-$VER.tar.bz2
     mkdir -p $(dirname "$TARBALL")
     test -s $TARBALL || down_catfile https://archive.xfce.org/src/xfce/xfce4-settings/4.12/xfce4-settings-$VER.tar.bz2 > $TARBALL
-    tar xjf $TARBALL -C /tmp/xfce-build
+    tar xjf $TARBALL -C $SRCROOT/xfce-build
   fi
 
   # gtkbuilder 静态链类型注册 patch（force-register glade 用到的 GType，避免 -O2+gc-sections 弃值被优化）
@@ -211,7 +211,7 @@ function xfce4settings(){
 
 function libexif(){
   local VER=0.6.23
-  local SRC=/tmp/xfce-build/libexif-$VER
+  local SRC=$SRCROOT/xfce-build/libexif-$VER
   local PREFIX=/usr/local/static/exif
   xf_cross
   # 交叉: .a 经 DESTDIR 落 sysroot，跳过/校验判 sysroot 路径（native 判 $PREFIX 原路径不变）。
@@ -237,7 +237,7 @@ function libexif(){
 
 function thunar(){
   local VER=1.6.18
-  local SRC=/tmp/xfce-build/Thunar-$VER
+  local SRC=$SRCROOT/xfce-build/Thunar-$VER
   local PREFIX=/usr/local/static/thunar
   xf_cross
 
@@ -279,11 +279,11 @@ function thunar(){
   UCA_CFLAGS="-DHAVE_CONFIG_H -DTHUNARX_STATIC_UCA -I$SRC -I$SRC/plugins \
     -DBINDIR=\"/usr/bin\" -DPACKAGE_LOCALE_DIR=\"$PREFIX/share/locale\" -DDATADIR=\"/usr/share\" \
     $(PKG_CONFIG_PATH="$PKGCONF" pkg-config --cflags exo-1 libxfce4ui-1 libxfce4util-1.0)"
-  mkdir -p /tmp/thunar-uca-obj
+  mkdir -p $SRCROOT/thunar-uca-obj
   for f in $SRC/plugins/thunar-uca/*.c; do
     b=$(basename $f .c)
-    xx-clang -c $f -o /tmp/thunar-uca-obj/$b.o $UCA_CFLAGS || { log "UCA OBJ FAILED: $b"; exit 1; }
-    UCA_OBJS="$UCA_OBJS /tmp/thunar-uca-obj/$b.o"
+    xx-clang -c $f -o $SRCROOT/thunar-uca-obj/$b.o $UCA_CFLAGS || { log "UCA OBJ FAILED: $b"; exit 1; }
+    UCA_OBJS="$UCA_OBJS $SRCROOT/thunar-uca-obj/$b.o"
   done
 
   log "Static-link thunar (libthunarx + UCA 内链；UCA 对象放 --start-group 内解决跨库符号顺序)..."
@@ -317,7 +317,7 @@ function thunar(){
 
 function ristretto(){
   local VER=0.8.5
-  local SRC=/tmp/xfce-build/ristretto-$VER
+  local SRC=$SRCROOT/xfce-build/ristretto-$VER
   local PREFIX=/usr/local/static/ristretto
   xf_cross
 
@@ -383,7 +383,7 @@ function xfce_lib(){
   if test -f $CHK; then log "xfce $NV present, skip"; return; fi
   log "Fetch xfce $NV..."
   fetch_src $NV "$URL"
-  local SRC=/tmp/xfce-build/$NV
+  local SRC=$SRCROOT/xfce-build/$NV
   log "Configure xfce $NV (xx-clang static)..."
   cd $SRC
   xx_runfix
