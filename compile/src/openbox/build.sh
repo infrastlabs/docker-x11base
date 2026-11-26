@@ -38,8 +38,8 @@ fi
 
 ROOT_DEST_DIR="/" #/tmp/xx-install> /
 INS_PREFIX=$TARGETPATH
-#final: /tmp/fontconfig-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
-FONTCONFIG_DEST_DIR="/tmp/fontconfig-install"
+#final: $SRCROOT/fontconfig-install/usr/local/share/X11/xkb> /usr/local/static/tigervnc/usr/local/share/X11/xkb
+FONTCONFIG_DEST_DIR="$SRCROOT/fontconfig-install"
 FONTCONFIG_INS_PREFIX=$TARGETPATH
 
 #
@@ -113,7 +113,7 @@ system = 'linux'
 cpu_family = '$(xx-info arch)'
 cpu = '$(xx-info arch)'
 endian = 'little'
-" > /tmp/meson-cross.txt
+" > $SRCROOT/meson-cross.txt
 }
 
 #
@@ -131,25 +131,25 @@ endian = 'little'
 #     harfbuzz-static \
 function pango(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
-  mkdir -p /tmp/pango
+  mkdir -p $SRCROOT/pango
   log "Downloading pango..."
-  # curl -# -L -f ${PANGO_URL} | tar -xJ --strip 1 -C /tmp/pango
-  down_catfile ${PANGO_URL} | tar -xJ --strip 1 -C /tmp/pango
+  # curl -s -L -f ${PANGO_URL} | tar -xJ --strip 1 -C $SRCROOT/pango
+  down_catfile ${PANGO_URL} | tar -xJ --strip 1 -C $SRCROOT/pango
 
   # 2026-11-24 方案二交叉: xx_cross_init 已生成 $XX_CROSS_FILE（正确 cross-file: xx-clang + pkg_config_libdir
-  # + cpu_family=march），用之; native/未设 TARGETPLATFORM（XX_CROSS_FILE 空）走旧路径 pango_meson(生成 /tmp/meson-cross.txt)。
+  # + cpu_family=march），用之; native/未设 TARGETPLATFORM（XX_CROSS_FILE 空）走旧路径 pango_meson(生成 $SRCROOT/meson-cross.txt)。
   local CROSS_CF=""
   if [ -n "$XX_CROSS_FILE" ]; then
     CROSS_CF="$XX_CROSS_FILE"
     log "pango: CROSS ($XX_TRIPLE) using $XX_CROSS_FILE"
   else
     pango_meson #call
-    CROSS_CF=/tmp/meson-cross.txt
+    CROSS_CF=$SRCROOT/meson-cross.txt
   fi
 
   log "Configuring pango..."
   (
-      cd /tmp/pango && LDFLAGS= abuild-meson \
+      cd $SRCROOT/pango && LDFLAGS= abuild-meson \
           -Ddefault_library=static \
           -Dintrospection=disabled \
           -Dgtk_doc=false \
@@ -161,16 +161,16 @@ function pango(){
   if [ -n "$XX_CROSS_FILE" ]; then
     # 交叉只编 4 个库目标（meson compile 接目标名，不能接 .a 文件路径）:
     # 跳过 cxx-test（唯一 C++ 目标，stdlib 头不在 sysroot，交叉编不过）和 utils 二进制(pango-view 等)。
-    meson compile -C /tmp/pango/build pango-1.0 pangoft2-1.0 pangoxft-1.0 pangocairo-1.0
+    meson compile -C $SRCROOT/pango/build pango-1.0 pangoft2-1.0 pangoxft-1.0 pangocairo-1.0
   else
-    meson compile -C /tmp/pango/build
+    meson compile -C $SRCROOT/pango/build
   fi
 
   log "Installing pango..."
   if [ -n "$XX_CROSS_FILE" ]; then
     # 交叉: 工具二进制(pango-view)未编 → meson install 在 .a/.pc/头装完后才报错; 容错 + 校验 .a 兜底
     #（targeted build 只编 .a 目标，install 的 pango-view 缺失是预期内）。
-    DESTDIR=$XX_SYSROOT meson install --no-rebuild -C /tmp/pango/build || true
+    DESTDIR=$XX_SYSROOT meson install --no-rebuild -C $SRCROOT/pango/build || true
     for f in libpango-1.0.a libpangoft2-1.0.a libpangoxft-1.0.a libpangocairo-1.0.a; do
       test -f "$XX_SYSROOT/usr/lib/$f" || { log "pango install MISSING $f"; exit 1; }
     done
@@ -178,9 +178,9 @@ function pango(){
     #   || true 吞错, 主 pango 头未装); Alpine pango-dev 亦无 pango-markup.h → gtkmm/pangomm C++ 编译
     #   "pango/pango-markup.h file not found"。补拷主 pango 头(pango_headers, 含 pango-markup.h)到 sysroot。
     mkdir -p "$XX_SYSROOT/usr/include/pango-1.0/pango"
-    \cp -a /tmp/pango/pango/*.h "$XX_SYSROOT/usr/include/pango-1.0/pango/"
+    \cp -a $SRCROOT/pango/pango/*.h "$XX_SYSROOT/usr/include/pango-1.0/pango/"
   else
-    DESTDIR=$(xx-info sysroot) meson install --no-rebuild -C /tmp/pango/build
+    DESTDIR=$(xx-info sysroot) meson install --no-rebuild -C $SRCROOT/pango/build
   fi
 }
 
@@ -191,14 +191,14 @@ function pango(){
 #
 function libxrandr(){
   set -e
-  mkdir -p /tmp/libxrandr
+  mkdir -p $SRCROOT/libxrandr
   log "Downloading libXrandr..."
-  # curl -# -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
-  down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C /tmp/libxrandr
+  # curl -s -L -f ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libxrandr
+  down_catfile ${LIBXRANDR_URL} | tar -xJ --strip 1 -C $SRCROOT/libxrandr
 
   log "Configuring libXrandr..."
   (
-      cd /tmp/libxrandr && LDFLAGS= ./configure \
+      cd $SRCROOT/libxrandr && LDFLAGS= ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
           --prefix=/usr \
@@ -208,10 +208,10 @@ function libxrandr(){
   )
 
   log "Compiling libXrandr..."
-  make -C /tmp/libxrandr -j$(nproc)
+  make -C $SRCROOT/libxrandr -j$(nproc)
 
   log "Installing libXrandr..."
-  make DESTDIR=$(xx-info sysroot) -C /tmp/libxrandr install
+  make DESTDIR=$(xx-info sysroot) -C $SRCROOT/libxrandr install
 }
 
 #
@@ -246,10 +246,10 @@ function libxrandr(){
 # Only the fonts used by JWM are installed.
 #
 # log "Installing Noto fonts..."
-# mkdir -p /tmp/fontconfig-install${TARGETPATH}/share/fonts
+# mkdir -p $SRCROOT/fontconfig-install${TARGETPATH}/share/fonts
 # for FONT in Arimo-Regular Arimo-Bold
 # do
-#     \cp -v /usr/share/fonts/noto/$FONT.ttf /tmp/fontconfig-install${TARGETPATH}/share/fonts/
+#     \cp -v /usr/share/fonts/noto/$FONT.ttf $SRCROOT/fontconfig-install${TARGETPATH}/share/fonts/
 # done
 
 #
@@ -261,13 +261,13 @@ function libxrandr(){
 # we have very few fonts installed.
 #
 function fontconfig_drop1(){
-  mkdir -p /tmp/fontconfig
+  mkdir -p $SRCROOT/fontconfig
   log "Downloading fontconfig..."
-  down_catfile ${FONTCONFIG_URL} | tar -xz --strip 1 -C /tmp/fontconfig
+  down_catfile ${FONTCONFIG_URL} | tar -xz --strip 1 -C $SRCROOT/fontconfig
 
   log "Configuring FONTCONFIG..."
   (
-      cd /tmp/fontconfig && ./configure \
+      cd $SRCROOT/fontconfig && ./configure \
           --build=$(TARGETPLATFORM= xx-clang --print-target-triple) \
           --host=$(xx-clang --print-target-triple) \
           --prefix=/usr \
@@ -284,17 +284,17 @@ function fontconfig_drop1(){
   )
 
   log "Compiling FONTCONFIG..."
-  # make -C /tmp/fontconfig -j$(nproc)
+  # make -C $SRCROOT/fontconfig -j$(nproc)
   # -lfontconfig  -lXft -lX11 -lxcb -lXau    -lXrender -lXdmcp   -lbrotlidec -lbrotlicommon
   flags="-static -lfreetype -lpng -lexpat -lxml2 -lz -lbz2"
-  make LDFLAGS="$flags" -C  /tmp/fontconfig -j$(nproc)
+  make LDFLAGS="$flags" -C  $SRCROOT/fontconfig -j$(nproc)
 
-  # /tmp/fontconfig-install/usr/share/xml/fontconfig
+  # $SRCROOT/fontconfig-install/usr/share/xml/fontconfig
   log "Installing FONTCONFIG..."
-  make DESTDIR=$FONTCONFIG_DEST_DIR -C /tmp/fontconfig install
+  make DESTDIR=$FONTCONFIG_DEST_DIR -C $SRCROOT/fontconfig install
 
   # log "Installing fontconfig..."
-  # cp -av /tmp/fontconfig-install/usr $(xx-info sysroot)
+  # cp -av $SRCROOT/fontconfig-install/usr $(xx-info sysroot)
 }
 
 #
@@ -317,27 +317,27 @@ function openbox(){
     log "openbox: sysroot .la 清洗完成(dependency_libs 注释 + libdir 加 sysroot 前缀)"
   fi
   env |egrep "FLAGS|clang"
-  rm -rf /tmp/openbox; mkdir -p /tmp/openbox
+  rm -rf $SRCROOT/openbox; mkdir -p $SRCROOT/openbox
   log "Downloading Openbox..."
-  # curl -# -L -f ${OPENBOX_URL} | tar -xJ --strip 1 -C /tmp/openbox
-  down_catfile ${OPENBOX_URL} | tar -xJ --strip 1 -C /tmp/openbox
+  # curl -s -L -f ${OPENBOX_URL} | tar -xJ --strip 1 -C $SRCROOT/openbox
+  down_catfile ${OPENBOX_URL} | tar -xJ --strip 1 -C $SRCROOT/openbox
 
   log "Patching Openbox..."
-  patch -p1 -d /tmp/openbox < "$SCRIPT_DIR"/disable-x-locale.patch
-  patch -p1 -d /tmp/openbox < "$SCRIPT_DIR"/menu-file-order.patch
+  patch -p1 -d $SRCROOT/openbox < "$SCRIPT_DIR"/disable-x-locale.patch
+  patch -p1 -d $SRCROOT/openbox < "$SCRIPT_DIR"/menu-file-order.patch
 
   # The config.sub provided with Openbox is too old.  Get a recent one from
   # https://github.com/gcc-mirror/gcc/blob/master/config.sub
-  cp -v "$SCRIPT_DIR"/config.sub /tmp/openbox
+  cp -v "$SCRIPT_DIR"/config.sub $SRCROOT/openbox
 
   log "Configuring Openbox..."
   (
-      #cd /tmp/openbox && LIBS="$LDFLAGS" ./configure \
+      #cd $SRCROOT/openbox && LIBS="$LDFLAGS" ./configure \
 
       # deps:
       #  pango libxrandr fontconfig
       #  
-      cd /tmp/openbox && \
+      cd $SRCROOT/openbox && \
           OB_LIBS="-lX11 -lxcb -lXdmcp -lXau -lXext -lXft -lXrandr -lfontconfig -lfreetype \
             -lpng -lXrender -lexpat -lxml2 -lz -lbz2 -llzma -lbrotlidec -lbrotlicommon \
             -lintl -lfribidi -lharfbuzz -lpangoxft-1.0 -lpangoft2-1.0 -lpango-1.0 \
@@ -371,16 +371,16 @@ function openbox(){
   )
 
   log "Compiling Openbox..."
-    #sed -i 's|--silent|--verbose|' /tmp/openbox/Makefile
-    make V=1 -C /tmp/openbox -j$(nproc)
-    # make LDFLAGS="-static" V=1 -C /tmp/openbox -j$(nproc) ##still dyn
+    #sed -i 's|--silent|--verbose|' $SRCROOT/openbox/Makefile
+    make V=1 -C $SRCROOT/openbox -j$(nproc)
+    # make LDFLAGS="-static" V=1 -C $SRCROOT/openbox -j$(nproc) ##still dyn
 
     #view
-    ls -lh /tmp/openbox/openbox/openbox
-    ldd /tmp/openbox/openbox/openbox
+    ls -lh $SRCROOT/openbox/openbox/openbox
+    ldd $SRCROOT/openbox/openbox/openbox
 
   log "Installing Openbox..."
-  make DESTDIR=$ROOT_DEST_DIR -C /tmp/openbox install
+  make DESTDIR=$ROOT_DEST_DIR -C $SRCROOT/openbox install
 
   # static-verify
   # $RUN xx-verify --static \
@@ -491,8 +491,8 @@ export TARGETPATH=${TARGETPATH:-/usr/local/static/openbox}
 bash src/openbox/build.sh openbox
 
 # # 改export CC=xx-clang-wrapper后 编译成功
-# bash-5.1# ls /tmp/openbox/openbox/openbox -lh
-# -rwxr-xr-x    1 root     root        6.3M Dec  1 19:11 /tmp/openbox/openbox/openbox
+# bash-5.1# ls $SRCROOT/openbox/openbox/openbox -lh
+# -rwxr-xr-x    1 root     root        6.3M Dec  1 19:11 $SRCROOT/openbox/openbox/openbox
 
 # 单独再跑，还是不行：C compiler cannot create executables
 # 之前OK: build.sh.bk1.sh 执行后，再执行build.sh b_deps及openbox??
