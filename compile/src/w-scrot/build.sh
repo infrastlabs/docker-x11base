@@ -44,16 +44,16 @@ function scrot(){
   scrot_cross
 
   log "Downloading SCROT..."
-  if test -d /tmp/scrot/.git; then
+  if test -d $SRCROOT/scrot/.git; then
     log "scrot source already present, skip clone"
   else
-    rm -rf /tmp/scrot
+    rm -rf $SRCROOT/scrot
     branch="--branch=$SCROT_VER"
-    gitclone https://gitee.com/g-system/fk-scrot /tmp/scrot $branch
+    gitclone https://gitee.com/g-system/fk-scrot $SRCROOT/scrot $branch
   fi
 
   log "Configuring SCROT..."
-  cd /tmp/scrot
+  cd $SRCROOT/scrot
   # 交叉下 autogen 若自动跑 configure(不带 --host) 报 cannot run C compiled programs → NOCONFIGURE=1,
   #   再显式 configure --host + config.sub 新版替换。native 原路径不变。
   if [ -n "$XX_CROSS_FILE" ]; then
