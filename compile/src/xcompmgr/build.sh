@@ -4,13 +4,13 @@ source /src/common.sh
 export DOEXEC_CALLER="${DOEXEC_CALLER:-xcompmgr}"
 
 function Xdamage(){
-  # mkdir -p /tmp/Xdamage
+  # mkdir -p $SRCROOT/Xdamage
   log "Downloading Xdamage..."
-  # curl -# -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C /tmp/Xdamage
-  # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C /tmp/Xdamage
+  # curl -s -L -f ${IMLIB2_URL} | tar -xJ --strip 1 -C $SRCROOT/Xdamage
+  # down_catfile ${IMLIB2_URL} | tar -zx --strip 1 -C $SRCROOT/Xdamage
   # repo=https://hub.nuaa.cf/cubanismo/libXdamage
-  gitclone https://gitee.com/g-system/fk-lib-xdamage /tmp/Xdamage $branch
-  cd /tmp/Xdamage
+  gitclone https://gitee.com/g-system/fk-lib-xdamage $SRCROOT/Xdamage $branch
+  cd $SRCROOT/Xdamage
   # 2026-11-24 方案二交叉: --host 进 autogen(其恒跑 configure --enable-maintainer-mode "$@") + 装 sysroot
   CROSS_HOST=""
   if [ -n "$XX_CROSS_FILE" ]; then
@@ -64,12 +64,12 @@ function xcompmgr(){
   apk add libxcomposite-dev
 
   log "Downloading XCOMPMGR..."
-  rm -rf /tmp/xcompmgr; # mkdir -p /tmp/xcompmgr
-  # down_catfile ${XCOMPMGR_URL} | tar -zx --strip 1 -C /tmp/xcompmgr
+  rm -rf $SRCROOT/xcompmgr; # mkdir -p $SRCROOT/xcompmgr
+  # down_catfile ${XCOMPMGR_URL} | tar -zx --strip 1 -C $SRCROOT/xcompmgr
   # branch="--branch=$XCOMPMGR_VER"
-  gitclone https://gitee.com/g-system/fk-xcompmgr /tmp/xcompmgr $branch #;
+  gitclone https://gitee.com/g-system/fk-xcompmgr $SRCROOT/xcompmgr $branch #;
   log "Configuring XCOMPMGR..."
-  cd /tmp/xcompmgr #&& ./bootstrap;
+  cd $SRCROOT/xcompmgr #&& ./bootstrap;
     bash autogen.sh
     #./configure  --enable-static --prefix=$TARGETPATH
     # make
@@ -84,14 +84,14 @@ function xcompmgr(){
   make install;
 
   # view
-  ls -lh /tmp/xcompmgr/
+  ls -lh $SRCROOT/xcompmgr/
   # 交叉真验: xx-verify 按 build 架构(amd64) 校验, 交叉产物(ARM) 必报 mismatch → 用 file 判 static + 目标架构;
   #   native 仍走 xx-verify(原路径)。
   if [ -n "$XX_CROSS_FILE" ]; then
-    file /tmp/xcompmgr/xcompmgr | grep -qE "ARM.*statically linked" \
+    file $SRCROOT/xcompmgr/xcompmgr | grep -qE "ARM.*statically linked" \
       || { log "XCOMPMGR file 非 ARM static"; exit 1; }
   else
-    xx-verify --static /tmp/xcompmgr/xcompmgr
+    xx-verify --static $SRCROOT/xcompmgr/xcompmgr
   fi
 }
 
