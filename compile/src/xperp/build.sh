@@ -28,8 +28,8 @@ perp_cross(){
 function perp(){
   perp_cross
   log "Downloading perp..."
-  gitclone https://gitee.com/infrastlabs/fk-perp /tmp/fk-perp
-  cd /tmp/fk-perp
+  gitclone https://gitee.com/infrastlabs/fk-perp $SRCROOT/fk-perp
+  cd $SRCROOT/fk-perp
 
   log "Compiling perp..."
   # export LDFLAGS="-Wl,--as-needed --static -static -Wl,--strip-all"
@@ -53,17 +53,17 @@ function perp(){
   make $MAKE_CC -C perp/ install
 
   # view
-  ls -lh /tmp/fk-perp/perp
+  ls -lh $SRCROOT/fk-perp/perp
   # 交叉真验: xx-verify 按 build 架构(amd64)校验, 交叉产物(ARM)必 mismatch → 用 file; native 仍走 xx-verify。
   if [ -n "$XX_CROSS_FILE" ]; then
     for b in perpd perpctl perpls; do
-      file /tmp/fk-perp/perp/$b | grep -qE "ARM.*statically linked" \
+      file $SRCROOT/fk-perp/perp/$b | grep -qE "ARM.*statically linked" \
         || { log "PERP $b file 非 ARM static"; exit 1; }
     done
   else
-    xx-verify --static /tmp/fk-perp/perp/perpd || { log "PERP perpd xx-verify FAILED"; exit 1; }
-    xx-verify --static /tmp/fk-perp/perp/perpctl || { log "PERP perpctl xx-verify FAILED"; exit 1; }
-    xx-verify --static /tmp/fk-perp/perp/perpls || { log "PERP perpls xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/fk-perp/perp/perpd || { log "PERP perpd xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/fk-perp/perp/perpctl || { log "PERP perpctl xx-verify FAILED"; exit 1; }
+    xx-verify --static $SRCROOT/fk-perp/perp/perpls || { log "PERP perpls xx-verify FAILED"; exit 1; }
   fi
 }
 
