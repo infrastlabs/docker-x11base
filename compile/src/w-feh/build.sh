@@ -26,7 +26,8 @@ feh_cross(){
 # export TARGETPATH=/usr/local/static/feh
 function feh(){
   # ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
-  apk add libxt-dev curl-dev curl-static
+  # 公共库(curl-static)已由 u-gtk 统一装(1.4.1); 保留单次 libxt/curl-dev
+  apk add libxt-dev curl-dev
   feh_cross
 
   log "Downloading FEH..."
@@ -74,7 +75,7 @@ full)
     ;;
 b_deps)
     # jpeg 静态库+头（内置 jpeg loader 依赖）；先于 w-xlunch imlib2（其内置段编 jpeg.o 需 jpeglib.h）
-    apk add libjpeg-turbo-static jpeg-dev
+    # 公共库(jpeg/libjpeg)已由 u-gtk 统一装(1.4.1)
     # doExec bash /src/w-xlunch/build.sh imlib2 || exit 1 #imlib2-1.7.4.tar.g@sourceforge
     doExec_mark "w-feh b_deps grp"
     doExec bash /src/w-tint2/build.sh xcbutil & ##need?
