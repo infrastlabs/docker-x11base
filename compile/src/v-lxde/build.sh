@@ -17,13 +17,25 @@ function lxappearance(){
   gitclone https://gitee.com/g-system/fk-lxappearance $SRCROOT/lxappearance $branch #;
   log "Configuring LXAPPEARANCE..."
   cd $SRCROOT/lxappearance #&& ./bootstrap;
+  # 2026-11-27: 补交叉分支(同 lxtask)——lxappearance 原无交叉适配, 交叉 configure 报 cannot run C compiled programs
+  CROSS_HOST=""; X_LIBDIR=""
+  if [ -n "$XX_CROSS_FILE" ]; then
+    CROSS_HOST="--host=$(xx-info triple)"
+    X_LIBDIR="-L$XX_SYSROOT/usr/local/lib"
+    export CC=xx-clang
+    export PKG_CONFIG=/usr/bin/pkg-config
+    export PKG_CONFIG_LIBDIR="$XX_SYSROOT/usr/lib/pkgconfig:$XX_SYSROOT/usr/local/lib/pkgconfig:$XX_SYSROOT/usr/share/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="$XX_SYSROOT"
+    export ac_cv_prog_cc_cross=yes
+    log "lxappearance: CROSS ($XX_TRIPLE)"
+  fi
   ./autogen.sh
   ./configure --prefix=$TARGETPATH \
   --enable-man=no \
   --enable-more-warnings=yes \
   --enable-gtk3=no \
   --enable-dbus=yes \
-  --enable-debug=yes 
+  --enable-debug=yes $CROSS_HOST
 
   # ENABLE_DBUS err
   # 4  vi src/lxappearance.c
@@ -39,7 +51,7 @@ function lxappearance(){
     # 2026-11-14: lxappearance 补 -lrsvg-2 -lcroco-0.6（图标预览走 gdk_pixbuf 内置 svg loader，缺则 svg 图标解码失败；u-gtk 方案A 库层根治后无需 -u）
     LIBS0=" -lgdk-x11-2.0 -lgtk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lrsvg-2 -lcroco-0.6 -lpangocairo-1.0 -lpangoft2-1.0 -lpango-1.0 -lfontconfig $OB_LIBS $ex0 $ex1"
 
-  make LDFLAGS="$LDFLAGS" \
+  make LDFLAGS="$X_LIBDIR $LDFLAGS" \
     LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -Wl,--end-group" 2>&1 \
     || { log "LXAPPEARANCE build FAILED"; exit 1; }
 
