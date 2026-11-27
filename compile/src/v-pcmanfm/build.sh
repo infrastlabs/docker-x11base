@@ -58,8 +58,7 @@ fm_cross(){
     unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
     log "fm: CROSS ($XX_TRIPLE)"
-    # 方案A 单次(1.4.3): gpg-error 仅 pcmanfm(经 libfm/gcrypt)用 → 本组件装, 非公共
-    xx-apk add libgpg-error-dev libgpg-error-static >/dev/null 2>&1
+    # gpg-error 实测 lxtask+pcmanfm 都用→归公共 u-gtk(1.4.3 单次出入, 2026-11-27 验证); 不再本组件单次装
   fi
 }
 
