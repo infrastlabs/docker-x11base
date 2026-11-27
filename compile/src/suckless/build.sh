@@ -24,9 +24,8 @@ suck_cross(){
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
     # sysroot 补静态库(幂等, 已装则 no-op): 顶层 apk add 已覆盖大半, 这里补 dwm/dmenu 额外用到的 X 扩展 .a。
     #   libxext/libxinerama/libxrandr/libxxf86vm/libxcursor 的 .a 随 *-dev 包; libxcb.a 不在 -dev → libxcb-static。
-    xx-apk add libx11-dev libx11-static libxext-dev libxcb-static libxau-dev libxdmcp-dev \
-      libxft-dev libxrender-dev freetype-dev freetype-static fontconfig-dev fontconfig-static \
-      libxinerama-dev libxrandr-dev libxxf86vm-dev libxcursor-dev
+    # 公共库(X11链+font链+X扩展)已由 u-gtk b_deps 统一装(1.4.1); 此处仅留单次 libxxf86vm
+    xx-apk add libxxf86vm-dev
     log "suckless: CROSS ($XX_TRIPLE)"
     # 交叉: sysroot -L 前缀(后接各函数原 LDFLAGS 串; 原生已用同一 -l 顺序链接成功, 交叉仅补 ARM .a 搜索路径)
     XS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
@@ -198,7 +197,6 @@ function dmenu(){
 # apk update; apk add git
 # fontconfig-2.13.1-r4 x86_64 {fontconfig} (MIT) [installed]
 # FONTCONFIG_VERSION=2.14.0 @fontconfig/build
-apk add fontconfig-dev fontconfig-static
 # fontconfig
 #     glib-dev \
 #     g++ \
@@ -206,42 +204,14 @@ apk add fontconfig-dev fontconfig-static
 #     expat-dev \
 
 # ref: openbox/build
+# 公共库(glib/fribidi/harfbuzz/cairo/X11链/font链等)已由 u-gtk b_deps 统一装(1.4.1); 此处仅留工具(g++)
 xx-apk --no-cache --no-scripts add \
     g++ \
-    glib-dev \
-    glib-static \
-    fribidi-dev \
-    fribidi-static \
-    harfbuzz-dev \
-    harfbuzz-static \
-    cairo-dev \
-    cairo-static \
-    libxft-dev \
-    libxml2-dev \
-    libx11-dev \
-    libx11-static \
-    libxcb-static \
-    libxdmcp-dev \
-    libxau-dev \
-    freetype-static \
-    expat-static \
-    libpng-dev \
-    libpng-static \
-    zlib-static \
-    bzip2-static \
-    pcre-dev \
-    libxrender-dev \
-    graphite2-static \
-    libffi-dev \
-    xz-dev \
-    brotli-static \
     || { [ -n "$XX_CROSS_FILE" ] && log "suckless: xx-apk 部分包 aarch64 不可用/冲突(所需 .a 已由 suck_cross 装入 sysroot), 容忍继续"; }
 
 # 
-apk add libxcursor-dev #Xrandr@xrdp;
 
 # 
-apk add util-linux-dev 
 # util-linux-static #util-linux-dev apk-added@yad ##static>> 已并在dev内;
 
 case "$1" in
