@@ -445,18 +445,22 @@ b_deps)
     doExec /src/w-xlunch/build.sh imlib2 || exit 1
 
     # 方案B(2026-11-27 1.4): 公共库统一装——u-gtk 一次性装共享静态库进 sysroot, 下游应用不再各自 xx-apk。
-    #   其余公共库(glib/cairo/harfbuzz/graphite2/libx11/libxcb-static/libxau/libxdmcp/libxrender/libxfixes/
-    #   libxcursor/libxft/freetype-static/expat/libpng/zlib-static/bzip2/pcre/xz/brotli/libffi/libxml2/libwebp/
-    #   gtk+2.0-dev/libjpeg/libbsd/libmd/libxi/curl-static 等)已由本脚本 apkdeps + /src/openbox/build.sh apkdeps
-    #   交叉装好; 此处只补**缺失**的 16 库(2026-11-27 实测 pcmanfm 交叉 configure 缺 gpg-error/Xcomposite,
-    #   make 缺 fontconfig/Xinerama/pixman——基础库 .a 未进 sysroot; zlib 实测 zlib-dev 只给 .h/.so,
-    #   .a 在 /lib/libz.a 须 zlib-static, 故补)。
+    #   1.4.1 公共库全清单(≥2 组件, 44 唯一包/展开约 60 apk 包): 本脚本 b_deps 尾部统一 xx-apk add
+    #   (进 sysroot, 仅 is-cross); native(amd64) 由同脚本 apkdeps 的 apk add 进宿主(见下方 apkdeps)。
+    #   注: openssl 静态包名实测为 openssl-libs-static(非 openssl-static, 1.4.1 手误);
+    #   cairo/pango/gtk+2.0/librsvg 的 .a 由本脚本源码构建产出, 此处只装其 -dev(.pc+头);
     #   libxdamage/libxrandr 由本脚本源码构建(不补 apk); gpg-error 单次→v-pcmanfm 脚本装。
     if [ -n "$XX_CROSS_FILE" ]; then
       xx-apk --no-cache --no-scripts add \
-        fontconfig-dev fontconfig-static freetype-dev libxcb-dev libxcomposite-dev libxext-dev \
-        libxinerama-dev libxkbcommon-dev libxkbcommon-static lzo-dev openssl-dev openssl-libs-static \
-        pixman-dev pixman-static zlib-dev zlib-static
+        brotli-static bzip2-static cairo-dev cairo-static curl-static expat-static \
+        fontconfig-dev fontconfig-static freetype-dev freetype-static fribidi-dev fribidi-static \
+        glib-dev glib-static graphite2-static gtk+2.0-dev harfbuzz-dev harfbuzz-static \
+        jpeg-dev libbsd-dev libffi-dev libjpeg-turbo-static libmd-dev libpng-dev libpng-static \
+        librsvg-dev libwebp-static libx11-dev libx11-static libxau-dev libxcb-dev libxcb-static \
+        libxcomposite-dev libxcursor-dev libxdamage-dev libxdmcp-dev libxext-dev libxfixes-dev \
+        libxft-dev libxi-dev libxinerama-dev libxkbcommon-dev libxkbcommon-static libxml2-dev \
+        libxrandr-dev libxrender-dev lzo-dev openssl-dev openssl-libs-static pango-dev pcre-dev \
+        pixman-dev pixman-static util-linux-dev xorg-server-dev xz-dev zlib-dev zlib-static
     fi
 
     # view
