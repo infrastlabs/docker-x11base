@@ -53,15 +53,13 @@ xcompmgr_cross(){
     export ac_cv_prog_cc_cross=yes
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
     XS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib "
-    # sysroot 补 X11 静态库(Xcomposite/Xfixes/Xrender 的 .a 随 -dev; libxcb 仅 -static; Xdamage 由 Xdamage() 建入 sysroot)
-    xx-apk add libxcomposite-dev libx11-dev libx11-static libxext-dev libxfixes-dev libxrender-dev libxcb-dev libxcb-static libxau-dev libxdmcp-dev
+    # 公共库(X11链+Xcomposite/Xfixes)已由 u-gtk b_deps 统一装(1.4.1), 不再各自 xx-apk
     log "xcompmgr: CROSS ($XX_TRIPLE)"
   fi
 }
 
 function xcompmgr(){
   xcompmgr_cross
-  apk add libxcomposite-dev
 
   log "Downloading XCOMPMGR..."
   rm -rf $SRCROOT/xcompmgr; # mkdir -p $SRCROOT/xcompmgr
