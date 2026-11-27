@@ -33,6 +33,9 @@ eng_cross(){
     # LINK 串里 $(LDFLAGS) 是 shell 命令替换(空), 非 make 变量——native 靠默认库路径没暴露,
     #   交叉下 sysroot /usr/local/lib 不在默认路径 → 必须显式注入 -L(2026-11-25 实测 rpm2cpio -lrsvg-2 找不到)。
     XX_LINK_EXTRA="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+    # 2026-11-27 修复: 交叉 sysroot 缺 /lib/ld-musl-<arch>.so.1 → make 子进程(glib-compile-schemas)经 qemu 起不来
+    # (engrampa arm64 挂, 报 qemu: Could not open /lib/ld-musl-aarch64.so.1)。xx-apk 装 musl 进 sysroot 补 loader。
+    xx-apk add musl >/dev/null 2>&1 || true
     log "engrampa: CROSS ($XX_TRIPLE)"
   fi
 }
