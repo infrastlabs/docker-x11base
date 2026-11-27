@@ -31,9 +31,7 @@ fb_cross(){
     export ac_cv_prog_cxx_cross=yes   # C++ 交叉: configure cxx link-test 亦不能 run
     # 头/库搜索前缀 sysroot(双保险: xx-clang 自带 sysroot, configure link-test 需显式 -L)
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
-    # sysroot 补 fribidi/fontconfig/freetype + X11 静态库(幂等; apk 命中已装则 no-op)
-    xx-apk add fribidi-dev fribidi-static fontconfig-dev fontconfig-static freetype-dev \
-      libx11-dev libx11-static libxext-dev libxrender-dev libxau-dev libxdmcp-dev libxcb-dev libxcb-static
+    # 公共库(fribidi/fontconfig/freetype+X11链)已由 u-gtk b_deps 统一装(1.4.1), 不再各自 xx-apk
     # libXrandr.a 无 apk 包 → 源码构建到 sysroot(同 x-xrandr/openbox/u-gtk); 幂等: 已有则跳过
     test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
     log "fluxbox: CROSS ($XX_TRIPLE)"
@@ -106,13 +104,10 @@ function fluxbox(){
 }
 
 
-apk add fribidi-dev fribidi-static
-
 # dwm@ubt2004: 无fontconfig错误;
 # ref: suckless/build.sh
 # fontconfig-2.13.1-r4 x86_64 {fontconfig} (MIT) [installed]
 # FONTCONFIG_VERSION=2.14.0 @fontconfig/build
-apk add fontconfig-dev fontconfig-static
 
 case "$1" in
 cache)
