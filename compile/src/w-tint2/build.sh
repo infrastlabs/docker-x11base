@@ -346,9 +346,8 @@ function tint2(){
   # 2026-11-25 交叉: tint2 用 cmake, 需 toolchain 文件(xx-clang + sysroot 根 + 只链 .a 静态)。
   #   toolchain 文件在下方 cmake 前按需生成; native(无 XX_CROSS_FILE) 不生成不传, 零影响。
   # xcomposite-dev gtk+2.0-dev
-  apk add pango-dev librsvg-dev
+  # 公共库(pango/librsvg/libxcursor)已由 u-gtk 统一装(1.4.1)
   apk add startup-notification-dev
-  apk add libxcursor-dev
   # 
   # apk add imlib2-dev librsvg-dev gtk+2.0-dev  ##本地安装了，则会跳过install;
 
@@ -499,7 +498,7 @@ full)
     ;;
 b_deps)
     # bash /src/xcompmgr/build.sh Xdamage
-    apk add xorg-server-dev;
+    # 公共库(xorg-server)已由 u-gtk 统一装(1.4.1)
     # doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
     # doExec bash /src/w-tint2/build.sh libcroco || exit 1
     doExec_mark "w-tint2 b_deps grp"
