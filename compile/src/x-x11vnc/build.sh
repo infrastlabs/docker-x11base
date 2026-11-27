@@ -27,7 +27,7 @@ function libvncserver(){
   #   → 只 make 库 target, 再手动 install .a + 头(native 走原 make install)。
   # native(未设 XX_CROSS_FILE): 变量留空 → 原路径零影响。
   if [ -n "$XX_CROSS_FILE" ]; then
-    xx-apk add openssl-dev openssl-libs-static zlib-static zlib-dev lz4-static lz4-dev 2>/dev/null || true
+    xx-apk add lz4-static lz4-dev 2>/dev/null || true
     mkdir -p build && cd build
     cmake .. \
       -DCMAKE_SYSTEM_NAME=Linux \
@@ -140,9 +140,8 @@ x11vnc_cross(){
     export ac_cv_prog_cc_cross=yes
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
     # sysroot 补 X11/ssl/zlib 静态库(幂等; apk 命中已装则 no-op)
-    xx-apk add libx11-dev libx11-static libxext-dev libxrandr-dev libxdamage-dev \
-      libxfixes-dev libxinerama-dev libxcursor-dev libxtst-dev libxi-dev xorgproto \
-      zlib-static libxcb-dev libxcb-static 2>/dev/null || true
+    # 公共库(X11链+openssl+zlib+libxcursor/libxdamage/libxfixes/libxi/libxinerama/libxrandr)已由 u-gtk 统一装(1.4.1); 此处仅留单次 libxtst/xorgproto
+    xx-apk add libxtst-dev xorgproto 2>/dev/null || true
     # libXrandr.a: apk 无对应包 → 借 openbox 的 libxrandr()(cross-aware, 装到 sysroot)
     test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
     # libvncserver.a: apk 只有 .so 无静态包, 上面 libvncserver() native 装 build-arch /usr
@@ -159,9 +158,7 @@ x11vnc_cross(){
 #
 function x11vnc(){
   x11vnc_cross
-  apk add lzo-dev #libvncserver-dev带入: lzo-dev openssl-dev ##缺依赖项时, LIBS="xx" ./configure报gcc错误
-  apk add openssl-dev openssl-libs-static
-  apk add xorg-server-dev
+  # 公共库(lzo/openssl/xorg-server)已由 u-gtk 统一装(1.4.1)
   # configure: error: Package requirements (libvncserver >= 0.9.8) were not met:
   apk add libvncserver-dev
 
