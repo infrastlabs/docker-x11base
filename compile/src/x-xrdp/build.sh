@@ -40,12 +40,10 @@ xrdp_cross(){
     export LIBS="-lxcb -lXau -lXdmcp -lX11-xcb $LIBS"
     XX_DESTDIR="$(xx-info sysroot)"   # 子组件(fdkaac)装进 sysroot 供 configure/pkg-config 探测
     # sysroot 补 X11/静态库(幂等; 命中已装则 no-op)。包名均取自本脚本 native apk 行或实测 Alpine。
+    # 公共库(X11链+openssl+fontconfig+freetype+pixman)已由 u-gtk 统一装(1.4.1); 此处仅留单次(fuse/fdk-aac/opus/lame)
     xx-apk add \
-      libx11-dev libx11-static libxext-dev libxau-dev libxdmcp-dev \
-      libxcb-dev libxcb-static \
-      libxrender-dev libxfixes-dev libxinerama-dev libxrandr-dev \
-      openssl-dev openssl-libs-static fuse-dev fuse-static \
-      fdk-aac-dev opus-dev lame-dev freetype-dev fontconfig-dev pixman-dev
+      fuse-dev fuse-static \
+      fdk-aac-dev opus-dev lame-dev
     log "xrdp: CROSS ($XX_TRIPLE)"
   fi
 }
@@ -138,7 +136,7 @@ function xrdp(){
   xrdp_cross
   # ./configure
   #  220 apk add pam-dev
-  apk add openssl-dev openssl-libs-static libxcb-static fuse-static
+  apk add fuse-static
   apk add fuse-dev fdk-aac-dev opus-dev lame-dev;
   apk add nasm
 
