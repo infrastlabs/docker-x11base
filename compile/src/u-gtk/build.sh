@@ -445,11 +445,11 @@ b_deps)
     doExec /src/w-xlunch/build.sh imlib2 || exit 1
 
     # 方案B(2026-11-27 1.4): 公共库统一装——u-gtk 一次性装共享静态库进 sysroot, 下游应用不再各自 xx-apk。
-    #   1.4.1 公共库全清单(≥2 组件, 44 唯一包/展开约 60 apk 包): 本脚本 b_deps 尾部统一 xx-apk add
+    #   1.4.1 公共库全清单(≥2 组件, 45 唯一包/展开约 62 apk 包): 本脚本 b_deps 尾部统一 xx-apk add
     #   (进 sysroot, 仅 is-cross); native(amd64) 由同脚本 apkdeps 的 apk add 进宿主(见下方 apkdeps)。
     #   注: openssl 静态包名实测为 openssl-libs-static(非 openssl-static, 1.4.1 手误);
     #   cairo/pango/gtk+2.0/librsvg 的 .a 由本脚本源码构建产出, 此处只装其 -dev(.pc+头);
-    #   libxdamage/libxrandr 由本脚本源码构建(不补 apk); gpg-error 单次→v-pcmanfm 脚本装。
+    #   libxdamage/libxrandr 由本脚本源码构建(不补 apk); gpg-error 实测 lxtask+pcmanfm 都用(1.4.3 单次出入, 2026-11-27 验证)→归公共。
     if [ -n "$XX_CROSS_FILE" ]; then
       xx-apk --no-cache --no-scripts add \
         brotli-static bzip2-static cairo-dev cairo-static curl-static expat-static \
@@ -460,7 +460,8 @@ b_deps)
         libxcomposite-dev libxcursor-dev libxdamage-dev libxdmcp-dev libxext-dev libxfixes-dev \
         libxft-dev libxi-dev libxinerama-dev libxkbcommon-dev libxkbcommon-static libxml2-dev \
         libxrandr-dev libxrender-dev lzo-dev openssl-dev openssl-libs-static pango-dev pcre-dev \
-        pixman-dev pixman-static util-linux-dev xorg-server-dev xz-dev zlib-dev zlib-static
+        pixman-dev pixman-static util-linux-dev xorg-server-dev xz-dev zlib-dev zlib-static \
+        libgpg-error-dev libgpg-error-static
     fi
 
     # view
