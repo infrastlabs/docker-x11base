@@ -35,8 +35,7 @@ db_cross(){
     # 头/库搜索前缀 sysroot(xx-clang 自带 sysroot, configure link-test/静态 -L 需显式; 双保险)
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
     XX_LIB_PRE="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
-    # sysroot 补 zlib 静态库(dropbear LIBS=-lz; .a 随 zlib-static)
-    xx-apk add zlib-dev zlib-static
+    # 公共库(zlib)已由 u-gtk b_deps 统一装(1.4.1), 不再各自 xx-apk
     log "dropbear: CROSS ($XX_TRIPLE)"
   fi
 }
