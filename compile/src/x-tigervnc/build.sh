@@ -307,16 +307,11 @@ tigervnc_cross(){
     # sysroot 补 X11/字体/压缩等静态库(幂等; apk 命中已装则 no-op)
     # 注意: libtasn1-static / brotli-static 在 sysroot APKINDEX 里不存在，
     # 但 libtasn1(.so)/libbrotli*.a 已随其他包装入，用 test 幂等跳过。
-    xx-apk add libx11-dev libx11-static libxext-dev libxrandr-dev libxrender-dev \
-      libxdamage-dev libxfixes-dev libxinerama-dev libxcursor-dev libxft-dev \
-      freetype-dev fontconfig-dev zlib-static libjpeg-turbo-static \
-      libxkbcommon-dev libxkbcommon-static libxcb-dev libxcb-static \
-      pixman-static libxau-dev libxdmcp-dev \
+    # 公共库(X11链/font链/libpng/brotli/bzip2/zlib/libbsd/libmd/libjpeg/libxkbcommon/pixman)已由 u-gtk 统一装(1.4.1); 此处仅留单次(加密链/字体/驱动)
+    xx-apk add \
       nettle-dev nettle-static libunistring-dev libunistring-static \
-      libtasn1-dev libbsd-dev libmd-dev libpng-static \
-      bzip2-static libfontenc-dev libxshmfence-dev libxkbfile-dev 2>/dev/null || true
-    # brotli-static 幂等: sysroot 里已有 libbrotlidec.a 等
-    test -f "$XX_SYSROOT/usr/lib/libbrotlidec.a" || (xx-apk add brotli-static 2>/dev/null || true)
+      libtasn1-dev libfontenc-dev libxshmfence-dev libxkbfile-dev 2>/dev/null || true
+    # brotli-static 已由 u-gtk 统一装(1.4.1)
     # libXrandr.a: apk 无对应包 → 借 openbox 的 libxrandr()(cross-aware, 装到 sysroot)
     test -f "$XX_SYSROOT/usr/lib/libXrandr.a" || bash /src/openbox/build.sh libxrandr
     log "tigervnc: CROSS ($XX_TRIPLE)"
