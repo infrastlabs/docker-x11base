@@ -94,7 +94,7 @@ b_deps)
     # 先建自建 imlib2（内嵌 png/jpeg/svg loader 到 /usr/local/lib/libImlib2.a）；jpeg loader 需 jpeglib.h
     # scrot autogen 需 autoconf-archive（AX_ 宏，configure.ac:25/28 报 not present）
     apk add autoconf-archive
-    apk add libjpeg-turbo-static jpeg-dev
+    # 公共库(jpeg/libjpeg)已由 u-gtk 统一装(1.4.1)
     # doExec bash /src/w-xlunch/build.sh imlib2 || exit 1
     ;;
 *) #compile
