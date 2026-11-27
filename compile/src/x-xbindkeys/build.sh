@@ -31,8 +31,7 @@ xbk_cross(){
     export ac_cv_prog_cc_cross=yes
     # 头/库搜索前缀 sysroot(双保险: xx-clang 自带 sysroot, configure link-test 需显式 -L)
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
-    # sysroot 补 X11 静态库(幂等; apk 命中已装则 no-op)
-    xx-apk add libx11-dev libx11-static libxext-dev libxau-dev libxdmcp-dev libxcb-dev libxcb-static
+    # 公共库(X11链)已由 u-gtk b_deps 统一装(1.4.1), 不再各自 xx-apk
     log "xbindkeys: CROSS ($XX_TRIPLE)"
   fi
 }
