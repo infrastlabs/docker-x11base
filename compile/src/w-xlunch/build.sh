@@ -62,7 +62,6 @@ xx_config_sub_fix(){
 function imlib2(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   xl_cross
-  apk add xorg-server-dev
 
   # 
   # 2026-11-25: 交叉下清 $SRCROOT/imlib2——旧树(他 arch 的 .o)被 make 复用会产出 mixed-arch libImlib2.a
@@ -186,9 +185,7 @@ function xlunch(){
   set -e   # doExec 调入口子 shell 会 set +e, 重启用保函数内失败即终止(否则吞错)
   xl_cross
   apk add hicolor-icon-theme #need hicolor
-  # ref: xcompmgr
-  apk add cairo-static expat-static fribidi-static glib-static graphite2-static harfbuzz-static
-  apk add libxml2-dev ##>> -lxml2 -llzma 
+  # 公共库(cairo/expat/fribidi/glib/graphite2/harfbuzz/libxml2)已由 u-gtk 统一装(1.4.1)
 
   log "Downloading XLUNCH..."
   rm -rf $SRCROOT/xlunch; # mkdir -p $SRCROOT/xlunch
@@ -235,7 +232,7 @@ function b_deps(){
   # 静态子包，必须本地编译（w-tint2 librsvg，STATIC=yes 只出 .a，
   # librsvg 前置依赖 libcroco）。已存在则跳过编译。
   apk update
-  apk add librsvg-dev cairo-dev pango-dev xz-dev
+  # 公共库(librsvg/cairo/pango/xz)已由 u-gtk 统一装(1.4.1)
   test -s /usr/local/lib/librsvg-2.a || {
     doExec env STATIC=yes bash /src/w-tint2/build.sh libcroco || exit 1
     doExec env STATIC=yes bash /src/w-tint2/build.sh librsvg || exit 1
