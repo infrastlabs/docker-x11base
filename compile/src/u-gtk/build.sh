@@ -444,6 +444,21 @@ b_deps)
     # 避免各 w-* stage 重复下载+编译(~4次/镜像); 产物 /usr/local/lib/libImlib2.a
     doExec /src/w-xlunch/build.sh imlib2 || exit 1
 
+    # 方案B(2026-11-27 1.4): 公共库统一装——u-gtk 一次性装共享静态库进 sysroot, 下游应用不再各自 xx-apk。
+    #   其余公共库(glib/cairo/harfbuzz/graphite2/libx11/libxcb-static/libxau/libxdmcp/libxrender/libxfixes/
+    #   libxcursor/libxft/freetype-static/expat/libpng/zlib-static/bzip2/pcre/xz/brotli/libffi/libxml2/libwebp/
+    #   gtk+2.0-dev/libjpeg/libbsd/libmd/libxi/curl-static 等)已由本脚本 apkdeps + /src/openbox/build.sh apkdeps
+    #   交叉装好; 此处只补**缺失**的 16 库(2026-11-27 实测 pcmanfm 交叉 configure 缺 gpg-error/Xcomposite,
+    #   make 缺 fontconfig/Xinerama/pixman——基础库 .a 未进 sysroot; zlib 实测 zlib-dev 只给 .h/.so,
+    #   .a 在 /lib/libz.a 须 zlib-static, 故补)。
+    #   libxdamage/libxrandr 由本脚本源码构建(不补 apk); gpg-error 单次→v-pcmanfm 脚本装。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      xx-apk --no-cache --no-scripts add \
+        fontconfig-dev fontconfig-static freetype-dev libxcb-dev libxcomposite-dev libxext-dev \
+        libxinerama-dev libxkbcommon-dev libxkbcommon-static lzo-dev openssl-dev openssl-libs-static \
+        pixman-dev pixman-static zlib-dev zlib-static
+    fi
+
     # view
     find /usr/lib |egrep "libpango|Xrandr|Xdamage|libatk|pixbuf|libgdk|libgtk" |grep "\.a$" |sort #|libfm|menu-cache
     ;;
