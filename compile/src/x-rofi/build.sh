@@ -108,6 +108,13 @@ build_dep(){
   mkdir -p $SRCROOT/build-$srcdir
   tar xzf /tmp/$tarball -C $SRCROOT/build-$srcdir --strip-components=1
   cd $SRCROOT/build-$srcdir
+  # 2026-11-27 修复: 老 config.sub 不认 *-alpine-linux-musl (startup-notification-0.12 arm64 挂) → 交叉换 automake 1.16 新版。
+  # 新版向后兼容; native 无需替换. 作用于本函数所有依赖, 安全。
+  if [ -n "$XX_CROSS_FILE" ]; then
+    for f in config.sub config.guess; do
+      test -f /usr/share/automake-1.16/$f && cp -f /usr/share/automake-1.16/$f ./$f
+    done
+  fi
   test -x ./configure || { autoreconf -fi 2>&1 || { log "autoreconf FAILED: $srcdir"; return 1; }; }
   # 2026-11-25 交叉: --host + DESTDIR 落 sysroot; native CROSS_HOST/XX_DESTDIR 空零影响.
   ./configure --enable-static --disable-shared --prefix=/usr/local $CROSS_HOST 2>&1 \
