@@ -3,7 +3,7 @@
 > 基于本地 git 历史（`feat/ai-260925`，11-04 起约 251 commit，按 commit 日期逐日）。
 > 临时存放于用户 HOME，不在仓库下。
 
-## 逐日概要（2026-11-04 → 11-24）
+## 逐日概要（2026-11-04 → 11-27）
 
 ### 11-04 · 起步
 - `AGENTS.md` 新建（项目信息 + 静态构建避坑手册：oneBuild 吞错 / LDFLAGS 勿覆盖 / --start-group / gdk-pixbuf 图标坑等）。
@@ -86,7 +86,30 @@
 - `11170850-selected-app-use.md` 一章 1-3 节（gsm/dbus-dunst/pasystray）拆出至 `11170851-selected-app-modifyA.md`（保留标题序号+去向/来源块引用+3/4级章节表）；三级标题补齐日期；章节表两层/表随正文修正。
 - rfs/dockerfile link usr/share/applications + fix/drop；cpl/dockerfile xfce4 full；gitac buildx compile/gtkmm224。
 
+### 11-25 · 交叉编译改造启动
+- README 真机验证表加 clipit 行（44ece608 11-25 10:42，版本标最新）。
+- 交叉编译方案一：剩余组件交叉适配（二章 4，11-25 15:20）；方案二进展、方案三落地、方案一收尾（二章 2-3）。
+- xdpyprobe 交叉缺 X11：修复+依赖清单（三章 1，11-25 19:01）；GTK2 应用交叉失败：烤基础镜像方案（三章 2，11-25 21:49）。
+
+### 11-26 · 排错日志获取 + 方案A 落地
+- `11241320-multiarch-buildSpeed.md` 三章 3.4 排错日志获取优化（3.4.1 问题与 A/B/C 方案对比，A+B 组合：b_deps 直通 stdout + 末尾验产物 + .logs 随镜像留存）。
+- `u-gtk/analyze.sh` 新增：单架构静态产物分析+报告（3.4.3）——关键产物存在性 + archcheck + .a 清单 + 失败定位（doExec _exec_result.txt 末条 rc!=0→FAIL_MODULE/FAIL_LOG）+ CONCLUSION。
+- `Dockerfile.builder.gtk224.xx` 方案A 落地（3.4.3）：① RUN 首行 set -e 改包子 shell ② 并行分支 intermediate 清理加成功门 `[ "$RC" = 0 ] &&`（失败不清中间产物）③ 末尾 apkc clean 后补 analyze 循环写 `/report/u-gtk-$tag.txt` + exit 0（镜像无条件建成）。
+- `build-local.sh`/`buildx.sh` gtk224 case 外层读 `/report/u-gtk-*.txt` 判成败（3.4.3）——docker pull + cat 通配符一把梭哈，grep CONCLUSION: FAILED 有则打印报告+exit 1。
+- `Dockerfile.builder.gtk224.xx` 修正 ARCHS 赋值作用域——sed 转译（armv7→arm/v7，逗号→空格）提到子 shell 外，否则 analyze 的 for arch 拿到原始逗号串（amd64,arm64,armv7）单次迭代 case 不匹配→unknown arch（3.4.3）。
+
+### 11-27 · 方案B 公共库统一装 + CI 全量验证 + arm64 双失败修复
+- **pcmanfm 构建故障排查**（四章 1）：armv7 交叉复现 + 根因（sysroot 缺 libXcomposite/libgpg-error）→ 方案拍板 B（公共库基础镜像预装进 sysroot）；apk 基础库全局梳理（公共 58 / 单次 30）。
+- **方案B 实施**：`u-gtk/build.sh` b_deps 尾部 xx-apk 统一装公共库（44 唯一包/展开约 60，实测 openssl-static 不存在→openssl-libs-static、zlib 需 zlib-static）；16 组件 build.sh 移除公共库（cross/native 行）。
+- **三架构验证**（builder-g224）：lxtask/gpicview/lxappearance/pcmanfm/geany 全 xx-verify pass；两处出入（gpg-error 归公共——lxtask 也链 -lgpg-error；lxappearance 补交叉分支）。
+- **B 方案改造后 CI 故障排查**（1.5.3）：arm64 失败根因（gcc 下载中断 + 报错被吞）+ 交叉 sysroot 依赖提前安装（1.5.3.2 B 类清单）。
+- **alpine-compile-3 镜像核对**（四章 2）：rofi 缺 bin 根因锁定——方案B 漏装 native libxkbcommon→libnkutils disabler→meson 0.59 静默丢 rofi 目标（推翻 xcb-imdkit 初判）；修复：native 临时补装 libxkbcommon（92f5f960，TEMP 标记专题后移除）。
+- **buildx 开关演变**：ss2→ss3（已 Revert）→ss4→`3611b924`（除 gtkmm 外全开，plat=amd64,arm64）。
+- **CI 全量重跑验证**（run 1057，3611b924，12:18Z 起 12:54Z 止，success）：amd64 全组件产出，v-xfce4 ristretto/thunar 海量 `undefined reference`（615+584）为 make 阶段预期噪声（手工链接补救，产物 xx-verify pass）。
+- **alpine-compile-3-dbg 镜像三架构产出核对**（四章 3）：真正 CI 产物在 `-dbg` tag（digest e4af5e22，之前误拉 alpine-compile-3 旧 84874349）；armv7 未编 dbg（plat 不含 arm）；arm64 两失败——rofi b_deps（startup-notification config.sub 不认 aarch64-alpine-linux-musl）+ engrampa make（sysroot 缺 /lib/ld-musl-aarch64.so.1）。
+- **arm64 双失败修复**（方案A）：`x-rofi/build.sh` build_dep 交叉换 automake 1.16 config.sub/config.guess（c0832c75，验证原版报 Invalid configuration、替换后过）；`v-engrampa/build.sh` eng_cross 补 `xx-apk add musl`（893c7021，验证 sysroot ld-musl-aarch64.so.1 就位）。
+
 ## 主题脉络
-组件版本选型（11-05）→ 各组件静态构建收口（11-07~11-15，核心：doExec 重构、gitclone 缓存、svg 库层根治、pulsecommon 版本漂移）→ 构建基建/CI（11-09/11-13）→ D-Bus 桌面会话/通知（11-17）→ 文档收口+版本对齐+安全守则（11-19）→ 中文本地化+版本升级大日（11-20~11-23，GTK2 最后版全线对齐）→ 文档拆分收口（11-24）。
+组件版本选型（11-05）→ 各组件静态构建收口（11-07~11-15，核心：doExec 重构、gitclone 缓存、svg 库层根治、pulsecommon 版本漂移）→ 构建基建/CI（11-09/11-13）→ D-Bus 桌面会话/通知（11-17）→ 文档收口+版本对齐+安全守则（11-19）→ 中文本地化+版本升级大日（11-20~11-23，GTK2 最后版全线对齐）→ 文档拆分收口（11-24）→ 交叉编译改造启动（11-25）→ 排错日志获取+方案A 落地（11-26）→ 方案B 公共库统一装+CI 全量验证+arm64 双失败修复（11-27）。
 
 > 注：另有少量 commit 带旧 author 日期（02-04 等，属 rebase 历史），但 commit 日期均在 11-04 后，为本次分支工作的一部分；逐日主题以 commit 内容为准。
