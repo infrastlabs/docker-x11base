@@ -24,8 +24,8 @@ um_cross(){
     export ac_cv_prog_cc_cross=yes
     # 头/库搜索前缀 sysroot(双保险: xx-clang 自带 sysroot, configure link-test 需显式 -L)
     export LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib $LDFLAGS"
-    # sysroot 补 n2n(zstd)/tinc(lzo/openssl) 静态库(幂等; apk 命中已装则 no-op)
-    xx-apk add zstd-static lzo-dev openssl-dev openssl-libs-static
+    # sysroot 补 n2n(zstd 单次)/tinc(lzo/openssl 公共→u-gtk) 静态库; 公共库已由 u-gtk 统一装(1.4.1)
+    xx-apk add zstd-static
     log "u-misc: CROSS ($XX_TRIPLE)"
   fi
 }
@@ -155,7 +155,7 @@ function n2n(){
 # Build tinc
 function tinc(){
   um_cross
-  apk add lzo-dev openssl-dev texinfo openssl-libs-static
+  apk add texinfo
 
   log "Downloading TINC..."
   rm -rf $SRCROOT/tinc; # mkdir -p $SRCROOT/tinc
