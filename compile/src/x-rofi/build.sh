@@ -161,11 +161,7 @@ b_deps(){
   if [ -n "$XX_CROSS_FILE" ]; then
     build_xkbcommon_cross || { log "b_deps FAILED: xkbcommon (cross)"; exit 1; }
   else
-    # 2026-11-15: gtk224-2 基准镜像缺 xkbcommon(.pc/.h/.a 全无)——rofi 的 dependency('xkbcommon') not-found
-    #   → libnkutils 子工程 xkbcommon 版本检查失败(disabler:true) → nk 变量全 disabler → meson 0.59 静默丢 rofi 目标
-    #   (18 vs 30 目标; 文档 11051758 九章 11-07 容器当时"已有"xkbcommon)。装 dev(头/.pc/.so)+static(.a)。
-    apk add --no-cache libxkbcommon-dev libxkbcommon-static >/dev/null 2>&1 \
-      || { log "b_deps FAILED: libxkbcommon"; exit 1; }
+    : # 公共库(libxkbcommon)已由 u-gtk 统一装(1.4.1), native 不再各自 apk add
   fi
   # xcb-util 核心 (提供 xcb-util.pc / xcb-aux.pc / xcb-atom.pc / xcb-event.pc)
   # 真正复用: 不再保留本包源码 URL, 统一用 w-tint2 的 xcbutil()(gitee fk-xcb__util)构建;
