@@ -58,6 +58,8 @@ fm_cross(){
     unset PKG_CONFIG_PATH   # 顶部 native /usr/local 旧 .pc 抢先(同 gtk 坑②)
     XX_DESTDIR="DESTDIR=$XX_SYSROOT"
     log "fm: CROSS ($XX_TRIPLE)"
+    # 方案A 单次(1.4.3): gpg-error 仅 pcmanfm(经 libfm/gcrypt)用 → 本组件装, 非公共
+    xx-apk add libgpg-error-dev libgpg-error-static >/dev/null 2>&1
   fi
 }
 
@@ -346,9 +348,7 @@ function apkdeps(){
     gobject-introspection-dev \
     \
     gtk-doc intltool vala \
-      menu-cache-dev gtk+2.0-dev menu-cache-dev \
-    \
-    fontconfig-static libxcomposite-dev #pcmanfm
+      menu-cache-dev
 }
 
 case "$1" in
