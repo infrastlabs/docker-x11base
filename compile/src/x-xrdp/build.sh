@@ -139,6 +139,9 @@ function xrdp(){
   apk add fuse-static
   apk add fuse-dev fdk-aac-dev opus-dev lame-dev;
   apk add nasm
+  # TODO2611(临时, 本地应用层补): 公共库(u-gtk)那边还有问题——openssl 未统一装齐 dev+静态,
+  #   xrdp configure 需 libssl-dev(openssl-dev 头), 静态链需 libcrypto.a/libssl.a(openssl-libs-static)。
+  apk add openssl-dev openssl-libs-static >/dev/null 2>&1 || log "WARN: openssl 补装失败(configure 需 libssl-dev)"
 
   # tar -zxf $CACHE/xrdp-${XRDP_VER}.tar.gz -C /tmp;\
   # cd $SRCROOT/xrdp-${ver};\
