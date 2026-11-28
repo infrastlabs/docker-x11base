@@ -77,6 +77,11 @@ function st(){
 
   log "Install ST..."
   # make;
+  # 2026-11-28: st 的 make install 内含 `tic -sx st.info`(生成 terminfo), 缺 tic 报
+  #   "make: tic: No such file or directory" → Error 127(二进制已产出, 仅 terminfo 未装)。
+  #   tic 属宿主工具 → 用 native apk(非 xx-apk, 后者按 target arch 装进 sysroot 会把 ARM 的 tic
+  #   装到 sysroot/bin, 而 make install 从 PATH 取 native tic)。
+  command -v tic >/dev/null 2>&1 || apk add ncurses
   make install;
 
   # view
