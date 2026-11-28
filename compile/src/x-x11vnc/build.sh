@@ -65,23 +65,33 @@ function libvncserver(){
     return 0
   fi
   # native: 装入构建容器 build-arch /usr
-  # #common.sh预设static,导致example依赖的libz.so过不了(无libz.a)
-  # cmake .. \
+  # TODO2611(临时, 本地应用层补): 公共库(u-gtk)那边还有问题——native 原 cmake .. 在源码目录跑,
+  #   配置的是父目录(无 CMakeLists.txt)→ cmake 静默失败→ 无 Makefile→ libvncserver.a 缺失→ x11vnc 动态链。
+  #   改 build/ 外建(同交叉路径)+ 手动装 .a/头/.pc 到 /usr(静态库默认搜索路径)。
+  mkdir -p build && cd build
   LDFLAGS=" " cmake .. \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DWITH_GNUTLS=OFF \
-    -DWITH_OPENSSL=ON \
-    -DWITH_GCRYPT=OFF \
-    -DWITH_ZLIB=ON \
-    -DWITH_LZ4=ON \
-    -DWITH_THREADS=ON
-  log "Compiling LIBVNCSERVER..."
-  make -j$(nproc) #LDFLAGS=" " ##加到这无效, 改在cmake前:OK
-  log "Installing LIBVNCSERVER..."
-  make install
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+    -DWITH_X11=OFF -DWITH_GNUTLS=OFF -DWITH_OPENSSL=ON -DWITH_GCRYPT=OFF \
+    -DWITH_ZLIB=ON -DWITH_LZ4=ON -DWITH_THREADS=ON \
+    -DWITH_GTK=OFF -DWITH_SDL=OFF -DWITH_FFMPEG=OFF \
+    -DBUILD_TESTS=OFF > $OTHLOG/lv_cmake.log 2>&1 \
+    || { log "LIBVNCSERVER native cmake FAILED"; tail -20 $OTHLOG/lv_cmake.log; exit 1; }
+  log "Compiling LIBVNCSERVER libs (native)..."
+  make vncserver vncclient -j$(nproc) > $OTHLOG/lv_make.log 2>&1 \
+    || { log "LIBVNCSERVER native make FAILED"; tail -20 $OTHLOG/lv_make.log; exit 1; }
+  log "Installing LIBVNCSERVER libs+headers (native -> /usr)..."
+  for _a in libvncserver libvncclient; do
+    _f=$(find . -name "$_a.a" | head -1)
+    [ -n "$_f" ] && cp -av "$_f" /usr/lib/
+  done
+  cp -av ../rfb /usr/include/ 2>/dev/null
+  cp -av ./rfb/rfbconfig.h /usr/include/rfb/ 2>/dev/null
+  find . -name "*.pc" -exec cp -av {} /usr/lib/pkgconfig/ \; 2>/dev/null
+  test -f /usr/lib/libvncserver.a || { log "LIBVNCSERVER: /usr 缺 libvncserver.a"; exit 1; }
   # view
-  find $SRCROOT/libvncserver |egrep "\.a$"
   find /usr |egrep "libvnc.*\.a$"
+  cd $SRCROOT/libvncserver
 }
 
 
@@ -149,6 +159,8 @@ x11vnc_cross(){
     #   缺则用交叉环境重编 libvncserver 装入 sysroot(b_deps 已并行编过则这里 no-op)。
     test -f "$XX_SYSROOT/usr/lib/libvncserver.a" \
       || bash /src/x-x11vnc/build.sh libvncserver
+    # TODO2611(临时): 公共库那边还有问题——openssl 静态库未统一装, 交叉路径补 openssl-libs-static 到 sysroot。
+    xx-apk add openssl-libs-static 2>/dev/null || true
     log "x11vnc: CROSS ($XX_TRIPLE)"
   fi
 }
@@ -161,6 +173,13 @@ function x11vnc(){
   # 公共库(lzo/openssl/xorg-server)已由 u-gtk 统一装(1.4.1)
   # configure: error: Package requirements (libvncserver >= 0.9.8) were not met:
   apk add libvncserver-dev
+  # TODO2611(临时, 本地应用层补): 公共库(u-gtk)那边还有问题——openssl/libxtst 静态库未统一装齐,
+  #   先临时在本地(native 路径)补; 交叉路径由 x11vnc_cross/b_deps 保证(sysroot 已就位)。
+  #   lzo 静态库由 lzo-dev 提供(liblzo2.a); openssl 需 openssl-libs-static(libcrypto.a);
+  #   libXtst 无 apk 静态包 → 自建 libxtst()。
+  apk add openssl-libs-static >/dev/null 2>&1 || log "WARN: openssl-libs-static 装失败(缺 libcrypto.a)"
+  # libXtst 自建后落 /usr/local/lib(libxtst() 默认 prefix=/usr/local), 非 /usr/lib → 双路径判。
+  test -f /usr/lib/libXtst.a -o -f /usr/local/lib/libXtst.a || { log "libXtst.a 缺, 自建 libxtst()"; bash /src/x-x11vnc/build.sh libxtst || exit 1; }
 
   log "Downloading X11VNC..."
   rm -rf $SRCROOT/x11vnc; mkdir -p $SRCROOT/x11vnc
@@ -184,8 +203,16 @@ function x11vnc(){
     # --x-includes=/usr/include/X11 --x-libraries=/usr/lib/ \
   # LDFLAGS="-static" LIBS="-lgnutls -lnettle -ljpeg -lpng -lcrypto -llzo2 -lXtst   -lxcb -lXdmcp -lXau -lpthread $EX_LIBS" ./configure \
    # 交叉: LDFLAGS 前置 sysroot usr/lib+usr/local/lib 的 -L(含 libXtst.a/libvncserver.a 所在),
-    #   否则 configure link-test 找不到 -lXtst → "C compiler cannot create executables"。native 不动。
-    LDFLAGS="${XX_CROSS_FILE:+-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib }-static" LIBS="$LIBS2" ./configure \
+    #   否则 configure link-test 找不到 -lXtst → "C compiler cannot create executables"。
+    # native: 仅补 -L/usr/local/lib(libxtst() 自建落这里); 交叉绝不加宿主 /usr/local/lib(会混入 x86_64 库)。
+    if [ -n "$XX_CROSS_FILE" ]; then
+      X11VNC_LDFLAGS="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
+    else
+      X11VNC_LDFLAGS="-L/usr/local/lib"
+    fi
+    # 静态 + strip(项目标准: statically linked, stripped)
+    X11VNC_LDFLAGS="$X11VNC_LDFLAGS -static -Wl,--strip-all"
+    LDFLAGS="$X11VNC_LDFLAGS" LIBS="$LIBS2" ./configure \
     $CROSS_HOST \
     --prefix=$TARGETPATH \
     --with-x \
