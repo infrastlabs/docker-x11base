@@ -396,6 +396,10 @@ function apkdeps(){
     \
     fontconfig-static libxcomposite-dev \
     gdk-pixbuf-dev pango-dev # librsvg configure 需 gdk-pixbuf-2.0/pangocairo/pangoft2 .pc；gtk+2.0-dev 未传递装这两个（实测 MISS）
+  # 2026-11-28(4.3.3, 用户拍板): native apkdeps 补公共库(对齐 cross 清单 453-465)——xrdp/tinc/rofi/x11vnc 的 amd64 缺
+  #   openssl/lzo/libxkbcommon 致 TODO2611 应用层临时补; 现统一公共库装, 免各组件各自 apk。
+  #   libxtst 无 apk 静态包, 不进清单, 留组件兜底(x11vnc libxtst() 构建, v-clipit 复用——4.3.3 方案A)。
+  apk add openssl-dev openssl-libs-static lzo-dev libxkbcommon-dev libxkbcommon-static
   # 2026-11-24 方案二交叉: gtk+2.0-dev 进交叉 sysroot——提供 gtk+-2.0.pc/gdk-x11-2.0.pc + gtk 头
   #   （murrine/下游 lxtask/pcmanfm/geany 的 configure/编译需要；.a 由本脚本源码构建，dev 包无 .a）。
   # 2026-11-25: libjpeg-turbo-static 一并装——Alpine 把 libjpeg.a 拆到 static 包(dev 只 .so+头),
