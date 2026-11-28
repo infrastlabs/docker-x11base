@@ -228,7 +228,9 @@ function pulseaudio(){
 
   log "Install PULSEAUDIO..."
   # make;
-  make install ${XX_DESTDIR:-};
+  # 2026-11-28 拍板A：运行时数据装最终 $TARGETPATH（去 DESTDIR——交叉下 ${XX_DESTDIR:-} 会把全部产物
+  #   推入 $XX_SYSROOT 前缀，最终镜像 $TARGETPATH 空→arm64 无程序）。.a 单独 cp 进 sysroot（下行）。
+  make install;
   for _a in $(find $SRCROOT/pulseaudio/src -name 'libpulse*.a' 2>/dev/null); do cp "$_a" ${XX_SYSROOT:-}/usr/lib/ 2>/dev/null || true; done
   xx_la_fix
 
