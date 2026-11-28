@@ -1174,3 +1174,30 @@ command -v tic >/dev/null 2>&1 || apk add ncurses
 **修复方向（用户拍板，两条都做）**：① native `apkdeps` 补 openssl-dev/openssl-libs-static/lzo-dev/libxkbcommon-dev/libxkbcommon-static（对齐 cross 清单）；② libxtst 保留自建兜底（无 apk 静态包）。
 
 **libXtst 复用决策（用户拍板，方案A，2026-11-28 20:56）**：libXtst 不只 x11vnc 用——v-clipit 的 **xdotool** 也用（`-lXtst`，自动粘贴）。Alpine 无 libxtst-static 包，不进公共库清单，留组件兜底。方案A：v-clipit `libxtst()` 复用 x11vnc 的（`bash /src/x-x11vnc/build.sh libxtst`，落 `/usr/local/lib`，gitee 1.2.3），去 v-clipit 原自建（x.org 1.2.4 落 `/usr/lib`）重复；xdotool `LDFLAGS` 加 `-L${XX_LIBS_PREFIX:-}/usr/local/lib`（native `/usr/local/lib`、cross sysroot）找到 libXtst.a。
+
+##### 4.3.4、arm64 feh/x11vnc 无程序——libXt 头未进 sysroot + libxtst 假失败（2026-11-28 23:36）
+
+> **背景**：用户报最新 `alpine-compile-3-dbg` 镜像 **arm64 下 feh/x11vnc 都无程序**。排查基于 **undock v0.15.0**（本机 0.8.0 对含空层 `4f4fb700` 的镜像中途死亡，升级 0.15.0 后修复）取最新 arm64 产物（`/tmp/undock-dbg-new/`），扫 `.logs/aarch64/doExec/` 定位。
+
+**1、feh（w-feh）——libXt 头未进 sysroot**
+
+- **现象**：`main.c:34` → `wallpaper.h:31` `fatal error: 'X11/Intrinsic.h' file not found` → feh 编不出。
+- **根因**：`w-feh/build.sh:30` 原 `apk add libxt-dev curl-dev` **交叉下装进构建宿主**（x86_64），没进 **sysroot**；`xx-clang` 走 sysroot include，找不到 libXt 头。
+- **修复（`44ced6ca`）**：`apk`→`xx-apk`（交叉装 sysroot，native 回退宿主零影响）。
+
+**2、x11vnc（x-x11vnc）——libxtst() 假失败 → x11vnc 被跳过**
+
+- **现象**：arm64 无 x11vnc 二进制；doExec 目录**无 x11vnc.log**（被跳过，非编译失败）。
+- **根因**：`x-x11vnc/build.sh:135` `find /usr | egrep "libXtst\.a$"` 交叉下 `.a` 装 **sysroot** `$XX_SYSROOT/usr/local/lib/`，find 搜宿主 `/usr` 找不到 → egrep rc=1 → **libxtst() 假失败**（`.a` 实际已装成功，log 佐证）→ b_deps 判败 → **x11vnc 被跳过**。
+- **修复（`ab352902`）**：find 交叉感知 `find ${XX_SYSROOT:-}/usr`。
+
+**3、系统性 bug——库构建函数 `find /usr... | grep *.a` 交叉假失败**
+
+- **同模式 3 处**（库构建函数以 `find /usr | grep *.a` 结尾做 view，交叉下 `.a` 在 sysroot → 空返 rc=1 假失败）：
+  - `w-tint2` `xcbutil()`（:230 `find /usr/lib /usr/local/lib |grep libxcb-util`）；
+  - `w-tint2` `libxi()`（:278 `find /usr/lib /usr/local/lib |grep libXi.a`）；
+  - `x-x11vnc` `libxtst()`（:135，见上）。
+- **修复（`09791e93`）**：w-tint2 两处改 `find ${XX_SYSROOT:-}/usr/lib ${XX_SYSROOT:-}/usr/local/lib`。
+- **规则**：库构建函数结尾的 `find /usr | grep *.a` view，**交叉一律改 `find ${XX_SYSROOT:-}/...`**。
+
+**4、验证**：三处改动 **native 行为字节等价**（`$XX_SYSROOT` 空 → 原 find；`xx-apk` native → `apk --root /`）；交叉不可本机跑（无 qemu binfmt）→ 逻辑分析 + CI 下次构建验证。feh 链接无需 `-lXt`（native 已证），仅需头文件。
