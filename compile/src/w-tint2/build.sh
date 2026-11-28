@@ -227,7 +227,8 @@ function xcbutil(){
   find |grep libxcb-util
   # ./src/.libs/libxcb-util.a
   # ./src/.libs/libxcb-util.so
-  find /usr/lib/ /usr/local/lib |grep libxcb-util |grep "\.a$"
+  # 2026-11-28: 交叉下 .a 装 sysroot 非宿主 /usr——find 交叉感知($XX_SYSROOT), 否则空返 rc=1 假失败。native 零影响。
+  find ${XX_SYSROOT:-}/usr/lib/ ${XX_SYSROOT:-}/usr/local/lib |grep libxcb-util |grep "\.a$"
 }
 
 
@@ -275,7 +276,7 @@ function libxi(){
   else
     make install
   fi
-  find /usr/lib /usr/local/lib |grep libXi.a
+  find ${XX_SYSROOT:-}/usr/lib ${XX_SYSROOT:-}/usr/local/lib |grep libXi.a
   # /usr/local/lib/libXi.a
 }
 
