@@ -274,7 +274,7 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
     # plat="--platform linux/arm64" #pulse-arm-dbg
-    # plat="--platform linux/amd64,linux/arm64" #dbg
+    plat="--platform linux/amd64,linux/arm64" #dbg
     
     compile="alpine-compile-3"
     test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
@@ -290,7 +290,7 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_XRDP=yes
     --build-arg COMPILE_X11VNC=yes
     --build-arg COMPILE_SSH=yes
-    --build-arg COMPILE_FLUX=yes
+    --build-arg COMPILE_FLUX=no
     --build-arg COMPILE_OPENBOX=yes
     --build-arg COMPILE_SUCKLESS=yes
     --build-arg COMPILE_XCOMPMGR=yes
@@ -300,8 +300,8 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_SCROT=yes
     --build-arg COMPILE_TINT2=yes
     --build-arg COMPILE_FEH=yes
-    --build-arg COMPILE_XLUNCH=yes
-    --build-arg COMPILE_HSETROOT=yes
+    --build-arg COMPILE_XLUNCH=no
+    --build-arg COMPILE_HSETROOT=no
 
     --build-arg COMPILE_XBINDKEYS=yes
     --build-arg COMPILE_XRANDR=yes
@@ -312,13 +312,13 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_PAVUCONTROL=$c_gtkmm
     --build-arg COMPILE_SYSMONITOR=$c_gtkmm
     
-    --build-arg COMPILE_LXDE=yes
+    --build-arg COMPILE_LXDE=no
     --build-arg COMPILE_PCMANFM=yes
-    --build-arg COMPILE_XFCE4=yes
-    --build-arg COMPILE_GEANY=yes
+    --build-arg COMPILE_XFCE4=no
+    --build-arg COMPILE_GEANY=no
     --build-arg COMPILE_ENGRAMPA=yes
-    --build-arg COMPILE_GPICVIEW=yes
-    --build-arg COMPILE_CLIPIT=yes
+    --build-arg COMPILE_GPICVIEW=no
+    --build-arg COMPILE_CLIPIT=no
     --build-arg COMPILE_DBUS=yes
     --build-arg COMPILE_IBUS=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
