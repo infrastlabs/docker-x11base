@@ -22,6 +22,7 @@
   - 1、pcmanfm 构建故障排查（2026-11-27 10:21）
   - 2、alpine-compile-3 最新镜像核对：最新开关组件产出（2026-11-27 19:11）
   - 3、alpine-compile-3-dbg 镜像三架构产出核对（2026-11-27 22:30）
+  - 4、alpine-compile-3 三架构全面分析清单（2026-11-28 09:30）
 
 ## 一、多架构构建提速方案调研
 
@@ -826,3 +827,350 @@ make[3]: *** [Makefile:918: org.mate.engrampa.gschema.valid] Error 255
 **② engrampa（sysroot 缺 musl loader）——A：补 sysroot musl loader**
 - 做法：交叉构建时 `xx-apk add musl`（含 `ld-musl-aarch64.so.1`）装进 sysroot `/lib/`。
 - 作用：make 子进程 `glib-compile-schemas` 经 qemu 能起 → make 链接继续。
+
+### 4、alpine-compile-3 三架构全面分析清单（2026-11-28 09:30）
+
+> 基于 undock 取 `alpine-compile-3`（三架构 manifest list，run 1058 `d1678687`，parent=engrampa 修复 `893c7021`）的 `/rootfs` 产物，长期保留 `/tmp/undock-c3`。
+> 维度：构建层（bin/sbin 产物 + 日志失败标记）+ 运行层（用户实测/报告）。
+
+#### 4.1、详细分析（2026-11-28 09:30）
+
+**① 总览**
+- **106 组**：amd64 39 + arm64 35 + armv7 35（组件目录）
+- 构建层真失败 **3 项** + 假警 2 类 + 库/旧组件 3 项
+- 运行层 **2 类**（imlib2 家族 5 组件、tint2 arm64 闪退）
+- 主要交付障碍：**运行层 imlib2 家族全军覆没 + tint2 arm64 闪退**
+
+**② 构建失败（无 bin 产物）**
+
+| 组件 | 架构 | 日志证据（原文） | 根因 |
+|---|---|---|---|
+| `engrampa` | arm64/armv7 | `qemu-aarch64: Could not open '/lib/ld-musl-aarch64.so.1': No such file or directory` → `make[3]: *** [Makefile:918: org.mate.engrampa.gschema.valid] Error 255` → `>>> [aarch64] ENGRAMPA make LINK FAILED` | **musl loader 修复无效**：`v-engrampa/build.sh` 的 `xx-apk add musl >/dev/null 2>&1 \|\| true` 吞错 → CI 没装上 loader。镜像含修复（run 1058 parent=`893c7021`）但仍失败 |
+| `pasystray` | arm64/armv7 | `make[2]: *** [Makefile:484: pasystray] Error 1` → `>>> [aarch64] PASYSTRAY make LINK FAILED` | gtkmm 系交叉链接失败 |
+
+> **订正（2026-11-28 13:30）**：`pasystray` 的 arm64/armv7 根因**不是** gtkmm 系链接，是交叉下缺 `libnotify.a`（`cannot find -lnotify`）——`b_deps` 只在单一 arch 上下文跑一次，交叉分支未建。已修，见 4.2.3。`suckless` 的 `tic` 缺失见 4.2.2。
+
+> **订正（2026-11-28 14:02）**：`engrampa` 的根因**不是**「loader 没装上」——`xx-apk add musl` 只补 loader 文件，治不了 qemu 缺 `-L $XX_SYSROOT` 前缀；正解是用 **native `glib-compile-schemas`** 绕开 qemu。已修，见 4.2.4。
+
+**③ 构建部分失败（有 bin 但日志错）**
+
+| 组件 | 架构 | 日志证据 | 影响 |
+|---|---|---|---|
+| `suckless` | 三架构 | `make: tic: No such file or directory` → `make: *** [Makefile:53: install] Error 127` | st 的 terminfo（`tic -sx st.info`）未生成；st 二进制已产出（8 bins），但终端信息缺 `tic` 工具 |
+
+**④ 运行层问题（构建 OK + 静态链接，但运行失败）**
+
+| 组件 | 架构 | 用户实测 | 根因（假设） |
+|---|---|---|---|
+| `feh` | 三架构 | 不行 | **imlib2 loader 未链/未注册**：feh 链接命令 `-Wl,--start-group -lImlib2 -lXft ... -Wl,--end-group`（imlib2 在组内），产物静态（readelf 无 NEEDED），但 imlib2 图片格式 loader（png/jpeg/gif/svg）独立模块，静态未链 → 运行 `imlib_load_image` 失败 |
+| `scrot` | 三架构 | 截图失败 | 同上（imlib2）|
+| `xlunch` | 三架构 | 不行 | 同上（imlib2）|
+| `tint2` | 三架构 | arm64 运行闪退、无控制台错误码 | 待专项（arm64；疑 imlib2/面板初始化）|
+| `hsetroot` | 三架构 | 未实测（疑同 imlib2）| 同上（imlib2）|
+
+> imlib2 家族 5 组件（feh/scrot/xlunch/tint2/hsetroot）**疑似同一根因（imlib2 loader）**。产物大小：feh 2.68M / scrot 2.58M / xlunch 2.63M / tint2 10.55M / hsetroot 2.55M，均静态。
+
+> **订正（2026-11-28 13:04）**：imlib2 家族根因已锁定并修复，**loader 对象确已编译并注入 `libImlib2.a`（png.o/svg.o/jpeg.o 均在归档内），失效点在 `loaders.c` 注册补丁静默未打**——见 4.2.1。上表「静态未链」的表述需按 4.2.1 细化（非 `--whole-archive` 问题）。
+
+**⑤ gtkmm 家族（两镜像都要满足）**
+
+| 组件 | amd64 | arm64 | armv7 |
+|---|---|---|---|
+| `pasystray` | 1 bin OK | **0 bin 失败** | **0 bin 失败** |
+| `pavucontrol` | 1 bin OK | 1 bin OK | OK |
+| `pulseaudio` | 7 bins OK | 11 bins OK | OK |
+| `sysmonitor` | 0 bin | 0 bin | 0 bin（无产物，库/未构建待确认）|
+
+> `c_gtkmm=no` 时 dbg 版不建 gtkmm；旧三架构版仍建，pasystray 交叉失败需修。
+
+**⑥ 假警（非故障）**
+- `dbus`/`dbus-glib`（arm64/armv7）：产物在 **sysroot**（`/aarch64-alpine-linux-musl/usr/local/static/dbus/bin/dbus-daemon|dbus-launch|dbus-send` + `libdbus-1.a` 2.0M），非 `/rootfs`——`--include=/rootfs` 取不到，实际构建成功
+- `exif`/`gtop`/`wnck`（amd64）：库/旧组件，本无 bin，正常
+
+**⑦ 待办（按优先级）**
+1. **imlib2 家族**（5 组件三架构）：确认 loader 根因——查 `libImlib2.a` 是否含 png/jpeg/svg loader 对象；静态需 `--whole-archive` 或显式链 loader；X 环境实跑
+2. **engrampa**：重写修复——去掉吞错，显式 `xx-apk add musl` + 验证 loader 存在；或绕过 `glib-compile-schemas`（`--disable-schemas`）
+3. **pasystray**：gtkmm 交叉链接根因；恢复 `c_gtkmm=yes` 前先修
+4. **tint2 arm64 闪退**：Xvnc 实跑抓错（无控制台码，需 gdb/strace/GTK_DEBUG）
+5. **suckless**：构建镜像补 `ncurses`（提供 `tic`）或 st 跳过 terminfo install
+6. **gtkmm 两镜像**：临时调试 + 正式生产都需满足；`c_gtkmm` 按需开
+
+#### 4.2、问题项修复（2026-11-28 13:04）
+
+> 4.1 待办的逐项落地记录。4.2.1 起为已修复项（suckless / pasystray 见 4.2.2 / 4.2.3）。
+> **用户新反馈（2026-11-28 17:06）已定位（2026-11-28 17:44，基于 `alpine-compile-3-dbg` 最新 Nov 28 06:04 产物 undock 核对）**：4.2.5~4.2.9——根因见各节，均未修。
+
+##### 4.2.1、imlib2 家族（feh/scrot/xlunch/tint2/hsetroot）：builtin loader 注册补丁静默失效（2026-11-28 13:04）
+
+**结论**：`compile/src/w-xlunch/build.sh` 的 imlib2 自建函数用 python3 heredoc 给 `loaders.c` 打「内置 loader 注册」补丁，**`python3 - <<'PYEOF'` 单引号分隔符阻止 shell 展开 `$SRCROOT`** → Python 拿到字面字符串 `"$SRCROOT/imlib2/src/lib/loaders.c"` → `open()` 失败 → 补丁静默未打（函数内无 `set -e`，build.sh 继续跑）。
+
+**引入时点**：2026-11-25 交叉适配改造，把硬编码 `/tmp/imlib2` 批量改成 `$SRCROOT/imlib2`（heredoc 之外 30 余处 `$SRCROOT` 均在正常命令行，shell 正常展开，**唯独 heredoc 体内那 1 处失效**）。11-23（硬编码路径）时补丁生效、GUI 验证通过。
+
+**证据链（builder-gmm，`alpine-builder-gtkmm224-3`）**：
+
+| 检查 | 11-23（`6699eb57`） | 11-27 CI（`204cda75`） | 修复后 |
+|---|---|---|---|
+| `ar t libImlib2.a` | 46 成员 | 含 `png.o`/`svg.o`/`jpeg.o`/`loaders.o`/`ldrs_util.o`/`exif.o`（48 成员） | 同左 |
+| `nm loaders.o \| grep png_loader` | 引用存在 | **0（补丁未打）** | `U png_loader`/`U svg_loader`/`U jpeg_loader` |
+| `nm libImlib2.a \| grep "D.*_loader"` | 定义存在 | `D png_loader`/`D svg_loader`/`D jpeg_loader`（loader 对象已注入，但无人引用→链接器不拉入） | 同左 |
+| 运行 | feh 显示 SVG+PNG OK | `No Imlib2 loader for that file format` | feh `ALIVE`+`NO_LOADER_ERR`+`IMAGE_LOADED` |
+
+> 关键区分：`png.o` 里 `png_loader` 是 **D（定义）**，`loaders.o` 里必须是 **U（未定义引用）**——校验只能 grep `U`，grep `D` 会误判（loader 对象在归档里始终存在）。
+
+**修复（`compile/src/w-xlunch/build.sh`）**：
+1. heredoc 改经环境变量传路径——`SRCROOT="$SRCROOT" python3 - <<'PYEOF'` + Python 内 `os.environ['SRCROOT']`。保 heredoc 单引号（**勿改无引号**：Python 体内的 `$` 会被 shell 误展开）。
+2. 加 nm 兜底校验——注入后逐个判 `U png_loader`/`svg_loader`/`jpeg_loader`，缺失即 `exit 1`。`oneBuild` 用 `set +e` + `find` + `|tee` 会吞错（报 `err 0, pass`），必须显式判失败。
+
+**验证**：
+- 重编（builder-gmm，`CONSOLE_LOG=no` + `TARGETPATH=/usr/local/static/<comp>`）：imlib2 / xlunch / feh 全 pass；feh `statically linked, stripped` 9.8M，`ldd` 报 `Not a valid dynamic program`。
+- Xvnc 实跑（hdmi 容器 `:314`，`-SecurityTypes None -ac`，**headless 用户**，fresh display）：
+
+| 用例 | 进程 | loader 错误 | 图片加载 |
+|---|---|---|---|
+| feh + PNG | ALIVE | 无 | OK（`png.out` 空输出） |
+| feh + SVG | ALIVE | 无 | OK（`svg.out` 空输出） |
+
+- 与 11-23（`11170850-selected-app-use.md` §10.2.3）验证特征一致；Xvnc 用完已清（仅剩用户 live `:1`）。
+- **已提交**：`5de4beb7`。
+
+**顺带环境补全（非仓库改动）**：builder-gmm 缺 `libXi.a` / `libxcb-util.a`（feh 的 `-lXi`/`-lxcb-util`），经 `sh /src/w-tint2/build.sh libxi` 与 `... xcbutil` 自建补齐——属 w-feh 的 `b_deps`（w-feh `build.sh:81-82`），CI 走 `full` 入口时会建，本地直接 `sh build.sh feh` 会缺。
+
+##### 4.2.2、suckless st：make install 缺 tic（Error 127）（2026-11-28 13:30）
+
+**现象**：三架构 `suckless` 的 st 安装阶段 `make: tic: No such file or directory` → `make: *** [Makefile:53: install] Error 127`。**st 二进制已产出（4.8M，`bin/` 下 st/st-copyout/st-urlhandler 均已 `cp` 完）**——失败点在 install 最末的 terminfo 生成，非编译。
+
+**根因**：st 的 Makefile `install` 目标含 `tic -sx st.info`（把 `st.info` 编译成 terminfo 二进制条目）。`tic` 由 native `ncurses` 包提供，构建镜像未装 → `make` 报 command not found（127）。dwm/dmenu 的 Makefile install 无 tic 步骤，故只有 st 挂。
+
+> **交叉同理需要 native tic**：terminfo 在宿主侧生成，`make install` 从 PATH 取 **native** `tic`（native `tic` 产出的 terminfo 条目对 target arch 通用），**不可**用 `xx-apk` 装（那会把 target arch 的 `tic` 装进 `sysroot/usr/bin`，反而污染）。
+
+**修复**（`compile/src/suckless/build.sh` `st()` 内 `make install` 前）：
+
+```sh
+command -v tic >/dev/null 2>&1 || apk add ncurses
+```
+
+用 common.sh 的 native `apk`（flock 包装器），**不用 `xx-apk`**；`command -v` 幂等，已装则不重复 apk。
+
+**验证（builder-gmm，native amd64）**：
+
+| 检查 | 结果 |
+|---|---|
+| 前置模拟 CI（`apk del ncurses`） | `which tic` 空 |
+| `sh /src/suckless/build.sh st` | RC=0，3 秒 |
+| `make install` 日志 | `tic -sx st.info` → **`7 entries written to /usr/share/terminfo`**，无 Error 127 |
+| 产物 | `bin/st` 4.8M `statically linked`；st-copyout / st-urlhandler 在 |
+| terminfo 条目 | `/usr/share/terminfo/s/st` + `st-256color` 生成 |
+
+**遗留观察（部署项，非本次构建失败）**：该 st 变体（`br-luke-st`）Makefile 用 `tic -sx`（无 `-o`），terminfo 装到**系统** `/usr/share/terminfo`，`$TARGETPATH/share/terminfo` 下为空 → terminfo 条目不随静态组件一起部署（目标机需自带）。如需随包带，改 Makefile 的 `tic` 调用为 `-o $(PREFIX)/share/terminfo`。
+
+##### 4.2.3、pasystray：交叉缺 -lnotify（cannot find -lnotify）（2026-11-28 13:30）
+
+**现象**：amd64 1 bin OK；arm64/armv7 **0 bin 失败**。日志：`/usr/bin/linux-armv7-ld: cannot find -lnotify: Invalid argument` → `clang-12: error: linker command failed with exit code 1` → `make[2]: *** [Makefile:484: pasystray] Error 1`。
+
+**根因**：`-lnotify` 的静态库只在 sysroot 路径搜（`-L${XX_LIBS_PREFIX}/usr/local/static/pulseaudio/lib`、`.../lib/pulseaudio`、`${XX_LIBS_PREFIX}/usr/local/lib` + 交叉段的 `-L$XX_SYSROOT/usr/lib`），native 无。`libnotify()` 自建函数**本身没问题**——builder-gmm 里 armv7 交叉可正确产出 `libnotify.a`（成员为 `ELF 32-bit LSB relocatable, ARM, EABI5`）。问题在**调用上下文**：`b_deps` 只在单一 arch 上下文跑一次；交叉分支若未在其自身 arch 上下文跑过（或该 sysroot 的 `.a` 被 builder 镜像每架构建栈前的 `xx-clear.sh staticlib` 清过），`libnotify.a` 即缺 → 链 `-lnotify` 失败。amd64 走 native `/usr/lib`（`XX_SYSROOT` 空）命中，故**仅交叉挂**。
+
+- 同 imlib2 教训：**构建脚本不得假定依赖已在同一 arch 上下文构建**。
+- 放大因素：`compile/src/Dockerfile` 的 pasystray stage 用 `;` 分隔 `b_deps` 与 `pasystray`，末条 `find …|grep|sort|head -3` 退出码恒为 0 → stage 失败被吞，镜像照常产出（armv7 rootfs 里 `pasystray/` 目录在、`bin/` 空）。
+
+**修复**（`compile/src/v-pasystray/build.sh` `pasystray()` 内、`cd $SRCROOT/pasystray` 之前）：
+
+```sh
+[ -f ${XX_SYSROOT:-}/usr/lib/libnotify.a ] || { libnotify || exit 1; }
+```
+
+缺失即现场建（小，~30s）；失败显式 `exit 1`，不再靠 `oneBuild` 吞错假成功。须在 `cd` 前调——`libnotify()` 内部 `cd /tmp` 且不自返。
+
+**验证（builder-gmm，TARGETPLATFORM=linux/arm/v7）**：
+
+| 检查 | 结果 |
+|---|---|
+| 前置 `rm $XX_SYSROOT/usr/lib/libnotify.a` | 确认删除 |
+| `sh /src/v-pasystray/build.sh pasystray` | 守卫触发：`Building libnotify (static) 0.8.9` → `xx_meson_crossfix: remapped native /usr -> /armv7-alpine-linux-musleabihf` → `xx_la_fix: 14 .la …` → **`libnotify done`**，`libnotify.a` 重建 169124 B |
+| 后续 | `configure: error: Package requirements (libpulse …) were not met` → `PULSECOMMON not found` → **本镜像缺 pulseaudio 交叉栈**（CI 由 `FROM pulseaudio` stage 提供）→ 测试环境限制，非代码问题 |
+
+**待 CI 复核**：arm64/armv7 全量 pasystray 出 bin 需跑一次 CI 确认；本机无法完整复现（无 pulse 交叉栈）。
+
+##### 4.2.4、engrampa：交叉 gschema.valid 经 qemu 缺 loader（Error 255）（2026-11-28 14:02）
+
+**现象**：amd64 1 bin OK；arm64/armv7 **0 bin 失败**。日志：`qemu-arm: Could not open '/lib/ld-musl-armhf.so.1': No such file or directory` → `make[3]: *** [Makefile:918: org.mate.engrampa.gschema.valid] Error 255` → `>>> [aarch64] ENGRAMPA make LINK FAILED`。
+
+**根因（2026-11-28 深挖，推翻旧结论）**：
+
+1. 报错目标是 `%.gschema.valid` 规则（`/usr/share/aclocal/gsettings.m4:45`）：`$(GLIB_COMPILE_SCHEMAS) --strict --dry-run … --schema-file=$<`。
+2. 交叉下 `gsettings.m4:28` 的 `PKG_CHECK_VAR([GLIB_COMPILE_SCHEMAS],[gio-2.0],[glib_compile_schemas])` 解析成 **sysroot 里的 ARM 二进制** → make 经 binfmt/qemu 跑它。
+3. 该 qemu 调用**未带 `-L $XX_SYSROOT`** → 按字面路径找 `/lib/ld-musl-<arch>.so.1` → loader 不在宿主 → 报「Could not open」。
+
+> **旧修复为何无效（commit `893c7021`，2026-11-27）**：`xx-apk add musl >/dev/null 2>&1 || true` 只把 musl loader **文件**装进 sysroot；qemu 缺的是 `-L` **前缀**，找不到 sysroot 根，文件在也不看。且错误被 `>/dev/null 2>&1 || true` 吞掉，CI 失败无从排查。
+
+**正解**：该规则只做 `--strict --dry-run` **schema 校验**（不生成二进制代码，与目标架构无关）→ 直接用 **native** `glib-compile-schemas`，彻底不走 qemu。`GLIB_COMPILE_SCHEMAS` 由 `gsettings.m4:30` `AC_SUBST` 出，是 Makefile 里的**普通 `=` 变量（非 `override`）→ make 命令行覆盖即生效**。
+
+**修复**（`compile/src/v-engrampa/build.sh`）：
+
+1. `eng_cross()` 内：
+   - `export QEMU_LD_PREFIX="$XX_SYSROOT"`——等同 `qemu -L $XX_SYSROOT`，兜底保护 make 里其它可能经 qemu 的 ARM 子进程（如 `gtk-update-icon-cache`）；binfmt 若已带 `-L` 则命令行优先、本变量不生效（无害）。
+   - `xx-apk add musl || log "WARN: …"`——loader 文件仍需就位（供带 `-L` 的 qemu 用），但**去掉旧的吞错**，失败要可见。
+   - `apk add --no-cache glib`（本镜像已装，幂等）；`XX_GSCHEMAS=$(command -v glib-compile-schemas)`，缺失即 `exit 1`。
+   - `XX_MAKE_GSCHEMAS="GLIB_COMPILE_SCHEMAS=$XX_GSCHEMAS"`。
+2. `make` 调用追加 `$XX_MAKE_GSCHEMAS`（不加引号）——交叉时展开为 `GLIB_COMPILE_SCHEMAS=/usr/bin/glib-compile-schemas` 单个参数；native 时变量为空、展开后无参，**原路径零影响**。
+
+**验证（2026-11-28 14:20，builder-gmm 实跑 armv7 + arm64）**：
+
+| 检查 | 结果 |
+|---|---|
+| `sh -n build.sh` | OK |
+| `gsettings.m4` 变量名（`/usr/share/aclocal/gsettings.m4:28-30,45`） | `AC_SUBST(GLIB_COMPILE_SCHEMAS)` + 规则确用 `$(GLIB_COMPILE_SCHEMAS)` |
+| native `glib-compile-schemas`（builder-gmm） | `/usr/bin/glib-compile-schemas`（glib 2.70.5） |
+| make 命令行覆盖语义（mini makefile 实测） | 默认取 Makefile 值；覆盖后取命令行值；变量为空时**无参**、仍取 Makefile 值 |
+| **armv7 交叉构建**（`TARGETPLATFORM=linux/arm/v7`） | `BUILD_RC=0`、`err 0, pass`，62s；产物 `ELF 32-bit LSB executable, ARM, EABI5, statically linked, stripped`（10.2M）；`ldd` → `Not a valid dynamic program`；`grep -c "undefined reference\|attempted static link"` = **0** |
+| **arm64 交叉构建**（`TARGETPLATFORM=linux/arm64` + per-arch `WS=/tmp/ws-eng-aarch64 WS_LOCK=1`） | `BUILD_RC=0`、`err 0, pass`，61s；产物 `ELF 64-bit LSB executable, ARM aarch64, statically linked, stripped`；同上计数 **0**；`gschemas.compiled` 4224B 正常 |
+
+**因果验证（证明 `XX_MAKE_GSCHEMAS` 生效且在关键路径上）**：
+
+- **打点法**：把 native `/usr/bin/glib-compile-schemas` 换成「打印标记后 exec 真二进制」的 wrapper 重跑 armv7 构建 → 构建日志中 `GEN org.mate.engrampa.gschema.valid` 之后紧接
+  `MARKER-NGS-NATIVE args: --strict --dry-run --schema-file=org.mate.engrampa.gschema.xml`
+  → make 的 `%.gschema.valid` 规则（`data/Makefile:918`）走 **native 二进制**，不经 qemu。
+- **负向对照**：wrapper 换成 `exit 123` stub → `make[3]: *** [Makefile:918: org.mate.engrampa.gschema.valid] Error 123`——确认命令行覆盖被 make 采纳、且该变量确在失败点上。
+- wrapper 已还原（47160 B、`--version` = 2.70.5）并复跑 armv7 全量确认仍 pass。
+
+> **订正（2026-11-28 14:20）**：本镜像（builder-gmm / `alpine-builder-gtkmm224-3`）的 native 与 sysroot **`glib-2.0.pc` 均未定义 `glib_compile_schemas` 变量**，configure 已直接解析到 native（`checking for glib-compile-schemas... /usr/bin/glib-compile-schemas`）。即**本机未复现**上文所述的「解析成 sysroot ARM 二进制」路径；`XX_MAKE_GSCHEMAS` 在本镜像是**防御性兜底**——只有当某镜像的 `.pc` 返回 sysroot 路径时才真正救命。CI 各 builder 镜像的 `.pc` 可能不同（`alpine-compile-3` 浮动 tag 亦会变），故保留该覆盖。
+
+> **另（arm64 串行坑，2026-11-28 14:20）**：串行跑（未设 `$WS`）时 `SRCROOT=/tmp`，**两架构共用 `/tmp/engrampa` 源码树**；换 `--host` 不会触发 `.o` 重编 → arm64 必须显式传 per-arch `WS`（如 `WS=/tmp/ws-eng-aarch64 WS_LOCK=1`），否则可能产出混架构产物。CI 并行分支本就按 arch 传 `WS`，无此风险。
+
+**通用教训**：交叉下 make 规则里凡「跑 target 二进制做**纯文本/schema 校验**」的（`%.gschema.valid`），应改指 native 同名工具——既免 qemu 依赖，又快。**注意区分**：`%.gschema.valid` 是 dry-run 校验（可 native）；`make` 期生成 `gschemas.compiled`（build.sh 第 178 行 install-data 后另调 native `glib-compile-schemas`）本就是 native 调用，无需改。
+
+##### 4.2.5、pcmanfm（旧版）：amd64/arm64 产物缺失（已修）（2026-11-28 17:06）
+
+**反馈（用户核对）**：pcmanfm **旧版**在 amd64 与 arm64 **产物缺失**（cross-check01 一节2 `pcmanfm`，备注「旧版有/新优化」）。
+
+**核对（2026-11-28 17:44，`alpine-compile-3-dbg` 最新 Nov 28 06:04 产物）**：amd64 `pcmanfm/bin/pcmanfm` **有**（14M，Nov 28 06:04 编译，`v-pcmanfm` 新构建、locales 54 langs）；arm64 `pcmanfm/bin/` **空**。
+
+**根因**：
+1. **旧版（38.9M，2023-12 旧构建）未被拷入镜像**——用户 2026-11-28 17:44 确认「旧版没拷贝到镜像里来」。属正常更替（新版在），**非故障**。
+2. **arm64 新版缺失**：构建日志 `13.5M Nov 28 06:04` 编译成功，但 install 装到 **`/aarch64-alpine-linux-musl//usr/local/static/pcmanfm/`（sysroot）**，最终镜像 `/usr/local/static/pcmanfm` 空——交叉产物装到 sysroot 前缀路径，未进最终镜像（与 dbus 同因）。
+
+**状态**：✅ **已修**（2026-11-28 18:47）。
+
+**修复（commit `20b23721`，`compile/src/v-pcmanfm/build.sh`）**：按用户拍板A——交叉下运行时数据（bin/share/locale/ui/libexec/menus）装最终 `$TARGETPATH`（不带 DESTDIR/无 sysroot 前缀），仅 `.a/.pc/头` 装 sysroot（下游 link 用）。
+- `pcmanfm()` make install 去 DESTDIR + locale/view/verify 去 sysroot 前缀（bin+share 落 `$TARGETPATH`）；`libfm()` UI/locale 去 sysroot 前缀（库 `.a/.pc/头` 仍 sysroot）；`menu_cache()` lxmenu-data/menu-cached 去 sysroot 前缀。
+- native 零影响（`${XX_SYSROOT:-}$TARGETPATH` 在 XX_SYSROOT 空时 == `$TARGETPATH`；`${XX_DESTDIR:-}` 空时 == 无）。
+- 交叉验证由 CI push 承担（builder-gmm 无 pcmanfm 链）。
+
+##### 4.2.6、dbus：arm64 产物缺失（已修）（2026-11-28 17:06）
+
+**反馈（用户核对）**：dbus 在 **arm64 产物缺失**（cross-check01 一节2 `dbus`）。
+
+**核对（2026-11-28 17:44）**：arm64 `dbus/` **空**（无 bin）；amd64 `dbus/bin/dbus-daemon` **有**（596K）。
+
+**根因**：arm64 **构建+安装成功**（`.logs/oth/aarch64/dbus164-inst.log` 装到 `/aarch64-alpine-linux-musl//usr/local/static/dbus/`），但最终镜像 `/usr/local/static/dbus` **空**——交叉产物装到 sysroot 前缀路径，未进最终镜像。
+
+**状态**：✅ **已修**（2026-11-28 18:47）。
+
+**修复（commit `1f2ccd94`，`compile/src/x-dbus/build.sh`）**：按用户拍板A——`dbus_1_16_4()` ninja install 去 DESTDIR→工具+数据装最终 `$TARGETPATH`，仅 `.a/.pc/头` 装 sysroot（下游 xfce/ibus 交叉 link，`[ -n "$XX_SYSROOT" ]` 守卫）；`dbus_glib()` bin 工具（dbus-glib-tool/dbus-binding-tool）改装 `$TARGETPATH`，库/`.pc/头` 仍 sysroot。
+- native 零影响（XX_SYSROOT 空时 `${XX_SYSROOT:-}$TARGETPATH`==`$TARGETPATH`，sysroot 副本守卫跳过）。
+- 交叉验证由 CI push 承担。
+
+##### 4.2.7、xrdp：x64 运行失败（已修）（2026-11-28 17:06）
+
+**反馈（用户核对）**：xrdp 在 **x64 运行失败**（跑不起来）。用户补充（2026-11-28 17:06）：**程序有没有不确定**，反正是跑不起来。
+
+**核对（2026-11-28 17:44）**：amd64 `xrdp/sbin/xrdp` **无**（主程序缺失，bin/ 仅辅助程序 xrdp-dis/keygen 等）；arm64 `xrdp/sbin/xrdp` **有**（3.1M）。
+
+**根因**：amd64 configure `error: please install libssl-dev or openssl-devel`——build.sh 只 `apk add fuse-dev fdk-aac-dev opus-dev lame-dev`，**没装 openssl-dev**（注释「公共库 openssl 已由 u-gtk 统一装」但 u-gtk 只给静态 `.a`，头文件不在）。源码取源正常（`gitclone tar.gz hit: x-xrdp.fk-xrdp-sam-custom`，tarsrc 缓存/gitee）。
+
+**状态**：✅ **已修**（2026-11-28 18:47）。
+
+**修复（commit `5953d4cd`，`compile/src/x-xrdp/build.sh`）**：按问题①模式（TODO2611）——`xrdp()` 本地补 `apk add openssl-dev openssl-libs-static`（dev=configure 检测 libssl-dev 头；libs-static=静态链 libcrypto.a/libssl.a）。
+- 实跑（builder-gmm native amd64，b_deps 先跑 fdkaac+libxrandr）：configure 过，`sbin/xrdp` 3.4M + `sbin/xrdp-chansrv` 4.9M + `bin/xrdp-keygen/genkeymap`，xx-verify 通过。xrdp-chansrv 需 libfdk-aac.a（b_deps fdkaac 自建落 `/usr/local/lib`），与 openssl 修复互补。
+- cross（xrdp_cross）未动——arm64 已通（sysroot 由 u-gtk 提供 openssl）。
+
+##### 4.2.8、x11vnc：x64 无程序（已修）（2026-11-28 17:06）
+
+**反馈（用户核对）**：x11vnc 在 **x64 无程序**。用户确认（2026-11-28 17:06）：**100% 确定没有程序**。
+
+**核对（2026-11-28 17:44）**：amd64 `x11vnc/bin/x11vnc` **无**；arm64 `x11vnc/bin/x11vnc` **有**（16M）。
+
+**根因**：amd64 configure `C compiler cannot create executables`——`checking for gcc... xx-clang`（**native 构建 CC 泄漏成 xx-clang**，编译测试失败）→ 无 Makefile → `make install: No rule to make target 'install'` → xx-verify FAILED。源码取源正常（`gitclone tar.gz hit: x-x11vnc.fk-libvnc-x11vnc-fix-152`，tarsrc 缓存/gitee）。
+
+**状态**：✅ **已修**（2026-11-28 18:47）。
+
+> **订正（2026-11-28 18:47）**：真根因非「CC 泄漏 xx-clang」——xx-clang 本身正常（native hello 编译 rc=0）。实为 configure `LIBS="$LIBS2"` 含 `-llzo2 -lcrypto -lXtst`，native 缺 `libcrypto.a`（无 openssl-libs-static）+ `libXtst.a`（无 apk 静态包）→ configure link-test 失败；且 native `libvncserver()` 的 `cmake ..` 在源码目录跑→配置父目录（无 CMakeLists.txt）→静默失败→无 `libvncserver.a`→产物动态链。
+
+**修复（commit `8423be05`，`compile/src/x-x11vnc/build.sh`）**：按用户拍板A（TODO2611）——`x11vnc()` 本地补 `apk add openssl-libs-static` + 缺 `libXtst.a` 则自建 `libxtst()`（落 `/usr/local/lib`）；`x11vnc_cross()` 补 `xx-apk add openssl-libs-static`；修 native `libvncserver()`（改 `build/` 外建+手动装 `.a/头/.pc` 到 `/usr`）；LDFLAGS 改显式 if/else（cross=`-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib`；native=`-L/usr/local/lib`；均 `-static -Wl,--strip-all`）。
+- 原 ternary 默认值前导空格致 native LDFLAGS=`-L/usr/local/lib-static`（粘连、丢 `-static`）→二进制动态；改显式 if/else。
+- 实跑（builder-gmm native amd64）：xx-verify 通过，`file`=statically linked, stripped（6.06M）。
+
+##### 4.2.9、misc/tinc：amd64/arm64 产物缺失（已修）（2026-11-28 17:06）
+
+**反馈（用户核对）**：`u-misc` 的 **tinc** 在 amd64 与 arm64 **产物缺失**（cross-check01 一节1 `misc`，备注「su-exec/lrzsz/edge/tinc」）。
+
+**核对（2026-11-28 17:44）**：amd64 `misc/sbin/tincd` **无**（仅 edge/n2n-benchmark/supernode）；arm64 `misc/sbin/tincd` **有**（1.9M）。
+
+**根因**：amd64 configure `error: "lzo libraries not found."`——`tinc()` 只 `apk add texinfo`，**没装 lzo-dev**（build.sh 假定 lzo/openssl 由 u-gtk 统一装，但 u-gtk 只给静态 `.a`，头文件不在）。源码取源正常（`gitclone tar.gz hit: u-misc.fk-tinc-default`，tarsrc 缓存/gitee）。
+
+**状态**：✅ **已修**（2026-11-28 18:47）。
+
+**修复（commit `6d5e5163`，`compile/src/u-misc/build.sh`）**：按问题①模式（用户拍板A TODO2611）——`tinc()` `xx-apk add lzo-dev openssl-dev openssl-libs-static`（configure 需 lzo 头，静态链需 libcrypto.a/libssl.a）。
+- 用 `xx-apk` 非 `apk`（用户指示）：native 落 `/usr`、cross 落 sysroot——一条命令双架构通用；`texinfo` 仍 `apk`（构建工具留 build 容器）。
+- 实跑（builder-gmm native amd64）：configure 过，`sbin/tincd` 9.9M，xx-verify 通过。
+
+#### 4.3、问题修复项2（2026-11-28 20:18）
+
+##### 4.3.1、pulseaudio：arm64 无程序（已修）（2026-11-28 20:18）
+
+**反馈（用户核对）**：arm64 `pulseaudio` **无程序**（`/usr/local/static/pulseaudio` 空，bin/ 缺失）。
+
+**核对（2026-11-28 20:15）**：undock-dbg（11-28 17:31）arm64 `pulseaudio/` 目录**空**（无 bin/etc/include/lib/share）；amd64 同镜像 `bin/` **完整**（pulseaudio 主程序 + pacat/pacmd/pactl/padsp/pa-info/pamon/paplay/parec/parecord/pasuspender）。
+
+**根因**：`x-pulseaudio/build.sh` `make install ${XX_DESTDIR:-}`——交叉下 `XX_DESTDIR="DESTDIR=$XX_SYSROOT"`（px_cross 62 行）把**全部运行时产物**推入 `$XX_SYSROOT/usr/local/static/pulseaudio`（构建日志 install 路径 `/aarch64-alpine-linux-musl//usr/local/static/pulseaudio/...`），最终镜像 `$TARGETPATH` 空。amd64 正常因 native `XX_DESTDIR` 空。
+
+**状态**：✅ **已修**（2026-11-28 20:18）。
+
+**修复（commit `06b69236`，`compile/src/x-pulseaudio/build.sh`）**：按用户拍板A（同 pcmanfm/dbus 问题③）——`make install` 去 DESTDIR（运行时数据装最终 `$TARGETPATH`）；`.a` 单独 cp 进 sysroot（`cp libpulse*.a ${XX_SYSROOT:-}/usr/lib/`，下行已有）。
+- native 零影响（`${XX_DESTDIR:-}` 空时 `make install ${XX_DESTDIR:-}`==`make install`）。
+- 交叉验证由 CI push 承担（builder-gmm 无 aarch64 sysroot）。
+
+##### 4.3.2、XX_DESTDIR 交叉产物落点排查——库组件保留/应用组件去 DESTDIR（2026-11-28 20:24）
+
+**背景**：`${XX_DESTDIR:-}` 是方案二交叉全局模式（`make install DESTDIR=$XX_SYSROOT`），影响面大——排查历史引入、使用范围、是否会改坏其他组件。
+
+**引入历史**：2026-11-24 方案二交叉适配统一引入（`f5d407c5`/`b3266f9e`/`f95ae973`/`5034fb7e` 等一批），2026-11-25 扩至 xlunch/tint2/dunst/rofi/xrdp。设计意图：交叉下库/头/.pc 装 sysroot 供下游交叉 link。
+
+**使用范围（12 文件）分两类**：
+
+- **库组件——DESTDIR=sysroot 正确用途，不能改**（改了库不进 sysroot→下游交叉 link 失败）：u-gtkmm(gtkmm 7库)、w-xlunch(imlib2)、v-xfce4(xfce库栈)、x-rofi(xkbcommon)、x-dunst(libxscrnsaver)、x-xrdp(fdkaac)、x-x11vnc(libvncserver)、w-tint2(xcbutil/libxi/libcroco/librsvg)。
+- **应用组件——需镜像产物，问题③风险区**：
+
+| 组件 | 本体 install | 状态 |
+|---|---|---|
+| pcmanfm | 库 make install DESTDIR + 数据手工装 TARGETPATH | ✅ 已修 `bcb780ab` |
+| dbus | 改手动 install（免 make install） | ✅ 已修 `da422f3f` |
+| pulseaudio | `make install` 去 DESTDIR + 库 cp sysroot | ✅ 已修 `06b69236` |
+| gsm | 手工 xx-clang 链 TARGETPATH | 安全（不受 DESTDIR） |
+| xlunch | `make install` 无 DESTDIR | 安全 |
+| xrdp | `make install` 无 DESTDIR | 安全 |
+| rofi | `make install` 无 DESTDIR | 安全 |
+| tint2 | 本体交叉未适配（用户暂不处理） | — |
+
+**结论**：`XX_DESTDIR` 本身不是坑——坑只在「应用组件用 `make install ${XX_DESTDIR:-}` 装 DESTDIR」（把 bin 也推 sysroot）。这类应用组件仅 pcmanfm/dbus/pulseaudio 三个，已全部按拍板A修完。库组件 `XX_DESTDIR` 保留（正确用途），一处未动；gsm/xlunch/xrdp/rofi 本体不受影响。
+
+##### 4.3.3、TODO2611 公共库缺口分析——native apkdeps 未对齐 cross 清单（2026-11-28 20:32）
+
+**TODO2611 位置（4 组件 6 处）与所缺库**：
+
+| 组件 | 缺的库 | u-gtk 清单 |
+|---|---|---|
+| xrdp | openssl（dev+static） | ⚠️ 只在 cross，不在 native |
+| tinc | lzo（dev）+openssl（dev+static） | ⚠️ 同 |
+| x11vnc | openssl（static）+libXtst（static）+libvncserver（自建） | ⚠️ openssl 同；libXtst 两清单都无 |
+| rofi | libxkbcommon（dev+static） | ⚠️ 只在 cross，不在 native |
+
+**根因（两条链路不对称）**：
+- cross（arm64）：`b_deps` 尾部 `if [ -n "$XX_CROSS_FILE" ]` 清单（453-465 行）→ `xx-apk` 装 sysroot，含 openssl-dev/openssl-libs-static/lzo-dev/libxkbcommon-\*（461-462 行）——交叉齐。
+- native（amd64）：`apkdeps`（388-398 行）→ `apk add` 装宿主，**只装 gtk 相关**，没装 openssl/lzo/libxkbcommon。
+- `if [ -n "$XX_CROSS_FILE" ]` 门控清单只 cross 生效；native `apkdeps` 未对齐 → xrdp/tinc/rofi/x11vnc **amd64 缺库** → TODO2611 应用层临时补。
+
+**libXtst 特殊**：libxtst（dev/static）两清单都无（Alpine 无 libxtst-static 包）→ x11vnc 连 cross 也缺，靠 `libxtst()` 自建兜底（`8423be05`）。
+
+**修复方向（用户拍板，两条都做）**：① native `apkdeps` 补 openssl-dev/openssl-libs-static/lzo-dev/libxkbcommon-dev/libxkbcommon-static（对齐 cross 清单）；② libxtst 保留自建兜底（无 apk 静态包）。
+
+**libXtst 复用决策（用户拍板，方案A，2026-11-28 20:56）**：libXtst 不只 x11vnc 用——v-clipit 的 **xdotool** 也用（`-lXtst`，自动粘贴）。Alpine 无 libxtst-static 包，不进公共库清单，留组件兜底。方案A：v-clipit `libxtst()` 复用 x11vnc 的（`bash /src/x-x11vnc/build.sh libxtst`，落 `/usr/local/lib`，gitee 1.2.3），去 v-clipit 原自建（x.org 1.2.4 落 `/usr/lib`）重复；xdotool `LDFLAGS` 加 `-L${XX_LIBS_PREFIX:-}/usr/local/lib`（native `/usr/local/lib`、cross sysroot）找到 libXtst.a。
