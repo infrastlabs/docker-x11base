@@ -156,6 +156,10 @@ function n2n(){
 function tinc(){
   um_cross
   apk add texinfo
+  # TODO2611(临时, 本地应用层补): 公共库(u-gtk)那边还有问题——tinc 需 lzo/openssl 未统一装齐,
+  #   configure 报 "lzo libraries not found"(lzo-dev 缺); 静态链需 libcrypto.a/libssl.a(openssl-libs-static)。
+  #   用 xx-apk(非 apk): native 落 /usr、cross 落 sysroot——一条命令双架构通用(texinfo 是构建工具仍 apk 留 build 容器)。
+  xx-apk add lzo-dev openssl-dev openssl-libs-static >/dev/null 2>&1 || log "WARN: tinc 依赖补装失败"
 
   log "Downloading TINC..."
   rm -rf $SRCROOT/tinc; # mkdir -p $SRCROOT/tinc
