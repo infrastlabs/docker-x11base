@@ -21,9 +21,9 @@ function doBuildx(){
     # cache="--cache-from type=registry,ref=$ali/$ns/$cimg --cache-to type=registry,ref=$ali/$ns/$cimg"
     
     plat="--platform linux/amd64,linux/arm64,linux/arm" #,linux/arm
-    # plat="--platform linux/amd64" #dbg
+    plat="--platform linux/amd64,linux/arm64" #dbg
 
-    builddate=$(date +%Y-%m-%d_%H:%M:%S); compile="alpine-compile-3"; #2-dbg ##2=qemu-former; 3=xx-cross
+    builddate=$(date +%Y-%m-%d_%H:%M:%S); compile="alpine-compile-3-dbg"; #2-dbg ##2=qemu-former; 3=xx-cross
     # test "$plat" != "--platform linux/amd64,linux/arm64,linux/arm" && compile="${compile}-dbg"
     # --build-arg REPO=$repo/ #temp notes, just use dockerHub's
     args="""
