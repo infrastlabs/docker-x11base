@@ -46,29 +46,12 @@ cl_cross(){
 # 用最后 v3（autotools 静态构建成熟）；v4.20260303.1 是 2026-03 最新但构建系统/依赖未知，暂不用。
 # 缺 libXtst.a（alpine 无 libxtst-static 包）→ 用 freedesktop 官方源码自建（xorg lib，小）。
 XDO_VER=v3.20211022.1
-XTST_VER=1.2.4
-libxtst(){
-  test -f /usr/lib/libXtst.a && { log "libXtst.a already present, skip"; return 0; }
-  XTST_TGZ=$SRCROOT/libXtst-$XTST_VER.tar.gz
-  cd /tmp && rm -rf libXtst-*
-  # x.org 官方 tarball（上游在 gitlab.freedesktop.org，github 无镜像）；ghfast github 兜底
-  test -s $XTST_TGZ || curl -fsSL https://www.x.org/releases/individual/lib/libXtst-$XTST_VER.tar.gz > $XTST_TGZ 2>/dev/null || true
-  test -s $XTST_TGZ || curl -fsSL https://ghfast.top/$GITHUB/freedesktop/libXtst/archive/refs/tags/libXtst-$XTST_VER.tar.gz > $XTST_TGZ 2>/dev/null || true
-  test -s $XTST_TGZ || { log "XTST download FAILED"; rm -f $XTST_TGZ; exit 1; }
-  tar xzf $XTST_TGZ
-  cd libXtst-*
-  # x.org tarball 带 configure（无 autogen.sh 需要）；静态构建，--prefix=/usr 装 /usr/lib/libXtst.a
-  test -f ./configure || sh autogen.sh --disable-shared --enable-static 2>&1 || true
-  ./configure --prefix=/usr --disable-shared --enable-static 2>&1 || { log "XTST configure FAILED"; exit 1; }
-  make -j$(nproc) 2>&1 || { log "XTST make FAILED"; exit 1; }
-  make install 2>&1 | tail -3 || { log "XTST install FAILED"; exit 1; }
-  test -f /usr/lib/libXtst.a || { log "XTST libXtst.a missing"; exit 1; }
-  ls -lh /usr/lib/libXtst.a
-  log "libXtst done"
-}
+XTST_VER=1.2.4  ##2026-11-28改复用 x11vnc 的 libxtst()(gitee fk-xorg-libxtst 1.2.3, 落 /usr/local/lib);
+# libxtst(){ ... }
+
 xdotool(){
   test -x /usr/local/static/xdotool/bin/xdotool && { log "xdotool already present, skip"; return 0; }
-  libxtst || exit 1
+  # libxtst || exit 1 ##剔除本地func，改在b_deps调用
   XDO_TGZ=$SRCROOT/xdotool-$XDO_VER.tar.gz
   XDO_DIR=xdotool-$(echo $XDO_VER | sed 's/^v//')   # github archive 顶层无 v 前缀
   cd /tmp
@@ -81,7 +64,7 @@ xdotool(){
   cd $XDO_DIR
   log "Building xdotool static (make static)..."
   # xdotool Makefile 有 static 目标（xdotool.static）；显式静态全链（X11/Xtst/Xinerama/xkbcommon/Xi）
-  make static CC="xx-clang" LDFLAGS="-static -no-pie -Wl,--strip-all" \
+  make static CC="xx-clang" LDFLAGS="-static -no-pie -Wl,--strip-all -L${XX_LIBS_PREFIX:-}/usr/local/lib" \
     XDOTOOL_LIBS="-lX11 -lXtst -lXinerama -lxkbcommon -lxkbcommon-x11 -lXext -lXdmcp -lXau -lXrender -lxcb -lxcb-render -lxcb-shm -lxcb-util" \
     LIBXDO_LIBS="-lXi -lX11 -lXtst -lXinerama -lxkbcommon -lXext -lXdmcp -lXau -lxcb -lxcb-render -lxcb-shm -lxcb-util" 2>&1 \
     || { log "XDO make static FAILED"; exit 1; }
@@ -209,6 +192,15 @@ full)
     doExec clipit || exit 1
     ;;
 b_deps)
+    # libxtst(){...}
+    #   2026-11-28(4.3.3 方案A, 用户拍板): 复用 x11vnc 的 libxtst()(gitee fk-xorg-libxtst 1.2.3, 落 /usr/local/lib);
+    #   原自建(x.org 1.2.4, 落 /usr/lib)去重——xdotool -lXtst 需 -L${XX_LIBS_PREFIX:-}/usr/local/lib(见 xdotool())。
+    test -f ${XX_SYSROOT:-}/usr/local/lib/libXtst.a && { log "libXtst.a already present, skip"; return 0; }
+    bash /src/x-x11vnc/build.sh libxtst || { log "libxtst (x11vnc) FAILED"; exit 1; }
+    test -f ${XX_SYSROOT:-}/usr/local/lib/libXtst.a || { log "libXtst.a missing"; exit 1; }
+    ls -lh ${XX_SYSROOT:-}/usr/local/lib/libXtst.a
+    log "libXtst done (via x11vnc)"
+    
     echo "== gtk2 stack =="; ls /usr/lib/libgtk-x11-2.0.a /usr/lib/libgdk-x11-2.0.a /usr/local/lib/librsvg-2.a 2>&1
     echo "== xdotool (runtime) =="; xdotool || exit 1
     ;;
