@@ -105,6 +105,12 @@ libnotify(){
 
 function pasystray(){
   ps_cross
+  # 2026-11-28: libnotify 须按【本架构】就位。b_deps 只在单一 arch 上下文跑一次, 交叉分支若漏跑/被
+  #   xx-clear 清掉 sysroot .a, 则 ${XX_SYSROOT}/usr/lib/libnotify.a 缺 → 链 -lnotify 报
+  #   "cannot find -lnotify"(amd64 走 native /usr/lib 命中故仅 arm64/armv7 挂)。同 imlib2 教训:
+  #   构建脚本不得假定依赖已在同一 arch 上下文构建。缺失即现场建(小, ~30s), 失败显式 exit。
+  #   须在下方 cd $SRCROOT/pasystray 之前调——libnotify() 内部会 cd 且不自返。
+  [ -f ${XX_SYSROOT:-}/usr/lib/libnotify.a ] || { libnotify || exit 1; }
   log "Downloading PASYSTRAY (v0.8.2 tarball)..."
     if [ ! -f $SRCROOT/pasystray/configure.ac ]; then
       if [ -f $SRCROOT/pasystray-0.8.2.tar.gz ]; then
