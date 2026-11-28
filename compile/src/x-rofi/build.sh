@@ -168,7 +168,7 @@ b_deps(){
   if [ -n "$XX_CROSS_FILE" ]; then
     build_xkbcommon_cross || { log "b_deps FAILED: xkbcommon (cross)"; exit 1; }
   else
-    # 临时补装(2026-11-27 19:50): native 缺 libxkbcommon → libnkutils disabler → meson 静默丢 rofi 目标(四章2.2)。
+    # TODO2611 临时补装(2026-11-27 19:50): native 缺 libxkbcommon → libnkutils disabler → meson 静默丢 rofi 目标(四章2.2)。
     #   根因=方案B 公共库 native/cross 差异: u-gtk native apkdeps 未装 libxkbcommon(仅 cross xx-apk 装)。
     #   TEMP(专题): 公共库 native/cross 对称处理后再移除本补装, 恢复 ": # 公共库统一装" 原逻辑。
     apk add --no-cache libxkbcommon-dev libxkbcommon-static
