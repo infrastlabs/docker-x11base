@@ -300,8 +300,8 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_SCROT=yes
     --build-arg COMPILE_TINT2=yes
     --build-arg COMPILE_FEH=yes
-    --build-arg COMPILE_XLUNCH=no
-    --build-arg COMPILE_HSETROOT=no
+    --build-arg COMPILE_XLUNCH=yes
+    --build-arg COMPILE_HSETROOT=yes
 
     --build-arg COMPILE_XBINDKEYS=yes
     --build-arg COMPILE_XRANDR=yes
@@ -316,9 +316,9 @@ cache_tarsrc) # 预留：tarsrc 源码包仓库按需克隆/更新（暂未实�
     --build-arg COMPILE_PCMANFM=yes
     --build-arg COMPILE_XFCE4=no
     --build-arg COMPILE_GEANY=no
-    --build-arg COMPILE_ENGRAMPA=yes
+    --build-arg COMPILE_ENGRAMPA=no
     --build-arg COMPILE_GPICVIEW=no
-    --build-arg COMPILE_CLIPIT=no
+    --build-arg COMPILE_CLIPIT=yes
     --build-arg COMPILE_DBUS=yes
     --build-arg COMPILE_IBUS=no
     --build-arg BUILDDATE=$(date +%Y-%m-%d_%H:%M:%S)
