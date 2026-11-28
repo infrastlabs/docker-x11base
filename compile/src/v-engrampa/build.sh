@@ -13,7 +13,7 @@ source /src/common.sh
 # 设 CROSS_HOST/XX_CPPFLAGS: configure 追加 --host、CPPFLAGS 前缀 sysroot; LDFLAGS 全局前缀 sysroot -L。
 # native(未设 XX_CROSS_FILE 空): 变量留空 → 原路径零影响。
 eng_cross(){
-  CROSS_HOST=""; XX_CPPFLAGS=""; XX_LINK_EXTRA=""
+  CROSS_HOST=""; XX_CPPFLAGS=""; XX_LINK_EXTRA=""; XX_MAKE_GSCHEMAS=""
   if [ -n "$XX_CROSS_FILE" ]; then
     CROSS_HOST="--host=$(xx-info triple)"
     export CC=xx-clang
@@ -33,10 +33,24 @@ eng_cross(){
     # LINK 串里 $(LDFLAGS) 是 shell 命令替换(空), 非 make 变量——native 靠默认库路径没暴露,
     #   交叉下 sysroot /usr/local/lib 不在默认路径 → 必须显式注入 -L(2026-11-25 实测 rpm2cpio -lrsvg-2 找不到)。
     XX_LINK_EXTRA="-L$XX_SYSROOT/usr/lib -L$XX_SYSROOT/usr/local/lib"
-    # 2026-11-27 修复: 交叉 sysroot 缺 /lib/ld-musl-<arch>.so.1 → make 子进程(glib-compile-schemas)经 qemu 起不来
-    # (engrampa arm64 挂, 报 qemu: Could not open /lib/ld-musl-aarch64.so.1)。xx-apk 装 musl 进 sysroot 补 loader。
-    xx-apk add musl >/dev/null 2>&1 || true
-    log "engrampa: CROSS ($XX_TRIPLE)"
+    # 2026-11-28: 交叉下 pkg-config 的 glib_compile_schemas 指向 sysroot 里的 ARM 二进制 →
+    # make 的 %.gschema.valid 规则(/usr/share/aclocal/gsettings.m4:44)须经 qemu 跑它, 而 qemu 未带
+    #   -L $XX_SYSROOT → 按字面路径找 /lib/ld-musl-<arch>.so.1 →
+    #   "qemu-arm: Could not open '/lib/ld-musl-armhf.so.1': No such file or directory" → Error 255。
+    # 旧 `xx-apk add musl` 只补 loader 文件, 不解决 qemu 的 -L 前缀 → 无效(commit 893c7021)。
+    # 正解: 该规则只 `--strict --dry-run` 做 schema 校验(不生成二进制代码, 与架构无关) → 直接用
+    #   native glib-compile-schemas, 彻底不走 qemu。GLIB_COMPILE_SCHEMAS 是 AC_SUBST 出的普通 make
+    #   变量(非 override), 命令行覆盖即生效。
+    # QEMU_LD_PREFIX 兜底: 等同 qemu -L $XX_SYSROOT, 保护 make 里其它可能经 qemu 的 ARM 子进程
+    #   (如 gtk-update-icon-cache)。binfmt 若已带 -L 则命令行优先、本变量不生效(无害)。
+    export QEMU_LD_PREFIX="$XX_SYSROOT"
+    # loader 文件仍需就位(供带 -L 的 qemu 用); 去掉旧 >/dev/null 2>&1 || true 吞错——失败要可见。
+    xx-apk add musl || log "WARN: xx-apk add musl 失败(loader 可能缺, 但本组件已不依赖 qemu 跑 schema)"
+    apk add --no-cache glib >/dev/null 2>&1 || true
+    XX_GSCHEMAS=$(command -v glib-compile-schemas || true)
+    test -n "$XX_GSCHEMAS" || { log "glib-compile-schemas MISSING (apk add glib)"; exit 1; }
+    XX_MAKE_GSCHEMAS="GLIB_COMPILE_SCHEMAS=$XX_GSCHEMAS"
+    log "engrampa: CROSS ($XX_TRIPLE, schema 用 native $XX_GSCHEMAS)"
   fi
 }
 
@@ -142,9 +156,12 @@ EOF
   #   覆盖 LINK 去 LIBTOOL 直链 + LDADD 的 libeggsmclient.la 换 .libs/.a(clang 不认识 .la 格式), make 期即链接成功。
   #   (engrampa_LINK 变量不存在, 程序链接走通用 $(LINK)——曾错覆盖 engrampa_LINK 无效, 改 LINK 后才生效)
   sed -i 's#copy-n-paste/libeggsmclient\.la#copy-n-paste/.libs/libeggsmclient.a#' $SRCROOT/engrampa/src/Makefile 2>/dev/null || true
+  # $XX_MAKE_GSCHEMAS: 交叉下命令行覆盖 GLIB_COMPILE_SCHEMAS(native glib-compile-schemas, 见 eng_cross),
+  #   使 %.gschema.valid 规则不走 qemu;  native 时该变量为空, 展开后无参。
   make LDFLAGS="$LDFLAGS" FR_LIBS="" \
     LINK="xx-clang -static -Wl,--strip-all -Wall -O2 $XX_LINK_EXTRA $(CFLAGS) $(LDFLAGS) -o \$@" \
-    LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -lintl -Wl,--end-group" 2>&1 \
+    LIBS="-Wl,--start-group -lXinerama -lXfixes -lXrandr $LIBS0 -lintl -Wl,--end-group" \
+    $XX_MAKE_GSCHEMAS 2>&1 \
     || { log "ENGRAMPA make LINK FAILED"; exit 1; }
 
   log "Install ENGRAMPA binary (make 产物, 不再手动直链)..."
