@@ -136,18 +136,20 @@ function libfm(){
   #   头在 /usr/local/include——pcmanfm configure 用 libfm.pc 会找不到库；sed 修正 prefix 回 /usr/local。
   sed -i "s|$TARGETPATH|/usr/local|g" ${XX_SYSROOT:-}/usr/local/lib/pkgconfig/libfm.pc ${XX_SYSROOT:-}/usr/local/lib/pkgconfig/libfm-extra.pc ${XX_SYSROOT:-}/usr/local/lib/pkgconfig/libfm-gtk.pc 2>/dev/null || true
 
+  # 2026-11-28(问题③, 用户拍板A): 交叉下运行时数据(UI/locale)装最终 $TARGETPATH(不带 DESTDIR/无 sysroot 前缀),
+  #   否则落 sysroot 路径→最终镜像 /usr/local/static/pcmanfm 空。仅 .a/.pc/头装 sysroot(见上)。
   log "Install libfm UI (GtkBuilder file-prop.ui/app-chooser.ui 等，PACKAGE_UI_DIR=$TARGETPATH/share/libfm/ui；漏装则属性框/openwith 崩)..."
-    mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui
-    cp -f $SRCROOT/libfm/data/ui/*.ui ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui/ 2>/dev/null \
+    mkdir -p $TARGETPATH/share/libfm/ui
+    cp -f $SRCROOT/libfm/data/ui/*.ui $TARGETPATH/share/libfm/ui/ 2>/dev/null \
       || log "manual libfm ui copy warn"
-    ls ${XX_SYSROOT:-}$TARGETPATH/share/libfm/ui/ 2>/dev/null | head
+    ls $TARGETPATH/share/libfm/ui/ 2>/dev/null | head
 
   log "Install libfm locale (静态 LOCALEDIR=$TARGETPATH/share/locale；libfm 域=libfm，右键菜单由 libfm 构建，漏装则菜单英文)..."
     if [ -d $SRCROOT/libfm/po ]; then
       for p in $SRCROOT/libfm/po/*.po; do
         lang=$(basename "$p" .po)
-        mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES
-        msgfmt "$p" -o ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES/libfm.mo 2>/dev/null \
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/libfm.mo 2>/dev/null \
           || log "libfm msgfmt warn: $lang"
       done
       log "libfm locales installed: $(ls $SRCROOT/libfm/po/*.po | wc -l) langs"
@@ -209,24 +211,25 @@ function menu_cache(){ ##依赖libfm-extra @libfm
   find ${XX_SYSROOT:-}/usr/local/lib |grep "menu-cache.*\.a$"
   cp ${XX_SYSROOT:-}/usr/local/lib/libmenu-cache.a ${XX_SYSROOT:-}/usr/lib/
 
+  # 2026-11-28(问题③, 用户拍板A): 交叉下运行时数据(menus/libexec/menu-cached)装最终 $TARGETPATH(无 sysroot 前缀)。
   log "Install lxmenu-data (static data -> $TARGETPATH/etc/xdg/menus, desktop-directories)..."
-  mkdir -p ${XX_SYSROOT:-}$TARGETPATH
-  tar xzf /src/v-pcmanfm/data/lxmenu-data.tar.gz -C ${XX_SYSROOT:-}$TARGETPATH 2>/dev/null || log "lxmenu-data.tar.gz 解压失败"
-  ls -la ${XX_SYSROOT:-}$TARGETPATH/etc/xdg/menus/ 2>/dev/null | head
-  ls ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache/ 2>/dev/null | head
+  mkdir -p $TARGETPATH
+  tar xzf /src/v-pcmanfm/data/lxmenu-data.tar.gz -C $TARGETPATH 2>/dev/null || log "lxmenu-data.tar.gz 解压失败"
+  ls -la $TARGETPATH/etc/xdg/menus/ 2>/dev/null | head
+  ls $TARGETPATH/libexec/menu-cache/ 2>/dev/null | head
 
   # 2026-11-23: 静态链接 menu-cached(daemon)——libtool 产物动态链接 glib, rootfs 无共享库起不来;
   #   fork_server 检查 $libexecdir/menu-cached, 漏静态链则 OpenWith g_error 崩(5.3.2)
   log "static link menu-cached (daemon)..."
   cd $SRCROOT/menu-cache
   if [ -f menu-cache-daemon/menu-cached.o ]; then
-    mkdir -p ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache
-    ${CC:-gcc} -static -o ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache/menu-cached \
+    mkdir -p $TARGETPATH/libexec/menu-cache
+    ${CC:-gcc} -static -o $TARGETPATH/libexec/menu-cache/menu-cached \
       menu-cache-daemon/menu-cached.o \
       libmenu-cache/.libs/libmenu-cache.a \
       $(${PKG_CONFIG:-pkg-config} --libs --static glib-2.0 gio-2.0 2>/dev/null) \
       || log "menu-cached static link fail"
-    file ${XX_SYSROOT:-}$TARGETPATH/libexec/menu-cache/menu-cached 2>/dev/null | head -1
+    file $TARGETPATH/libexec/menu-cache/menu-cached 2>/dev/null | head -1
   else
     log "menu-cached.o 缺失, 跳过静态链"
   fi
@@ -320,25 +323,27 @@ function pcmanfm(){
       || { log "PCMANFM build FAILED"; exit 1; }
 
   log "Install PCMANFM..."
+    # 2026-11-28(问题③, 用户拍板A): 交叉下 make install 不带 DESTDIR→bin+share 装最终 $TARGETPATH
+    #   (否则落 sysroot 路径→最终镜像 /usr/local/static/pcmanfm 空)。pcmanfm 仅产 bin+share 无 .a, 无需装 sysroot。
     # make;
-    make install ${XX_DESTDIR:-} 2>&1 > /dev/null
+    make install 2>&1 > /dev/null
 
   log "Install PCMANFM locale (静态 LOCALEDIR=$TARGETPATH/share/locale；po/ 各 .po 由 msgfmt 转 .mo——make 默认只产 .o，po 未生成 .mo，手装才带中文)..."
     if [ -d $SRCROOT/pcmanfm/po ]; then
       for p in $SRCROOT/pcmanfm/po/*.po; do
         lang=$(basename "$p" .po)
-        mkdir -p ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES
-        msgfmt "$p" -o ${XX_SYSROOT:-}$TARGETPATH/share/locale/$lang/LC_MESSAGES/pcmanfm.mo 2>/dev/null \
+        mkdir -p $TARGETPATH/share/locale/$lang/LC_MESSAGES
+        msgfmt "$p" -o $TARGETPATH/share/locale/$lang/LC_MESSAGES/pcmanfm.mo 2>/dev/null \
           || log "msgfmt warn: $lang"
       done
       log "locales installed: $(ls $SRCROOT/pcmanfm/po/*.po | wc -l) langs"
     fi
 
   # view
-  ls -lh ${XX_SYSROOT:-}$TARGETPATH/bin/pcmanfm
+  ls -lh $TARGETPATH/bin/pcmanfm
   # FIX: 产包需含UI(问题1+2): make install已装到TARGETPATH/share/pcmanfm/ui; 打包时须整体拷贝TARGETPATH(含share)
-  ls ${XX_SYSROOT:-}$TARGETPATH/share/pcmanfm/ui/
-  xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/pcmanfm #$SRCROOT/pcmanfm/src/pcmanfm
+  ls $TARGETPATH/share/pcmanfm/ui/
+  xx-verify --static $TARGETPATH/bin/pcmanfm #$SRCROOT/pcmanfm/src/pcmanfm
 }
 
 function apkdeps(){
