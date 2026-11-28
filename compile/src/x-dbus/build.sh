@@ -235,7 +235,8 @@ function dbus_glib(){
     # 头文件装到 $(includedir)/dbus-1.0/dbus/（= libdbus_glibdir，与 dbus 自身头同目录），
     #   dbus-glib.h 内部 #include <dbus/dbus-gtype-specialized.h> 等用 <dbus/...> 形式，pc Cflags
     #   -I${includedir}/dbus-1.0 即可解析；消费者 #include <dbus/dbus-glib.h>。
-    mkdir -p ${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig ${XX_SYSROOT:-}$TARGETPATH/include/dbus-1.0/dbus ${XX_SYSROOT:-}$TARGETPATH/bin
+    # 2026-11-28(问题③, 用户拍板A): 交叉下库/.pc/头装 sysroot(下游交叉 link), bin 工具装最终 $TARGETPATH(否则 dbus-glib 空)。
+    mkdir -p ${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig ${XX_SYSROOT:-}$TARGETPATH/include/dbus-1.0/dbus $TARGETPATH/bin
     cp dbus/.libs/libdbus-glib-1.a ${XX_SYSROOT:-}$TARGETPATH/lib/
     cp dbus-glib-1.pc ${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig/ 2>/dev/null || cp dbus/dbus-glib-1.pc ${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig/ 2>/dev/null || true
     # 上游 pc Requires 漏 gio-2.0（configure 却检测 gio>=2.40），libdbus-glib-1.a 引用 g_dbus_is_member_name
@@ -243,8 +244,8 @@ function dbus_glib(){
     sed -i "s/^Requires: .*/& gio-2.0/" ${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig/dbus-glib-1.pc 2>/dev/null || true
     cp dbus/*.h ${XX_SYSROOT:-}$TARGETPATH/include/dbus-1.0/dbus/ 2>/dev/null || true
     # dbus-glib-tool / dbus-binding-tool（构建时生成，供下游 glib 绑定 + 运行调试）
-    [ -f dbus/dbus-glib-tool ] && cp dbus/dbus-glib-tool ${XX_SYSROOT:-}$TARGETPATH/bin/ 2>/dev/null || true
-    [ -f dbus/dbus-binding-tool ] && cp dbus/dbus-binding-tool ${XX_SYSROOT:-}$TARGETPATH/bin/ 2>/dev/null || true
+    [ -f dbus/dbus-glib-tool ] && cp dbus/dbus-glib-tool $TARGETPATH/bin/ 2>/dev/null || true
+    [ -f dbus/dbus-binding-tool ] && cp dbus/dbus-binding-tool $TARGETPATH/bin/ 2>/dev/null || true
 
   log "Verify dbus-glib..."
     nm ${XX_SYSROOT:-}$TARGETPATH/lib/libdbus-glib-1.a 2>/dev/null | grep -q "T dbus_g_bus_get" && echo "nm: dbus_g_bus_get OK"
@@ -301,31 +302,44 @@ function dbus_1_16_4(){
     ninja -C build bus/dbus-daemon tools/dbus-send tools/dbus-launch dbus/libdbus-1.a >$OTHLOG/dbus164-ninja.log 2>&1 \
       || { log "dbus 1.16.4 ninja FAILED"; tail -30 $OTHLOG/dbus164-ninja.log; exit 1; }
 
-  log "Install dbus 1.16.4 (ninja install, ${XX_SYSROOT:-native}...)"
-    env ${XX_DESTDIR:-} ninja -C build install >$OTHLOG/dbus164-inst.log 2>&1 \
+  log "Install dbus 1.16.4 (ninja install, 最终 $TARGETPATH...)"
+    # 2026-11-28(问题③, 用户拍板A): 交叉下 ninja install 不带 DESTDIR→工具+数据装最终 $TARGETPATH
+    #   (否则落 sysroot 路径→最终镜像 /usr/local/static/dbus 空)。仅 .a/.pc/头装 sysroot(下方)。
+    ninja -C build install >$OTHLOG/dbus164-inst.log 2>&1 \
       || { log "dbus 1.16.4 install FAILED"; tail -20 $OTHLOG/dbus164-inst.log; exit 1; }
 
   log "Patch dbus-1.pc Libs.private (expat/pthread/dl/m)..."
-    PC=${XX_SYSROOT:-}$TARGETPATH/lib/pkgconfig/dbus-1.pc
+    PC=$TARGETPATH/lib/pkgconfig/dbus-1.pc
     if [ -f "$PC" ]; then
       sed -i "s/^Libs: .*/& -lexpat -lpthread -ldl -lm/" "$PC"
       sed -i "s/^Libs.private:.*/Libs.private: -lexpat -lpthread -ldl -lm/" "$PC"
     fi
 
+  # 仅 .a/.pc/头装 sysroot(下游 xfce/ibus 交叉 link 用; native XX_SYSROOT 空则跳过)。
+  if [ -n "$XX_SYSROOT" ]; then
+    mkdir -p $XX_SYSROOT$TARGETPATH/lib $XX_SYSROOT$TARGETPATH/lib/pkgconfig \
+      $XX_SYSROOT$TARGETPATH/include $XX_SYSROOT$TARGETPATH/lib/dbus-1.0/include
+    cp -a $TARGETPATH/lib/libdbus-1.a $XX_SYSROOT$TARGETPATH/lib/ 2>/dev/null || true
+    cp -a $TARGETPATH/lib/pkgconfig/dbus-1.pc $XX_SYSROOT$TARGETPATH/lib/pkgconfig/ 2>/dev/null || true
+    cp -a $TARGETPATH/include/dbus-1.0 $XX_SYSROOT$TARGETPATH/include/ 2>/dev/null || true
+    cp -a $TARGETPATH/lib/dbus-1.0/include/dbus-arch-deps.h $XX_SYSROOT$TARGETPATH/lib/dbus-1.0/include/ 2>/dev/null || true
+    log "dbus 库/头已装 sysroot ($XX_SYSROOT$TARGETPATH/lib)"
+  fi
+
   log "Verify dbus 1.16.4..."
-    file ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-daemon | grep -q "statically linked" || { log "dbus-daemon not static"; exit 1; }
-    xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-daemon || { log "dbus-daemon xx-verify FAILED"; exit 1; }
+    file $TARGETPATH/bin/dbus-daemon | grep -q "statically linked" || { log "dbus-daemon not static"; exit 1; }
+    xx-verify --static $TARGETPATH/bin/dbus-daemon || { log "dbus-daemon xx-verify FAILED"; exit 1; }
     # 交叉: target 二进制不能在 build 宿主跑（无 qemu-user）→ 跳过 run 测试（file/xx-verify 已证静态+arch）
     if [ -z "$XX_CROSS_FILE" ]; then
-      ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-daemon --version >/dev/null 2>&1 || { log "dbus-daemon run FAILED"; exit 1; }
+      $TARGETPATH/bin/dbus-daemon --version >/dev/null 2>&1 || { log "dbus-daemon run FAILED"; exit 1; }
     else
       log "dbus-daemon run SKIP (cross)"
     fi
-    xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-send 2>/dev/null && echo "dbus-send static OK" || echo "!! dbus-send not static"
-    xx-verify --static ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-launch 2>/dev/null && echo "dbus-launch static OK" || echo "!! dbus-launch not static"
-    nm ${XX_SYSROOT:-}$TARGETPATH/lib/libdbus-1.a 2>/dev/null | grep -q "T dbus_bus_get" && echo "nm: dbus_bus_get OK"
-    strings ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-daemon | grep -q "1.16.4" && echo "strings: version 1.16.4 OK"
-    ls -lh ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-daemon ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-send ${XX_SYSROOT:-}$TARGETPATH/bin/dbus-launch ${XX_SYSROOT:-}$TARGETPATH/lib/libdbus-1.a
+    xx-verify --static $TARGETPATH/bin/dbus-send 2>/dev/null && echo "dbus-send static OK" || echo "!! dbus-send not static"
+    xx-verify --static $TARGETPATH/bin/dbus-launch 2>/dev/null && echo "dbus-launch static OK" || echo "!! dbus-launch not static"
+    nm $TARGETPATH/lib/libdbus-1.a 2>/dev/null | grep -q "T dbus_bus_get" && echo "nm: dbus_bus_get OK"
+    strings $TARGETPATH/bin/dbus-daemon | grep -q "1.16.4" && echo "strings: version 1.16.4 OK"
+    ls -lh $TARGETPATH/bin/dbus-daemon $TARGETPATH/bin/dbus-send $TARGETPATH/bin/dbus-launch $TARGETPATH/lib/libdbus-1.a
 }
 
 # 旧方法别名（1.12.26 Autotools，保留可调；默认入口走 dbus_1_16_4）
