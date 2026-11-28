@@ -27,7 +27,9 @@ feh_cross(){
 function feh(){
   # ./wallpaper.h:31:10: fatal error: 'X11/Intrinsic.h' file not found
   # 公共库(curl-static)已由 u-gtk 统一装(1.4.1); 保留单次 libxt/curl-dev
-  apk add libxt-dev curl-dev
+  # 2026-11-28: apk->xx-apk——交叉下 libxt-dev 必须装 sysroot(xx-clang 走 sysroot include),
+  #   否则 X11/Intrinsic.h 仍找不到; native 回退宿主零影响。
+  xx-apk add libxt-dev curl-dev
   feh_cross
 
   log "Downloading FEH..."
