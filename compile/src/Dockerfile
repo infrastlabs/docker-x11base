@@ -591,32 +591,18 @@ FROM ${REPO}infrastlabs/x11-base:${COMPILE_IMG} AS ff
 # FROM alpine:3.15
 # FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.15 #not-exist
 FROM registry.cn-shenzhen.aliyuncs.com/infrasync/v2025:library--alpine---3.13.12
-COPY --from=ff /rootfs /rootfs
+ENV STATIC=/usr/local/static
+WORKDIR ${STATIC}
 RUN export domain="mirrors.ustc.edu.cn"; \
   echo "http://$domain/alpine/v3.15/main" > /etc/apk/repositories; \
   echo "http://$domain/alpine/v3.15/community" >> /etc/apk/repositories; 
   # arm64: 无upx包..>> TODO static-upx
   # \
   # apk update; apk add upx; upx -V
-ENV STATIC=/usr/local/static
-WORKDIR ${STATIC}
 
 # Add files.
 # COPY --link --from=tigervnc /tmp/tigervnc-install/usr/bin/Xvnc /rootfs/usr/bin/
-# COPY --link --from=tigervnc /tmp/tigervnc-install/usr/bin/vncpasswd /rootfs/usr/bin/
-# COPY --link --from=tigervnc /tmp/xkb-install/usr/share/X11/xkb /rootfs/usr/share/X11/xkb
-# COPY --link --from=tigervnc /tmp/xkbcomp-install/usr/bin/xkbcomp /rootfs/usr/bin/
-# COPY --link --from=xdpyprobe /tmp/xdpyprobe/xdpyprobe /rootfs/usr/bin/
-# 
-# COPY --link --from=fontconfig /tmp/fontconfig-install/opt /opt
-# COPY --link --from=openbox /tmp/openbox-install/usr/bin/openbox /rootfs/usr/bin/
-# COPY --link --from=openbox /tmp/openbox-install/usr/bin/obxprop /rootfs/usr/bin/
-# COPY --link --from=yad /tmp/yad-install/usr/bin/yad /rootfs/usr/bin/
-# 
-# COPY --link --from=nginx /tmp/nginx-install /rootfs/usr/
-# COPY --link --from=dhparam /tmp/dhparam.pem /defaults/
-# COPY --link --from=noVNC /opt/noVNC /opt/noVNC
-
+# COPY --from=ff /rootfs /rootfs
 
 # view01
 # find |while read one; do md5sum..; echo "$md5|$one" > list-$rq-f.txt; done
@@ -625,7 +611,8 @@ RUN \
   # rm -rf /rootfs${STATIC}/misc; \
   \
   find /rootfs${STATIC} -type f |sort |wc; \
-  du -sh /rootfs${STATIC}/*
+  du -sh /rootfs${STATIC}/*; \
+  exit 0;
 
 # CARE!! dirty clear;
 # RUN rm -rf /rootfs${STATIC}/tigervnc
