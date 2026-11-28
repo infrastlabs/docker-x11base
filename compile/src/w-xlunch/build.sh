@@ -94,8 +94,12 @@ function imlib2(){
   log "Building builtin loaders (png+svg)..."
   cp -f "$SCRIPT_DIR/loader_svg.c" \
      $SRCROOT/imlib2/src/modules/loaders/loader_svg.c
-  python3 - <<'PYEOF'
-p = "$SRCROOT/imlib2/src/lib/loaders.c"
+  # 2026-11-28: heredoc 'PYEOF' 单引号阻止 shell 展开 $SRCROOT（11-25 改 /tmp→$SRCROOT 时引入，
+  #   补丁拿到字面 "$SRCROOT" 路径→open 失败→loaders.c 静默未补→运行 "No Imlib2 loader"）。
+  #   改经环境变量传路径，Python 内 os.environ 读取（保 heredoc 单引号不展开、更稳）。
+  SRCROOT="$SRCROOT" python3 - <<'PYEOF'
+import os
+p = os.environ['SRCROOT'] + "/imlib2/src/lib/loaders.c"
 s = open(p).read()
 if "png_loader" in s:
     print("loaders.c already patched")
@@ -172,6 +176,13 @@ PYEOF
     $SRCROOT/builtin/loaders.o $SRCROOT/builtin/png.o $SRCROOT/builtin/svg.o $SRCROOT/builtin/jpeg.o \
     $SRCROOT/builtin/ldrs_util.o $SRCROOT/builtin/exif.o
   ranlib $SRCROOT/builtin/libImlib2.a
+  # 2026-11-28: 注入校验兜底——loaders.c 补丁生效则 loaders.o 引用 png/svg/jpeg_loader（U 符号）；
+  #   补丁失效（如 heredoc 变量未展开）则无引用→内置 loader 不链入→运行 "No Imlib2 loader"。
+  #   oneBuild 会吞错，靠这里显式判失败（对 1.7.4 的 nm load2 校验等价）。
+  for sym in png_loader svg_loader jpeg_loader; do
+    nm $SRCROOT/builtin/libImlib2.a 2>/dev/null | grep -q "U $sym" || {
+      log "!! builtin loader '$sym' not referenced (loaders.c patch failed?)"; exit 1; }
+  done
   # 2026-11-15: 注入版再覆盖 /usr/local/lib——base 烘焙后 5 个 w-xxx 裸 -lImlib2 即取注入库
   #   （本容器内 imlib2 链接者仅 w-xxx，无"其他链接者"；与二章 1.5-2"覆盖系统库"方案一致，
   #   免去逐 app 改 -L$SRCROOT/builtin 与 -L 顺序坑）。
