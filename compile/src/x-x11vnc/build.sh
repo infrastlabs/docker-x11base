@@ -132,7 +132,9 @@ function libxtst(){
   make install $XX_DESTDIR
   # view
   find $SRCROOT/libxtst |egrep "\.a$"
-  find /usr |egrep "libXtst\.a$"
+  # 2026-11-28: 交叉下 .a 装 sysroot 非宿主 /usr——find 交叉感知($XX_SYSROOT), 否则 egrep 空返 rc=1
+  #   -> libxtst() 假失败 -> b_deps 判败 -> x11vnc 被跳过(无 x11vnc.log)。native 零影响。
+  find ${XX_SYSROOT:-}/usr |egrep "libXtst\.a$"
 }
 #   sysroot 内的 ARM 静态库, 这里只补 apk 有包的部分; libvncserver.a 无 apk 静态包 → 见下 test。
 x11vnc_cross(){
